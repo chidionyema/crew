@@ -71,11 +71,18 @@ class Board:
         return sum(1 for c in self.checkpoints if c.done)
 
 
+# Only the crew's own five headings end a section. Any other `## ...` line is
+# ordinary prose and stays where it was written. Splitting on every `## ` meant
+# a brief containing a markdown heading lost everything after it on the next
+# write, because the crew rewrites the whole issue body on every command.
+KNOWN_HEADINGS = frozenset({H_ORIGIN, H_CHECKLIST, H_LOG, H_BLOCKERS, H_THREAD})
+
+
 def _split_sections(body: str) -> dict[str, list[str]]:
     sections: dict[str, list[str]] = {"": []}
     current = ""
     for line in body.splitlines():
-        if line.startswith("## "):
+        if line.strip() in KNOWN_HEADINGS:
             current = line.strip()
             sections.setdefault(current, [])
         else:

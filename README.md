@@ -82,6 +82,32 @@ pr-evidence check --pr 4     # exits 1 when the pull request carries nothing
 part of this repo. A clone on another machine needs it on `PATH` before the
 `check` gate can run. This repo carries the evidence, not the camera.
 
+## Verify a checkout
+
+```bash
+scripts/verify.sh                                   # every check
+scripts/verify.sh 40 50                             # only these
+scripts/verify.sh --log run.log                     # tee it, ready for a screenshot
+CREW_PR=4 CREW_ISSUE_REPO=owner/name CREW_ISSUE=1 scripts/verify.sh
+```
+
+Each check in `scripts/verify.d/` prints the commands it runs and their raw
+output, then exits 0 for PASS, 1 for FAIL, 2 for CANNOT RUN. The harness counts
+those exit codes and prints the total. Nothing states a result in prose, so the
+count cannot drift from what the commands did.
+
+CANNOT RUN is a third state on purpose. A check that needs `gh` auth, a pull
+request number or a laws file this machine does not have reports that it did not
+run, rather than passing quietly. Only a FAIL makes the harness exit 1.
+
+To reuse the harness in another repo, copy `scripts/verify.sh` and write your own
+`verify.d/`. The harness knows nothing about crew.
+
+`35-evidence-gate-refuses.sh` is a negative control: it strips the evidence off a
+real pull request, proves `pr-evidence check` refuses it, and restores the body
+from a trap. It edits a live pull request, so it only runs with
+`VERIFY_ALLOW_MUTATION=1`.
+
 ## Roles and agents
 
 `roles/` holds the three role definitions in plain markdown, which is what a

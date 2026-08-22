@@ -83,3 +83,20 @@ def test_find_feature_needs_the_tag(tmp_path: Path):
     (tmp_path / "a.feature").write_text("@cp2\nFeature: b\n")
     assert bdd.find_feature(tmp_path, "@cp2") is not None
     assert bdd.find_feature(tmp_path, "@cp1") is None
+
+
+def test_incident_markdown_heading_in_origin_is_not_a_section_break():
+    """Found 2026-08-22 by the round-trip property, on the origin "## 0".
+
+    The parser started a new section on any line beginning "## ", so a brief
+    containing a markdown heading lost that heading and everything under it the
+    next time any crew command rewrote the issue body. Silent data loss in the
+    one place the crew keeps its shared state.
+    """
+    from crew import board as B
+
+    brief = "The shop must survive a fire.\n\n## Background\n\nOne box, one region."
+    b = B.Board(origin=brief, checkpoints=[B.Checkpoint(id="CP1", title="it serves", done=False)])
+    got = B.parse(B.render(b))
+    assert got.origin == brief
+    assert got.checkpoints == b.checkpoints

@@ -27,9 +27,18 @@ rows = st.lists(
     min_size=0, max_size=6,
 ).map(lambda ts: [B.Row(cp=f"CP{n}", result=r, evidence=e, when=w) for n, r, e, w in ts])
 
+# The crew owns its five section headings the same way it owns the pipe in a
+# table row. A brief whose own text is the line "## Checklist" is not a value
+# the board can hold, and no other heading is excluded.
+def _no_heading_collision(s: str) -> bool:
+    return not any(line.strip() in B.KNOWN_HEADINGS for line in s.splitlines())
+
+
 boards = st.builds(
     B.Board,
-    origin=st.text(alphabet=st.characters(blacklist_categories=("Cs", "Cc")), max_size=80).map(str.strip),
+    origin=st.text(alphabet=st.characters(blacklist_categories=("Cs", "Cc")), max_size=80)
+    .map(str.strip)
+    .filter(_no_heading_collision),
     checkpoints=checkpoints,
     rows=rows,
     blockers=st.lists(text, max_size=4, unique=True),

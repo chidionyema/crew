@@ -100,3 +100,28 @@ def test_incident_markdown_heading_in_origin_is_not_a_section_break():
     got = B.parse(B.render(b))
     assert got.origin == brief
     assert got.checkpoints == b.checkpoints
+
+
+def test_incident_doctor_does_not_name_a_config_file_that_is_absent(tmp_path, monkeypatch):
+    """Found 2026-08-22. `crew doctor` printed
+
+        PASS  config for chidionyema/crew  /Users/.../crew/.crew.json
+
+    in a repo with no .crew.json. `config.load` falls back to the git remote,
+    which is correct, but doctor reported the fallback as a file on disk. A
+    green line naming a path that is not there is the false-green class.
+    """
+    import subprocess, sys, os
+    repo = tmp_path / "r"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "remote", "add", "origin",
+                    "git@github.com:someone/thing.git"], cwd=repo, check=True)
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = subprocess.run([sys.executable, "-m", "crew.cli", "doctor"],
+                         cwd=repo, capture_output=True, text=True,
+                         env={**os.environ, "PYTHONPATH": root})
+    line = next((l for l in (out.stdout + out.stderr).splitlines() if "config for" in l), "")
+    assert line, f"doctor printed no config line:\n{out.stdout}{out.stderr}"
+    assert ".crew.json" not in line.split("config for")[-1].split("  ", 1)[-1] or "no .crew.json" in line, \
+        f"doctor named a config file that is not on disk: {line}"

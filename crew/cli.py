@@ -394,7 +394,16 @@ def cmd_doctor(a) -> int:
 
     try:
         cfg = C.load()
-        checks.append((f"config for {cfg.repo}", True, str(cfg.root / C.CONFIG_NAME)))
+        # Naming a path is a claim that the path is there. `load` falls back to
+        # the git remote when there is no config file, so doctor printed PASS
+        # beside a filename that did not exist. Say which one was used.
+        f = cfg.root / C.CONFIG_NAME
+        if f.exists():
+            checks.append((f"config for {cfg.repo}", True, str(f)))
+        else:
+            checks.append((f"config for {cfg.repo}", True,
+                           f"no {C.CONFIG_NAME} — repo read from the git remote. "
+                           f"`crew init` commits it, so every agent agrees."))
     except CrewError as e:
         checks.append(("config", False, str(e)))
         cfg = None

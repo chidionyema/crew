@@ -18,7 +18,7 @@ this file.
 
 ```
 PRIMARY:   hermes-v2 on Fly, app prospector-hermes
-STANDBY:   hermes-v2 on this Mac, ~/code/hermes-v2, launchd-ready, fence ON
+STANDBY:   hermes-v2 on this Mac, ~/dev/code/hermes-v2, launchd-ready, fence ON
 RETIRED:   the old estate, ~/.hermes, v0.16.0
 ```
 
@@ -48,31 +48,37 @@ findings — nobody has yet read what that image actually runs.
 
 ## Where projects live (canonical)
 
-One root: **`~/dev/code`**. Every project this company works on is a directory
-directly under it. Nothing active lives anywhere else.
+One root: **`~/dev/code`**. Everything active is a directory directly under it.
 
 ```
 ~/dev/code/crew            the coordination protocol
 ~/dev/code/survival-stack  the cheap-provider migration
-~/dev/code/prospector      the engine
-~/dev/code/hermes-v2       the gateway   <- NOT THERE YET, see the ticket
+~/dev/code/hermes-v2       the gateway
 ```
 
-Why this root and not the others:
+- **`~/dev/code` is the root.** Nothing new goes anywhere else.
+- **`~/Documents/code` is legacy.** About twenty repos sit there, `prospector`
+  among them. They stay until someone touches one, and then it moves.
+- **`~/code` is dead.** Seven CVs, a stray `node_modules`, `ollama` and a dozen
+  retired OSL repos. Nothing active is left in it.
 
-- `~/Documents/code` is barred. macOS TCC blocks agent access to `~/Documents`,
-  so a checkout there is unreachable to every tool on this machine. That is what
-  drove hermes-v2 out of it.
-- `~/code` is a junk drawer, not a workspace. It holds seven versions of his CV,
-  a top-level `node_modules`, `ollama`, and a dozen retired OSL repos. A project
-  in there is a project nobody finds.
-- `~/dev/code` already holds crew, survival-stack and the rest. It is where the
-  estate actually is, so it is the standard by weight of what is already true.
+Founder, 2026-08-22: "Canonical root is `~/dev/code/`. Nothing new goes anywhere
+else. If you find a repo in `~/Documents/code/` or `~/code/`, move it to
+`~/dev/code/` when you touch it."
 
-hermes-v2 is the only active project outside it. Moving it is not a `mv`: launchd
-plists, the fence, `gateway.lock` and another session's working directory all
-carry the old path. It moves under a ticket, with the paths changed in the same
-change.
+**On TCC, corrected.** An earlier version of this block said macOS TCC blocks
+agent access to `~/Documents`. That is wrong, and it was written without running
+the command. Measured 2026-08-22: `ls ~/Documents/code/prospector` and
+`git -C ~/Documents/code/prospector log` both succeed from this session. What TCC
+actually blocks is a **launchd** job reaching `~/Documents` without Full Disk
+Access, which is why the gateway had to leave it — not an agent reading a repo.
+
+**Moving a checkout is not a `mv`.** Doing it to hermes-v2 broke four of its
+fifteen checks, because a Python venv bakes the absolute interpreter path into
+every console script it installs. `./bin/hermes` died with `required file not
+found`, which reads as a missing binary and is really a stale shebang. The fix is
+one command: `.venv/bin/python -m pip install -e <pkg> --no-deps`. Check the
+launchd plists and the venv before, and run the project's own verify after.
 
 ## Entries
 
@@ -138,3 +144,13 @@ project where it landed, and `~/code` (a junk drawer of CVs and retired repos).
 moves under its own ticket, because launchd, the fence and `gateway.lock` all
 carry the old path.
 → *One root. A project nobody can find is a project nobody maintains.*
+
+**11. 2026-08-22 | hermes-v2 moved to the canonical root**
+Moved `~/code/hermes-v2` to `~/dev/code/hermes-v2`, repointed the nine paths in
+`ai.hermes.gateway.plist`, dropped a stale `gateway.lock` naming dead pid 32987,
+and reinstalled the package so the venv console scripts got correct shebangs.
+Checked first that nothing was running out of it: no process, no open files, the
+gateway plist not loaded, `.clean_shutdown` present. Rejected: the bare `mv`,
+which left the agent unable to start.
+→ *A checkout move is a change to every absolute path that names it. Find them
+before, prove the project's own verify after.* (LAW 4)

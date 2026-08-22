@@ -50,6 +50,13 @@ and `~/AGENTS.md` are. This is the default when the law is silent.
 - "It cannot be done" is banned. "It cannot be done with X, here is Y that
   works" is required.
 
+## Context management
+
+- Every active issue is a frame on a stack. The agent knows which frame it is in.
+- Switching frames requires a checkpoint save on the old frame.
+- Returning to a frame requires reading the checkpoint, not asking the founder.
+- He never repeats context. The agent reads the log.
+
 ## Defaults
 
 - Python for tools, bash for glue.

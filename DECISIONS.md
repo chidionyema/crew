@@ -11,6 +11,69 @@ is what was actually decided, and when.
 
 `DATE | CONTEXT | WHAT I DID | WHY | WHAT I REJECTED | RULE EXTRACTED`
 
+## Hermes Architecture (canonical)
+
+The map every agent reads before touching Hermes. `grep -A20 "Hermes Architecture"`
+this file.
+
+```
+PRIMARY:   hermes-v2 on Fly, app prospector-hermes
+STANDBY:   hermes-v2 on this Mac, ~/code/hermes-v2, launchd-ready, fence ON
+RETIRED:   the old estate, ~/.hermes, v0.16.0
+```
+
+Migration path: hermes-v2 is the test candidate for survival-stack Phase 2. When
+survival-stack is proven on a spare domain, hermes-v2 moves off Fly to the
+cheaper provider. Every other store adapts to the hermes-v2 API before that move,
+not during it.
+
+Source of truth is the crew issue board. No agent touches Hermes without a
+ticket. LAW 26.
+
+**State as measured 2026-08-22 09:55 UTC, which is not yet the target.** The
+PRIMARY line above is where this is going. What is actually running:
+
+| fact | command | what came back |
+|---|---|---|
+| `prospector-hermes` is deployed | `fly releases -a prospector-hermes` | v12, 11h ago |
+| it serves no HTTP on the usual paths | `curl -o /dev/null -w '%{http_code}' https://prospector-hermes.fly.dev/health` | `000` |
+| its `HERMES_HOME` is a Mac path | `fly config show -a prospector-hermes` | `"HERMES_HOME": "/Users/chidionyema/.hermes"` |
+| neither checkout can deploy | `ls ~/code/hermes-v2/fly.toml ~/code/hermes-v2/Dockerfile` | neither exists |
+| the standby is real | `git -C ~/code/hermes-v2 log --oneline -1` | `6a64105 evidence: CI green on a public runner` |
+
+So `prospector-hermes` is deployed from something that is not either checkout on
+this machine, and it carries a container env pointing at a macOS path that cannot
+exist inside a Linux container. Both are open questions on the ticket, not
+findings — nobody has yet read what that image actually runs.
+
+## Where projects live (canonical)
+
+One root: **`~/dev/code`**. Every project this company works on is a directory
+directly under it. Nothing active lives anywhere else.
+
+```
+~/dev/code/crew            the coordination protocol
+~/dev/code/survival-stack  the cheap-provider migration
+~/dev/code/prospector      the engine
+~/dev/code/hermes-v2       the gateway   <- NOT THERE YET, see the ticket
+```
+
+Why this root and not the others:
+
+- `~/Documents/code` is barred. macOS TCC blocks agent access to `~/Documents`,
+  so a checkout there is unreachable to every tool on this machine. That is what
+  drove hermes-v2 out of it.
+- `~/code` is a junk drawer, not a workspace. It holds seven versions of his CV,
+  a top-level `node_modules`, `ollama`, and a dozen retired OSL repos. A project
+  in there is a project nobody finds.
+- `~/dev/code` already holds crew, survival-stack and the rest. It is where the
+  estate actually is, so it is the standard by weight of what is already true.
+
+hermes-v2 is the only active project outside it. Moving it is not a `mv`: launchd
+plists, the fence, `gateway.lock` and another session's working directory all
+carry the old path. It moves under a ticket, with the paths changed in the same
+change.
+
 ## Entries
 
 **1. 2026-08-22 | crew loop wiring**
@@ -60,3 +123,18 @@ Called it from `features/environment.py` and `scripts/dry-run.sh`. Rejected: a
 docker-level lock, and a lock file per test.
 → *A guard nothing calls is not a guard. Wire it at the entry point.* (LAW 3,
 LAW 23)
+
+**9. 2026-08-22 | Hermes has two homes and no record of which is canonical**
+Wrote the architecture down in this file rather than leaving it in one session's
+context. Agents were acting on Hermes from different pictures of it. Rejected: a
+note in a handoff, and telling each agent separately.
+→ *An architecture nobody wrote down is a different architecture per agent.*
+(LAW 26)
+
+**10. 2026-08-22 | project locations**
+Made `~/dev/code` the one root for every active project. Rejected: leaving each
+project where it landed, and `~/code` (a junk drawer of CVs and retired repos).
+`~/Documents/code` was already barred by TCC. hermes-v2 is the one outlier and
+moves under its own ticket, because launchd, the fence and `gateway.lock` all
+carry the old path.
+→ *One root. A project nobody can find is a project nobody maintains.*

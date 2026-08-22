@@ -1,0 +1,92 @@
+# Wire C: qa runs where engineering cannot reach it.
+#
+# A gate on the builder's own machine is a gate the builder can edit. This one
+# runs on GitHub's runner, checks out the branch, and does the two things the
+# founder's laws turn on: it proves the pull request carries a committed
+# screenshot, and it runs each checkpoint's suite itself before ticking a box.
+#
+# CREW_ROLE is qa-agent for the whole job. `crew verify` refuses when the caller
+# is the role that posted the evidence, so this must not be engineering — and on
+# a runner engineering does not control, it cannot be.
+name: crew qa
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      checkpoints:
+        description: "Checkpoints to verify, e.g. CP2 CP3. Empty verifies nothing."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+env:
+  CREW_ROLE: qa-agent
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The evidence image is a commit on this branch, so a shallow checkout
+          # would hide the thing the gate is here to find.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: |
+          python -m pip install -q -r requirements-dev.txt
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$PWD/bin/crew" "$HOME/.local/bin/crew"
+          ln -sf "$PWD/scripts/pr-evidence.py" "$HOME/.local/bin/pr-evidence"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: The suite
+        run: python -m pytest -q
+
+      - name: The verify harness
+        env:
+          CREW_ROOT: ${{ github.workspace }}
+        run: scripts/verify.sh
+
+      # LAW 22. Enforced by the tool that counts committed images, not by
+      # grepping for a filename. On workflow_dispatch there is no pull request,
+      # so the check is skipped rather than faked.
+      - name: Evidence on the pull request
+        if: github.event_name == 'pull_request'
+        run: pr-evidence check --pr ${{ github.event.pull_request.number }}
+
+      # A checkpoint is ticked here or nowhere. The list comes from a line in
+      # the pull request body — "Verifies: CP2 CP3" — so the author says what
+      # this change claims and the runner proves it. No line, nothing ticked:
+      # silence never ticks a box.
+      - name: Verify the checkpoints this change claims
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          DISPATCHED: ${{ github.event.inputs.checkpoints }}
+        run: |
+          set -euo pipefail
+          cps=$(printf '%s\n' "${DISPATCHED:-}" "${BODY:-}" \
+                | grep -oiE '(^|Verifies:[^A-Za-z0-9]*)(CP[0-9]+([ ,]+CP[0-9]+)*)' \
+                | grep -oiE 'CP[0-9]+' | tr 'a-z' 'A-Z' | sort -u | tr '\n' ' ')
+          if [ -z "$cps" ]; then
+            echo "No 'Verifies: CPn' line on this pull request. Nothing to tick."
+            echo "Add one to the body when a change completes a checkpoint."
+            exit 0
+          fi
+          echo "This change claims: $cps"
+          for cp in $cps; do
+            echo "::group::crew verify $cp"
+            crew verify "$cp"
+            echo "::endgroup::"
+          done

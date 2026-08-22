@@ -4,6 +4,13 @@
 
 Closes #
 
+<!-- One line, only when this change completes a checkpoint. The crew qa
+     workflow reads it and runs `crew verify` for each box named. Delete it
+     otherwise: no line means nothing is ticked, which is the safe way to be
+     wrong. Engineering writes the line; the runner does the ticking. -->
+
+Verifies: #<issue> CP<n> CP<n>
+
 ## Evidence — LAW 22
 
 - [ ] A screenshot of the green run is committed in this branch under `docs/evidence/pr-<n>/`

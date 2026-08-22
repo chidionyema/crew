@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       checkpoints:
-        description: "Checkpoints to verify, e.g. CP2 CP3. Empty verifies nothing."
+        description: "Issue and checkpoints, e.g. '#2 CP2 CP3'. Empty verifies nothing."
         required: false
         default: ""
 
@@ -43,16 +43,22 @@ jobs:
         with:
           python-version: "3.11"
 
+      # The venv is not ceremony here. `.crew.json` names
+      # `.venv/bin/python -m pytest` as the command that decides a checkpoint,
+      # and the runner has to be the same shape as the machine or the gate runs
+      # a different thing from the one the README documents.
       - name: Install
         run: |
-          python -m pip install -q -r requirements-dev.txt
+          python -m venv .venv
+          .venv/bin/python -m pip install -q --upgrade pip
+          .venv/bin/python -m pip install -q -r requirements-dev.txt
           mkdir -p "$HOME/.local/bin"
           ln -sf "$PWD/bin/crew" "$HOME/.local/bin/crew"
           ln -sf "$PWD/scripts/pr-evidence.py" "$HOME/.local/bin/pr-evidence"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: The suite
-        run: python -m pytest -q
+        run: .venv/bin/python -m pytest -q
 
       - name: The verify harness
         env:
@@ -66,27 +72,39 @@ jobs:
         if: github.event_name == 'pull_request'
         run: pr-evidence check --pr ${{ github.event.pull_request.number }}
 
-      # A checkpoint is ticked here or nowhere. The list comes from a line in
-      # the pull request body — "Verifies: CP2 CP3" — so the author says what
-      # this change claims and the runner proves it. No line, nothing ticked:
-      # silence never ticks a box.
+      # A checkpoint is ticked here or nowhere. The list comes from one line in
+      # the pull request body:
+      #
+      #     Verifies: #2 CP2 CP3
+      #
+      # The author says which issue and which boxes this change claims, and the
+      # runner proves it. No line, nothing ticked: silence never ticks a box.
+      # The issue number is on the line because `.crew/` is gitignored, so a
+      # fresh checkout has no active issue and must be told.
       - name: Verify the checkpoints this change claims
         env:
           BODY: ${{ github.event.pull_request.body }}
           DISPATCHED: ${{ github.event.inputs.checkpoints }}
         run: |
           set -euo pipefail
-          cps=$(printf '%s\n' "${DISPATCHED:-}" "${BODY:-}" \
-                | grep -oiE '(^|Verifies:[^A-Za-z0-9]*)(CP[0-9]+([ ,]+CP[0-9]+)*)' \
-                | grep -oiE 'CP[0-9]+' | tr 'a-z' 'A-Z' | sort -u | tr '\n' ' ')
-          if [ -z "$cps" ]; then
-            echo "No 'Verifies: CPn' line on this pull request. Nothing to tick."
+          text=$(printf 'Verifies: %s\n%s\n' "${DISPATCHED:-}" "${BODY:-}")
+          # A line has to carry a CP to count, so the empty dispatch default
+          # cannot match and be taken as the answer.
+          line=$(printf '%s\n' "$text" | grep -iE 'Verifies:.*CP[0-9]' | head -1 || true)
+          if [ -z "$line" ]; then
+            echo "No 'Verifies: #<issue> CPn' line on this pull request. Nothing to tick."
             echo "Add one to the body when a change completes a checkpoint."
             exit 0
           fi
-          echo "This change claims: $cps"
+          issue=$(printf '%s' "$line" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+          cps=$(printf '%s' "$line" | grep -oiE 'CP[0-9]+' | tr 'a-z' 'A-Z' | sort -u | tr '\n' ' ')
+          if [ -z "$issue" ]; then
+            echo "::error::'$line' names no issue. Write it as: Verifies: #2 CP2 CP3"
+            exit 1
+          fi
+          echo "This change claims $cps on issue #$issue"
           for cp in $cps; do
             echo "::group::crew verify $cp"
-            crew verify "$cp"
+            crew verify "$cp" --issue "$issue"
             echo "::endgroup::"
           done

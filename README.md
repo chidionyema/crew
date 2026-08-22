@@ -7,8 +7,8 @@ Three roles. The PM writes the spec and cannot build. Engineering builds and
 cannot tick a box. QA runs the tests and is the only role that can tick one.
 
 Read [`CREW_ORCHESTRATION_SPEC.md`](CREW_ORCHESTRATION_SPEC.md) for the shape and
-[`docs/CLOSING_THE_LOOP.md`](docs/CLOSING_THE_LOOP.md) for what is not built yet.
-This file is how to run it.
+[`docs/CLOSING_THE_LOOP.md`](docs/CLOSING_THE_LOOP.md) for how the three wires
+that run it without a person came to be built. This file is how to run it.
 
 ## Install
 
@@ -59,10 +59,47 @@ any of them.
 | anyone | `crew close` | Closes the issue. Refuses while any box is unticked. |
 | hermes | `crew status --format telegram` | The phone view. Read only. |
 
-Today a person types those commands. Nothing listens to a conversation and opens
-the issue by itself, and nothing claims a checkpoint by itself.
-`docs/CLOSING_THE_LOOP.md` names the three wires that would change that and the
-order they go in.
+A person can type all of those. Three wires also drive them without one, and
+they are described under "The loop with nobody typing" below.
+
+## The loop with nobody typing
+
+Three wires. Each one does exactly one handoff and stops.
+
+**The listener** — `integrations/claude-code/hooks/crew-listener.py`. A Claude
+Code `UserPromptSubmit` hook. It reads what you just typed and decides one
+thing: does this describe work you want built. A question, an acknowledgement,
+a status check or a remark about the crew is vetoed, and vetoes beat matches.
+When it opens, it writes the brief to `.crew/brief-<timestamp>.md` and asks for
+`pm-agent` in the conversation. It does not open the issue itself, on purpose: a
+tool that files issues while nobody is looking fills the queue with noise.
+
+```bash
+echo "we need a retry on the webhook" | integrations/claude-code/hooks/crew-listener.py --dry-run
+```
+
+Wire it by adding the script as a `UserPromptSubmit` hook in
+`~/.claude/settings.json`.
+
+**The engineer** — `integrations/claude-code/crew-engineer.py`. Reads the board,
+takes the next open checkpoint, claims it, runs that checkpoint's suite, posts
+the evidence. It contains the words `crew verify` zero times and a test asserts
+that, because the whole point is that the thing which builds cannot tick.
+
+```bash
+integrations/claude-code/crew-engineer.py --dry-run     # says what it would take
+```
+
+**The QA gate** — `.github/workflows/crew-qa.yml`. Runs on every pull request as
+`qa-agent`, on a runner the engineer does not control. The unit suite,
+`scripts/verify.sh`, then `pr-evidence check` for LAW 22, then one `crew verify`
+for each checkpoint named on a line in the pull request body:
+
+```
+Verifies: #2 CP2 CP3 CP4
+```
+
+No such line, nothing is ticked. That is the safe direction to fail in.
 
 ## Every command, in plain English
 
@@ -137,7 +174,9 @@ spending an issue number.
 binds to loopback only, on purpose: it runs `osascript` with text from the
 request and must never be reachable from a network.
 
-**`pr-evidence`** — the camera for LAW 22. See the pull request section below.
+**`scripts/pr-evidence.py`** — the camera for LAW 22. See the pull request
+section below. `~/.claude/scripts/pr-evidence.py` is a symlink to this file, so
+the estate-wide tool and the copy CI checks out are the same bytes.
 
 **`lab-lease`** — one lab, one holder. It lives in `survival-stack` and the
 installer only puts it on your `PATH`. Two test runs at once destroy each
@@ -188,9 +227,10 @@ pr-evidence attach --pr 4 /tmp/p.png --caption "14 tests green on this branch"
 pr-evidence check --pr 4     # exits 1 when the pull request carries nothing
 ```
 
-`pr-evidence` is an estate-wide tool at `~/.claude/scripts/pr-evidence.py`, not
-part of this repo. A clone on another machine needs it on `PATH` before the
-`check` gate can run. This repo carries the evidence, not the camera.
+The tool lives at `scripts/pr-evidence.py` in this repo, and
+`~/.claude/scripts/pr-evidence.py` is a symlink to it. It is in the repo so a CI
+runner gets it from the checkout instead of needing the estate installed; it is
+on `PATH` so any repo on this machine can call it. One copy either way.
 
 ## Verify a checkout
 
@@ -243,7 +283,10 @@ python3 -m venv .venv
 ```
 
 `hypothesis` is not in the standard library, so the suite does not collect
-without that install. Expect `18 passed`.
+without that install. Expect `40 passed`.
+
+The checkpoint suites are separate and are not in the default run:
+`.venv/bin/python -m pytest -q -m cp2 checkpoints`.
 
 Property tests for the board round trip, incident tests for each way a green tick
 could be a lie. No example tests of orchestration, per the testing policy in

@@ -1,0 +1,110 @@
+# Wire C: qa runs where engineering cannot reach it.
+#
+# A gate on the builder's own machine is a gate the builder can edit. This one
+# runs on GitHub's runner, checks out the branch, and does the two things the
+# founder's laws turn on: it proves the pull request carries a committed
+# screenshot, and it runs each checkpoint's suite itself before ticking a box.
+#
+# CREW_ROLE is qa-agent for the whole job. `crew verify` refuses when the caller
+# is the role that posted the evidence, so this must not be engineering — and on
+# a runner engineering does not control, it cannot be.
+name: crew qa
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      checkpoints:
+        description: "Issue and checkpoints, e.g. '#2 CP2 CP3'. Empty verifies nothing."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+env:
+  CREW_ROLE: qa-agent
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The evidence image is a commit on this branch, so a shallow checkout
+          # would hide the thing the gate is here to find.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The venv is not ceremony here. `.crew.json` names
+      # `.venv/bin/python -m pytest` as the command that decides a checkpoint,
+      # and the runner has to be the same shape as the machine or the gate runs
+      # a different thing from the one the README documents.
+      - name: Install
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install -q --upgrade pip
+          .venv/bin/python -m pip install -q -r requirements-dev.txt
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$PWD/bin/crew" "$HOME/.local/bin/crew"
+          ln -sf "$PWD/scripts/pr-evidence.py" "$HOME/.local/bin/pr-evidence"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: The suite
+        run: .venv/bin/python -m pytest -q
+
+      - name: The verify harness
+        env:
+          CREW_ROOT: ${{ github.workspace }}
+        run: scripts/verify.sh
+
+      # LAW 22. Enforced by the tool that counts committed images, not by
+      # grepping for a filename. On workflow_dispatch there is no pull request,
+      # so the check is skipped rather than faked.
+      - name: Evidence on the pull request
+        if: github.event_name == 'pull_request'
+        run: pr-evidence check --pr ${{ github.event.pull_request.number }}
+
+      # A checkpoint is ticked here or nowhere. The list comes from one line in
+      # the pull request body:
+      #
+      #     Verifies: #2 CP2 CP3
+      #
+      # The author says which issue and which boxes this change claims, and the
+      # runner proves it. No line, nothing ticked: silence never ticks a box.
+      # The issue number is on the line because `.crew/` is gitignored, so a
+      # fresh checkout has no active issue and must be told.
+      - name: Verify the checkpoints this change claims
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          DISPATCHED: ${{ github.event.inputs.checkpoints }}
+        run: |
+          set -euo pipefail
+          text=$(printf 'Verifies: %s\n%s\n' "${DISPATCHED:-}" "${BODY:-}")
+          # A line has to carry a CP to count, so the empty dispatch default
+          # cannot match and be taken as the answer.
+          line=$(printf '%s\n' "$text" | grep -iE 'Verifies:.*CP[0-9]' | head -1 || true)
+          if [ -z "$line" ]; then
+            echo "No 'Verifies: #<issue> CPn' line on this pull request. Nothing to tick."
+            echo "Add one to the body when a change completes a checkpoint."
+            exit 0
+          fi
+          issue=$(printf '%s' "$line" | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)
+          cps=$(printf '%s' "$line" | grep -oiE 'CP[0-9]+' | tr 'a-z' 'A-Z' | sort -u | tr '\n' ' ')
+          if [ -z "$issue" ]; then
+            echo "::error::'$line' names no issue. Write it as: Verifies: #2 CP2 CP3"
+            exit 1
+          fi
+          echo "This change claims $cps on issue #$issue"
+          for cp in $cps; do
+            echo "::group::crew verify $cp"
+            crew verify "$cp" --issue "$issue"
+            echo "::endgroup::"
+          done

@@ -101,3 +101,42 @@ comes before any of the three wires above.
 
 Then A, B, C in that order, each proved by the loop running end to end: a sentence in chat becomes
 an issue, the issue becomes a PR with a screenshot, the gate merges it or refuses it.
+
+---
+
+## 4. What was built, 2026-08-22
+
+All three wires, on branch `the-three-wires`, tracked as CP2, CP3 and CP4 on
+[issue #2](https://github.com/chidionyema/crew/issues/2). The lease went first, as this document
+said it must: `survival-stack` PR #3 wires it into `features/environment.py` and
+`scripts/dry-run.sh`.
+
+**Wire A** — `integrations/claude-code/hooks/crew-listener.py`, a `UserPromptSubmit` hook.
+`decide(text)` returns a verdict and the reason for it. Vetoes run first and all of them win: a
+question, an acknowledgement with no instruction after it, a status check, or talk *about* the
+crew rather than an instruction *to* it. On OPEN it writes `.crew/brief-<ts>.md` and prints one
+line into Claude's context asking for `pm-agent`. It does not open the issue itself. A hook cannot
+spawn a subagent, and a tool that opens issues while nobody is looking is the noise queue this
+document already rejected.
+
+Two things were wrong in the first cut and are worth keeping written down. It read
+"ok get all the rest done" as an acknowledgement, because "ok" matched before anything looked for
+the verb behind it; acknowledgements now only veto when no instruction follows. And the checkpoint
+test asserts only negatives, so `return False` passes it — `tests/test_listener.py` adds 22 unit
+tests over 20 real phrases from this repository's own history, which is the half the contract was
+missing.
+
+**Wire B** — `integrations/claude-code/crew-engineer.py`. It reads the board, takes the next open
+checkpoint, claims it, runs that checkpoint's suite and posts evidence. It contains the string
+`crew verify` zero times, and a test asserts that. The separation is the only reason the tool
+exists, so the agent that builds must not be able to reach the command that ticks.
+
+**Wire C** — `.github/workflows/crew-qa.yml`, running as `CREW_ROLE: qa-agent` on a runner the
+engineering agent does not control. Seven steps: the unit suite, `scripts/verify.sh`,
+`pr-evidence check --pr <n>` for LAW 22, then one `crew verify` per checkpoint named on a
+`Verifies: #2 CP2 CP3` line in the pull request body. No line means nothing is ticked, which is the
+safe direction to fail in.
+
+`scripts/pr-evidence.py` moved into this repository so the runner can reach it from the checkout.
+`~/.claude/scripts/pr-evidence.py` is now a symlink to it. One copy, three paths to it, no second
+implementation to drift.

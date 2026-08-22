@@ -5,7 +5,8 @@ set -uo pipefail
 cd "${CREW_ROOT:?}" || exit 2
 fail=0
 
-for f in FOUNDER.md scripts/crew-triage .github/ISSUE_TEMPLATE/crew_task.md \
+for f in FOUNDER.md DECISIONS.md PREFERENCES.md CORRECTIONS.md \
+         scripts/crew-triage .github/ISSUE_TEMPLATE/crew_task.md \
          .github/pull_request_template.md scripts/install-crew; do
     if [[ -f "$f" ]]; then echo "PASS  $f"; else echo "FAIL  $f is missing"; fail=1; fi
 done

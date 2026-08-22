@@ -187,6 +187,18 @@ other's containers and the failure reads as a real defect.
 **`FOUNDER.md`** — how he works and what he will not sit through. Read it before
 working an issue. `~/AGENTS.md` is the law and outranks it.
 
+**`DECISIONS.md`** — what was decided and why, numbered. Read it before asking
+anything; the answer is usually already a line in it. Cite the entry number when
+you apply it.
+
+**`PREFERENCES.md`** — what he reaches for when nothing forces the choice.
+Python for tools, bash for glue, property tests over example tests, raw output
+over a summary.
+
+**`CORRECTIONS.md`** — every time he had to say something twice. A correction
+here already cost him a turn. One that keeps happening becomes a law or a guard,
+never a note.
+
 **`.github/ISSUE_TEMPLATE/crew_task.md`** and
 **`.github/pull_request_template.md`** — GitHub fills these in for you.
 `ISSUE_TEMPLATE.md` and `PR_TEMPLATE.md` at the root are pointers at those two,

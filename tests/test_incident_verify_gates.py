@@ -125,3 +125,45 @@ def test_incident_doctor_does_not_name_a_config_file_that_is_absent(tmp_path, mo
     assert line, f"doctor printed no config line:\n{out.stdout}{out.stderr}"
     assert ".crew.json" not in line.split("config for")[-1].split("  ", 1)[-1] or "no .crew.json" in line, \
         f"doctor named a config file that is not on disk: {line}"
+
+
+# --- the pytest adapter -------------------------------------------------------
+
+def test_pytest_summary_is_read_the_same_way_as_behave():
+    """crew is not behave-only. A repo already testing with pytest keeps its
+    runner and its checkpoints, instead of writing Gherkin to describe python.
+    """
+    from crew import bdd
+
+    assert bdd.runner_kind(".venv/bin/behave --tags={tag}") == "behave"
+    assert bdd.runner_kind(".venv/bin/python -m pytest -q -m {cp}") == "pytest"
+
+    assert bdd.parse_counts("14 passed in 3.78s") == (14, 0)
+    assert bdd.parse_counts("1 failed, 13 passed in 1.98s") == (13, 1)
+    assert bdd.parse_counts("===== 2 failed, 1 error, 3 passed in 0.4s =====") == (3, 3)
+    assert bdd.parse_counts("3 passed, 2 skipped in 0.1s") == (3, 0)
+    # behave still wins when both shapes could appear
+    assert bdd.parse_counts("2 scenarios passed, 0 failed\n5 passed in 1s") == (2, 0)
+
+
+def test_incident_an_empty_pytest_run_is_never_a_pass():
+    """The whole reason this module exists, in the second runner.
+
+    `pytest -m cp9` with no test marked cp9 prints "no tests ran in 0.01s" and
+    exits 5. Nothing about that is a passing checkpoint, and a parser that
+    shrugged and returned (0, 0) without the ran_nothing guard would tick the
+    box on an empty run.
+    """
+    from crew import bdd
+
+    assert bdd.parse_counts("no tests ran in 0.01s") == (0, 0)
+    r = bdd.Result(cp="CP9", tag="@cp9", command="pytest -m cp9", exit_code=5,
+                   output="no tests ran in 0.01s", scenarios_passed=0, scenarios_failed=0)
+    assert r.ran_nothing
+    assert not r.passed
+    assert r.verdict.startswith("FAIL")
+
+    # and the same run reported with exit code 0, which is the dangerous shape
+    r0 = bdd.Result(cp="CP9", tag="@cp9", command="pytest -m cp9", exit_code=0,
+                    output="no tests ran in 0.01s", scenarios_passed=0, scenarios_failed=0)
+    assert not r0.passed

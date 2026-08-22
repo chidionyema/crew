@@ -1,0 +1,8 @@
+{
+  "repo": "chidionyema/crew",
+  "features_dir": "checkpoints",
+  "specs_dir": "docs/specs",
+  "bdd_command": ".venv/bin/python -m pytest -q --no-header -m {cp} checkpoints",
+  "bdd_cwd": ".",
+  "default_role": "engineering"
+}

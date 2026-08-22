@@ -95,6 +95,12 @@ def parse_brief(text: str) -> tuple[str, str, list[tuple[str, str]]]:
     return title, "\n".join(body).strip(), cps
 
 
+def _verified_by(cfg, cp: str) -> str:
+    if bdd.runner_kind(cfg.bdd_command) == "pytest":
+        return f"@pytest.mark.{cp.lower()}"
+    return bdd.tag_for(cp)
+
+
 def cmd_plan(a) -> int:
     cfg = C.load()
     text = Path(a.brief).read_text() if a.brief != "-" else sys.stdin.read()
@@ -126,7 +132,7 @@ def cmd_plan(a) -> int:
         f"Written by pm-agent on {datetime.now().date()} from conversation with @{a.author}.\n\n"
         f"## What the founder asked for\n\n{prose}\n\n"
         f"## Checkpoints\n\n"
-        + "\n".join(f"### {c}: {t}\n\nVerified by `{bdd.tag_for(c)}` in `{cfg.features_dir}/`.\n"
+        + "\n".join(f"### {c}: {t}\n\nVerified by `{_verified_by(cfg, c)}` in `{cfg.features_dir}/`.\n"
                     for c, t in cps)
         + "\n"
     )
@@ -284,8 +290,10 @@ def cmd_verify(a) -> int:
 
     features = cfg.root / cfg.features_dir
     tag = bdd.tag_for(cp)
-    if bdd.find_feature(features, tag) is None:
-        raise CrewError(f"no feature file under {features} carries the tag {tag}")
+    kind = bdd.runner_kind(cfg.bdd_command)
+    if bdd.find_case(kind, cfg.root, cfg.features_dir, tag, cp) is None:
+        want = f"@pytest.mark.{cp.lower()}" if kind == "pytest" else f"the tag {tag}"
+        raise CrewError(f"no test under {features} carries {want}")
 
     say(f"running the suite for {cp} … (tag {tag})")
     res = bdd.run(cfg.root, cfg.bdd_command, cfg.bdd_cwd, cp, timeout=a.timeout)
@@ -414,9 +422,15 @@ def cmd_doctor(a) -> int:
         found = exe.exists() or subprocess.run(["which", cmd], capture_output=True).returncode == 0
         checks.append((f"bdd runner `{cmd}`", bool(found), str(exe) if exe.exists() else cmd))
 
+        kind = bdd.runner_kind(cfg.bdd_command)
         feats = cfg.root / cfg.features_dir
-        n_feats = len(list(feats.rglob("*.feature"))) if feats.is_dir() else 0
-        checks.append((f"feature files in {cfg.features_dir}", n_feats > 0, f"{n_feats} found"))
+        if kind == "pytest":
+            n_feats = sum(1 for f in feats.rglob("*.py")
+                          if "pytest.mark.cp" in f.read_text(errors="replace")) if feats.is_dir() else 0
+            checks.append((f"marked tests in {cfg.features_dir}", n_feats > 0, f"{n_feats} file(s) with @pytest.mark.cpN"))
+        else:
+            n_feats = len(list(feats.rglob("*.feature"))) if feats.is_dir() else 0
+            checks.append((f"feature files in {cfg.features_dir}", n_feats > 0, f"{n_feats} found"))
 
         try:
             n = C.active_issue(cfg)

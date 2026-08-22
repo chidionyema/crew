@@ -46,6 +46,34 @@ this machine, and it carries a container env pointing at a macOS path that canno
 exist inside a Linux container. Both are open questions on the ticket, not
 findings — nobody has yet read what that image actually runs.
 
+## Where projects live (canonical)
+
+One root: **`~/dev/code`**. Every project this company works on is a directory
+directly under it. Nothing active lives anywhere else.
+
+```
+~/dev/code/crew            the coordination protocol
+~/dev/code/survival-stack  the cheap-provider migration
+~/dev/code/prospector      the engine
+~/dev/code/hermes-v2       the gateway   <- NOT THERE YET, see the ticket
+```
+
+Why this root and not the others:
+
+- `~/Documents/code` is barred. macOS TCC blocks agent access to `~/Documents`,
+  so a checkout there is unreachable to every tool on this machine. That is what
+  drove hermes-v2 out of it.
+- `~/code` is a junk drawer, not a workspace. It holds seven versions of his CV,
+  a top-level `node_modules`, `ollama`, and a dozen retired OSL repos. A project
+  in there is a project nobody finds.
+- `~/dev/code` already holds crew, survival-stack and the rest. It is where the
+  estate actually is, so it is the standard by weight of what is already true.
+
+hermes-v2 is the only active project outside it. Moving it is not a `mv`: launchd
+plists, the fence, `gateway.lock` and another session's working directory all
+carry the old path. It moves under a ticket, with the paths changed in the same
+change.
+
 ## Entries
 
 **1. 2026-08-22 | crew loop wiring**
@@ -102,3 +130,11 @@ context. Agents were acting on Hermes from different pictures of it. Rejected: a
 note in a handoff, and telling each agent separately.
 → *An architecture nobody wrote down is a different architecture per agent.*
 (LAW 26)
+
+**10. 2026-08-22 | project locations**
+Made `~/dev/code` the one root for every active project. Rejected: leaving each
+project where it landed, and `~/code` (a junk drawer of CVs and retired repos).
+`~/Documents/code` was already barred by TCC. hermes-v2 is the one outlier and
+moves under its own ticket, because launchd, the fence and `gateway.lock` all
+carry the old path.
+→ *One root. A project nobody can find is a project nobody maintains.*

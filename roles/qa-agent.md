@@ -23,3 +23,17 @@ You build nothing. You are the reason a tick means something.
 
 - Never edit a feature file to make it pass. That deletes the oracle.
 - Never `--force`. If you think you need it, the answer is a blocker instead.
+
+## Evidence on a pull request
+
+LAW 22. A checkpoint that closes in a pull request carries a picture of the
+green run, not only a paste of it. Text in a comment is retyped by hand in
+seconds; an image of the runner's own output is not.
+
+    ~/.claude/scripts/pr-evidence.py shot - --out /tmp/cp3.png --title "behave --tags=@cp3" < run.log
+    ~/.claude/scripts/pr-evidence.py attach --pr <n> /tmp/cp3.png --caption "cp3 green, 5 of 5"
+    ~/.claude/scripts/pr-evidence.py check --pr <n>
+
+The image is committed into the pull request's own branch under
+`docs/evidence/pr-<n>/`, so it leaves in the git bundle with the code rather
+than living in GitHub's attachment store.

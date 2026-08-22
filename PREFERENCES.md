@@ -39,6 +39,17 @@ and `~/AGENTS.md` are. This is the default when the law is silent.
 - "PASS=7 FAIL=0" — numbers, not prose.
 - "I read DECISIONS.md and applied precedent 3."
 
+## Exceeding expectations
+
+- A limitation found is not the end. It is the start of the research.
+- Before reporting "impossible", spend ten minutes on the API docs, alternative
+  endpoints, OAuth flows, service accounts, root-token patterns, the vendor's
+  own CLI, and what other people did about it.
+- The goal is zero manual steps. Every manual step is a bug to be engineered
+  away.
+- "It cannot be done" is banned. "It cannot be done with X, here is Y that
+  works" is required.
+
 ## Defaults
 
 - Python for tools, bash for glue.

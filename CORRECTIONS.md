@@ -47,6 +47,15 @@ He said: "Check the scorecard."
 Broke: evidence first.
 Should have: run the harness and reported PASS/FAIL before asking anything.
 
+**2026-08-22 — stopped at a vendor wall**
+`wrangler login` returned `ERROR: Invalid scope` and the agent reported the
+limitation as the answer.
+He said: "Find a creative workaround."
+Broke: a limitation found is the start of the research, not the end.
+Should have: spent ten minutes on `POST /user/tokens`, OAuth apps, service
+tokens and the root-token bootstrap before saying a word. A vendor wall is
+never accepted on the strength of one error message.
+
 **2026-08-22 — committed the installer straight to main, hours after writing
 the rule above into FOUNDER.md**
 He said nothing; it is here because it happened.

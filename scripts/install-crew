@@ -1,0 +1,360 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# One command to make this machine able to run the crew.
+#
+# Prereqs, repo, venv, tools on PATH, a crew command that carries both the
+# twelve loop verbs and the local ones. Idempotent: run it again after a pull.
+#
+# From the founder's draft, 2026-08-22, with four corrections. Each was a
+# measured failure of the draft on this machine, not a preference:
+#
+#   1. The draft wrote a bash script over ~/.local/bin/crew, which is a symlink
+#      to bin/crew, the python CLI. That deletes plan, claim, evidence, verify,
+#      status, doctor and six more — the entire three-role loop. The wrapper
+#      here owns only verbs the CLI does not have and execs the CLI for the
+#      rest, so `crew status` and `crew start` are both one word and neither
+#      shadows the other.
+#   2. lab-lease.py lives in survival-stack. Linking it from this repo linked
+#      nothing.
+#   3. `crew verify` in the draft grepped pytest output for "matched no
+#      scenarios". That string is behave's and pytest never prints it, so the
+#      guard passed on every run including an empty one. The real zero-run guard
+#      is crew/bdd.py and it is already load-bearing.
+#   4. The draft ran the suite three times to print one count.
+
+CREW_ROOT="${CREW_ROOT:-$HOME/dev/code/crew}"
+CREW_REPO="${CREW_REPO:-git@github.com:chidionyema/crew.git}"
+BIN_DIR="${HOME}/.local/bin"
+VENV="${CREW_ROOT}/.venv"
+
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'; N='\033[0m'
+log()  { echo -e "${G}[crew]${N} $*"; }
+warn() { echo -e "${Y}[crew]${N} $*"; }
+err()  { echo -e "${R}[crew]${N} $*"; }
+step() { echo -e "\n${C}▶${N} $*"; }
+
+step "Prerequisites"
+for t in python3 git gh; do
+    command -v "$t" >/dev/null || { err "missing: $t (brew install $t)"; exit 1; }
+    log "  $t  $(command -v "$t")"
+done
+
+step "Repository"
+if [[ ! -d "${CREW_ROOT}/.git" ]]; then
+    mkdir -p "$(dirname "$CREW_ROOT")"
+    git clone "$CREW_REPO" "$CREW_ROOT"
+fi
+cd "$CREW_ROOT"
+log "  ${CREW_ROOT}  $(git branch --show-current)  $(git log -1 --format=%h)"
+
+step "Python environment"
+[[ -x "$VENV/bin/python" ]] || python3 -m venv "$VENV"
+# `python -m pip`, never the pip shim. A venv created with --without-pip, or one
+# whose shim carries a stale absolute path after the repo moved, has a working
+# python and no runnable pip. ensurepip puts it back rather than failing here.
+"$VENV/bin/python" -m pip --version >/dev/null 2>&1 || {
+    warn "  no pip in the venv, running ensurepip"
+    "$VENV/bin/python" -m ensurepip --upgrade >/dev/null
+}
+"$VENV/bin/python" -m pip install -q --upgrade pip
+if [[ -f requirements-dev.txt ]]; then
+    "$VENV/bin/python" -m pip install -q -r requirements-dev.txt
+    log "  $("$VENV/bin/python" -V) with $(tr '\n' ' ' < requirements-dev.txt)"
+fi
+
+step "Tools on PATH"
+mkdir -p "$BIN_DIR"
+link() {
+    local src="$1" name="$2"
+    if [[ -f "$src" ]]; then
+        chmod +x "$src"; ln -sfn "$src" "${BIN_DIR}/${name}"; log "  ${name} -> ${src}"
+    else
+        warn "  ${name} skipped, nothing at ${src}"
+    fi
+}
+link "${HOME}/.claude/scripts/pr-evidence.py" pr-evidence
+link "${HOME}/dev/code/survival-stack/scripts/lab-lease.py" lab-lease
+link "${CREW_ROOT}/scripts/crew-triage" crew-triage
+
+step "The crew command"
+rm -f "${BIN_DIR}/crew"
+cat > "${BIN_DIR}/crew" <<'CREWCLI'
+#!/usr/bin/env bash
+# crew — one word for both halves of the job.
+#
+# The loop verbs (plan, claim, evidence, verify, status, doctor, …) belong to
+# the python CLI at $CREW_ROOT/bin/crew and are NOT reimplemented here. This
+# wrapper owns the verbs that CLI does not have — the ones about this machine
+# rather than about the issue — and hands everything else straight through.
+# Adding a verb to the CLI needs no change here.
+set -euo pipefail
+CREW_ROOT="${CREW_ROOT:-CREW_ROOT_PLACEHOLDER}"
+CLI="${CREW_ROOT}/bin/crew"
+PY="${CREW_ROOT}/.venv/bin/python"; [[ -x "$PY" ]] || PY="$(command -v python3)"
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; N='\033[0m'
+log(){ echo -e "${G}[crew]${N} $*"; }; warn(){ echo -e "${Y}[crew]${N} $*"; }; err(){ echo -e "${R}[crew]${N} $*"; }
+
+local_help() {
+    cat <<EOF
+crew — a conversation becomes a tracked, verified build.
+
+This machine:
+  crew start          notification listener on :8081
+  crew stop           stop it
+  crew logs           tail it
+  crew test [args]    the unit suite in the venv
+  crew health         prerequisites, tools, suite, services
+  crew notify "msg"   a desktop notification, for when hermes is down
+  crew open           the tracked issue in a browser
+  crew update         pull, then re-run the installer
+
+The board (these come from bin/crew, run 'crew <verb> --help' for each):
+EOF
+    "$CLI" --help 2>&1 | sed -n '/positional/,/^options/p' | sed '1d;$d'
+}
+
+notify_port() { echo "${CREW_NOTIFY_PORT:-8081}"; }
+
+case "${1:-help}" in
+help|--help|-h) local_help ;;
+
+start)
+    p="$(notify_port)"
+    if lsof -i ":$p" >/dev/null 2>&1; then log "notify already on :$p"; else
+        nohup "$PY" "${CREW_ROOT}/scripts/notify-server.py" >"${CREW_ROOT}/.notify.log" 2>&1 &
+        sleep 0.5
+        lsof -i ":$p" >/dev/null 2>&1 && log "notify -> http://127.0.0.1:$p/notify" \
+            || { err "notify did not come up, see ${CREW_ROOT}/.notify.log"; exit 1; }
+    fi
+    # There is no local board and one is not wanted. The issue is the board and
+    # hermes is the phone surface. `crew status` and `crew open` are the views.
+    "$CLI" status || true
+    ;;
+
+stop)
+    pkill -f "scripts/notify-server.py" 2>/dev/null && log "notify stopped" || log "nothing was running"
+    ;;
+
+logs) tail -f "${CREW_ROOT}/.notify.log" ;;
+
+test) shift || true; cd "$CREW_ROOT"; exec "$PY" -m pytest -q "$@" ;;
+
+notify) shift || true; exec "$PY" "${CREW_ROOT}/scripts/notify.py" "${1:-crew}" ;;
+
+open)
+    url="$(cd "$CREW_ROOT" && "$CLI" status 2>/dev/null | grep -o 'https://github.com/[^ ]*' | head -1)"
+    [[ -n "$url" ]] || { err "no tracked issue yet — 'crew plan brief.md' opens one"; exit 1; }
+    command -v open >/dev/null && open "$url" || echo "$url"
+    ;;
+
+health)
+    cd "$CREW_ROOT"; fail=0
+    echo "── this machine ──"
+    for t in python3 git gh; do command -v "$t" >/dev/null && echo "PASS  $t" || { echo "FAIL  $t"; fail=1; }; done
+    for t in pr-evidence lab-lease; do command -v "$t" >/dev/null && echo "PASS  $t  $(command -v $t)" || { echo "FAIL  $t not on PATH"; fail=1; }; done
+    echo "── the suite ──"
+    # Once, and the count comes out of that one run. Running it again to read a
+    # number is how the draft reported a stale count.
+    if out="$("$PY" -m pytest -q 2>&1)"; then :; else fail=1; fi
+    echo "$out" | tail -2
+    echo "── services ──"
+    p="$(notify_port)"; lsof -i ":$p" >/dev/null 2>&1 && echo "PASS  notify :$p" || echo "IDLE  notify :$p"
+    echo "── the board ──"
+    "$CLI" doctor || fail=1
+    exit $fail
+    ;;
+
+update)
+    cd "$CREW_ROOT" && git pull --ff-only && exec "${CREW_ROOT}/scripts/install-crew"
+    ;;
+
+*) exec "$CLI" "$@" ;;
+esac
+CREWCLI
+sed -i '' "s|CREW_ROOT_PLACEHOLDER|${CREW_ROOT}|" "${BIN_DIR}/crew" 2>/dev/null \
+    || sed -i "s|CREW_ROOT_PLACEHOLDER|${CREW_ROOT}|" "${BIN_DIR}/crew"
+chmod +x "${BIN_DIR}/crew"
+log "  crew -> ${BIN_DIR}/crew, loop verbs exec ${CREW_ROOT}/bin/crew"
+
+step "Notification fallback"
+cat > "${CREW_ROOT}/scripts/notify.py" <<'NOTIFY'
+#!/usr/bin/env python3
+"""A desktop notification, for when hermes is not the way to reach the founder.
+
+    notify.py "CP2 is green" --title crew
+
+Standard library only. macOS Notification Center, Linux notify-send, or a
+webhook if ~/.crew/config names one. Never raises: a notification that fails is
+not a reason to fail the run that sent it.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import subprocess
+import sys
+import urllib.request
+from pathlib import Path
+
+CONFIG = Path.home() / ".crew" / "config"
+
+
+def config() -> dict[str, str]:
+    out: dict[str, str] = {}
+    try:
+        for line in CONFIG.read_text().splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip()
+    except OSError:
+        pass
+    return out
+
+
+def desktop(title: str, message: str) -> bool:
+    system = platform.system()
+    if system == "Darwin":
+        # osascript takes an AppleScript string. A quote in the message ends it
+        # early and the notification silently never appears.
+        esc = message.replace("\\", "\\\\").replace('"', '\\"')
+        t = title.replace("\\", "\\\\").replace('"', '\\"')
+        r = subprocess.run(["osascript", "-e",
+                            f'display notification "{esc}" with title "{t}"'],
+                           capture_output=True)
+        return r.returncode == 0
+    if system == "Linux" and subprocess.run(["which", "notify-send"],
+                                            capture_output=True).returncode == 0:
+        return subprocess.run(["notify-send", title, message]).returncode == 0
+    return False
+
+
+def webhook(url: str, title: str, message: str) -> bool:
+    if not url:
+        return False
+    req = urllib.request.Request(
+        url, data=json.dumps({"title": title, "message": message}).encode(),
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5):
+            return True
+    except Exception as e:                      # noqa: BLE001 - never fail the caller
+        print(f"notify: webhook failed: {e}", file=sys.stderr)
+        return False
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="notify.py")
+    ap.add_argument("message")
+    ap.add_argument("--title", default="crew")
+    ns = ap.parse_args()
+    cfg = config()
+    sent = (webhook(cfg.get("WEBHOOK_URL", ""), ns.title, ns.message)
+            if cfg.get("NOTIFY_FALLBACK") == "webhook"
+            else desktop(ns.title, ns.message))
+    # Say it on stdout either way, so a log always carries what was sent even
+    # when nothing on this machine can pop a window.
+    print(f"[{ns.title}] {ns.message}" + ("" if sent else "   (not delivered)"))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+NOTIFY
+
+cat > "${CREW_ROOT}/scripts/notify-server.py" <<'NSERVER'
+#!/usr/bin/env python3
+"""POST /notify -> a desktop notification. For agents that cannot pop a window.
+
+    curl -s -XPOST 127.0.0.1:8081/notify -d '{"title":"crew","message":"CP2 green"}'
+
+Bound to 127.0.0.1 on purpose. It executes osascript with text from the
+request, so it is never exposed to a network. GET /health says it is up.
+"""
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from notify import desktop  # noqa: E402
+
+PORT = int(os.environ.get("CREW_NOTIFY_PORT", "8081"))
+LIMIT = 64 * 1024
+
+
+class Handler(BaseHTTPRequestHandler):
+    def _json(self, code: int, payload: dict) -> None:
+        body = json.dumps(payload).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        if self.path == "/health":
+            self._json(200, {"ok": True, "port": PORT})
+        else:
+            self._json(404, {"error": "POST /notify"})
+
+    def do_POST(self) -> None:
+        if self.path != "/notify":
+            self._json(404, {"error": "POST /notify"})
+            return
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > LIMIT:
+            self._json(413, {"error": "too long"})
+            return
+        try:
+            data = json.loads(self.rfile.read(n) or b"{}")
+        except ValueError:
+            self._json(400, {"error": "not json"})
+            return
+        title = str(data.get("title", "crew"))[:100]
+        message = str(data.get("message", ""))[:1000]
+        print(f"[{title}] {message}", flush=True)
+        self._json(200, {"ok": desktop(title, message)})
+
+    def log_message(self, *_a) -> None:
+        pass
+
+
+if __name__ == "__main__":
+    print(f"notify on http://127.0.0.1:{PORT}/notify", flush=True)
+    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+NSERVER
+chmod +x "${CREW_ROOT}/scripts/notify.py" "${CREW_ROOT}/scripts/notify-server.py"
+log "  notify.py and notify-server.py"
+
+step "Config"
+mkdir -p "${HOME}/.crew"
+if [[ ! -f "${HOME}/.crew/config" ]]; then
+    cat > "${HOME}/.crew/config" <<EOF
+CREW_ROOT=${CREW_ROOT}
+CREW_REPO=chidionyema/crew
+NOTIFY_FALLBACK=desktop
+WEBHOOK_URL=
+EOF
+    log "  wrote ~/.crew/config"
+else
+    log "  ~/.crew/config kept as it is"
+fi
+
+if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then
+    for rc in ~/.zshrc ~/.bashrc; do
+        [[ -f "$rc" ]] && ! grep -q '\.local/bin' "$rc" \
+            && echo 'export PATH="${HOME}/.local/bin:${PATH}"' >> "$rc" \
+            && log "  added ${BIN_DIR} to PATH in $(basename "$rc")" && break
+    done
+    export PATH="${BIN_DIR}:${PATH}"
+fi
+
+step "Health"
+"${BIN_DIR}/crew" health

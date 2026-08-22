@@ -1,5 +1,6 @@
-.venv/
-__pycache__/
 *.pyc
 .crew/
 .hypothesis/
+.notify.log
+.venv/
+__pycache__/

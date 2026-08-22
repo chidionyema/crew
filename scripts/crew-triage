@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""crew-triage — open one issue that shows its work.
+
+    crew-triage --title "Fix the thing" \
+        --origin "he asked for ..." --analysis "found that ..." \
+        --decision "X, LAW 23: the other path was four times the work" \
+        --evidence "$(git rev-parse --short HEAD)"
+
+    cat transcript.txt | crew-triage --title "Auto-triaged"
+
+Five sections, always: origin, analysis, decision, evidence, remaining. The
+shape is FOUNDER.md's "an issue shows its work", so an agent that picks the
+issue up months later can see what was asked and why this path won.
+
+This is NOT `crew plan`, and the two do not compete.
+
+    crew plan     a BUILD. Checkpoints, one box each, parsed by `crew status`,
+                  ticked only by `crew verify`. Never hand-write this shape.
+    crew-triage   one decision, labelled `triage`, free-form. No checkpoints, so
+                  `crew status` does not count it and QA does not gate it.
+
+A triage issue that turns out to be a build is not edited into one: run
+`crew plan` and link the two. Rewriting the body by hand is how a board loses a
+section.
+
+From the founder's draft, 2026-08-22, with three corrections:
+
+  1. The checklist rendered `- [ ] [x] Implementation` — a literal box inside a
+     box. Neither GitHub nor a person can read that as ticked.
+  2. `--label` appended onto a default list object, so `--label bug` gave
+     `triage,bug` and the default was mutated for the rest of the process.
+  3. No way to see the body without opening an issue, so the only way to test
+     the tool was to spend a real issue number. `--dry-run` prints it instead.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+REPO = os.environ.get("CREW_REPO", "chidionyema/crew")
+FOUNDER_URL = f"https://github.com/{REPO}/blob/main/FOUNDER.md"
+
+FILL = "_(the claiming agent fills this in)_"
+PENDING = "_(pending)_"
+
+
+def git(*args: str) -> str:
+    """Git state is evidence. A repo-less directory reports that, not a crash."""
+    p = subprocess.run(["git", *args], capture_output=True, text=True)
+    return p.stdout.strip() if p.returncode == 0 else "(not a git repo)"
+
+
+def tick(done: bool, label: str) -> str:
+    return f"- [{'x' if done else ' '}] {label}"
+
+
+def body(ns: argparse.Namespace, transcript: str) -> str:
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    dirty = "dirty" if git("status", "--short") else "clean"
+    return f"""## 1. Origin — what was asked
+
+{ns.origin or transcript.strip() or FILL}
+
+**Source:** {ns.source}
+**When:** {now}
+
+## 2. Analysis — what was found
+
+**Current state:**
+{ns.analysis or FILL}
+
+**Gap:**
+{ns.gap or FILL}
+
+**Git at triage:** branch `{git("branch", "--show-current")}`, \
+last commit `{git("log", "-1", "--oneline")}`, working tree {dirty}
+
+## 3. Decision — what was chosen
+
+**Path selected:**
+{ns.decision or FILL}
+
+**Rejected paths:**
+{ns.rejected or FILL}
+
+**Citations:** {ns.citations or "LAW 23 the friction default, LAW 22 evidence"}
+
+**Known limitations:**
+{ns.limitations or "None known at triage."}
+
+## 4. Evidence — what proves it
+
+**Commit:** {ns.evidence or PENDING}
+
+**Test result:**
+```
+{ns.tests or "(pending)"}
+```
+
+**Screenshot:** {"in the branch, LAW 22" if ns.evidence else "pending — required before the pull request"}
+
+**Verify harness:** {ns.verify or PENDING}
+
+## 5. Remaining — what is left
+
+{tick(bool(ns.evidence), "Implementation")}
+{tick(bool(ns.tests), "Tests pass, with an incident test if this fixes a bug")}
+{tick(bool(ns.evidence), "Evidence attached, LAW 22")}
+{tick(False, "QA verification, by a role that did not build it")}
+{tick(False, "Merged")}
+
+**Blocked by:** {ns.blocked or "Nothing"}
+**Next issue:** {ns.next_issue or "None yet"}
+
+---
+
+> Before working this issue, read [FOUNDER.md]({FOUNDER_URL}). Every decision
+> cites a rule. Every pull request carries LAW 22 evidence. When two paths both
+> work, take the smaller one and say so here.
+"""
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="crew-triage", description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--title", required=True)
+    ap.add_argument("--origin", help="the request, in his words")
+    ap.add_argument("--source", default="conversation")
+    ap.add_argument("--analysis")
+    ap.add_argument("--gap")
+    ap.add_argument("--decision")
+    ap.add_argument("--rejected")
+    ap.add_argument("--citations")
+    ap.add_argument("--limitations")
+    ap.add_argument("--evidence", help="commit hash")
+    ap.add_argument("--tests", help="the command and its output")
+    ap.add_argument("--verify", help="the verify.sh counts")
+    ap.add_argument("--blocked")
+    ap.add_argument("--next-issue")
+    ap.add_argument("--label", action="append", help="repeatable; triage is always applied")
+    ap.add_argument("--file", "-f", help="read the origin from a file")
+    ap.add_argument("--dry-run", action="store_true", help="print the body, open nothing")
+    ns = ap.parse_args()
+
+    transcript = ""
+    if ns.file:
+        transcript = open(ns.file).read()
+    elif not sys.stdin.isatty():
+        transcript = sys.stdin.read()
+
+    text = body(ns, transcript)
+    if ns.dry_run:
+        print(text)
+        return 0
+
+    labels = ["triage", *(l for l in (ns.label or []) if l != "triage")]
+    p = subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", ns.title,
+                        "--body-file", "-", "--label", ",".join(labels)],
+                       input=text, capture_output=True, text=True)
+    if p.returncode != 0:
+        print(f"crew-triage: gh refused: {p.stderr.strip()}", file=sys.stderr)
+        return 1
+    print(p.stdout.strip())
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

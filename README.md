@@ -12,11 +12,20 @@ This file is how to run it.
 
 ## Install
 
+One command sets up the machine. Run it again after a pull; it does the same
+thing the second time as the first.
+
 ```bash
-git clone git@github.com:chidionyema/crew.git && cd crew
-ln -sf "$PWD/bin/crew" ~/.local/bin/crew
-crew --version
+curl -fsSL https://raw.githubusercontent.com/chidionyema/crew/main/scripts/install-crew -o /tmp/install-crew
+bash /tmp/install-crew
 ```
+
+Or from a checkout you already have: `./scripts/install-crew`.
+
+It checks `python3`, `git` and `gh`, clones the repo if it is not there, builds
+`.venv`, puts `crew`, `pr-evidence`, `lab-lease` and `crew-triage` on your
+`PATH`, writes `~/.crew/config`, and finishes by running `crew health` so you
+see the state rather than a claim about it.
 
 Python 3.11+, standard library only. The one external dependency is the `gh` CLI,
 authenticated against the repo you are tracking. `behave` belongs to the repo
@@ -54,6 +63,95 @@ Today a person types those commands. Nothing listens to a conversation and opens
 the issue by itself, and nothing claims a checkpoint by itself.
 `docs/CLOSING_THE_LOOP.md` names the three wires that would change that and the
 order they go in.
+
+## Every command, in plain English
+
+One word does both halves of the job. The board verbs come from the python CLI
+in `bin/crew`; the machine verbs come from the wrapper the installer writes.
+Neither shadows the other, so `crew status` and `crew start` are both just
+`crew`.
+
+### The board — what the crew is building
+
+| Command | What it does |
+|---|---|
+| `crew plan brief.md --author you` | Reads a brief, writes a spec, opens the GitHub issue with one checkbox per checkpoint. This is the only way a tracked build is created. |
+| `crew status` | Prints the board: which checkpoints are done, which failed, when. |
+| `crew claim CP2` | Puts your name on a checkpoint so two people do not build it at once. |
+| `crew evidence CP2 --result pass --summary "…"` | Posts what you built and what the suite said. It cannot tick the box. |
+| `crew verify CP2` | Runs the suite again, independently, and ticks the box only on a real green run. Refuses if you are the one who posted the evidence. |
+| `crew block "CP2: waiting on X"` | Says out loud that a checkpoint is stuck, and why. |
+| `crew comment "…"` | Adds a note to the issue thread. |
+| `crew close` | Closes the issue. Refuses while any box is unticked. |
+| `crew doctor` | Checks the five things the loop needs — `gh` auth, config, the test runner, the marked tests, the issue — and prints PASS or FAIL for each. |
+| `crew init` | Wires a new repo: writes `.crew.json`, which is committed so every agent agrees. |
+
+### This machine — is the plumbing up
+
+| Command | What it does |
+|---|---|
+| `crew health` | The whole picture in one screen: prerequisites, tools on `PATH`, the suite, services, then `crew doctor`. Exits non-zero if anything is wrong, so a script can call it. |
+| `crew test` | Runs the unit suite in the venv. Extra arguments go straight to pytest. |
+| `crew start` | Starts the notification listener on `127.0.0.1:8081` and prints the board. |
+| `crew stop` | Stops it. |
+| `crew logs` | Follows what the listener has been told. |
+| `crew notify "CP2 is green"` | Pops a desktop notification. For when hermes is down and something still needs to reach you. |
+| `crew open` | Opens the tracked issue in a browser. The issue is the board; there is no second dashboard to keep alive. |
+| `crew update` | Pulls, then re-runs the installer. |
+
+### The other scripts
+
+**`scripts/install-crew`** — the one command above. Sets this machine up from
+nothing, and is safe to run again.
+
+**`scripts/verify.sh`** — proves a checkout is sound. Every file in
+`scripts/verify.d/` runs, prints the commands it ran and their raw output, and
+exits 0, 1 or 2. The harness counts those and prints `PASS=n FAIL=n CANNOT
+RUN=n`. Nothing states a result in prose, so the count cannot drift from what
+the commands did.
+
+```bash
+scripts/verify.sh            # everything
+scripts/verify.sh 40 70      # only the checks whose names start 40 or 70
+scripts/verify.sh --log run.log
+```
+
+**`scripts/crew-triage`** — opens one issue that shows its work: what was asked,
+what was found, what was decided and why, what proves it, what is left. Use it
+for a single decision. Use `crew plan` for a build with checkpoints — that shape
+is parsed by `crew status` and must not be hand-written.
+
+```bash
+crew-triage --title "Drop the second config loader" \
+    --origin "he asked why doctor named a file that was not there" \
+    --decision "one loader, LAW 23: the other path was four times the work" \
+    --evidence "$(git rev-parse --short HEAD)" --dry-run
+```
+
+`--dry-run` prints the body and opens nothing, so you can read it before
+spending an issue number.
+
+**`scripts/notify.py`** — one desktop notification.
+`scripts/notify-server.py` is the same thing behind
+`POST 127.0.0.1:8081/notify`, for an agent that cannot pop a window itself. It
+binds to loopback only, on purpose: it runs `osascript` with text from the
+request and must never be reachable from a network.
+
+**`pr-evidence`** — the camera for LAW 22. See the pull request section below.
+
+**`lab-lease`** — one lab, one holder. It lives in `survival-stack` and the
+installer only puts it on your `PATH`. Two test runs at once destroy each
+other's containers and the failure reads as a real defect.
+
+### The documents
+
+**`FOUNDER.md`** — how he works and what he will not sit through. Read it before
+working an issue. `~/AGENTS.md` is the law and outranks it.
+
+**`.github/ISSUE_TEMPLATE/crew_task.md`** and
+**`.github/pull_request_template.md`** — GitHub fills these in for you.
+`ISSUE_TEMPLATE.md` and `PR_TEMPLATE.md` at the root are pointers at those two,
+not copies, because two copies of one template drift apart.
 
 ## Why a tick means something
 
@@ -133,7 +231,7 @@ python3 -m venv .venv
 ```
 
 `hypothesis` is not in the standard library, so the suite does not collect
-without that install. Expect `14 passed`.
+without that install. Expect `18 passed`.
 
 Property tests for the board round trip, incident tests for each way a green tick
 could be a lie. No example tests of orchestration, per the testing policy in

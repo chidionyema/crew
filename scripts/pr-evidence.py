@@ -58,6 +58,14 @@ def gh(args, stdin=None):
 
 def shot(target: str, out: Path, width: int, height: int, wait: float) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
+    # The capture below treats "the file is there" as "Chrome has finished".
+    # When a previous run already left an image at this path that is true on
+    # the first iteration, so Chrome was killed before writing and the OLD
+    # image survived while the tool printed a success line. Re-rendering
+    # evidence was a silent no-op, which is the exact failure LAW 22 exists to
+    # prevent: a picture that looks like proof of the run you just did.
+    # Measured 2026-08-22: two different inputs, same sha256 out.
+    out.unlink(missing_ok=True)
     if target == "screen":
         if not shutil.which("screencapture"):
             raise Fail("screencapture is not on this machine")

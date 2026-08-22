@@ -154,3 +154,22 @@ gateway plist not loaded, `.clean_shutdown` present. Rejected: the bare `mv`,
 which left the agent unable to start.
 → *A checkout move is a change to every absolute path that names it. Find them
 before, prove the project's own verify after.* (LAW 4)
+
+**6. 2026-08-22 | Hermes discontinued (founder decision)**
+Hermes is stopped and is not coming back. It was an orchestrator where the estate
+needed pipes: it owned bridge, transport, bot, dashboard and law delivery in one
+chain, so any broken link made the whole thing look broken, and it alerted on state
+rather than on change, so the alerts got tuned out. What survives is the decomposed
+loop, each part failing independently — `estate_audit.py` detects, `estate_watch.py`
+diffs and debounces, `estate_alert.py` delivers straight to api.telegram.org with no
+gateway, `hermes_lease.py` transports to R2. Rejected: fixing Hermes v2, and filling
+the Hermes-shaped hole with a smaller Hermes.
+→ *Push state, do not replicate logic. The Mac is the source of truth; remote nodes
+render what they are given and own no decisions.*
+
+**7. 2026-08-22 | alert receipts**
+`estate_alert._post` now returns Telegram's `message_id` and the ledger records it.
+An HTTP 200 says the API accepted the call; a `message_id` says a message exists in
+the chat. Rejected: keeping the bool, on the grounds that 200 is "close enough".
+→ *Prove arrival, not send. A "sent" row with no receipt is a send nobody has proved
+landed.* (LAW 28)

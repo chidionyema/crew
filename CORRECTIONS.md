@@ -62,3 +62,20 @@ He said nothing; it is here because it happened.
 Broke: no direct commits to main, again.
 Should have: a branch and a pull request with LAW 22 evidence. This file and its
 two neighbours went through one.
+
+**2026-08-22 — reported "membership inactive" for kimi without measuring it**
+The agent read the vendor's error string out of a log and repeated it as a
+diagnosis. The founder was signed in to Kimi at that moment.
+He said: "I am using Kimi right now. Do not report 'membership inactive' again."
+Broke: proof before action. An error message is a claim by the vendor, not a
+measurement of the account.
+What the measurement actually showed, once it was taken: authentication works.
+`POST auth.kimi.com/api/oauth/token` with the stored refresh token returns 200,
+and `GET api.kimi.com/coding/v1/me` returns 200 with his name and
+`USER_STATUS_NORMAL`. Three endpoints on the same host with the same working
+token return 402 and 403: `/models`, `/chat/completions` and `/usages`, the last
+one saying "Please subscribe to access". The Kimi web app and Kimi For Coding
+are separate entitlements on one account, so being signed in to the first says
+nothing about the second.
+Should have: called the endpoint and reported the status codes. The 200 on `/me`
+is the fact that kills the "inactive account" story, and it cost one command.

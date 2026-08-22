@@ -75,3 +75,21 @@ and `~/AGENTS.md` are. This is the default when the law is silent.
 Idempotent over stateful. Lossless over compressed. Explicit over implicit.
 Fail loud over fail silent. Reversible over permanent. Small and working over
 large and planned.
+
+## Diagnosis rule
+
+His words, 2026-08-22: "If the user is actively using a service, 'account
+inactive' is never the real cause. Cross-check user state before accepting
+vendor error messages. 'I am using X right now' overrides any 'X is
+unavailable' error from the machine."
+
+What the kimi incident added to it:
+
+- A vendor error string is a claim. The status code is the measurement. Report
+  the code and the endpoint, never the sentence the vendor chose.
+- One account can hold several entitlements. Signed in to the web app and
+  entitled to the coding API are different facts, and an agent that treats them
+  as one will diagnose the wrong thing with total confidence.
+- Split authentication from authorisation before naming a cause. A 401 is the
+  token. A 402 or a 403 is the plan. They have different owners and only one of
+  them is the founder's.

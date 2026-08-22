@@ -154,3 +154,16 @@ gateway plist not loaded, `.clean_shutdown` present. Rejected: the bare `mv`,
 which left the agent unable to start.
 → *A checkout move is a change to every absolute path that names it. Find them
 before, prove the project's own verify after.* (LAW 4)
+
+**12. 2026-08-22 | new-user setup is a first-class feature**
+A new user must be operational in 60 seconds, with one command and three clicks.
+Longer than that is a bug, filed like any other. `./scripts/cf-bootstrap.sh` is
+the shape: pre-flight in shell because node may be absent, then one node flow
+that opens the pre-ticked page, reads the clipboard on macOS, Linux, WSL or
+Windows, falls back to a hidden paste where there is no clipboard tool, grades
+the credential by using it, and stores it in the best secret store the machine
+has. Rejected: a second implementation of clipboard, keychain and validation in
+bash, which would have been two copies of one thing on one target and would have
+disagreed within a month.
+→ *Setup is the product's first screen. A tool that is correct and horrible to
+start is a tool nobody starts.* (LAW 20, LAW 3, LAW 23)

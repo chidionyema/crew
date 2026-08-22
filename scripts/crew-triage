@@ -157,9 +157,22 @@ def main() -> int:
         return 0
 
     labels = ["triage", *(l for l in (ns.label or []) if l != "triage")]
-    p = subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", ns.title,
-                        "--body-file", "-", "--label", ",".join(labels)],
-                       input=text, capture_output=True, text=True)
+
+    def create():
+        return subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", ns.title,
+                               "--body-file", "-", "--label", ",".join(labels)],
+                              input=text, capture_output=True, text=True)
+
+    p = create()
+    # A label this repo has never seen is not a reason to lose the issue. gh
+    # refuses the whole create over it, and the founder is then told to go and
+    # make a label by hand before he can be told what is broken.
+    if p.returncode != 0 and "not found" in p.stderr:
+        for name in labels:
+            subprocess.run(["gh", "label", "create", name, "--repo", REPO,
+                            "--description", "opened by crew-triage", "--force"],
+                           capture_output=True, text=True)
+        p = create()
     if p.returncode != 0:
         print(f"crew-triage: gh refused: {p.stderr.strip()}", file=sys.stderr)
         return 1

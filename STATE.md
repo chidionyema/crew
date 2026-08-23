@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-23 20:56 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-23 21:57 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,10 +8,9 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | RED | `bin/verify`: 16 passed, 1 failed |
-| &nbsp;&nbsp;failing | | FAIL  every job reaches the founder      delivers to nobody: session-coordination-monitor |
-| maestro | GREEN | last cycle 0 min ago (`INTENT-20260823-205433-0d20f3e7.json`) |
-| &nbsp;&nbsp;skills | GREEN | 1 skill(s) it can heal with |
+| The Architect | GREEN | `bin/verify`: 17 passed, 0 failed |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260823-215418-0d20f3e7.json`) |
+| &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | 2 deployed, 12 suspended | `flyctl apps list` |
 | crew P1 | 5 open | the fires nobody has put out |
 | &nbsp;&nbsp;#38 The exit from Fly has never once been drilled: the escape hatch cannot pass as written | | |

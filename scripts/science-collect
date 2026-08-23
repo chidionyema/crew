@@ -1,0 +1,37 @@
+#!/bin/bash
+# Rebuild the science warehouse, hourly, so nobody ever runs a collector by hand.
+#
+# LAW 31: the founder does not run scripts. Before this existed, collect.py was a
+# one-off — it had produced exactly one warehouse, on the day it was written, and
+# the spend row in STATE.md would have gone stale the moment that file aged out.
+#
+# Order matters and is the whole reason this is a wrapper rather than two plists.
+# outcomes.py writes ships.jsonl; collect.py ingests it. Running them as separate
+# scheduled jobs would race, and the value_daily view would show a day of spend
+# against yesterday's commit count with nothing saying so.
+#
+#   1. outcomes.py ship   collect what the estate produced (git + gh)
+#   2. collect.py --check rebuild the warehouse, exit 1 if a source is stale
+#
+# A non-zero exit is the point, not a failure of this script: it means a source
+# stopped being written and somebody needs to look. It lands in the .err.log and
+# in the collector's own stdout, both named in docs/onboarding/collect.md.
+set -uo pipefail
+
+CREW="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$CREW" || exit 1
+
+echo "=== science-collect $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+
+python3 science/outcomes.py ship --days 30
+ship_rc=$?
+if [ "$ship_rc" -ne 0 ]; then
+  echo "science-collect: outcomes.py ship exited $ship_rc; collecting anyway so the"
+  echo "                 telemetry half is not lost with the outcome half."
+fi
+
+python3 science/collect.py --check
+collect_rc=$?
+
+echo "science-collect: ship=$ship_rc collect=$collect_rc"
+exit "$collect_rc"

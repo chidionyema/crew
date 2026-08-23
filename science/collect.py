@@ -50,13 +50,18 @@ SOURCES: dict[str, tuple[Path, str, str | None]] = {
     "method_metrics": (HOME / "Documents/code/prospector/store/ops/method_metrics.json",
                        "json", "generated_at"),
     "enforcement_map": (Path(__file__).parent / "enforcement-map.json",      "json", None),
+    # Outcome collections, written by science/outcomes.py. These are the only two
+    # sources on this list that record what the estate produced rather than what it
+    # did to itself. Everything above is telemetry; these are the denominator.
+    "ships":          (Path(__file__).parent / "ships.jsonl",                "jsonl", "at"),
+    "predictions":    (Path(__file__).parent / "predictions.jsonl",          "jsonl", "at"),
 }
 
 # A source that has not been written inside this many hours is reported STALE.
 # The number is the source's own cadence times three, not a guess: reflect runs
 # every 4 hours, the spend collector every 10 minutes, the rest are event-driven
 # and only report stale after a full day of silence.
-STALE_HOURS = {"spend": 6, "method_metrics": 12}
+STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26}
 DEFAULT_STALE_HOURS = 48
 
 SCHEMA = """
@@ -93,6 +98,35 @@ WHERE source = 'spend'
   AND json_extract(payload, '$.day') >= '2020-01-01'   -- drops the epoch-zero rows
 GROUP BY day
 ORDER BY day;
+
+-- What the money bought. Crude on purpose: a commit is not value, and this view
+-- says nothing about whether any of it was worth doing. It is the estate's first
+-- denominator of any kind, and the point of it is that dividing by SOMETHING makes
+-- the question askable. Read usd_per_commit as an upper bound on cost, never as a
+-- measure of merit -- the cheapest way to move it is to commit more often.
+DROP VIEW IF EXISTS value_daily;
+CREATE VIEW value_daily AS
+SELECT
+    s.day,
+    s.usd,
+    COALESCE(c.commits, 0) AS commits,
+    COALESCE(p.prs, 0)     AS prs_merged,
+    ROUND(s.usd / NULLIF(c.commits, 0), 2) AS usd_per_commit
+FROM spend_daily s
+LEFT JOIN (
+    SELECT json_extract(payload, '$.day') AS day,
+           SUM(json_extract(payload, '$.commits')) AS commits
+    FROM facts WHERE source = 'ships'
+      AND json_extract(payload, '$.commits') IS NOT NULL
+    GROUP BY day
+) c ON c.day = s.day
+LEFT JOIN (
+    SELECT json_extract(payload, '$.day') AS day, COUNT(*) AS prs
+    FROM facts WHERE source = 'ships'
+      AND json_extract(payload, '$.pr') IS NOT NULL
+    GROUP BY day
+) p ON p.day = s.day
+ORDER BY s.day;
 """
 
 

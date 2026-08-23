@@ -21,17 +21,23 @@ about what each handler should do instead, and that is not a machine's call.
 
 ## Where it lives
 
-`science/silent_side_effect.py` in the crew repository.
+`~/.claude/scripts/silent_side_effect.py`, in the claude-guards repository,
+beside the guards it protects. It started here in crew and moved on 2026-08-23
+when `hooks/pre-commit` began importing it: a check whose implementation lives
+in a different checkout is one missing clone away from passing everything.
 
 ## How to turn it off
 
-It is not wired to anything, so there is nothing running to stop. If it is
-later added to a pre-push hook, remove the line that calls it, or pass
-`ESTATE_GUARDS_OFF=1` for a single run.
+It runs inside the commit gate for the claude-guards checkout only. For a
+single commit, `ESTATE_GUARDS_OFF=1 git commit`. To stop it everywhere,
+`git config --global --unset core.hooksPath`, which also stops the credential
+check, so prefer the single-run switch.
 
 ## How to turn it back on
 
-Run the command in the demo page.
+Nothing to do — it is part of the commit gate. To check the whole estate at
+any time rather than only what is being committed, the demo page has the
+command.
 
 ## What goes wrong
 

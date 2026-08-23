@@ -16,7 +16,9 @@ hundred times a day would cost nothing measurable.
 
 ## What it watches, and what it changes
 
-It watches three things and changes one.
+You do not run it. It runs itself once an hour and the answer appears on your
+board at http://127.0.0.1:8787 as the row "Laws a machine enforces". It watches
+three things and changes one.
 
 It reads `~/AGENTS.md` for the law headings, `~/.claude/settings.json` for which
 guards are wired into a hook, and every guard script under `~/.claude/scripts`
@@ -37,18 +39,20 @@ a check exists today. When a law changes, that file is what needs editing.
 
 ## How to turn it off
 
-It is a script that runs when something calls it. Nothing calls it on a schedule
-yet, so there is nothing running to stop. If it is later put on a schedule and
-you want it gone:
+It runs by itself, once an hour, as a background job called
+`com.founder.lawenforcement`. One command stops it and nothing else changes:
 
 ```
-launchctl bootout gui/$(id -u)/com.chidionyema.law-enforcement
+launchctl bootout gui/$(id -u)/com.founder.lawenforcement
 ```
+
+The board row goes to UNKNOWN six hours later and says the hourly job has
+stopped, rather than leaving the last number on screen as if it were current.
 
 ## How to turn it back on
 
 ```
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.chidionyema.law-enforcement.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.founder.lawenforcement.plist
 ```
 
 ## What goes wrong

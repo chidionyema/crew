@@ -131,10 +131,70 @@ def spend() -> list[str]:
             "(`spend_daily`, %s) |" % (state, rate, cap, db.name)]
 
 
+def collectors() -> list[str]:
+    """Which of the estate's data stores have stopped being written.
+
+    Two were already dead when the warehouse was built — `would-have-fired.jsonl`
+    had been silent 49 hours and `DECISIONS.jsonl` 54, and nothing anywhere said
+    so. `collect.py --check` finds them and exits 1, but it exits 1 into a log
+    file, and a log file is not a reader (LAW 28). This is the reader.
+
+    It reports NOT RUN, never GREEN, when the collector itself has stopped, because
+    a board that cannot tell "everything is fine" from "nobody checked" is worse
+    than no board.
+    """
+    db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
+    if not db.exists():
+        return ["| collectors | NOT RUN | no warehouse at %s |" % db.name]
+    rc, out = sh("sqlite3 -separator '\t' %s \"select source, source_mtime, status, "
+                 "max(ingested_at) from ingest_log group by source;\"" % db, timeout=20)
+    if rc or not out.strip():
+        return ["| collectors | NOT RUN | `ingest_log` did not answer |"]
+
+    now = dt.datetime.now(dt.timezone.utc)
+    dead, newest_ingest = [], None
+    for line in out.strip().split("\n"):
+        parts = line.split("\t")
+        if len(parts) < 4:
+            continue
+        source, mtime, status, ingested = parts[0], parts[1], parts[2], parts[3]
+        try:
+            ing = dt.datetime.fromisoformat(ingested)
+            newest_ingest = max(newest_ingest, ing) if newest_ingest else ing
+        except ValueError:
+            pass
+        if status != "OK":
+            dead.append("%s %s" % (source, status))
+            continue
+        try:
+            age_h = (now - dt.datetime.fromisoformat(mtime)).total_seconds() / 3600
+        except ValueError:
+            continue
+        # 48h is collect.py's own default. Anything quieter than two full days is a
+        # collector that stopped, not a quiet period.
+        if age_h > 48:
+            dead.append("%s silent %.0fh" % (source, age_h))
+
+    # The collector runs hourly. If its own last run is older than three of those,
+    # the rows above are stale and this row must not claim to have checked anything.
+    if newest_ingest is None:
+        return ["| collectors | NOT RUN | `ingest_log` holds no timestamp |"]
+    since_h = (now - newest_ingest).total_seconds() / 3600
+    if since_h > 3:
+        return ["| collectors | NOT RUN | warehouse last rebuilt %.0fh ago; "
+                "`com.founder.sciencecollect` is not running |" % since_h]
+
+    if dead:
+        return ["| collectors | RED | %d of the estate's data stores stopped being "
+                "written: %s |" % (len(dead), "; ".join(dead[:4]))]
+    return ["| collectors | GREEN | every data store written inside 48h "
+            "(`ingest_log`, checked %.0fh ago) |" % since_h]
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, crew_p1):
+    for fn in (architect, maestro, fly, spend, collectors, crew_p1):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

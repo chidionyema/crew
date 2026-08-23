@@ -3,7 +3,7 @@
 Run:
 
 ```
-python3 science/silent_side_effect.py
+python3 ~/.claude/scripts/silent_side_effect.py
 ```
 
 Real output from this machine on 2026-08-23, trimmed to the head and the tail
@@ -45,3 +45,14 @@ recorder produced identical evidence: nothing.
 
 Twenty-four is not a list of bugs. It is a list of places where, if a bug ever
 appears, nobody will hear about it.
+
+## What it does now
+
+All 24 were repaired in claude-guards e983836 and the scan returns zero. The
+detector is wired into `hooks/pre-commit`, so a new one is refused rather than
+found later. Real refusal, from a file staged deliberately to test it:
+
+```
+COMMIT REFUSED: a guard here cannot report its own failure.
+  _gate_probe.py:6  swallows a failed open(...,w), write()
+```

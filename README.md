@@ -1,5 +1,10 @@
 # crew
 
+**Start at [`STATE.md`](STATE.md).** It is the estate right now: The Architect, maestro,
+Fly, and the open P1 fires. Every row is a command and its output, rebuilt hourly, and a
+row that could not be measured says NOT RUN rather than PASS. Read it before you measure
+anything yourself and before you ask the founder anything.
+
 A conversation becomes a tracked, verified build. The GitHub issue is the shared
 brain, and this tool is the only thing that writes to it.
 

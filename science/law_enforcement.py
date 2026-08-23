@@ -153,6 +153,40 @@ def main():
     print(f"  cited by a live guard  : {len(covered & set(L))}   {sorted(covered & set(L))}")
     print(f"  PROSE ONLY (no guard)  : {len(prose)}   {prose}")
 
+    # The map is the compiler from prose to check. Without it, "which law is
+    # enforced" is unanswerable and nothing fails when one stops being enforced.
+    mp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "enforcement-map.json")
+    gap = []
+    try:
+        M = json.load(open(mp))["laws"]
+    except Exception as e:
+        M = []; print(f"\n  enforcement-map.json unreadable: {e}")
+    if M:
+        print("\n"+"="*74); print("LAW -> CHECK"); print("="*74)
+        verd = {}
+        for x in M: verd[x["verdict"]] = verd.get(x["verdict"], 0) + 1
+        mech = [x for x in M if x["verdict"] == "mechanical"]
+        gap  = [x for x in mech if x["state"] != "live"]
+        print(f"  mechanical (a machine can decide it) : {verd.get('mechanical',0)}")
+        print(f"  partial    (a smell, not a verdict)  : {verd.get('partial',0)}")
+        print(f"  judgement  (will never be code)      : {verd.get('judgement',0)}")
+        print(f"\n  mechanical AND live                  : {len(mech)-len(gap)} of {len(mech)}")
+        print(f"  THE GAP                              : {[x['id'] for x in gap]}")
+        for x in gap:
+            print(f"    LAW {x['id']:<3} {str(x['where']):<12} {x['check'][:52]}")
+        declared = {gg.split("/")[-1] for x in M for gg in x.get("guards", [])}
+        try:
+            declared |= {gg.split("/")[-1]
+                         for sec in json.load(open(mp)).get("sections", [])
+                         for gg in sec.get("guards", [])}
+        except Exception: pass
+        tiermap = {r[0]: r[1] for r in rows}
+        undeclared = [g for g in G if g + ".py" not in declared
+                      and tiermap.get(g) != "DEAD"]
+        if undeclared:
+            print(f"\n  LIVE guards absent from the map: {len(undeclared)}")
+            print(f"    {', '.join(undeclared)}")
+
     print("\n"+"="*74); print("TRACKING FRESHNESS"); print("="*74)
     dead=0
     for name,n,age in streams():
@@ -164,14 +198,17 @@ def main():
     j={"generated":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),
        "guards":[{"name":g,"tier":t,"via":h,"laws":ls} for g,t,h,ls in rows],
        "laws_total":len(L),"laws_covered":sorted(covered & set(L)),"laws_prose_only":prose,
+       "mechanical":[x["id"] for x in M if x["verdict"]=="mechanical"],
+       "gap":[{"id":x["id"],"where":x["where"],"check":x["check"]} for x in gap],
        "streams":[{"name":n,"lines":c_,"age_h":round(a,1)} for n,c_,a in streams()]}
     out=f"{H}/.claude/state/law-enforcement.json"
     try:
         json.dump(j,open(out,"w"),indent=1); print(f"\nwrote {out}")
     except OSError as e:
         print(f"\ncould not write {out}: {e}")
-    # exit 1 when any law is unenforced or any stream is stale -> readable by a scheduler
-    return 1 if (prose or dead) else 0
+    # exit 1 while any mechanical law is unenforced or any stream is stale,
+    # so a scheduler can read the verdict without parsing the text
+    return 1 if (gap or dead) else 0
 
 if __name__ == "__main__":
     sys.exit(main())

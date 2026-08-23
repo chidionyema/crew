@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-23 19:56 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-23 20:16 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,11 +8,10 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | RED | `bin/verify`: 16 passed, 1 failed |
-| &nbsp;&nbsp;failing | | FAIL  every service answers |
-| maestro | GREEN | last cycle 3 min ago (`INTENT-20260823-195122-0d20f3e7.json`) |
+| The Architect | GREEN | `bin/verify`: 17 passed, 0 failed |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260823-201225-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 1 skill(s) it can heal with |
-| Fly | 2 deployed, 12 suspended | `flyctl apps list` |
+| Fly | 3 deployed, 11 suspended | `flyctl apps list` |
 | crew P1 | 5 open | the fires nobody has put out |
 | &nbsp;&nbsp;#38 The exit from Fly has never once been drilled: the escape hatch cannot pass as written | | |
 | &nbsp;&nbsp;#35 Fly.io refuses to build: the account has overdue invoices, and production is 10 commits behind | | |

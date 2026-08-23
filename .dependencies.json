@@ -1,0 +1,21 @@
+{
+  "_": "Every host and credential in this repository is either covered by a drill on the estate register or dismissed with a reason. drills/audit.py --ci enforces it on every pull request. There is no third state: an unclassified dependency is a vendor nobody decided about.",
+  "scan": {"exclude": []},
+  "hosts": {
+    "github.com":                 {"covered_by": "github-gone"},
+    "raw.githubusercontent.com":  {"covered_by": "github-gone"},
+    "en.wikipedia.org":           {"dismissed": "a citation in roles/science.md, not a call"},
+    "onlinelibrary.wiley.com":    {"dismissed": "a citation in roles/science.md, not a call"},
+    "sms.onlinelibrary.wiley.com":{"dismissed": "a citation in roles/science.md, not a call"},
+    "pubsonline.informs.org":     {"dismissed": "a citation in roles/science.md, not a call"},
+    "www.cambridge.org":          {"dismissed": "a citation in roles/science.md, not a call"},
+    "www.aei.org":                {"dismissed": "a citation in roles/science.md, not a call"},
+    "worksinprogress.co":         {"dismissed": "a citation in roles/science.md, not a call"},
+    "www.n2growth.com":           {"dismissed": "a citation in roles/science.md, not a call"},
+    "www.viima.com":              {"dismissed": "a citation in roles/science.md, not a call"}
+  },
+  "credentials": {
+    "GH_TOKEN":     {"covered_by": "github-gone"},
+    "GITHUB_TOKEN": {"covered_by": "github-gone"}
+  }
+}

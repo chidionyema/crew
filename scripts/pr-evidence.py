@@ -20,6 +20,7 @@ bundle, so the evidence survives the exit drill along with the code.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -131,6 +132,28 @@ def repo_root() -> Path:
     return Path(run(["git", "rev-parse", "--show-toplevel"]).strip())
 
 
+def evidence_name(dest: Path, src: Path, stamp: str, i: int) -> tuple[str, bool]:
+    """The filename this image gets in dest, and whether it still needs writing.
+
+    An image whose bytes are ALREADY in dest keeps the name it already has, and is not
+    written again. This is the whole of the duplicate fix.
+
+    attach copies, commits, and only THEN pushes, so a refused push leaves the commit
+    standing. Pushes are refused here as a matter of routine: the branch-freshness fence
+    refuses a branch behind main, and the dead-branch guard refuses a branch whose pull
+    request already merged. The retry used to mint a fresh timestamp, so the same bytes
+    were committed a second time. Measured on prospector origin/main, 2026-08-23:
+    docs/evidence/pr-669/ holds three byte-identical 106 KB copies, all sha256
+    80291a6991ea..., and pr-674 collected two the same way. Retrying a failed push has
+    to be free, or the repository grows a copy of the evidence per refusal.
+    """
+    digest = hashlib.sha256(src.read_bytes()).hexdigest()
+    for existing in sorted(dest.iterdir()):
+        if existing.is_file() and hashlib.sha256(existing.read_bytes()).hexdigest() == digest:
+            return existing.name, False
+    return f"{stamp}-{i}{src.suffix or '.png'}", True
+
+
 def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bool) -> str:
     info = pr_info(pr, repo)
     n, branch = info["number"], info["headRefName"]
@@ -148,12 +171,17 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
     for i, src in enumerate(images, 1):
         if not src.exists():
             raise Fail(f"no such image: {src}")
-        name = f"{stamp}-{i}{src.suffix or '.png'}"
-        shutil.copyfile(src, dest / name)
+        name, write = evidence_name(dest, src, stamp, i)
+        if write:
+            shutil.copyfile(src, dest / name)
         links.append(f"docs/evidence/pr-{n}/{name}")
 
     run(["git", "add", *[str(dest / Path(l).name) for l in links]], cwd=root)
-    run(["git", "commit", "-m", f"evidence: {caption}"], cwd=root)
+    # Nothing staged means an earlier run already committed these exact bytes and only
+    # its push failed. That is the ordinary retry, not an error, and `git commit` with
+    # an empty index exits 1 and would abort the retry before it reached the push.
+    if run(["git", "diff", "--cached", "--name-only"], cwd=root).strip():
+        run(["git", "commit", "-m", f"evidence: {caption}"], cwd=root)
     if push:
         run(["git", "push", "origin", branch], cwd=root)
 
@@ -189,7 +217,7 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     body = info.get("body") or ""
     if MARKER not in body:
         return False, (f"#{info['number']} has no verification evidence. "
-                       f"LAW 22: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`")
+                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`")
     # Each image appears twice in a row, inline and as a link. Count the file,
     # not the mention, or the gate reports double what is there.
     imgs = set(re.findall(r"/docs/evidence/pr-\d+/[^)\s?]+", body))

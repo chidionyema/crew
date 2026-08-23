@@ -159,7 +159,20 @@ which left the agent unable to start.
 → *A checkout move is a change to every absolute path that names it. Find them
 before, prove the project's own verify after.* (LAW 4)
 
-**12. 2026-08-22 | Hermes discontinued (founder decision)**
+**12. 2026-08-22 | new-user setup is a first-class feature**
+A new user must be operational in 60 seconds, with one command and three clicks.
+Longer than that is a bug, filed like any other. `./scripts/cf-bootstrap.sh` is
+the shape: pre-flight in shell because node may be absent, then one node flow
+that opens the pre-ticked page, reads the clipboard on macOS, Linux, WSL or
+Windows, falls back to a hidden paste where there is no clipboard tool, grades
+the credential by using it, and stores it in the best secret store the machine
+has. Rejected: a second implementation of clipboard, keychain and validation in
+bash, which would have been two copies of one thing on one target and would have
+disagreed within a month.
+→ *Setup is the product's first screen. A tool that is correct and horrible to
+start is a tool nobody starts.* (LAW 20, LAW 3, LAW 23)
+
+**13. 2026-08-22 | Hermes discontinued (founder decision)**
 Hermes is stopped and is not coming back. It was an orchestrator where the estate
 needed pipes: it owned bridge, transport, bot, dashboard and law delivery in one
 chain, so any broken link made the whole thing look broken, and it alerted on state
@@ -171,14 +184,14 @@ the Hermes-shaped hole with a smaller Hermes.
 → *Push state, do not replicate logic. The Mac is the source of truth; remote nodes
 render what they are given and own no decisions.*
 
-**13. 2026-08-22 | alert receipts**
+**14. 2026-08-22 | alert receipts**
 `estate_alert._post` now returns Telegram's `message_id` and the ledger records it.
 An HTTP 200 says the API accepted the call; a `message_id` says a message exists in
 the chat. Rejected: keeping the bool, on the grounds that 200 is "close enough".
 → *Prove arrival, not send. A "sent" row with no receipt is a send nobody has proved
 landed.* (LAW 28)
 
-**14. 2026-08-22 | the Architect was running and telling nobody**
+**15. 2026-08-22 | the Architect was running and telling nobody**
 All seven cron jobs shipped with `deliver=local`, which writes a file under
 `cron/output/` and notifies no one. The gateway was up, the jobs fired, and the
 founder heard nothing for the life of the deployment. Switched all seven to

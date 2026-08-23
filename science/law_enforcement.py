@@ -271,7 +271,18 @@ def derive(entry, tiermap):
     for g in gs:
         name = g[:-3] if g.endswith(".py") else g
         if name.startswith("hooks/"):
-            if entry["id"] in law_refs(name) and (global_bind() or hook_binds()): return "live"
+            reached = global_bind() or hook_binds()
+            #: A rule retired to a machine has no law number to cite, so the
+            #: citation test cannot apply to it. Reaching the hook is the whole
+            #: question for those, and it is the right question: "refresh on
+            #: main" is enforced when pre-push runs, not when pre-push says 7.
+            if entry.get("law") is None:
+                if reached: return "live"
+            #: For a rule still attached to a law, the hook must also SAY which
+            #: law it enforces. That citation is what lets the map be checked
+            #: against the guard instead of against itself.
+            elif entry["law"] in law_refs(name) and reached:
+                return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"
     return "dead"
@@ -381,9 +392,13 @@ def main():
         for x in M:
             real = derive(x, tiermap)
             if real != x.get("state"):
-                drift.append((x["id"], x.get("state"), real))
+                drift.append((x.get("rule") or x["id"], x.get("state"), real))
             x["state"] = real
-        mech = [x for x in M if x["verdict"] == "mechanical"]
+        #: A rule the 2026-08-23 renumber retired to a machine has no law to be
+        #: a gap in. It is still tracked -- map_covers_laws.py names the three
+        #: with no owner -- but counting it here would report the constitution
+        #: as less enforced than it is.
+        mech = [x for x in M if x["verdict"] == "mechanical" and x.get("law") is not None]
         gap  = [x for x in mech if x["state"] != "live"]
         print(f"  mechanical (a machine can decide it) : {verd.get('mechanical',0)}")
         print(f"  partial    (a smell, not a verdict)  : {verd.get('partial',0)}")
@@ -395,7 +410,7 @@ def main():
         if drift:
             print(f"\n  MAP DRIFT (the declared state was wrong): {len(drift)}")
             for i, said, real in drift:
-                print(f"    LAW {i:<3} map said {said:<8} actually {real}")
+                print(f"    {str(i):<34} map said {said:<8} actually {real}")
         #: Both sides normalised to a bare name. The map writes a guard as
         #: `estate/in-git.py` or `hooks/pre-push`, and the probe names it
         #: `in-git` or `hooks/pre-push`, so comparing the raw strings reported
@@ -427,7 +442,8 @@ def main():
     j={"generated":time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),
        "guards":[{"name":g,"tier":t,"via":h,"laws":ls} for g,t,h,ls in rows],
        "laws_total":len(L),"laws_covered":sorted(covered & set(L)),"laws_prose_only":prose,
-       "mechanical":[x["id"] for x in M if x["verdict"]=="mechanical"],
+       "mechanical":sorted({x["id"] for x in M if x["verdict"]=="mechanical"
+                            and x.get("law") is not None}),
        "gap":[{"id":x["id"],"where":x["where"],"check":x["check"]} for x in gap],
        "hook_binds":hook_binds(),
        #: `global` is the field that matters. A per-repository count is

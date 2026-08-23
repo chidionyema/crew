@@ -172,7 +172,7 @@
    "verdict": "judgement",
    "where": null,
    "check": null,
-   "state": "absent",
+   "state": "live",
    "guards": [
     "hooks/pre-push"
    ]
@@ -193,7 +193,7 @@
    "verdict": "mechanical",
    "where": "pre-push",
    "check": "scripts/pr-evidence.py check --pr N",
-   "state": "absent",
+   "state": "live",
    "guards": [
     "hooks/pre-push"
    ]

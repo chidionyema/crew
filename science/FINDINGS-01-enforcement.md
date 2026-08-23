@@ -12,16 +12,49 @@ derived into machine code, and the enforcement should be tracked.
 **Two instruments, built independently, agree.**
 
 Angle 1 — `science/law_enforcement.py`, written for this finding. It walks the
-hook wiring in `settings.json` and the launchd jobs, then follows the call graph.
+hook wiring in `settings.json`, the git hooks, and the launchd jobs, then
+follows the call graph. Re-run 2026-08-23 17:30:
 
-    22 guard scripts on disk
-     6 PREVENTIVE   wired to a Claude Code hook, can refuse an action in flight
+    25 guards on disk
+     8 PREVENTIVE   can refuse an action in flight
      5 DETECTIVE    reached only from the 4-hourly reflect job, cannot refuse
-    11 DEAD         no path from any entry point
+    12 DEAD         no path from any entry point
 
-    31 laws declared in AGENTS.md
-     2 named by a live guard   (LAW 21, LAW 28 — both in secret-scrub)
-    29 prose only
+    32 laws declared in AGENTS.md
+     9 named by a live guard   (LAW 3, 7, 12, 20, 21, 22, 24, 28, 32)
+    23 prose only
+
+**One of those nine is not in git.** LAW 22 counts because an `evidence()`
+check exists in `hooks/pre-push` on disk, written by another session and still
+uncommitted in a shared checkout. The probe reads the live file, which is the
+honest thing for it to do, but it means the coverage number currently includes
+work that one `git checkout` would erase. That is LAW 24 exactly, and it is
+worth more than the count it contributes.
+
+**These numbers replace the ones this finding was first written with, and the
+replacement is itself the finding.** The first version said 22 guards, 31 laws
+and 2 covered. Three things moved it. LAW 32 was added to `AGENTS.md`. Another
+session wired LAW 7 into `hooks/pre-push`, citing this probe in its docstring,
+which is the first time an instrument in `science/` changed anything. And the
+probe was undercounting: it read `settings.json` and launchd and nothing else,
+so every git hook was invisible to it and six laws read as prose while a hook
+was enforcing them.
+
+**The count is not the story. Reach is.** A git hook only runs in a repository
+whose `core.hooksPath` names it. Of 49 git repositories on this machine, two
+bind these hooks, and both of them are the directory that holds the hooks.
+
+    hooks bound in   2 of 49 repositories
+    both of them     ~/.claude and ~/.claude/scripts
+
+So LAW 3, 7, 20, 21, 22, 24, 28 and 32 are enforced in the guards repository and in
+nothing that ships a feature. `crew`, `hermes-v2`, `prospector` and `maestro`
+bind nothing. This was measured, not inferred: a push to `crew` earlier the same
+day went through untouched, and running the same gate by hand against the same
+push showed it would have refused it.
+
+"The gate exists" and "the gate is in the path" have been treated as one fact.
+They are two, and only the second one stops anything.
 
 Angle 2 — `reflect.py`, already running every 4 hours since before I arrived,
 writing `store/ops/method_metrics.json`.

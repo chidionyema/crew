@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-23 20:31 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-23 20:33 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,9 +8,8 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | RED | `bin/verify`: 16 passed, 1 failed |
-| &nbsp;&nbsp;failing | | FAIL  README describes what ships        docs/demo/ is in the repo, and the README never says why |
-| maestro | GREEN | last cycle 3 min ago (`INTENT-20260823-202726-0d20f3e7.json`) |
+| The Architect | GREEN | `bin/verify`: 17 passed, 0 failed |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260823-203026-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 1 skill(s) it can heal with |
 | Fly | 2 deployed, 12 suspended | `flyctl apps list` |
 | crew P1 | 5 open | the fires nobody has put out |

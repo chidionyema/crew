@@ -17,10 +17,15 @@ The map every agent reads before touching Hermes. `grep -A20 "Hermes Architectur
 this file.
 
 ```
-PRIMARY:   hermes-v2 on Fly, app prospector-hermes
-STANDBY:   hermes-v2 on this Mac, ~/dev/code/hermes-v2, launchd-ready, fence ON
+PRIMARY:   hermes-v2 on this Mac, ~/dev/code/hermes-v2, launchd ai.architect.gateway
+TARGET:    hermes-v2 on Fly, app prospector-hermes — not reachable, see entry 14
 RETIRED:   the old estate, ~/.hermes, v0.16.0
 ```
+
+**PRIMARY and TARGET swapped 2026-08-22 13:40 UTC.** The Mac is what actually
+serves. The launchd label is `ai.architect.gateway`, not `ai.hermes.gateway` —
+REQ-116 bars the second name from `launchctl list` because two gateways would
+share one bot token. Entry 14 has the measurements.
 
 Migration path: hermes-v2 is the test candidate for survival-stack Phase 2. When
 survival-stack is proven on a spare domain, hermes-v2 moves off Fly to the
@@ -30,21 +35,20 @@ not during it.
 Source of truth is the crew issue board. No agent touches Hermes without a
 ticket. LAW 26.
 
-**State as measured 2026-08-22 09:55 UTC, which is not yet the target.** The
-PRIMARY line above is where this is going. What is actually running:
+**State as measured 2026-08-22 13:40 UTC.** Re-measured; the 09:55 table named
+`~/code/hermes-v2`, a path that no longer exists after entry 11.
 
 | fact | command | what came back |
 |---|---|---|
-| `prospector-hermes` is deployed | `fly releases -a prospector-hermes` | v12, 11h ago |
-| it serves no HTTP on the usual paths | `curl -o /dev/null -w '%{http_code}' https://prospector-hermes.fly.dev/health` | `000` |
-| its `HERMES_HOME` is a Mac path | `fly config show -a prospector-hermes` | `"HERMES_HOME": "/Users/chidionyema/.hermes"` |
-| neither checkout can deploy | `ls ~/code/hermes-v2/fly.toml ~/code/hermes-v2/Dockerfile` | neither exists |
-| the standby is real | `git -C ~/code/hermes-v2 log --oneline -1` | `6a64105 evidence: CI green on a public runner` |
+| the Mac gateway runs | `launchctl list \| grep ai.architect.gateway` | `20043 0 ai.architect.gateway` |
+| it reaches his phone | `./bin/hermes send --to telegram` | `Sent to telegram home channel (chat_id: 8868748055)` |
+| a cron job reaches his phone | `hermes cron run <job>` via the real cron path | `DELIVERY PROOF: ... reached your phone at 13:07:10 BST` |
+| the checkout is healthy | `./bin/verify` | `13 passed, 3 failed` |
+| Fly is not reachable | `fly apps list` | `Not authorized to access this firecrackerapp` |
+| the Fly token is stale | `fly auth token --json` | `last_login: 2026-08-01T06:18:39+01:00` |
 
-So `prospector-hermes` is deployed from something that is not either checkout on
-this machine, and it carries a container env pointing at a macOS path that cannot
-exist inside a Linux container. Both are open questions on the ticket, not
-findings — nobody has yet read what that image actually runs.
+`fly auth whoami` still prints the founder's address, which is why this read as a
+working login for three sessions. It is a dead token, not a signed-out CLI.
 
 ## Where projects live (canonical)
 
@@ -167,3 +171,36 @@ bash, which would have been two copies of one thing on one target and would have
 disagreed within a month.
 → *Setup is the product's first screen. A tool that is correct and horrible to
 start is a tool nobody starts.* (LAW 20, LAW 3, LAW 23)
+
+**13. 2026-08-22 | Hermes discontinued (founder decision)**
+Hermes is stopped and is not coming back. It was an orchestrator where the estate
+needed pipes: it owned bridge, transport, bot, dashboard and law delivery in one
+chain, so any broken link made the whole thing look broken, and it alerted on state
+rather than on change, so the alerts got tuned out. What survives is the decomposed
+loop, each part failing independently — `estate_audit.py` detects, `estate_watch.py`
+diffs and debounces, `estate_alert.py` delivers straight to api.telegram.org with no
+gateway, `hermes_lease.py` transports to R2. Rejected: fixing Hermes v2, and filling
+the Hermes-shaped hole with a smaller Hermes.
+→ *Push state, do not replicate logic. The Mac is the source of truth; remote nodes
+render what they are given and own no decisions.*
+
+**14. 2026-08-22 | alert receipts**
+`estate_alert._post` now returns Telegram's `message_id` and the ledger records it.
+An HTTP 200 says the API accepted the call; a `message_id` says a message exists in
+the chat. Rejected: keeping the bool, on the grounds that 200 is "close enough".
+→ *Prove arrival, not send. A "sent" row with no receipt is a send nobody has proved
+landed.* (LAW 28)
+
+**15. 2026-08-22 | the Architect was running and telling nobody**
+All seven cron jobs shipped with `deliver=local`, which writes a file under
+`cron/output/` and notifies no one. The gateway was up, the jobs fired, and the
+founder heard nothing for the life of the deployment. Switched all seven to
+`deliver=telegram` and added a `bin/verify` row that fails when any job goes back
+to `local`. Every job prompt was already written silent-by-default, so `pulse.sh`
+on a 15-minute schedule stays quiet unless it has something to say. Also flipped
+PRIMARY to the Mac above: `prospector-hermes` has been unreachable since the Fly
+token went stale on 2026-08-01, so the map named a machine no agent could touch.
+Rejected: a dashboard for the `cron/output/` files, which is a second place to
+look rather than one fewer.
+→ *A scheduler whose output nobody receives is a scheduler talking to itself.
+The delivery target is part of the job, and it gets a check.* (LAW 28)

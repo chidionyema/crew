@@ -212,6 +212,47 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
     return f"{len(links)} image(s) on {info['url']} and committed to {branch}"
 
 
+OPTIONS_HEAD = re.compile(r"^\s*#{1,4}\s*options considered\s*$", re.I | re.M)
+OPTIONS_CHOSEN = re.compile(r"^\s*[-*]?\s*chosen\s*:", re.I | re.M)
+
+#: A bullet has to say something. Measured on the LAW 32 gate, which had to add the same floor:
+#: a heading with nothing under it satisfies a word search and satisfies nobody reading it.
+OPTION_MIN_CHARS = 40
+
+
+def options_considered(body: str) -> tuple:
+    """(ok, message) for the requirement that a pull request shows the roads it did not take.
+
+    Founder, 2026-08-23: "every pr nust prove they ehauseted all opttions".
+
+    Two bullets and a chosen line is the bar, not a design document. The point is not the writing,
+    it is that a cheaper option was named and rejected on the record rather than never looked for.
+    LAW 23 already says take the smaller road when both arrive; this is the place that asks whether
+    anybody checked there was one.
+    """
+    m = OPTIONS_HEAD.search(body or "")
+    if not m:
+        return False, ("no '## Options considered' section. Name at least two options, one line "
+                       "each, and a 'Chosen:' line saying which won and why")
+    block, bullets = [], []
+    for line in body[m.end():].splitlines():
+        if line.strip().startswith("#"):
+            break
+        block.append(line)
+        s = line.strip()
+        if s.startswith(("-", "*")) and not OPTIONS_CHOSEN.match(line):
+            if len(re.sub(r"[^A-Za-z0-9 ]", "", s)) >= OPTION_MIN_CHARS:
+                bullets.append(s)
+    if len(bullets) < 2:
+        return False, ("'Options considered' lists %d real option(s), needs 2. A bullet under %d "
+                       "characters does not count as an option that was weighed"
+                       % (len(bullets), OPTION_MIN_CHARS))
+    if not OPTIONS_CHOSEN.search("\n".join(block)):
+        return False, ("'Options considered' has no 'Chosen:' line. Two options and no verdict is "
+                       "a list, not a decision")
+    return True, "%d options weighed, with a stated choice" % len(bullets)
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -223,7 +264,44 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     imgs = set(re.findall(r"/docs/evidence/pr-\d+/[^)\s?]+", body))
     if not imgs:
         return False, f"#{info['number']} has an evidence section with no image in it"
-    return True, f"#{info['number']} carries {len(imgs)} evidence image(s)"
+    ok_opts, why_opts = options_considered(body)
+    if not ok_opts:
+        return False, "#%s %s" % (info["number"], why_opts)
+    return True, "#%s carries %d evidence image(s), %s" % (info["number"], len(imgs), why_opts)
+
+
+def selftest_options() -> int:
+    """The options gate, proved on literal bodies. Paired controls, as everywhere else here."""
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print("  ok   %s" % name)
+        else:
+            print("  FAIL %s: got %r, want %r" % (name, got, want))
+            fails.append(name)
+
+    good = ("## Options considered\n"
+            "- Rewrite the sweep as a separate scheduled job of its own\n"
+            "- Fold the sweep into the tick that already runs every five minutes\n"
+            "- Chosen: the tick, because a second scheduler is a second thing to go quiet\n")
+    check_one("two options and a choice pass", options_considered(good)[0], True)
+    check_one("no section fails", options_considered("Some prose.")[0], False)
+    check_one("one option is not exhausting the options",
+              options_considered("## Options considered\n- Fold it into the existing five minute "
+                                 "tick\n- Chosen: that one\n")[0], False)
+    check_one("two options and no verdict fails",
+              options_considered("## Options considered\n"
+                                 "- Rewrite the sweep as a separate scheduled job of its own\n"
+                                 "- Fold the sweep into the tick that already runs every "
+                                 "five minutes\n")[0], False)
+    check_one("stub bullets do not count as options",
+              options_considered("## Options considered\n- a\n- b\n- Chosen: a\n")[0], False)
+    check_one("the section ends at the next heading",
+              options_considered(good.replace("- Chosen:", "## Notes\n- Chosen:"))[0], False)
+    print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
+    return 1 if fails else 0
 
 
 # -------------------------------------------------------------------- main
@@ -255,7 +333,12 @@ def main() -> int:
     c.add_argument("--pr", required=True)
     c.add_argument("--repo")
 
+    sub.add_parser("selftest-options",
+                   help="prove the options gate on literal bodies, no network")
+
     ns = ap.parse_args()
+    if ns.cmd == "selftest-options":
+        return selftest_options()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

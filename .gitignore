@@ -4,3 +4,4 @@
 .notify.log
 .venv/
 __pycache__/
+science/warehouse.db

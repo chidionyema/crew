@@ -16,6 +16,8 @@ H = os.path.expanduser("~")
 SETTINGS = f"{H}/.claude/settings.json"
 SCRIPTS  = f"{H}/.claude/scripts"
 LAWS     = f"{H}/AGENTS.md"
+SKIP_DIRS = {"node_modules", "venv", "__pycache__", "target",
+             "build", "dist", "vendor", "Pods", "DerivedData"}
 STALE_H  = 24  # a tracking stream silent longer than this is not tracking
 
 def laws():
@@ -122,10 +124,21 @@ def repos():
     for base in (f"{H}/dev", f"{H}/code", f"{H}/Documents/code", f"{H}/.claude"):
         if not os.path.isdir(base): continue
         for d, subs, _ in os.walk(base):
+            #: Prune hard. Without this the walk descends into node_modules and
+            #: .venv and takes minutes, and the probe runs hourly.
+            subs[:] = [x for x in subs if x not in SKIP_DIRS and not x.startswith(".")]
             if d.count(os.sep) - base.count(os.sep) > 3:
                 subs[:] = []; continue
             if os.path.exists(os.path.join(d, ".git")):
-                _REPOS.append(d)
+                #: Stop at the repository boundary. Descending finds vendored
+                #: checkouts and submodules, which nobody ships a feature from,
+                #: and it took the walk from seconds to over a minute.
+                _REPOS.append(d); subs[:] = []
+    #: A bound repository must appear in its own denominator. ~/.claude/scripts
+    #: sits inside ~/.claude, so the prune above would otherwise let the
+    #: numerator count a repository the denominator had skipped.
+    for r in hook_binds():
+        if r not in _REPOS: _REPOS.append(r)
     return _REPOS
 
 _BINDS = None
@@ -142,14 +155,17 @@ def hook_binds():
     root = f"{H}/dev/code"
     if os.path.isdir(root):
         cands += [os.path.join(root, d) for d in sorted(os.listdir(root))]
+    # Read .git/config directly. Shelling out to `git config` once per candidate
+    # took the probe past two minutes on this machine; a config file is 2KB.
     for r in cands:
-        if not os.path.exists(os.path.join(r, ".git")): continue
-        try:
-            v = subprocess.run(["git", "-C", r, "config", "--get", "core.hooksPath"],
-                               capture_output=True, text=True, timeout=10).stdout.strip()
-        except Exception:
-            continue
-        if not v: continue
+        g = os.path.join(r, ".git")
+        cfgp = os.path.join(g, "config") if os.path.isdir(g) else None
+        if not cfgp or not os.path.isfile(cfgp): continue
+        try: txt = open(cfgp, errors="ignore").read()
+        except OSError: continue
+        m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
+        if not m: continue
+        v = m.group(1).strip()
         real = v if os.path.isabs(v) else os.path.join(r, v)
         if os.path.realpath(real) == os.path.realpath(f"{SCRIPTS}/hooks"):
             _BINDS.append(r)
@@ -298,6 +314,15 @@ def main():
         print("\n"+"="*74); print("LAW -> CHECK"); print("="*74)
         verd = {}
         for x in M: verd[x["verdict"]] = verd.get(x["verdict"], 0) + 1
+        # LAW 28: state was hand-written, so it drifted. Derive it, and keep the
+        # declared value only to report where the map was lying.
+        tiermap = {r[0]: r[1] for r in rows}
+        drift = []
+        for x in M:
+            real = derive(x, tiermap)
+            if real != x.get("state"):
+                drift.append((x["id"], x.get("state"), real))
+            x["state"] = real
         mech = [x for x in M if x["verdict"] == "mechanical"]
         gap  = [x for x in mech if x["state"] != "live"]
         print(f"  mechanical (a machine can decide it) : {verd.get('mechanical',0)}")
@@ -307,6 +332,10 @@ def main():
         print(f"  THE GAP                              : {[x['id'] for x in gap]}")
         for x in gap:
             print(f"    LAW {x['id']:<3} {str(x['where']):<12} {x['check'][:52]}")
+        if drift:
+            print(f"\n  MAP DRIFT (the declared state was wrong): {len(drift)}")
+            for i, said, real in drift:
+                print(f"    LAW {i:<3} map said {said:<8} actually {real}")
         #: Both sides normalised to a bare name. The map writes a guard as
         #: `estate/in-git.py` or `hooks/pre-push`, and the probe names it
         #: `in-git` or `hooks/pre-push`, so comparing the raw strings reported

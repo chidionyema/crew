@@ -1,0 +1,327 @@
+{
+ "_": "Laws compiled to checks. verdict: mechanical = a machine can decide it; partial = a machine can flag a strong smell but not decide; judgement = no check, and saying so is the honest answer. 'guards' names the scripts that would run it. 'state' is live / dead / absent, cross-checked against disk by law_enforcement.py.",
+ "laws": [
+  {
+   "id": 1,
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "a numbered restoration objective was declared in an earlier turn and this reply does not reprint the number",
+   "state": "dead",
+   "guards": [
+    "goal-guard.py"
+   ]
+  },
+  {
+   "id": 2,
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "reply contains a hedge (probably, likely, it must be, appears to) and the turn ran zero Bash or Read calls",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 3,
+   "verdict": "mechanical",
+   "where": "PreToolUse",
+   "check": "Write creates a new path whose distinctive symbol never appeared in a prior Grep, Glob or git log in this session",
+   "state": "dead",
+   "guards": [
+    "dupe-work-fence.py"
+   ]
+  },
+  {
+   "id": 4,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 5,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply contains 'founder action' or an ask aimed at him, and no line names a blocker of the three permitted kinds",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 6,
+   "verdict": "partial",
+   "where": "pre-push",
+   "check": "a commit closes an incident and the same push adds no test, hook or CI job",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 7,
+   "verdict": "mechanical",
+   "where": "pre-push",
+   "check": "git fetch origin main && test $(git rev-list --count HEAD..origin/main) -eq 0",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 8,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 9,
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "the named job's number has not moved across three consecutive turns",
+   "state": "dead",
+   "guards": [
+    "goal-guard.py"
+   ]
+  },
+  {
+   "id": 10,
+   "verdict": "mechanical",
+   "where": "SessionStart",
+   "check": "an outbound peer message repeats one already on ESTATE_BOARD.jsonl without a 'Re-raising:' line",
+   "state": "live",
+   "guards": [
+    "peer-loop-fence.py"
+   ]
+  },
+  {
+   "id": 11,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 12,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 13,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply to the founder carries neither a platform line nor a stack line",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 14,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 15,
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "reply says proven, confirmed or verified and cites fewer than two distinct sources",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 16,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "the session dropped a thread and wrote no checkpoints/LATEST.md",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 17,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply opens with DONE and contains no command output",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 18,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "prompt-ledger has open items whose acceptance commands now exit 0",
+   "state": "live",
+   "guards": [
+    "prompt-ledger.py",
+    "directive-capture.py"
+   ]
+  },
+  {
+   "id": 19,
+   "verdict": "partial",
+   "where": "CI",
+   "check": "a dependency manifest changed and no exit drill for that dependency ran green in the last 30 days",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 20,
+   "verdict": "judgement",
+   "where": null,
+   "check": null,
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 21,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "a secret-shaped value appears in the reply, a log, a commit or a screenshot",
+   "state": "live",
+   "guards": [
+    "secret-scrub.py"
+   ]
+  },
+  {
+   "id": 22,
+   "verdict": "mechanical",
+   "where": "pre-push",
+   "check": "scripts/pr-evidence.py check --pr N",
+   "state": "absent",
+   "guards": [
+    "pr-evidence.py"
+   ]
+  },
+  {
+   "id": 23,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply ends by naming two options and their costs instead of a decision",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 24,
+   "verdict": "mechanical",
+   "where": "scheduled",
+   "check": "a load-bearing file differs from its tracked copy or is untracked",
+   "state": "live",
+   "guards": [
+    "estate/in-git.py",
+    "laws-link-guard.py"
+   ]
+  },
+  {
+   "id": 25,
+   "verdict": "mechanical",
+   "where": "PreToolUse",
+   "check": "work starts on a new issue while the previous one's last comment is not a CHECKPOINT",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 26,
+   "verdict": "partial",
+   "where": "pre-push",
+   "check": "a commit touches a shared path and references no open crew issue",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 27,
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "a setup step asked of the founder was already asked in an earlier session",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 28,
+   "verdict": "mechanical",
+   "where": "scheduled",
+   "check": "a file under state/ has no reader in the corpus, or a live stream is silent beyond its interval",
+   "state": "live",
+   "guards": [
+    "science/law_enforcement.py"
+   ]
+  },
+  {
+   "id": 29,
+   "verdict": "partial",
+   "where": "scheduled",
+   "check": "repairs shipped exceeds predictions logged and scored",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 30,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "a run produced a result and appended nothing to the record",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 31,
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply to the founder contains an imperative aimed at him: run, type, execute, paste, open a browser",
+   "state": "absent",
+   "guards": []
+  },
+  {
+   "id": 32,
+   "verdict": "mechanical",
+   "where": "pre-push",
+   "check": "a feat: commit or a new top level source directory ships without docs/demo and docs/onboarding",
+   "state": "live",
+   "guards": [
+    "hooks/pre-push"
+   ]
+  }
+ ],
+ "sections": [
+  {
+   "name": "Plain English",
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply above the fold uses jargon, stacked dashes or a rhetorical trick",
+   "guards": [
+    "jargon-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "name": "Context discipline: one round-trip per intent",
+   "verdict": "mechanical",
+   "where": "scheduled",
+   "check": "independent tool calls issued in separate messages when one would do",
+   "guards": [
+    "tool-drip-guard.py",
+    "batching-compliance.py"
+   ],
+   "state": "live"
+  },
+  {
+   "name": "Session hygiene: resident context",
+   "verdict": "mechanical",
+   "where": "scheduled",
+   "check": "resident context crosses the auto-compact threshold with no handoff written",
+   "guards": [
+    "context-guard-hook.py"
+   ],
+   "state": "live"
+  },
+  {
+   "name": "Never sit and watch a long command",
+   "verdict": "mechanical",
+   "where": "scheduled",
+   "check": "a foreground command exceeded 30s that should have been backgrounded",
+   "guards": [
+    "hang-guard.py",
+    "rule-guard.py"
+   ],
+   "state": "live"
+  }
+ ]
+}

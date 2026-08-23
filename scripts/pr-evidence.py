@@ -253,6 +253,93 @@ def options_considered(body: str) -> tuple:
     return True, "%d options weighed, with a stated choice" % len(bullets)
 
 
+#: What day-0 lock-in actually looks like in a diff. Each of these names one vendor and cannot be
+#: satisfied by another, so a line that adds one has chosen a provider on behalf of the estate.
+#: Deliberately narrow. A pattern that fires on innocent code trains agents to route around the
+#: gate, and a gate agents route around is worse than no gate because it reads as coverage.
+LOCKIN = [
+    ("model id", re.compile(r"\b(claude-(?:opus|sonnet|haiku|fable|instant|\d)|gpt-[45]|o[13]-(?:mini|preview)"
+                            r"|gemini-(?:\d|pro|flash)|grok-\d|llama-\d)", re.I)),
+    ("api endpoint", re.compile(r"\b(api\.anthropic\.com|api\.openai\.com|api\.x\.ai"
+                                r"|generativelanguage\.googleapis\.com)", re.I)),
+    ("vendor sdk", re.compile(r"^\s*(?:from|import)\s+(anthropic|openai|google\.generativeai|cohere)\b", re.M)),
+    ("transcript layout", re.compile(r"\.claude/projects|\.codex/sessions|\.gemini/tmp")),
+]
+
+COUPLING_HEAD = re.compile(r"^\s*#{1,4}\s*provider coupling\s*$", re.I | re.M)
+COUPLING_SWAP = re.compile(r"^\s*[-*]?\s*swap\s*:", re.I | re.M)
+
+#: Prose and evidence are exempt. This law's own onboarding page names every vendor in the table
+#: above, and a gate that refuses the document explaining it is a gate that gets deleted.
+#:
+#: This file exempts itself for the same reason, and it is not a loophole: the table above IS a
+#: list of vendor names, so without the carve-out the first pull request refused by this gate is
+#: the one that adds it. Measured, not predicted -- the gate flagged itself 6 times on its own
+#: source before this line existed.
+EXEMPT = re.compile(r"\.(md|txt|png|jpg|svg|lock)$|^docs/|/fixtures?/|^tests?/fixtures/"
+                    r"|(^|/)pr-evidence\.py$")
+
+
+def coupling_markers(diff: str) -> list:
+    """Every vendor name this diff ADDS to code, as (kind, file, line) — [] when it adds none.
+
+    Added lines only. A diff that deletes `import anthropic` is doing the opposite of taking a
+    dependency, and counting it would make removing lock-in harder than adding it.
+    """
+    hits, path = [], ""
+    for line in (diff or "").splitlines():
+        if line.startswith("+++ b/"):
+            path = line[6:].strip()
+            continue
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        if not path or EXEMPT.search(path):
+            continue
+        text = line[1:]
+        for kind, pat in LOCKIN:
+            if pat.search(text):
+                hits.append((kind, path, text.strip()[:80]))
+                break
+    return hits
+
+
+def provider_coupling(body: str, diff: str) -> tuple:
+    """(ok, message) for LAW 34. A pull request that adds a vendor name says how it is swapped.
+
+    Founder, 2026-08-23: "we need to be provider agnostic from day 0", "every agent session and
+    pr needs to reinforce", "and you need to include claude".
+
+    This does not refuse the coupling. Taking a dependency is often right and LAW 19 already
+    covers living with one. It refuses the SILENT coupling: a vendor written into a code path
+    where nobody wrote down what replaces it. The answer may be one line, and one line is the
+    whole ask, because the cost of an exit is set on the day the dependency goes in and never
+    gets cheaper afterwards.
+
+    A diff that adds no vendor name passes without the author writing anything.
+    """
+    hits = coupling_markers(diff)
+    if not hits:
+        return True, "adds no new provider coupling"
+    what = ", ".join(sorted({"%s in %s" % (k, f) for k, f, _ in hits}))
+    if not COUPLING_HEAD.search(body or ""):
+        return False, ("adds provider coupling (%s) with no '## Provider coupling' section. "
+                       "LAW 34: name what is coupled and add a 'Swap:' line saying what replaces "
+                       "it and how long that takes" % what)
+    block = []
+    for line in body[COUPLING_HEAD.search(body).end():].splitlines():
+        if line.strip().startswith("#"):
+            break
+        block.append(line)
+    joined = "\n".join(block)
+    if len(re.sub(r"[^A-Za-z0-9 ]", "", joined).strip()) < OPTION_MIN_CHARS:
+        return False, ("'Provider coupling' is a heading with nothing under it. Say what is "
+                       "coupled (%s) and what replaces it" % what)
+    if not COUPLING_SWAP.search(joined):
+        return False, ("'Provider coupling' has no 'Swap:' line. Naming a dependency without "
+                       "naming its replacement is a description, not an exit")
+    return True, "%d coupling(s) declared with a swap" % len(hits)
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -267,7 +354,18 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_opts, why_opts = options_considered(body)
     if not ok_opts:
         return False, "#%s %s" % (info["number"], why_opts)
-    return True, "#%s carries %d evidence image(s), %s" % (info["number"], len(imgs), why_opts)
+    args = ["pr", "diff", pr] + (["--repo", repo] if repo else [])
+    try:
+        diff = gh(args)
+    except Exception:
+        # A diff we cannot fetch is not a pass. Say which check did not run, because a gate
+        # that goes quiet on its own failure is the shape LAW 28 forbids.
+        return False, "#%s: could not fetch the diff, so LAW 34 coupling was not checked" % info["number"]
+    ok_cpl, why_cpl = provider_coupling(body, diff)
+    if not ok_cpl:
+        return False, "#%s %s" % (info["number"], why_cpl)
+    return True, "#%s carries %d evidence image(s), %s, %s" % (
+        info["number"], len(imgs), why_opts, why_cpl)
 
 
 def selftest_options() -> int:
@@ -300,6 +398,36 @@ def selftest_options() -> int:
               options_considered("## Options considered\n- a\n- b\n- Chosen: a\n")[0], False)
     check_one("the section ends at the next heading",
               options_considered(good.replace("- Chosen:", "## Notes\n- Chosen:"))[0], False)
+    # ---- LAW 34, on literal diffs. Paired controls: every refusal has a pass beside it.
+    d_clean = "+++ b/scripts/tick.py\n+    total = count_rows(db)\n"
+    d_model = "+++ b/scripts/tick.py\n+    MODEL = \"claude-opus-5\"\n"
+    d_sdk = "+++ b/scripts/tick.py\n+import anthropic\n"
+    d_docs = "+++ b/docs/onboarding/law-34.md\n+We currently call claude-opus-5 and api.openai.com.\n"
+    d_del = "+++ b/scripts/tick.py\n-import anthropic\n+from providers import chat\n"
+    declared = ("## Provider coupling\n"
+                "The tick names claude-opus-5 directly when it summarises the day.\n"
+                "- Swap: any chat model behind providers.chat, about an hour to move\n")
+
+    check_one("a diff with no vendor name passes with nothing written",
+              provider_coupling("no section at all", d_clean)[0], True)
+    check_one("a model id with no section fails",
+              provider_coupling("no section at all", d_model)[0], False)
+    check_one("a vendor sdk import with no section fails",
+              provider_coupling("no section at all", d_sdk)[0], False)
+    check_one("a model id with a declared swap passes",
+              provider_coupling(declared, d_model)[0], True)
+    check_one("prose and docs are exempt",
+              provider_coupling("no section at all", d_docs)[0], True)
+    check_one("removing a vendor import is not adding coupling",
+              provider_coupling("no section at all", d_del)[0], True)
+    check_one("an empty heading does not count",
+              provider_coupling("## Provider coupling\n\n## Next", d_model)[0], False)
+    check_one("a coupling named with no Swap line fails",
+              provider_coupling("## Provider coupling\nWe call claude-opus-5 in the daily "
+                                "summary path and it works well.\n", d_model)[0], False)
+    check_one("claude gets no exemption from the law it is named in",
+              provider_coupling("no section at all",
+                                "+++ b/scripts/t.py\n+p = HOME / \".claude/projects\"\n")[0], False)
     print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
     return 1 if fails else 0
 

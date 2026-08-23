@@ -1,0 +1,145 @@
+<title>Estate Research Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#F3F4F6; --surface:#FFFFFF; --ink:#14181D; --ink-soft:#535C67;
+  --rule:#DCE0E6; --accent:#15655A; --accent-soft:#E2EFEC;
+  --warn:#8C5214; --warn-soft:#F6EBDD; --code:#F1F3F5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1014; --surface:#151A20; --ink:#E3E7EB; --ink-soft:#96A1AD;
+    --rule:#252C34; --accent:#59B6A5; --accent-soft:#152A27;
+    --warn:#D89A52; --warn-soft:#2A2116; --code:#1B2128;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1014; --surface:#151A20; --ink:#E3E7EB; --ink-soft:#96A1AD;
+  --rule:#252C34; --accent:#59B6A5; --accent-soft:#152A27;
+  --warn:#D89A52; --warn-soft:#2A2116; --code:#1B2128;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16.5px; line-height:1.62; margin:0;
+  -webkit-text-size-adjust:100%;
+}
+.wrap{max-width:50rem;margin:0 auto;padding:2.6rem 1.25rem 5rem;display:flex;flex-direction:column;gap:2rem}
+header{display:flex;flex-direction:column;gap:.85rem;padding-bottom:1.6rem;border-bottom:2px solid var(--ink)}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.68rem;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft);
+}
+h1{
+  font-family:"Newsreader",Georgia,serif; font-weight:500; font-size:clamp(2rem,6vw,2.9rem);
+  line-height:1.1; margin:0; letter-spacing:-.015em; text-wrap:balance;
+}
+.lede{color:var(--ink-soft);margin:0;max-width:46ch}
+.counts{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.3rem}
+.count{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;
+  border:1px solid var(--rule);border-radius:2px;padding:.28rem .55rem;
+  color:var(--ink-soft);background:var(--surface);
+  font-variant-numeric:tabular-nums;
+}
+.count b{color:var(--ink);font-weight:600}
+article{
+  background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+  padding:1.5rem 1.35rem;display:flex;flex-direction:column;gap:1.05rem;
+}
+.head{display:flex;flex-direction:column;gap:.5rem}
+.meta{display:flex;flex-wrap:wrap;gap:.55rem;align-items:center}
+.date{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.74rem;
+  color:var(--accent);font-weight:600;letter-spacing:.04em;
+}
+.owner{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.7rem;color:var(--ink-soft)}
+h2{
+  font-family:"Newsreader",Georgia,serif;font-weight:500;font-size:1.42rem;
+  line-height:1.25;margin:0;letter-spacing:-.008em;text-wrap:balance;
+}
+.block{display:flex;flex-direction:column;gap:.34rem}
+.label{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.66rem;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);
+}
+.block p{margin:0}
+.refused{color:var(--warn);font-weight:600}
+.metric{
+  background:var(--code);border-left:2px solid var(--accent);
+  padding:.75rem .9rem;display:flex;flex-direction:column;gap:.5rem;border-radius:0 2px 2px 0;
+}
+.metric .row{display:flex;flex-direction:column;gap:.15rem}
+.metric .k{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.66rem;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);
+}
+.metric .v{font-size:.92rem}
+.pending{
+  display:inline-block;background:var(--warn-soft);color:var(--warn);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;
+  padding:.14rem .45rem;border-radius:2px;font-weight:600;
+}
+details{border-top:1px solid var(--rule);padding-top:.85rem}
+summary{
+  cursor:pointer;font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);
+  list-style:none;
+}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+details[open] summary::before{content:"▾ "}
+summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+ol.sources{
+  margin:.8rem 0 0;padding-left:1.5rem;display:flex;flex-direction:column;gap:.4rem;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.76rem;
+}
+ol.sources li{overflow-wrap:anywhere}
+a{color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+footer{
+  border-top:1px solid var(--rule);padding-top:1.2rem;color:var(--ink-soft);
+  font-size:.84rem;display:flex;flex-direction:column;gap:.5rem;
+}
+footer code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.8rem;background:var(--code);padding:.1rem .3rem;border-radius:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="wrap">
+<header>
+<div class="eyebrow">crew · science/RESEARCH-LEDGER.jsonl</div>
+<h1>Estate Research Ledger</h1>
+<p class="lede">Every research pass the estate has run, what it read, what it decided, and the number that will say whether the decision worked.</p>
+<div class="counts"><span class="count"><b>4</b> entries</span><span class="count"><b>56</b> sources read</span><span class="count"><b>4</b> awaiting a measurement</span></div>
+</header>
+<article>
+<div class="head"><div class="meta"><span class="date">2026-08-24</span><span class="owner">owner: platform</span></div><h2>What should the estate's asset catalogue, agent registry and observability actually be built on, given no funds, LAW 19 portability and LAW 34 provider agnosticism?</h2></div>
+<div class="block"><div class="label">Decision it fed</div><p>Catalogue and inventory go in SQLite, served read-only by Datasette and replicated by Litestream to object storage, roughly $3-6/month on Fly. Instrumentation is OpenTelemetry OTLP with the GenAI semantic conventions, collected by self-hosted Langfuse (MIT core). Agent identity and discovery use A2A Agent Cards at /.well-known/agent-card.json plus MCP for tool access. Infrastructure as code is OpenTofu, not Terraform. Artifacts are OCI with CycloneDX SBOMs. <span class="refused">REFUSED:</span> every seat-priced internal developer portal (Port, Cortex, OpsLevel, Roadie, Compass) because a one-founder estate pays per seat for a directory it can write itself; Humanitec, whose CLI and Terraform provider ship no licence file at all, which under LAW 40 test 3 grants nothing; LangSmith and Braintrust, whose exit is a support ticket; anything requiring Kubernetes; and Backstage as a runtime, because its plugin system is mid-migration and the maintenance cost lands on one person.</p></div>
+<div class="block"><div class="label">Findings</div><p>Backstage is the reference catalogue but its frontend system migration means a self-hosted instance is a standing maintenance job, so take its catalogue MODEL and not its runtime. Every hosted portal in the survey prices per developer or per service, which is the wrong shape for one founder and six sessions. Humanitec ships no LICENSE file in either its CLI or its Terraform provider, so nothing it produces can be resold. OpenTelemetry now has GenAI semantic conventions and an entities data model, which makes agent traces portable across vendors and is the single largest lock-in escape available. Langfuse's core is MIT and self-hostable; its licence key gates only enterprise features. A2A Agent Cards give agent discovery a published standard, so the agent registry does not need to be invented here. OpenTofu is the fork with a live release cadence after IBM's HashiCorp acquisition and HashiCorp's BUSL licence change.</p></div>
+<div class="metric"><div class="row"><span class="k">Metric</span><span class="v">monthly recurring cost of the catalogue and observability stack, and number of assets discoverable by one query</span></div><div class="row"><span class="k">Before</span><span class="v">$0/month and 0 assets queryable; the estate had four ledgers that do not join (26 GitHub issues, 10 local tickets, 33 directive folders, 38 board rows) and no single query answering what exists</span></div><div class="row"><span class="k">After</span><span class="v"><span class="pending">not yet measured</span></span></div></div>
+<details><summary>40 sources</summary><ol class="sources"><li><a href="https://backstage.io/docs/overview/versioning-policy" target="_blank" rel="noopener">https://backstage.io/docs/overview/versioning-policy</a></li><li><a href="https://backstage.io/docs/frontend-system/building-plugins/migrating" target="_blank" rel="noopener">https://backstage.io/docs/frontend-system/building-plugins/migrating</a></li><li><a href="https://backstage.io/blog/2025/12/30/backstage-wrapped-2025" target="_blank" rel="noopener">https://backstage.io/blog/2025/12/30/backstage-wrapped-2025</a></li><li><a href="https://www.cncf.io/projects/backstage/" target="_blank" rel="noopener">https://www.cncf.io/projects/backstage/</a></li><li><a href="https://newsletter.port.io/p/backstage-is-dead" target="_blank" rel="noopener">https://newsletter.port.io/p/backstage-is-dead</a></li><li><a href="https://backstage.io/docs/features/software-catalog/software-catalog-api/" target="_blank" rel="noopener">https://backstage.io/docs/features/software-catalog/software-catalog-api/</a></li><li><a href="https://www.port.io/pricing" target="_blank" rel="noopener">https://www.port.io/pricing</a></li><li><a href="https://docs.port.io/ai-interfaces/port-mcp-server/overview-and-installation" target="_blank" rel="noopener">https://docs.port.io/ai-interfaces/port-mcp-server/overview-and-installation</a></li><li><a href="https://www.cortex.io/pricing" target="_blank" rel="noopener">https://www.cortex.io/pricing</a></li><li><a href="https://www.opslevel.com/pricing" target="_blank" rel="noopener">https://www.opslevel.com/pricing</a></li><li><a href="https://roadie.io/pricing/" target="_blank" rel="noopener">https://roadie.io/pricing/</a></li><li><a href="https://www.atlassian.com/software/compass/pricing" target="_blank" rel="noopener">https://www.atlassian.com/software/compass/pricing</a></li><li><a href="https://humanitec.com/pricing" target="_blank" rel="noopener">https://humanitec.com/pricing</a></li><li><a href="https://github.com/humanitec/cli" target="_blank" rel="noopener">https://github.com/humanitec/cli</a></li><li><a href="https://www.calcalistech.com/ctechnews/article/rkfnjb3jgg" target="_blank" rel="noopener">https://www.calcalistech.com/ctechnews/article/rkfnjb3jgg</a></li><li><a href="https://langfuse.com/pricing" target="_blank" rel="noopener">https://langfuse.com/pricing</a></li><li><a href="https://langfuse.com/self-hosting/license-key" target="_blank" rel="noopener">https://langfuse.com/self-hosting/license-key</a></li><li><a href="https://langfuse.com/docs/opentelemetry/get-started" target="_blank" rel="noopener">https://langfuse.com/docs/opentelemetry/get-started</a></li><li><a href="https://www.langchain.com/pricing-langsmith" target="_blank" rel="noopener">https://www.langchain.com/pricing-langsmith</a></li><li><a href="https://www.braintrust.dev/pricing" target="_blank" rel="noopener">https://www.braintrust.dev/pricing</a></li><li><a href="https://github.com/open-telemetry/semantic-conventions-genai" target="_blank" rel="noopener">https://github.com/open-telemetry/semantic-conventions-genai</a></li><li><a href="https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/entities/data-model.md" target="_blank" rel="noopener">https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/entities/data-model.md</a></li><li><a href="https://a2a-protocol.org/latest/" target="_blank" rel="noopener">https://a2a-protocol.org/latest/</a></li><li><a href="https://a2a-protocol.org/latest/topics/agent-discovery/" target="_blank" rel="noopener">https://a2a-protocol.org/latest/topics/agent-discovery/</a></li><li><a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization" target="_blank" rel="noopener">https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization</a></li><li><a href="https://modelcontextprotocol.io/community/governance" target="_blank" rel="noopener">https://modelcontextprotocol.io/community/governance</a></li><li><a href="https://github.com/modelcontextprotocol/registry" target="_blank" rel="noopener">https://github.com/modelcontextprotocol/registry</a></li><li><a href="https://blog.modelcontextprotocol.io/" target="_blank" rel="noopener">https://blog.modelcontextprotocol.io/</a></li><li><a href="https://github.com/opentofu/opentofu/releases" target="_blank" rel="noopener">https://github.com/opentofu/opentofu/releases</a></li><li><a href="https://www.hashicorp.com/license-faq" target="_blank" rel="noopener">https://www.hashicorp.com/license-faq</a></li><li><a href="https://newsroom.ibm.com/2025-02-27-ibm-completes-acquisition-of-hashicorp,-creates-comprehensive,-end-to-end-hybrid-cloud-platform" target="_blank" rel="noopener">https://newsroom.ibm.com/2025-02-27-ibm-completes-acquisition-of-hashicorp,-creates-comprehensive,-end-to-end-hybrid-cloud-platform</a></li><li><a href="https://www.pulumi.com/pricing/" target="_blank" rel="noopener">https://www.pulumi.com/pricing/</a></li><li><a href="https://www.hashicorp.com/en/pricing" target="_blank" rel="noopener">https://www.hashicorp.com/en/pricing</a></li><li><a href="https://dagger.io/" target="_blank" rel="noopener">https://dagger.io/</a></li><li><a href="https://turbot.com/pipes/pricing" target="_blank" rel="noopener">https://turbot.com/pipes/pricing</a></li><li><a href="https://fly.io/docs/about/pricing/" target="_blank" rel="noopener">https://fly.io/docs/about/pricing/</a></li><li><a href="https://github.com/fluxcd/community/blob/main/CORE-MAINTAINERS" target="_blank" rel="noopener">https://github.com/fluxcd/community/blob/main/CORE-MAINTAINERS</a></li><li><a href="https://datatracker.ietf.org/wg/oauth/documents/" target="_blank" rel="noopener">https://datatracker.ietf.org/wg/oauth/documents/</a></li><li><a href="https://www.cncf.io/sandbox-projects/" target="_blank" rel="noopener">https://www.cncf.io/sandbox-projects/</a></li><li><a href="https://backstage.spotify.com/" target="_blank" rel="noopener">https://backstage.spotify.com/</a></li></ol></details>
+</article>
+<article>
+<div class="head"><div class="meta"><span class="date">2026-08-24</span><span class="owner">owner: platform</span></div><h2>What does the DORA 2025 research say about AI-assisted delivery that should change how this estate works?</h2></div>
+<div class="block"><div class="label">Decision it fed</div><p>Two changes. Treat the founder's complaint as the primary platform signal (user-centricity is the strongest reported driver of product quality), which became LAW 36. And stop treating trust in AI output as given: 39.2% of DORA respondents report little or no trust in AI, which is the same instinct behind the founder's 'I don't trust anything you say' and behind THE FOUR HARD RULES. Verification before assertion is not local pedantry, it is the measured industry condition.</p></div>
+<div class="block"><div class="label">Findings</div><p>Organisations that prioritise end user experience produce higher quality products and have more productive developers. Trust in AI is the binding constraint on AI leverage, not capability: those who trust generative AI use it more, and 39.2% report little or no trust. Platform engineering shows up as an amplifier, meaning it multiplies whatever the underlying practice already is, good or bad.</p></div>
+<div class="metric"><div class="row"><span class="k">Metric</span><span class="v">count of founder complaints per day about not knowing what an agent is doing</span></div><div class="row"><span class="k">Before</span><span class="v">5 complaints in the 6 hours to 2026-08-24 00:00, per the friction-relay hook</span></div><div class="row"><span class="k">After</span><span class="v"><span class="pending">not yet measured</span></span></div></div>
+<details><summary>1 sources</summary><ol class="sources"><li><a href="https://dora.dev/research/2025/dora-report/" target="_blank" rel="noopener">https://dora.dev/research/2025/dora-report/</a></li></ol></details>
+</article>
+<article>
+<div class="head"><div class="meta"><span class="date">2026-08-23</span><span class="owner">owner: session 8ef72725</span></div><h2>How do production agent systems stop an agent asserting false success, so The Architect stops making statements to the founder that are false?</h2></div>
+<div class="block"><div class="label">Decision it fed</div><p>The Architect truth gate: validate structured claims against the existing verification_evidence.db ledger instead of grading outbound prose; merge-track upstream hermes-agent issue #54722 / PR #54738 which is this exact gate, rather than writing a second one (LAW 3).</p></div>
+<div class="block"><div class="label">Findings</div><p>False success is a measured failure class: 44-52% of all failures on tau2-bench, 75.8% on AppWorld, per-model 13-89% (arXiv 2606.09863). Receipt-checking against a runtime-written ledger detects 91% at 4% false positives versus 35% for regex word-lists (arXiv 2603.10060) — the word-list approach this estate already banned as proxy-grading is also the measurably losing one. Deterministic checks first (claim carries an evidence event id that must exist in SQLite with exit 0 and a timestamp after the last mutation), factored verifier model only for what the ledger cannot type. Upstream hermes-agent has the gate in flight: issue #54722, PR #54738.</p></div>
+<div class="metric"><div class="row"><span class="k">Metric</span><span class="v">Share of outbound Architect status claims carrying a valid evidence event id; false-success rate on a replayed claim set.</span></div><div class="row"><span class="k">Before</span><span class="v">0% of claims evidence-linked; live verification_evidence.db has 0 events; verify_on_stop OFF on the founder's only surface (Telegram).</span></div><div class="row"><span class="k">After</span><span class="v"><span class="pending">not yet measured</span></span></div></div>
+<details><summary>7 sources</summary><ol class="sources"><li><a href="https://arxiv.org/html/2606.09863" target="_blank" rel="noopener">https://arxiv.org/html/2606.09863</a></li><li><a href="https://arxiv.org/html/2603.10060" target="_blank" rel="noopener">https://arxiv.org/html/2603.10060</a></li><li><a href="https://arxiv.org/html/2605.02964v1" target="_blank" rel="noopener">https://arxiv.org/html/2605.02964v1</a></li><li><a href="https://arxiv.org/pdf/2309.11495" target="_blank" rel="noopener">https://arxiv.org/pdf/2309.11495</a></li><li><a href="https://arxiv.org/html/2604.23366" target="_blank" rel="noopener">https://arxiv.org/html/2604.23366</a></li><li><a href="https://github.com/NousResearch/hermes-agent/issues/54722" target="_blank" rel="noopener">https://github.com/NousResearch/hermes-agent/issues/54722</a></li><li><a href="https://www.mindstudio.ai/blog/verifier-pattern-multi-agent-systems-independent-review" target="_blank" rel="noopener">https://www.mindstudio.ai/blog/verifier-pattern-multi-agent-systems-independent-review</a></li></ol></details>
+</article>
+<article>
+<div class="head"><div class="meta"><span class="date">2026-08-23</span><span class="owner">owner: session 8ef72725</span></div><h2>What experience-accumulation patterns measurably make an agent improve, so maestro and The Architect learn fast with proof?</h2></div>
+<div class="block"><div class="label">Decision it fed</div><p>Maestro consult-before-escalate: fingerprint each problem, replay the last successful fix for a matching fingerprint before escalating, and a weekly learning receipt to Telegram proving what last week's escalations cost this week. Distill failures as well as successes (ReasoningBank result); promote a fix to a skill only after 2+ successful reuses.</p></div>
+<div class="block"><div class="label">Findings</div><p>Distilled strategy memory from successes AND failures beats raw episodic memory: up to +34.2% effectiveness, -16% steps (ReasoningBank, arXiv 2509.25140). Skill libraries reach milestones 8.5-15.3x faster (Voyager). Proof of learning that survives workload drift: a frozen replay set of ~20 real past incidents re-run weekly — solved-count trend is the one metric immune to the workload changing under you. The everyday metrics: repeat-incident escalation rate declining, repeat resolution time versus first occurrence, memory hit rate.</p></div>
+<div class="metric"><div class="row"><span class="k">Metric</span><span class="v">Weekly learning receipt: fraction of last week's escalation fingerprints auto-resolved this week; repeat-incident median resolution time versus first occurrence; frozen replay set solved-count.</span></div><div class="row"><span class="k">Before</span><span class="v">maestro consults nothing before escalating; one Stripe finding escalated 46 times in 29h with zero learning between passes; skills/shapes tables held 0 rows until PR #4.</span></div><div class="row"><span class="k">After</span><span class="v"><span class="pending">not yet measured</span></span></div></div>
+<details><summary>8 sources</summary><ol class="sources"><li><a href="https://research.google/blog/reasoningbank-enabling-agents-to-learn-from-experience/" target="_blank" rel="noopener">https://research.google/blog/reasoningbank-enabling-agents-to-learn-from-experience/</a></li><li><a href="https://arxiv.org/pdf/2509.25140" target="_blank" rel="noopener">https://arxiv.org/pdf/2509.25140</a></li><li><a href="https://arxiv.org/abs/2504.06943" target="_blank" rel="noopener">https://arxiv.org/abs/2504.06943</a></li><li><a href="https://arxiv.org/pdf/2508.16153" target="_blank" rel="noopener">https://arxiv.org/pdf/2508.16153</a></li><li><a href="https://arxiv.org/pdf/2402.03244" target="_blank" rel="noopener">https://arxiv.org/pdf/2402.03244</a></li><li><a href="https://github.com/mem0ai/mem0" target="_blank" rel="noopener">https://github.com/mem0ai/mem0</a></li><li><a href="https://github.com/zorazrw/agent-workflow-memory" target="_blank" rel="noopener">https://github.com/zorazrw/agent-workflow-memory</a></li><li><a href="https://github.com/NirDiamant/Agent_Memory_Techniques" target="_blank" rel="noopener">https://github.com/NirDiamant/Agent_Memory_Techniques</a></li></ol></details>
+</article>
+<footer><div>An entry with no measurement after 14 days fails <code>scripts/verify.d/80-research-ledger.sh</code>, and so does a ledger whose newest entry is over 7 days old. That check is what stops this page becoming a museum.</div><div>Rebuilt from the ledger by <code>scripts/research-ledger-page.py</code>.</div></footer></div>

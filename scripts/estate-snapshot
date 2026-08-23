@@ -107,10 +107,34 @@ def crew_p1() -> list[str]:
     return rows
 
 
+def spend() -> list[str]:
+    """The money row, read from the science warehouse.
+
+    This is the reader `science/collect.py` was built for. The number reaches the
+    founder here and nowhere else, because a spend series he has to query is a
+    spend series he will not look at (LAW 31).
+    """
+    db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
+    if not db.exists():
+        return ["| estate spend | NOT RUN | no warehouse: run `science/collect.py` |"]
+    rc, out = sh("sqlite3 %s \"select round(avg(usd),0) from "
+                 "(select usd from spend_daily order by day desc limit 7);\"" % db, timeout=20)
+    if rc or not out.strip():
+        return ["| estate spend | NOT RUN | `spend_daily` view did not answer |"]
+    try:
+        rate = float(out.strip())
+    except ValueError:
+        return ["| estate spend | NOT RUN | `spend_daily` returned %r |" % out.strip()[:40]]
+    cap = 120.0
+    state = "GREEN" if rate <= cap else "RED"
+    return ["| estate spend | %s | $%.0f/day 7-day mean against a $%.0f cap "
+            "(`spend_daily`, %s) |" % (state, rate, cap, db.name)]
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     rows: list[str] = []
-    for fn in (architect, maestro, fly, crew_p1):
+    for fn in (architect, maestro, fly, spend, crew_p1):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

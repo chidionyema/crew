@@ -4,9 +4,9 @@
   {
    "id": 1,
    "verdict": "partial",
-   "where": "Stop",
+   "where": "PreToolUse+SessionStart",
    "check": "a numbered restoration objective was declared in an earlier turn and this reply does not reprint the number",
-   "state": "dead",
+   "state": "live",
    "guards": [
     "goal-guard.py"
    ]
@@ -75,9 +75,9 @@
   {
    "id": 9,
    "verdict": "partial",
-   "where": "Stop",
+   "where": "PreToolUse+SessionStart",
    "check": "the named job's number has not moved across three consecutive turns",
-   "state": "dead",
+   "state": "live",
    "guards": [
     "goal-guard.py"
    ]

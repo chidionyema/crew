@@ -141,11 +141,59 @@ def repos():
         if r not in _REPOS: _REPOS.append(r)
     return _REPOS
 
+def guard_dir_reaches_impl(d):
+    """Does a hooksPath directory end up running the estate's guards.
+
+    Matching the literal path ~/.claude/scripts/hooks was right for one day.
+    On 2026-08-23 the guards got a neutral address, ~/.estate/guards/hooks,
+    whose _router chains to GUARD_IMPL in estate.conf, and the repositories
+    were rebound to that address. This function kept comparing the old string,
+    so the probe printed "0 of 48. Every push on this machine is ungated" onto
+    the founder's board at the exact moment every push became gated. Follow
+    the chain. Do not compare a name.
+    """
+    if not d: return False
+    rp = os.path.realpath
+    impl = rp(f"{SCRIPTS}/hooks")
+    if rp(d) == impl: return True
+    #: The router form. The address stays put, the body it points at moves,
+    #: and one line in estate.conf is the whole of the indirection.
+    if not os.path.isfile(os.path.join(d, "_router")): return False
+    for conf in (os.path.join(os.path.dirname(d.rstrip("/")), "estate.conf"),
+                 f"{H}/.estate/guards/estate.conf"):
+        try: txt = open(conf, errors="ignore").read()
+        except OSError: continue
+        m = re.search(r'^\s*GUARD_IMPL=(.+)$', txt, re.M)
+        if not m: continue
+        v = m.group(1).strip().strip('"').strip("'").replace("$HOME", H).replace("${HOME}", H)
+        if rp(v) == impl: return True
+    return False
+
+_GLOBAL_BIND = None
+def global_bind():
+    """The hooksPath every repository inherits, when one is set.
+
+    A per-repository sweep can never finish. A repository cloned after the
+    sweep is ungated and nobody finds out until something ships. One global
+    setting governs the repositories that do not exist yet, which turns reach
+    from a count that is always behind into a yes or no.
+    """
+    global _GLOBAL_BIND
+    if _GLOBAL_BIND is not None: return _GLOBAL_BIND
+    _GLOBAL_BIND = False
+    for cfgp in (f"{H}/.gitconfig", f"{H}/.config/git/config"):
+        try: txt = open(cfgp, errors="ignore").read()
+        except OSError: continue
+        m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
+        if m and guard_dir_reaches_impl(m.group(1).strip()):
+            _GLOBAL_BIND = True; break
+    return _GLOBAL_BIND
+
 _BINDS = None
 def hook_binds():
-    """Repositories that actually point core.hooksPath at the shared dir.
+    """Repositories where a push actually meets the guards.
 
-    A git hook is only PREVENTIVE in a repository that binds it. Every other
+    A git hook is only PREVENTIVE in a repository that reaches it. Every other
     checkout on this machine pushes with no gate at all, and nothing said so
     until this function existed."""
     global _BINDS
@@ -167,7 +215,7 @@ def hook_binds():
         if not m: continue
         v = m.group(1).strip()
         real = v if os.path.isabs(v) else os.path.join(r, v)
-        if os.path.realpath(real) == os.path.realpath(f"{SCRIPTS}/hooks"):
+        if guard_dir_reaches_impl(real):
             _BINDS.append(r)
     return _BINDS
 
@@ -214,14 +262,16 @@ def derive(entry, tiermap):
     says live about a dead guard is worse than no map. Derive it.
 
     A .py guard is live when this probe's own tier says it is reachable.
-    A git hook is live when the file cites the law AND some repository binds it.
+    A git hook is live when the file cites the law AND a push reaches it. A
+    global core.hooksPath is the strongest form of reaching it, because it
+    covers repositories nobody has cloned yet.
     """
     gs = entry.get("guards") or []
     if not gs: return "absent"
     for g in gs:
         name = g[:-3] if g.endswith(".py") else g
         if name.startswith("hooks/"):
-            if entry["id"] in law_refs(name) and hook_binds(): return "live"
+            if entry["id"] in law_refs(name) and (global_bind() or hook_binds()): return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"
     return "dead"
@@ -237,7 +287,7 @@ def main():
     tier = {}
     for g in G:
         if g.startswith("hooks/"):
-            tier[g] = "PREVENTIVE" if hook_binds() else "DEAD"
+            tier[g] = "PREVENTIVE" if (global_bind() or hook_binds()) else "DEAD"
         elif g in W: tier[g] = "PREVENTIVE"
         elif scheduled(g): tier[g] = "DETECTIVE"
     changed = True
@@ -254,7 +304,8 @@ def main():
     for g in G:
         t = tier.get(g, "DEAD")
         if g.startswith("hooks/"):
-            how = f"git hook, {len(hook_binds())} repo(s)"
+            how = ("git hook, every repo" if global_bind()
+                   else f"git hook, {len(hook_binds())} repo(s)")
         elif g in W:          how = "+".join(sorted(set(W[g])))
         elif t == "DEAD":     how = "no caller"
         elif scheduled(g):    how = "scheduled"
@@ -283,18 +334,27 @@ def main():
         for name, ls in GH:
             #: A hook bound nowhere refuses nothing. Counting its laws as
             #: covered would be the probe telling a comfortable lie.
-            if binds:
+            #: Reached, not bound. A repository does not have to name the
+            #: guards for a push to meet them: a global core.hooksPath governs
+            #: every checkout, including the ones cloned tomorrow.
+            if global_bind() or binds:
                 covered |= set(ls)
-            flag = "PREVENTIVE" if binds else "NOT BOUND"
+            flag = "PREVENTIVE" if (global_bind() or binds) else "NOT BOUND"
             print(f"  {flag:<12} {name:<12} "
                   f"{'LAW ' + ','.join(map(str, ls)) if ls else '-'}")
-        print(f"\n  repositories binding them : {len(binds)} of {len(repos())}")
-        for r in binds: print(f"    {r}")
-        if not binds:
-            print("    NONE. Every push on this machine is ungated.")
+        if global_bind():
+            print("\n  reach : EVERY repository on this machine, and every one")
+            print("          cloned from now on. core.hooksPath is set globally.")
+            print(f"          {len(binds)} of {len(repos())} also name it locally, which changes nothing.")
         else:
-            print("  a git hook runs ONLY where core.hooksPath names it. Bind one more:")
-            print(f"    git config core.hooksPath {SCRIPTS}/hooks")
+            print(f"\n  repositories binding them : {len(binds)} of {len(repos())}")
+            for r in binds: print(f"    {r}")
+            if not binds:
+                print("    NONE. Every push on this machine is ungated.")
+            else:
+                print("  a git hook runs ONLY where core.hooksPath names it.")
+                print("  Bind them everywhere at once instead of one at a time:")
+                print(f"    git config --global core.hooksPath {H}/.estate/guards/hooks")
 
     print("\n"+"="*74); print("LAW COVERAGE"); print("="*74)
     prose=[n for n in sorted(L) if n not in covered]
@@ -370,7 +430,12 @@ def main():
        "mechanical":[x["id"] for x in M if x["verdict"]=="mechanical"],
        "gap":[{"id":x["id"],"where":x["where"],"check":x["check"]} for x in gap],
        "hook_binds":hook_binds(),
-       "hook_reach":{"bound":len(hook_binds()),"repos":len(repos())},
+       #: `global` is the field that matters. A per-repository count is
+       #: always behind by however many repositories were cloned since the
+       #: last sweep; a global core.hooksPath has no such gap.
+       "hook_reach":{"bound":len(hook_binds()),"repos":len(repos()),
+                     "global":global_bind(),
+                     "impl":os.path.realpath(f"{SCRIPTS}/hooks")},
        "streams":[{"name":n,"lines":c_,"age_h":round(a,1)} for n,c_,a in streams()]}
     out=f"{H}/.claude/state/law-enforcement.json"
     try:

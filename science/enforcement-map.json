@@ -24,9 +24,10 @@
    "verdict": "mechanical",
    "where": "PreToolUse",
    "check": "Write creates a new path whose distinctive symbol never appeared in a prior Grep, Glob or git log in this session",
-   "state": "dead",
+   "state": "live",
    "guards": [
-    "dupe-work-fence.py"
+    "dupe-work-fence.py",
+    "hooks/pre-commit"
    ]
   },
   {
@@ -58,8 +59,10 @@
    "verdict": "mechanical",
    "where": "pre-push",
    "check": "git fetch origin main && test $(git rev-list --count HEAD..origin/main) -eq 0",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+    "hooks/pre-push"
+   ]
   },
   {
    "id": 8,
@@ -170,7 +173,9 @@
    "where": null,
    "check": null,
    "state": "absent",
-   "guards": []
+   "guards": [
+    "hooks/pre-push"
+   ]
   },
   {
    "id": 21,
@@ -179,7 +184,8 @@
    "check": "a secret-shaped value appears in the reply, a log, a commit or a screenshot",
    "state": "live",
    "guards": [
-    "secret-scrub.py"
+    "secret-scrub.py",
+    "hooks/pre-commit"
    ]
   },
   {
@@ -189,7 +195,7 @@
    "check": "scripts/pr-evidence.py check --pr N",
    "state": "absent",
    "guards": [
-    "pr-evidence.py"
+    "hooks/pre-push"
    ]
   },
   {
@@ -208,7 +214,8 @@
    "state": "live",
    "guards": [
     "estate/in-git.py",
-    "laws-link-guard.py"
+    "laws-link-guard.py",
+    "hooks/pre-commit"
    ]
   },
   {
@@ -242,7 +249,8 @@
    "check": "a file under state/ has no reader in the corpus, or a live stream is silent beyond its interval",
    "state": "live",
    "guards": [
-    "science/law_enforcement.py"
+    "science/law_enforcement.py",
+    "hooks/pre-commit"
    ]
   },
   {

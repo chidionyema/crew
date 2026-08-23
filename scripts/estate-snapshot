@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Write the one snapshot every agent and the founder read instead of rediscovering state.
+
+Six sessions cannot see each other. Before this existed each one re-measured the estate
+from scratch, and the founder was asked the same questions he had already answered. The
+board (crew issues) records decisions; nothing recorded the live state.
+
+Every row here is a command and its output. Nothing is prose about a state, because prose
+about a state is how a roadmap came to read "live" while the process ran 32-hour-old code.
+A row that could not be measured says NOT RUN, never PASS, because a dead checker and a
+healthy estate must never look the same (LAW 31).
+
+    scripts/estate-snapshot            write STATE.md, print it, exit 0
+    scripts/estate-snapshot --commit   write, commit and push it
+"""
+from __future__ import annotations
+
+import datetime as dt
+import pathlib
+import re
+import subprocess
+import sys
+
+#: bin/verify colours its rows. Colour codes in a markdown table render as literal
+#: escape bytes on GitHub, which makes the snapshot look broken to the one reader
+#: it exists for.
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+HOME = pathlib.Path.home()
+
+
+def sh(cmd: str, timeout: int = 30) -> tuple[int, str]:
+    try:
+        p = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                           timeout=timeout, errors="replace")
+        return p.returncode, ANSI.sub("", p.stdout + p.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return 124, "TIMED OUT after %ds" % timeout
+    except Exception as exc:                                    # noqa: BLE001
+        return 1, "%s: %s" % (type(exc).__name__, exc)
+
+
+def age_hours(path: pathlib.Path) -> float | None:
+    try:
+        import time
+        return (time.time() - path.stat().st_mtime) / 3600
+    except OSError:
+        return None
+
+
+def architect() -> list[str]:
+    d = HOME / "dev/code/hermes-v2"
+    if not d.exists():
+        return ["| The Architect | NOT RUN | `%s` does not exist |" % d]
+    rc, out = sh("cd %s && ./bin/verify 2>&1" % d, timeout=120)
+    line = next((l.strip() for l in out.splitlines() if "passed" in l), "")
+    fails = [l.strip() for l in out.splitlines() if "FAIL" in l]
+    if not line:
+        return ["| The Architect | NOT RUN | bin/verify produced no verdict line |"]
+    state = "GREEN" if "0 failed" in line or "failed" not in line else "RED"
+    rows = ["| The Architect | %s | `bin/verify`: %s |" % (state, line)]
+    for f in fails:
+        rows.append("| &nbsp;&nbsp;failing | | %s |" % f)
+    return rows
+
+
+def maestro() -> list[str]:
+    intents = sorted((HOME / ".maestro/intents").glob("INTENT-*.json"),
+                     key=lambda p: p.stat().st_mtime, reverse=True) \
+        if (HOME / ".maestro/intents").exists() else []
+    if not intents:
+        return ["| maestro | NOT RUN | no INTENT files, so nothing has sensed |"]
+    a = age_hours(intents[0]) or 99
+    state = "GREEN" if a < 0.25 else ("STALE" if a < 2 else "RED")
+    rows = ["| maestro | %s | last cycle %.0f min ago (`%s`) |"
+            % (state, a * 60, intents[0].name)]
+    rc, out = sh("sqlite3 %s 'select count(*) from skills;'" % (HOME / ".maestro/experience_graph.db"))
+    rows.append("| &nbsp;&nbsp;skills | %s | %s skill(s) it can heal with |"
+                % ("GREEN" if out.isdigit() and int(out) else "RED", out or "NOT RUN"))
+    return rows
+
+
+def fly() -> list[str]:
+    rc, out = sh("flyctl apps list 2>&1", timeout=45)
+    if rc or "NAME" not in out:
+        return ["| Fly | NOT RUN | `flyctl apps list` failed: %s |" % out.splitlines()[0][:80]]
+    dep = sum(1 for l in out.splitlines() if "deployed" in l)
+    sus = sum(1 for l in out.splitlines() if "suspended" in l)
+    rows = ["| Fly | %d deployed, %d suspended | `flyctl apps list` |" % (dep, sus)]
+    rc, out = sh("flyctl machine update --help >/dev/null 2>&1; "
+                 "flyctl apps list 2>&1 | grep -c overdue", timeout=20)
+    return rows
+
+
+def crew_p1() -> list[str]:
+    rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
+                 "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
+    if rc:
+        return ["| crew P1 | NOT RUN | `gh issue list` failed |"]
+    items = [l for l in out.splitlines() if l.strip()]
+    if not items:
+        return ["| crew P1 | GREEN | no open P1 issues |"]
+    rows = ["| crew P1 | %d open | the fires nobody has put out |" % len(items)]
+    for i in items:
+        rows.append("| &nbsp;&nbsp;%s | | |" % i.replace("|", "/")[:110])
+    return rows
+
+
+def main() -> int:
+    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    rows: list[str] = []
+    for fn in (architect, maestro, fly, crew_p1):
+        try:
+            rows += fn()
+        except Exception as exc:                                # noqa: BLE001
+            rows.append("| %s | NOT RUN | %s: %s |" % (fn.__name__, type(exc).__name__, exc))
+
+    body = "\n".join([
+        "# Estate snapshot",
+        "",
+        "**Generated %s** by `scripts/estate-snapshot`. Every row is a command and its",
+        "output. A row that could not be measured says NOT RUN, never PASS.",
+        "",
+        "Read this before asking anyone anything. Regenerate it rather than trusting it:",
+        "`scripts/estate-snapshot`.",
+        "",
+        "| what | state | measured by |",
+        "|---|---|---|",
+        *rows,
+        "",
+    ]).replace("%s", now, 1)
+
+    out = ROOT / "STATE.md"
+    out.write_text(body)
+    print(body)
+
+    if "--commit" in sys.argv:
+        sh("cd %s && git add STATE.md && git commit -q -m "
+           "'chore(state): estate snapshot %s' && git fetch origin main -q && "
+           "git merge origin/main --no-edit -q && git push -q" % (ROOT, now))
+        rc, o = sh("cd %s && git log --oneline -1" % ROOT)
+        print("committed:", o)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

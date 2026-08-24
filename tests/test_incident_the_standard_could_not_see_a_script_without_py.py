@@ -43,9 +43,34 @@ CLEAN_PY = '#!/usr/bin/env python3\nprint("ok")\n'
 CLEAN_SH = '#!/usr/bin/env bash\necho ok\n'
 
 
+def _venv() -> pathlib.Path:
+    """The venv the gate would find, which in a worktree is the main checkout's.
+
+    A worktree has no `.venv` of its own. `ROOT / ".venv"` therefore does not exist in the
+    place every agent actually runs this suite before pushing, and a skip guard that looked
+    only there would skip all six tests locally and run them only in CI -- a checker that
+    cannot tell "ruff is absent" from "ruff is not at the one path I looked at", which is
+    the defect this whole file is about, one level up. So ask the same question the gate
+    asks: `git rev-parse --git-common-dir` is how it finds the main checkout from inside a
+    worktree.
+    """
+    if (ROOT / ".venv" / "bin" / "ruff").exists():
+        return ROOT / ".venv"
+    r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                       cwd=ROOT, check=False, capture_output=True, text=True)
+    if r.returncode == 0:
+        main = pathlib.Path(r.stdout.strip().removesuffix("/.git"))
+        if (main / ".venv" / "bin" / "ruff").exists():
+            return main / ".venv"
+    return ROOT / ".venv"
+
+
+VENV = _venv()
+
+
 def _run(cwd: pathlib.Path, gate: pathlib.Path = GATE) -> subprocess.CompletedProcess:
     """Run a gate script against `cwd`, with this checkout's tools on the search path."""
-    env = {**os.environ, "CREW_ROOT": str(cwd), "CREW_VENV": str(ROOT / ".venv")}
+    env = {**os.environ, "CREW_ROOT": str(cwd), "CREW_VENV": str(VENV)}
     #: check=False throughout this file: the exit code is the thing under test.
     return subprocess.run(["bash", str(gate)], cwd=cwd, env=env, check=False,
                           capture_output=True, text=True, timeout=300)
@@ -72,12 +97,9 @@ def repo(tmp_path):
     return tmp_path
 
 
-def _tools_present() -> bool:
-    return (ROOT / ".venv" / "bin" / "ruff").exists()
-
-
 needs_tools = pytest.mark.skipif(
-    not _tools_present(), reason="no .venv/bin/ruff in this checkout; the gate reports BLIND")
+    not (VENV / "bin" / "ruff").exists(),
+    reason=f"no ruff at {VENV}/bin/ruff nor in the main checkout; the gate reports BLIND")
 
 
 @needs_tools
@@ -92,32 +114,22 @@ def test_incident_a_python_program_without_a_py_extension_is_checked(repo):
     assert "UP031" in out, f"it opened the file and did not report its finding:\n{out}"
 
 
-@needs_tools
-def test_the_gate_on_main_was_blind_to_the_same_file(repo):
-    """The differential oracle: the same input, the version of the gate this PR replaces.
-
-    Without this, the test above proves only that the gate says something -- it could pass
-    against a gate that names every file in the repo. Run the old gate on the same input
-    and it must be silent about it. `git show` is enough; no worktree needed.
-    """
-    (repo / "estate-thing").write_text(DIRTY_PY)
-
-    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT,
-                          check=False, capture_output=True, text=True)
-    if base.returncode != 0:
-        pytest.skip("no merge base with origin/main; nothing to diff the gate against")
-    old_src = subprocess.run(
-        ["git", "show", f"{base.stdout.strip()}:scripts/verify.d/15-code-standard.sh"],
-        cwd=ROOT, check=False, capture_output=True, text=True)
-    if old_src.returncode != 0:
-        pytest.skip("the gate did not exist at the merge base")
-
-    old = repo / "old-gate.sh"
-    old.write_text(old_src.stdout)
-    out = _run(repo, gate=old).stdout
-    assert "estate-thing" not in out, (
-        "the gate at the merge base already saw this file, so this PR is not the fix it "
-        f"says it is:\n{out}")
+# `test_the_gate_on_main_was_blind_to_the_same_file` stood here and is deleted.
+#
+# It was the differential oracle for the widening: fetch the gate at
+# `git merge-base HEAD origin/main`, run it on the same input, assert it does NOT name the
+# file. That is what proved the test above was measuring the change rather than a gate that
+# names every file it sees. It did its job -- the run is on PR #149, and the committed
+# evidence image `docs/evidence/the-standard-can-see-a-script-without-py.png` keeps it.
+#
+# #149 merged as 7f1ae02, so the merge base now IS the widened gate. The oracle compares
+# the gate against itself and fails, correctly and permanently. Rung 3 in AGENTS.md says
+# it in one line: "A differential test is a migration tool, not a permanent test: delete it
+# when the old implementation goes." The old implementation is gone.
+#
+# Pinning the oracle to 2249494 instead would keep it green forever, which is the argument
+# against it: a test that cannot fail for any reason a reader would act on is a `git show`
+# on every run and an assertion about a commit nobody will edit.
 
 
 @needs_tools

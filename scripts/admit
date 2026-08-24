@@ -1,0 +1,271 @@
+#!/bin/sh
+# admit -- the estate's admission gate. Ask before you start.
+#
+# WHY THIS EXISTS. Founder, 2026-08-24: "we are on a user machine, we need to be careful what we
+# run, running background pytests at the same time as running infra on a machine already struggling
+# is idiotic ... it's a recurring issue and should have already been solved."
+#
+# Measured the same day, which is what makes it a mechanism gap rather than a discipline lecture:
+#
+#     ~/Library/LaunchAgents         50 plists
+#     naming ~/.claude/scripts       33
+#     with StartInterval             31     <- they start because a clock fired
+#     with Nice                      21     <- priority, not admission
+#     that check machine load first   0
+#
+# Nice lowers a job's priority. It does not reduce the number of runnable processes, so 31 timers
+# firing into a loaded machine still produce 31 more runnable processes. chidionyema-38 measured the
+# consequence at 14:15Z: 16 stacked hourly job processes, several wedged. StartInterval fires again
+# while the previous run is still going, so runs pile up instead of queueing.
+#
+# Every previous fix was per-script or was Nice. Neither is admission control. This is the one
+# place that answers "may this start now", so it can be changed in one place.
+#
+# USAGE
+#     admit <job-name> -- <command> [args...]      run the command only if the machine can take it
+#     admit --report                               read-only: what would be refused right now
+#     admit --selftest                             prove it both permits and refuses
+#
+# EXIT CODES
+#     the command's own status   when admitted
+#     3                          refused: a previous run of this job is still alive
+#     4                          refused: machine over the ceiling
+#     5                          refused: all slots taken
+#     6                          refused: CPU is power/thermal clamped
+#     7                          refused: BLIND -- could not read the machine
+#
+# A REFUSAL IS A SKIP, NOT A QUEUE. Nothing waits and retries, because a queue on a machine that is
+# already over its ceiling is just the stacking problem with extra steps. An hourly job that skips
+# a tick runs again in an hour.
+#
+# BLIND REFUSES. Everywhere else in this estate a guard that cannot reach its evidence reports BLIND
+# and lets the work through, because refusing correct work is an outage (LAW 38). This one is the
+# deliberate exception and the asymmetry is the whole point: the cost of wrongly skipping a
+# scheduled tick is one missed tick, and the cost of wrongly admitting is the founder's machine
+# becoming unusable, which is the incident that produced this file. ADMIT_BLIND_PERMITS=1 flips it
+# for a caller that genuinely cannot afford a skip.
+
+set -u
+
+CONF="${ADMIT_CONF:-$HOME/.claude/admit.conf}"
+# shellcheck disable=SC1090
+[ -f "$CONF" ] && . "$CONF"
+
+CORES="$(sysctl -n hw.logicalcpu 2>/dev/null || echo 0)"
+# The reserve is the founder's number, not an agent's: it is how much of his own machine the estate
+# is never allowed to spend. Default is 2/3 of the cores, which leaves 4 of 12 here. Set
+# ADMIT_LOAD_CEILING in the conf file to change it.
+if [ "${ADMIT_LOAD_CEILING:-}" = "" ]; then
+  if [ "$CORES" -gt 0 ]; then ADMIT_LOAD_CEILING=$(( CORES * 2 / 3 )); else ADMIT_LOAD_CEILING=8; fi
+fi
+ADMIT_SLOTS="${ADMIT_SLOTS:-2}"
+ADMIT_MIN_SPEED="${ADMIT_MIN_SPEED:-60}"
+ADMIT_BLIND_PERMITS="${ADMIT_BLIND_PERMITS:-0}"
+ADMIT_RUN="${ADMIT_RUN:-$HOME/.claude/run/admit}"
+
+log() { printf '[admit] %s\n' "$*" >&2; }
+
+# --- reading the machine ------------------------------------------------------------------------
+# Each reader prints a number, or prints nothing and returns 1. Printing nothing on failure is what
+# lets the caller tell "0" from "could not read", which is the distinction the whole estate spent
+# 2026-08-24 getting wrong in four different instruments.
+
+load1() {
+  # sysctl is a single syscall, no subprocess pipeline, no sampling window. An admission gate that
+  # costs a second of CPU to decide whether the machine has a spare second is self-defeating.
+  v="$(sysctl -n vm.loadavg 2>/dev/null)" || return 1
+  # { 1.23 4.56 7.89 } -- field 2 is the 1-minute average.
+  n="$(printf '%s\n' "$v" | awk '{gsub(/[{}]/,""); print $1+0}')"
+  case "$n" in ''|*[!0-9.]*) return 1 ;; esac
+  printf '%s\n' "$n"
+}
+
+speed_limit() {
+  # Today's lesson, and it is cheap enough to keep. An unplugged or clamped CPU reports a speed
+  # limit well under 100 and every load number on the machine has to be read against it: load 8 on
+  # a CPU running at 23% of rated clock is not load 8. Absent on non-Darwin, which is BLIND.
+  command -v pmset >/dev/null 2>&1 || return 1
+  v="$(pmset -g therm 2>/dev/null | awk -F= '/CPU_Speed_Limit/{gsub(/[^0-9]/,"",$2); print $2}')"
+  case "$v" in ''|*[!0-9]*) return 1 ;; esac
+  printf '%s\n' "$v"
+}
+
+# --- the previous run ---------------------------------------------------------------------------
+
+pidfile() { printf '%s/%s.pid\n' "$ADMIT_RUN" "$1"; }
+
+previous_alive() {
+  f="$(pidfile "$1")"
+  [ -f "$f" ] || return 1
+  p="$(cat "$f" 2>/dev/null)"
+  case "$p" in ''|*[!0-9]*) return 1 ;; esac
+  kill -0 "$p" 2>/dev/null || return 1
+  printf '%s\n' "$p"
+}
+
+live_slots() {
+  # Count only pidfiles whose process is still alive, and reap the rest. A slot counter that trusts
+  # stale files leaks slots until nothing is ever admitted again -- a guard that refuses correct
+  # work, which is the failure mode this estate treats as an outage.
+  n=0
+  for f in "$ADMIT_RUN"/*.pid; do
+    [ -e "$f" ] || continue
+    p="$(cat "$f" 2>/dev/null)"
+    case "$p" in ''|*[!0-9]*) rm -f "$f"; continue ;; esac
+    if kill -0 "$p" 2>/dev/null; then n=$((n+1)); else rm -f "$f"; fi
+  done
+  printf '%s\n' "$n"
+}
+
+# --- the decision -------------------------------------------------------------------------------
+# Prints a verdict word and returns the exit code. One function, so --report and the real path can
+# never disagree about what would happen.
+
+decide() {
+  job="$1"
+
+  if p="$(previous_alive "$job")"; then
+    log "REFUSE $job: a previous run is still alive (pid $p). Skipping this tick, not queueing."
+    return 3
+  fi
+
+  if ! l="$(load1)"; then
+    if [ "$ADMIT_BLIND_PERMITS" = "1" ]; then
+      log "BLIND $job: cannot read load; ADMIT_BLIND_PERMITS=1 so permitting"
+      return 0
+    fi
+    log "REFUSE $job: BLIND -- cannot read the load average, so this gate cannot cover this run."
+    return 7
+  fi
+
+  if s="$(speed_limit)"; then
+    if [ "$s" -lt "$ADMIT_MIN_SPEED" ]; then
+      log "REFUSE $job: CPU is clamped to ${s}% of rated clock (floor ${ADMIT_MIN_SPEED}%). Load ${l} on a clamped CPU is worse than it reads. Check the power adapter."
+      return 6
+    fi
+  fi
+  # A missing pmset is not a refusal on its own: it is a non-Darwin machine, where load1 alone is
+  # the reading. Only an unreadable LOAD is blind, because that is the number the ceiling needs.
+
+  over="$(awk -v a="$l" -v b="$ADMIT_LOAD_CEILING" 'BEGIN{print (a+0 > b+0) ? 1 : 0}')"
+  if [ "$over" = "1" ]; then
+    log "REFUSE $job: 1-minute load ${l} is over the ceiling ${ADMIT_LOAD_CEILING} (${CORES} cores). The reserve is the founder's machine."
+    return 4
+  fi
+
+  n="$(live_slots)"
+  if [ "$n" -ge "$ADMIT_SLOTS" ]; then
+    log "REFUSE $job: ${n} of ${ADMIT_SLOTS} slots in use."
+    return 5
+  fi
+
+  log "ADMIT $job: load ${l} under ceiling ${ADMIT_LOAD_CEILING}, ${n}/${ADMIT_SLOTS} slots used."
+  return 0
+}
+
+# --- report mode --------------------------------------------------------------------------------
+# Read-only first, always. This ships before anything edits a plist.
+
+report() {
+  echo "admit -- report mode, nothing is started or changed"
+  echo
+  l="$(load1 || echo UNREADABLE)"
+  s="$(speed_limit || echo UNREADABLE)"
+  printf '  cores               %s\n' "$CORES"
+  printf '  1-min load          %s\n' "$l"
+  printf '  CPU speed limit     %s%%\n' "$s"
+  printf '  load ceiling        %s\n' "$ADMIT_LOAD_CEILING"
+  printf '  speed floor         %s%%\n' "$ADMIT_MIN_SPEED"
+  printf '  slots               %s in use of %s\n' "$(live_slots)" "$ADMIT_SLOTS"
+  echo
+  echo "  scheduled jobs that would be refused right now:"
+  agents="$HOME/Library/LaunchAgents"
+  if [ ! -d "$agents" ]; then echo "    (no LaunchAgents directory -- BLIND, not zero)"; return 0; fi
+  total=0; refused=0
+  for p in "$agents"/*.plist; do
+    [ -e "$p" ] || continue
+    total=$((total+1))
+    lab="$(basename "$p" .plist)"
+    if decide "$lab" >/dev/null 2>&1; then :; else refused=$((refused+1)); fi
+  done
+  printf '    %s of %s scheduled jobs\n' "$refused" "$total"
+  echo
+  echo "  nothing has been changed. Wiring the plists is a separate, reviewed step."
+}
+
+# --- selftest -----------------------------------------------------------------------------------
+# Both ways in one run: it must refuse, and it must permit. A gate only ever seen refusing has never
+# been shown to permit.
+
+selftest() {
+  tmp="$(mktemp -d)" || { echo "FAIL: no tmpdir"; exit 1; }
+  ADMIT_RUN="$tmp/run"; mkdir -p "$ADMIT_RUN"
+  fails=0
+  check() { # name expected actual
+    if [ "$2" = "$3" ]; then printf '  ok    %-52s rc=%s\n' "$1" "$3"
+    else printf '  FAIL  %-52s want=%s got=%s\n' "$1" "$2" "$3"; fails=$((fails+1)); fi
+  }
+
+  ADMIT_LOAD_CEILING=99999 ADMIT_SLOTS=2 ADMIT_MIN_SPEED=0 decide selftest-a >/dev/null 2>&1
+  check "permits on a machine under the ceiling" 0 $?
+
+  ADMIT_LOAD_CEILING=0 ADMIT_MIN_SPEED=0 decide selftest-b >/dev/null 2>&1
+  check "refuses over the load ceiling" 4 $?
+
+  ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=101 decide selftest-c >/dev/null 2>&1
+  check "refuses a clamped CPU" 6 $?
+
+  # A live previous run: $$ is this shell, which is definitionally alive.
+  echo $$ > "$ADMIT_RUN/selftest-d.pid"
+  ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=0 decide selftest-d >/dev/null 2>&1
+  check "refuses while a previous run is alive" 3 $?
+
+  # A stale pidfile must NOT refuse, and must be reaped. This is the LAW 38 arm: a slot counter
+  # that trusts stale files eventually refuses everything.
+  echo 999999 > "$ADMIT_RUN/selftest-e.pid"
+  ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=0 decide selftest-e >/dev/null 2>&1
+  check "a stale pidfile does not refuse (LAW 38)" 0 $?
+  [ -f "$ADMIT_RUN/selftest-e.pid" ] && { printf '  FAIL  %-52s stale pidfile not reaped\n' "reaps stale pidfiles"; fails=$((fails+1)); } || printf '  ok    %-52s\n' "reaps stale pidfiles"
+
+  rm -f "$ADMIT_RUN"/*.pid
+  echo $$ > "$ADMIT_RUN/slot-1.pid"; echo $$ > "$ADMIT_RUN/slot-2.pid"
+  ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=0 ADMIT_SLOTS=2 decide selftest-f >/dev/null 2>&1
+  check "refuses when all slots are taken" 5 $?
+
+  rm -f "$ADMIT_RUN"/*.pid
+  ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=0 ADMIT_SLOTS=2 PATH=/nonexistent decide selftest-g >/dev/null 2>&1
+  check "BLIND refuses when the machine is unreadable" 7 $?
+
+  rm -f "$ADMIT_RUN"/*.pid
+  ADMIT_BLIND_PERMITS=1 ADMIT_LOAD_CEILING=99999 ADMIT_MIN_SPEED=0 PATH=/nonexistent decide selftest-h >/dev/null 2>&1
+  check "ADMIT_BLIND_PERMITS=1 is the deliberate escape" 0 $?
+
+  rm -rf "$tmp"
+  echo
+  if [ "$fails" -eq 0 ]; then echo "  8 arms, 0 failures"; return 0; fi
+  echo "  $fails failure(s)"; return 1
+}
+
+# --- main ---------------------------------------------------------------------------------------
+
+case "${1:-}" in
+  --report)   report; exit 0 ;;
+  --selftest) selftest; exit $? ;;
+  ''|--help|-h)
+    sed -n '/^# USAGE/,/^# BLIND REFUSES/p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0 ;;
+esac
+
+JOB="$1"; shift
+[ "${1:-}" = "--" ] && shift
+[ $# -gt 0 ] || { log "nothing to run: admit <job> -- <command>"; exit 2; }
+
+mkdir -p "$ADMIT_RUN"
+decide "$JOB" || exit $?
+
+"$@" &
+child=$!
+echo "$child" > "$(pidfile "$JOB")"
+wait "$child"; rc=$?
+rm -f "$(pidfile "$JOB")"
+exit $rc

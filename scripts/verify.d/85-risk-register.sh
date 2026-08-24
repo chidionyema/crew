@@ -60,8 +60,24 @@ for i, line in enumerate(lines, 1):
         worked += 1
 
     # The first token of the evidence line has to be something that exists.
-    # Expand ~ because a receipt written for a person will use it.
-    prog = os.path.expanduser(r["evidence"].strip().split()[0])
+    raw = r["evidence"].strip().split()[0]
+
+    # A receipt that begins with an absolute path into somebody's home directory is
+    # this estate's fingerprint (LAW 40), and it is the exact failure this check was
+    # meant to catch: it runs on one machine and nowhere else. It used to pass here
+    # and fail only in CI, where ~ expands to /home/runner -- so the defect reached
+    # main and the runner reported it as a broken register rather than as a receipt
+    # nobody but the author can run. Refuse it on the author's machine too, where it
+    # is cheap to fix, and say what to write instead.
+    if raw.startswith("~") or raw.startswith(os.path.expanduser("~") + os.sep):
+        print(f"FAIL: {r['id']} evidence starts with {raw!r}, a path inside one "
+              "person's home directory. Nobody else can run it, and in CI it "
+              "resolves to a home that does not hold this estate. Write a receipt "
+              "whose first word is a program on PATH -- curl the surface, or run "
+              "the checked-in script by its repo-relative path.")
+        sys.exit(1)
+
+    prog = os.path.expanduser(raw)
     if not (shutil.which(prog) or os.path.isfile(prog)):
         print(f"FAIL: {r['id']} evidence starts with {prog!r}, which is not on "
               "PATH and is not a file -- nobody can run this receipt")

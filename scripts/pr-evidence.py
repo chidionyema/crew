@@ -325,6 +325,14 @@ EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.
 NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 #: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+#:
+#: State the limit rather than let a reader assume more. This measures the LENGTH of what is
+#: inside the fence. It cannot tell pasted command output from forty characters of prose, so a
+#: transcript is the weaker source and a committed file is preferred wherever one can exist:
+#: `evidence_paths` returns the diff's files first and only falls back to the body. What the
+#: floor does buy is the case it was written for -- a heading with nothing under it, which the
+#: old marker gate passed. Tightening it further would refuse output that has no `$` prompt in
+#: it, which is most machine output, and refusing correct work is the outage (LAW 38).
 TRANSCRIPT_MIN_CHARS = 40
 
 

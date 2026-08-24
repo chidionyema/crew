@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Push every branch that exists only on this laptop. Create-only. Never force.
+
+Founder, 2026-08-24: "i scared to leave my laptop cos anything can go wrong ...
+i need to be able to be fully free." The delivery row (crew #97) measured why:
+30 commits sat on branches no remote holds, the oldest 7.7 days — work that dies
+with this machine. A report row is pull; nothing pulled. This is the push.
+
+What it does, and the whole of what it does: for each live repo, each local branch
+with NO upstream and NO branch of the same name on origin is pushed with -u. That
+is the entire action. It never force-pushes, never touches a branch that exists
+remotely (diverged history is a decision, not a chore), never commits, never
+stages, never merges, and skips any repo with no commit in 30 days.
+
+    scripts/estate-lander            plan: print what would push, push nothing
+    scripts/estate-lander --push     push, then print what happened
+
+The oracle that this keeps working is not this script's exit code: if it dies,
+strands accumulate and the delivery row in STATE.md goes RED within the hour
+(LAW 28 — the instrument is read by another instrument).
+"""
+from __future__ import annotations
+
+import pathlib
+import subprocess
+import sys
+import time
+
+HOME = pathlib.Path.home()
+DORMANT_DAYS = 30
+
+
+def sh(args: list[str], timeout: int = 60) -> tuple[int, str]:
+    try:
+        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
+                           errors="replace")
+        return p.returncode, (p.stdout + p.stderr).strip()
+    except subprocess.TimeoutExpired:
+        return 124, "TIMED OUT after %ds" % timeout
+    except OSError as exc:
+        return 1, str(exc)
+
+
+def live_repos() -> list[pathlib.Path]:
+    candidates = sorted(HOME.glob("dev/code/*")) + [
+        HOME / ".claude/scripts", HOME / ".claude",
+        HOME / "Documents/code/prospector"]
+    out, seen = [], set()
+    now = time.time()
+    for d in candidates:
+        if not (d / ".git").exists():
+            continue
+        rc, url = sh(["git", "-C", str(d), "remote", "get-url", "origin"], timeout=10)
+        if rc or not url or not url.startswith(("https://github.com/", "git@github.com:")):
+            continue                      # no pushable GitHub remote: nothing to land to
+        if url in seen:                   # second checkout of the same repo
+            continue
+        seen.add(url)
+        rc, last = sh(["git", "-C", str(d), "log", "-1", "--format=%ct", "--all"],
+                      timeout=10)
+        if rc or not last.isdigit() or now - int(last) > DORMANT_DAYS * 86400:
+            continue
+        out.append(d)
+    return out
+
+
+def main() -> int:
+    do_push = "--push" in sys.argv
+    planned, pushed, failed = 0, 0, []
+    for d in live_repos():
+        rc, remote_heads = sh(["git", "-C", str(d), "ls-remote", "--heads", "origin"],
+                              timeout=45)
+        if rc:
+            failed.append("%s: ls-remote failed: %s" % (d.name, remote_heads[:60]))
+            continue
+        remote = {l.split("refs/heads/", 1)[1] for l in remote_heads.splitlines()
+                  if "refs/heads/" in l}
+        rc, refs = sh(["git", "-C", str(d), "for-each-ref", "refs/heads",
+                       "--format=%(refname:short)\t%(upstream:short)"], timeout=10)
+        for line in refs.splitlines():
+            parts = line.split("\t")
+            branch = parts[0]
+            upstream = parts[1] if len(parts) > 1 else ""
+            if upstream or branch in remote:
+                continue
+            planned += 1
+            if not do_push:
+                print("PLAN  %s %s" % (d.name, branch))
+                continue
+            rc, out = sh(["git", "-C", str(d), "push", "-u", "origin",
+                          "%s:%s" % (branch, branch)], timeout=120)
+            if rc:
+                failed.append("%s %s: %s" % (d.name, branch, out.splitlines()[-1][:80]
+                                             if out else "push failed"))
+                print("FAIL  %s %s" % (d.name, branch))
+            else:
+                pushed += 1
+                print("PUSHED %s %s" % (d.name, branch))
+    verb = "pushed" if do_push else "would push"
+    print("lander: %s %d branch(es), %d failed"
+          % (verb, pushed if do_push else planned, len(failed)))
+    for f in failed:
+        print("  " + f)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -43,9 +43,34 @@ CLEAN_PY = '#!/usr/bin/env python3\nprint("ok")\n'
 CLEAN_SH = '#!/usr/bin/env bash\necho ok\n'
 
 
+def _venv() -> pathlib.Path:
+    """The venv the gate would find, which in a worktree is the main checkout's.
+
+    A worktree has no `.venv` of its own. `ROOT / ".venv"` therefore does not exist in the
+    place every agent actually runs this suite before pushing, and a skip guard that looked
+    only there would skip all six tests locally and run them only in CI -- a checker that
+    cannot tell "ruff is absent" from "ruff is not at the one path I looked at", which is
+    the defect this whole file is about, one level up. So ask the same question the gate
+    asks: `git rev-parse --git-common-dir` is how it finds the main checkout from inside a
+    worktree.
+    """
+    if (ROOT / ".venv" / "bin" / "ruff").exists():
+        return ROOT / ".venv"
+    r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                       cwd=ROOT, check=False, capture_output=True, text=True)
+    if r.returncode == 0:
+        main = pathlib.Path(r.stdout.strip().removesuffix("/.git"))
+        if (main / ".venv" / "bin" / "ruff").exists():
+            return main / ".venv"
+    return ROOT / ".venv"
+
+
+VENV = _venv()
+
+
 def _run(cwd: pathlib.Path, gate: pathlib.Path = GATE) -> subprocess.CompletedProcess:
     """Run a gate script against `cwd`, with this checkout's tools on the search path."""
-    env = {**os.environ, "CREW_ROOT": str(cwd), "CREW_VENV": str(ROOT / ".venv")}
+    env = {**os.environ, "CREW_ROOT": str(cwd), "CREW_VENV": str(VENV)}
     #: check=False throughout this file: the exit code is the thing under test.
     return subprocess.run(["bash", str(gate)], cwd=cwd, env=env, check=False,
                           capture_output=True, text=True, timeout=300)
@@ -72,12 +97,9 @@ def repo(tmp_path):
     return tmp_path
 
 
-def _tools_present() -> bool:
-    return (ROOT / ".venv" / "bin" / "ruff").exists()
-
-
 needs_tools = pytest.mark.skipif(
-    not _tools_present(), reason="no .venv/bin/ruff in this checkout; the gate reports BLIND")
+    not (VENV / "bin" / "ruff").exists(),
+    reason=f"no ruff at {VENV}/bin/ruff nor in the main checkout; the gate reports BLIND")
 
 
 @needs_tools

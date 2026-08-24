@@ -5,3 +5,22 @@
 .venv/
 __pycache__/
 science/warehouse.db
+# SQLite's WAL sidecars. They appear whenever the warehouse is read while it is being
+# written, which is every run, and committing one would commit a half-applied transaction.
+science/warehouse.db-shm
+science/warehouse.db-wal
+
+# The dbt half of the same warehouse (crew#74). The .duckdb file is derived from the JSONL
+# on disk and rebuilds in seconds. _sources.yml and facts.sql are GENERATED from
+# science/sources.json by science/dbt_build.py and are deliberately not committed: a
+# committed copy of the registry is a second registry, and the reconcile gate only watches
+# the first one.
+science/dbt/warehouse.duckdb
+science/dbt/models/staging/_sources.yml
+science/dbt/models/staging/facts.sql
+science/dbt/target/
+science/dbt/logs/
+
+# dbt writes this itself on first run. It is a machine-local anonymous-usage id, not
+# configuration, and committing it means every machine that clones this fights over it.
+science/dbt/.user.yml

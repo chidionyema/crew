@@ -23,19 +23,25 @@ required = {"date", "question", "decision_fed", "sources", "findings", "metric",
 today = date.today()
 newest = None
 stale_unmeasured = []
+
+# Every per-line problem is collected and reported together. This check used to
+# exit on the first bad line, so a ledger with four malformed rows cost four
+# pushes and four CI runs to clean, each one revealing the next fault. A gate
+# that shows one fault at a time turns a five-minute fix into an afternoon
+# (LAW 14: the cheaper way, once measured, is the way).
+problems = []
 for i, line in enumerate(lines, 1):
     try:
         e = json.loads(line)
     except json.JSONDecodeError:
-        print(f"FAIL: line {i} is not JSON")
-        sys.exit(1)
+        problems.append(f"line {i} is not JSON")
+        continue
     missing = required - e.keys()
     if missing:
-        print(f"FAIL: line {i} lacks {sorted(missing)}")
-        sys.exit(1)
+        problems.append(f"line {i} lacks {sorted(missing)}")
+        continue
     if not e["sources"]:
-        print(f"FAIL: line {i} has no sources — research with no trace did not happen")
-        sys.exit(1)
+        problems.append(f"line {i} has no sources — research with no trace did not happen")
 
     # findings must be a list of statements, never one string. Both shapes used to
     # pass here, and a string is the dangerous one because iterating it succeeds:
@@ -45,20 +51,29 @@ for i, line in enumerate(lines, 1):
     # to be queryable, which means a consumer can trust the type).
     f = e["findings"]
     if not isinstance(f, list) or not f:
-        print(f"FAIL: line {i} findings is {type(f).__name__}, expected a non-empty "
-              "list of statements. A string iterates into characters, so a consumer "
-              "reading it gets silent nonsense instead of an error.")
-        sys.exit(1)
-    if any(not isinstance(x, str) or len(x) < 20 for x in f):
-        print(f"FAIL: line {i} has a finding under 20 characters. That is the "
-              "signature of a string that was split into characters somewhere "
-              "upstream, and of a finding that says nothing.")
-        sys.exit(1)
-    d = date.fromisoformat(e["date"])
+        problems.append(
+            f"line {i} findings is {type(f).__name__}, expected a non-empty "
+            "list of statements. A string iterates into characters, so a consumer "
+            "reading it gets silent nonsense instead of an error.")
+    elif any(not isinstance(x, str) or len(x) < 20 for x in f):
+        problems.append(
+            f"line {i} has a finding under 20 characters. That is the "
+            "signature of a string that was split into characters somewhere "
+            "upstream, and of a finding that says nothing.")
+    try:
+        d = date.fromisoformat(e["date"])
+    except (TypeError, ValueError):
+        problems.append(f"line {i} date {e['date']!r} is not an ISO date")
+        continue
     newest = max(newest or d, d)
     if e.get("metric_after") is None and not e.get("abandoned") and today - d > timedelta(days=14):
         stale_unmeasured.append(f"line {i} ({e['date']}: {e['question'][:60]})")
 
+if problems:
+    print(f"FAIL: {len(problems)} malformed entr{'y' if len(problems) == 1 else 'ies'}:")
+    for p in problems:
+        print(f"  {p}")
+    sys.exit(1)
 if newest is None:
     print("FAIL: ledger is empty")
     sys.exit(1)

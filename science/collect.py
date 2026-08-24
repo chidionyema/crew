@@ -11,11 +11,44 @@ deleted and rebuilt from those files by running this command again. If a source
 and the warehouse disagree, the source is right.
 
     python3 science/collect.py            # rebuild, print what landed
-    python3 science/collect.py --check    # exit 1 if a source is stale or broken
+    python3 science/collect.py --reconcile  # what the crawl found that this does not collect
+    python3 science/collect.py --check    # exit 1 if a source is stale, broken or undeclared
 
 Readers, named before it was built (LAW 28):
   - science/law_enforcement.py, which today opens four stores by hand
   - scripts/estate-snapshot, which writes the row the founder reads in STATE.md
+
+WHY THE SOURCE LIST IS NO LONGER TRUSTED ON ITS OWN
+---------------------------------------------------
+Founder, 2026-08-24: "we need unification of dta pipeline ... one nodel".
+
+The warehouse was already one model. `facts(source, at, ingested_at, payload)` is the
+right shape and it stays. The defect was upstream: this list was typed by hand, 19
+entries, while ~/.estate/scripts/inventory.py CRAWLS the machine and finds 88 data and
+ledger stores. The two instruments never met. So a store nobody remembered to add looked
+exactly like a store somebody deliberately left out, and 72 of them accumulated in that
+gap without a single thing going red.
+
+The practice this now follows, read rather than assumed:
+
+  dbt makes you declare every source, and makes exclusion explicit rather than silent:
+  a table you deliberately do not check carries `freshness: null` in the same file. There
+  is no way to leave a source unmentioned and have the project still look complete.
+
+  DataHub does not trust a typed list at all. Its connectors "crawl your data systems on
+  a schedule" and the catalogue is the crawl's output, not a document somebody maintains.
+
+  Fowler, on the data monolith: "the whole pipeline i.e. the monolithic platform, is the
+  smallest unit that must change to cater for a new functionality". So the writers stay
+  where they are. One model and one registry, not one program that owns every store.
+
+Applied here: the inventory's crawl is the oracle. Every store it finds must appear in
+SOURCES or in DECLINED with a stated reason, and a store in neither fails --check. The
+registry can now only be wrong in a way that is visible.
+
+Sharded stores are one source, not many. The crawl already groups 46 shard files under
+two logical parents via its `member_of` field, and this collects a directory as a single
+source for the same reason dbt names a table rather than a file.
 """
 from __future__ import annotations
 
@@ -28,44 +61,91 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-HOME = Path.home()
-WAREHOUSE = Path(__file__).parent / "warehouse.db"
+#: Every path this program uses is overridable from the environment, and none of the
+#: three defaults is baked into the registry file. code-84, on the estate's kubernetes
+#: work, 2026-08-24: read config from a file and the rest from the environment, never a
+#: path under $HOME, so porting this is a manifest and not a rewrite. The immediate
+#: payoff is smaller and arrives today: the paired controls below can point all three at
+#: a scratch directory and exercise the real gate without touching the real warehouse.
+def _env_path(var: str, default: Path) -> Path:
+    raw = os.environ.get(var)
+    return Path(os.path.expanduser(raw)) if raw else default
 
-# source name -> (path, kind, the field holding the row's own timestamp)
-SOURCES: dict[str, tuple[Path, str, str | None]] = {
-    "spend":          (HOME / ".claude/estate-spend-history.jsonl",          "jsonl", "at"),
-    "board":          (HOME / ".claude/ESTATE_BOARD.jsonl",                  "jsonl", "at"),
-    "ledger":         (HOME / ".claude/state/ledger.jsonl",                  "jsonl", "at"),
-    "close_guard":    (HOME / ".claude/state/close-guard-observe.jsonl",     "jsonl", "at"),
-    "toolguard":      (HOME / ".claude/state/toolguard/events.jsonl",        "jsonl", "at"),
-    "would_have_fired": (HOME / ".claude/state/one-branch/would-have-fired.jsonl", "jsonl", "at"),
-    "drills":         (HOME / ".claude/state/drills.jsonl",                  "jsonl", "at"),
-    "ci_reach":       (HOME / ".claude/state/ci-reach.jsonl",                "jsonl", "at"),
-    "aiden_ticks":    (HOME / ".claude/state/aiden-ticks.jsonl",             "jsonl", "at"),
-    "stuck_detector": (HOME / ".claude/state/logs/stuck-detector.jsonl",     "jsonl", "at"),
-    "bundle_push":    (HOME / ".claude/state/estate-bundle-push.jsonl",      "jsonl", "at"),
-    "agent_cert":     (HOME / ".claude/agent-cert/history.jsonl",            "jsonl", "at"),
-    "decisions":      (HOME / ".claude/DECISIONS.jsonl",                     "jsonl", "at"),
-    "consult":        (HOME / ".claude/logs/consult.jsonl",                  "jsonl", "at"),
-    "method_metrics": (HOME / "Documents/code/prospector/store/ops/method_metrics.json",
-                       "json", "generated_at"),
-    "enforcement_map": (Path(__file__).parent / "enforcement-map.json",      "json", None),
-    # Outcome collections, written by science/outcomes.py. These are the only two
-    # sources on this list that record what the estate produced rather than what it
-    # did to itself. Everything above is telemetry; these are the denominator.
-    "ships":          (Path(__file__).parent / "ships.jsonl",                "jsonl", "at"),
-    "predictions":    (Path(__file__).parent / "predictions.jsonl",          "jsonl", "at"),
-    # The founder himself. His messages and complaints per day, derived from the
-    # directives ledger, which had 6,917 rows and no reader (LAW 28).
-    "attention":      (Path(__file__).parent / "attention.jsonl",            "jsonl", "at"),
-}
 
-# A source that has not been written inside this many hours is reported STALE.
-# The number is the source's own cadence times three, not a guess: reflect runs
-# every 4 hours, the spend collector every 10 minutes, the rest are event-driven
-# and only report stale after a full day of silence.
-STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26, "attention": 26}
-DEFAULT_STALE_HOURS = 48
+HOME = _env_path("ESTATE_HOME", Path.home())
+WAREHOUSE = _env_path("SCIENCE_WAREHOUSE", Path(__file__).parent / "warehouse.db")
+
+# THE REGISTRY IS A FILE, NOT A PYTHON DICT
+# ------------------------------------------
+# It used to be three dicts in this module. code-84, on the estate's kubernetes work,
+# 2026-08-24: "make the registry a plain declarative file that `kubectl apply -k` could
+# carry unchanged. Not a Python dict. Then when a cluster does exist, adopting it is an
+# overlay entry." That is the same reason dbt keeps sources in yml rather than in the
+# code that reads them: whoever owns a store has to be able to declare it without
+# editing the collector, or they will not declare it at all, and 72 undeclared stores is
+# what that looks like after a few months.
+#
+# Paths are declared under a NAMED ROOT rather than absolutely, so nothing in the file
+# hardcodes /Users/chidionyema. Moving this to a container is then a roots mapping and
+# not a rewrite.
+REGISTRY = _env_path("SCIENCE_REGISTRY", Path(__file__).parent / "sources.json")
+
+
+def load_registry(path: Path = REGISTRY) -> dict:
+    """Read the registry, or fail loudly. There is no built-in default on purpose.
+
+    A collector that silently falls back to an empty or hardcoded source list when its
+    registry is missing reports a healthy run over nothing, which is the exact failure
+    this whole change exists to remove.
+    """
+    try:
+        reg = json.loads(path.read_text())
+    except FileNotFoundError:
+        sys.exit(f"registry missing: {path}. This collects nothing without it.")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"registry will not parse: {path}: {exc}")
+
+    roots = {"home": HOME, "science": Path(__file__).parent}
+    for name, raw in (reg.get("roots") or {}).items():
+        if name not in roots:
+            roots[name] = Path(os.path.expanduser(raw))
+
+    sources: dict[str, tuple[Path, str, str | None]] = {}
+    stale: dict[str, int] = {}
+    for s in reg.get("sources", []):
+        root = roots.get(s.get("root", "home"))
+        if root is None:
+            sys.exit(f"registry names an unknown root {s.get('root')!r} for {s.get('name')!r}")
+        sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
+        if s.get("stale_after_hours"):
+            stale[s["name"]] = int(s["stale_after_hours"])
+
+    declined: dict[str, str] = {}
+    for d in reg.get("declined", []):
+        #: A reason is not decoration. An exclusion with no stated reason is
+        #: indistinguishable from a store somebody forgot, which is the thing being
+        #: fixed, so it is refused here rather than accepted quietly.
+        if not (d.get("reason") or "").strip():
+            sys.exit(f"registry declines {d.get('id')!r} with no reason. "
+                     f"Every exclusion states why, or it is not an exclusion.")
+        declined[d["id"]] = d["reason"]
+
+    return {"sources": sources, "declined": declined, "stale": stale,
+            "default_stale": int(reg.get("default_stale_after_hours", 48))}
+
+
+_REG = load_registry()
+SOURCES: dict[str, tuple[Path, str, str | None]] = _REG["sources"]
+DECLINED: dict[str, str] = _REG["declined"]
+
+# A source that has not been written inside this many hours is reported STALE. The
+# number is the source's own cadence times three, not a guess, and it lives beside the
+# source in the registry now rather than in a second table here.
+STALE_HOURS: dict[str, int] = _REG["stale"]
+DEFAULT_STALE_HOURS: int = _REG["default_stale"]
+
+#: The crawl this reconciles against. Written hourly by com.estate.inventory.
+INVENTORY = _env_path("ESTATE_INVENTORY", HOME / ".estate/state/inventory.json")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS facts (
@@ -164,11 +244,32 @@ def iso(ts: float) -> str:
     return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="seconds")
 
 
+def shard_files(path: Path) -> list[Path]:
+    """Every .jsonl under a sharded store, in a stable order.
+
+    Sorted so two runs over an unchanged directory produce the same row order and a
+    diff of the warehouse means something. rglob, because ~/.claude/jobs holds its
+    timelines one directory deeper than the others.
+    """
+    return sorted(p for p in path.rglob("*.jsonl") if p.is_file())
+
+
 def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
     """Return (rows, bad_row_count). A row that will not parse is counted, never guessed at."""
     rows: list[dict] = []
     bad = 0
-    if kind == "jsonl":
+    if kind == "jsonl-dir":
+        #: Every shard keeps its own name on the row. Without it the shards melt into
+        #: one undifferentiated source and "which project was he talking about" stops
+        #: being answerable, which is most of what the directives store is for.
+        for shard in shard_files(path):
+            shard_rows, shard_bad = read_rows(shard, "jsonl")
+            bad += shard_bad
+            name = shard.stem
+            for r in shard_rows:
+                r.setdefault("_shard", name)
+                rows.append(r)
+    elif kind == "jsonl":
         with open(path, errors="ignore") as fh:
             for line in fh:
                 line = line.strip()
@@ -235,7 +336,14 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
             )
             continue
 
-        mtime = iso(path.stat().st_mtime)
+        #: A directory's own mtime moves when a shard is ADDED and not when one is
+        #: appended to, so it would report a store fresh that has been silent for a
+        #: week. The freshest shard is the store's real age.
+        if kind == "jsonl-dir":
+            shards = shard_files(path)
+            mtime = iso(max((s.stat().st_mtime for s in shards), default=path.stat().st_mtime))
+        else:
+            mtime = iso(path.stat().st_mtime)
         try:
             rows, bad = read_rows(path, kind)
         except OSError as exc:
@@ -267,11 +375,104 @@ def staleness(entry: dict) -> str:
     return f"STALE {age_h:.0f}h" if age_h > limit else f"fresh {age_h:.0f}h"
 
 
+def reconcile() -> tuple[list[dict], list[str], str]:
+    """Compare the machine's crawl against this registry.
+
+    Returns (undeclared, stale_declines, note). `undeclared` is the finding that matters:
+    a store that exists, that the crawler found, and that this file has never heard of.
+    `stale_declines` is the other direction, an exclusion for something that is no longer
+    there, which is how a DECLINED map rots into a list of ghosts.
+
+    A shard is covered by its parent. The crawl already groups shard files under a
+    logical store in its `member_of` field, so `directives/-Users-...jsonl` is answered
+    by the `directives` declaration and is not 40 separate omissions.
+
+    No inventory means no verdict, and that is said out loud rather than passing. A
+    reconciliation that silently succeeds when its oracle is missing is worse than none,
+    because it reads as proof of coverage.
+    """
+    if not INVENTORY.exists():
+        return [], [], (f"NO CRAWL TO RECONCILE AGAINST: {INVENTORY} is missing, so this "
+                        f"cannot tell a complete registry from an empty one. Run "
+                        f"com.estate.inventory, or ~/.estate/scripts/inventory.py.")
+    try:
+        crawl = json.loads(INVENTORY.read_text())
+    except (json.JSONDecodeError, OSError) as exc:
+        return [], [], f"CRAWL UNREADABLE: {INVENTORY}: {exc}"
+
+    declared_paths = {str(p.resolve()) if p.exists() else str(p)
+                      for p, _k, _t in SOURCES.values()}
+    #: A file inside a declared directory source is already collected by it. The crawl
+    #: lists ~/.claude/jobs/<id>/timeline.jsonl as six separate stores and sets no
+    #: member_of on them, so without containment the registry is told to declare six
+    #: things it is already reading. Containment is by resolved path, not by string
+    #: prefix, so a sibling directory whose name merely starts the same is not swallowed.
+    declared_dirs = [p.resolve() for p, k, _t in SOURCES.values()
+                     if k == "jsonl-dir" and p.exists()]
+    known_ids = set(DECLINED) | set(SOURCES)
+
+    def inside_declared_dir(p: Path) -> bool:
+        try:
+            rp = p.resolve()
+        except OSError:
+            return False
+        return any(d == rp or d in rp.parents for d in declared_dirs)
+
+    undeclared, seen_ids = [], set()
+    for row in crawl.get("rows", []):
+        if row.get("kind") not in ("data", "ledger"):
+            continue
+        ident = row.get("member_of") or row.get("id") or ""
+        seen_ids.add(ident)
+        seen_ids.add(row.get("id") or "")
+        if ident in known_ids or (row.get("id") or "") in known_ids:
+            continue
+        p = Path(row.get("path") or "")
+        if (str(p.resolve()) if p.exists() else str(p)) in declared_paths:
+            continue
+        if p.exists() and inside_declared_dir(p):
+            continue
+        #: A shard is only covered when its parent is. member_of is the crawl's own
+        #: grouping, so this trusts it rather than re-deriving the grouping from paths.
+        if row.get("member_of"):
+            continue
+        undeclared.append({"id": row.get("id"), "path": row.get("path"),
+                           "rows": row.get("rows"), "mb": row.get("mb")})
+
+    stale = sorted(i for i in DECLINED if i not in seen_ids)
+    return undeclared, stale, ""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true",
-                    help="exit 1 if any source is absent, unreadable or stale")
+                    help="exit 1 if any source is absent, unreadable, stale or undeclared")
+    ap.add_argument("--reconcile", action="store_true",
+                    help="print what the machine's crawl found that this registry does "
+                         "not mention, and exit without rebuilding")
     args = ap.parse_args()
+
+    if args.reconcile:
+        undeclared, stale, note = reconcile()
+        print(f"registry : {len(SOURCES)} collected, {len(DECLINED)} declined with a reason")
+        print(f"crawl    : {INVENTORY}")
+        if note:
+            print(note)
+            return 1
+        if undeclared:
+            print(f"\nUNDECLARED, {len(undeclared)} store(s) the crawl found and this "
+                  f"registry has never heard of:")
+            for u in sorted(undeclared, key=lambda r: -((r["rows"] or 0) + (r["mb"] or 0))):
+                size = f"{u['rows']} rows" if u["rows"] else f"{u['mb']} MB"
+                print(f"  {str(u['id'])[:58]:58} {size}")
+            print("\nAdd each to SOURCES to collect it, or to DECLINED with the reason it "
+                  "is left out. Silence is not one of the options.")
+        else:
+            print("\nUNDECLARED: none. Every store the crawl found is either collected or "
+                  "declined with a stated reason.")
+        if stale:
+            print(f"\nDECLINED FOR SOMETHING THAT IS GONE, {len(stale)}: {', '.join(stale)}")
+        return 1 if undeclared else 0
 
     # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
     # agent runs the same script by hand. Without a busy timeout the second one dies on
@@ -303,7 +504,26 @@ def main() -> int:
 
     days = conn.execute("SELECT count(*) FROM spend_daily").fetchone()[0]
     spend = conn.execute("SELECT round(sum(usd),2) FROM spend_daily").fetchone()[0]
-    print(f"spend_daily view:  {days} days, ${spend} total")
+    #: `$None` is what SUM over an empty view prints, and a money line reading `$None`
+    #: is a money line nobody trusts. Say there is nothing there instead.
+    print(f"spend_daily view:  {days} days, "
+          + (f"${spend} total" if spend is not None else "no spend rows"))
+
+    #: The registry checks itself against the machine on every run, not only when asked.
+    #: A gap that is only visible behind a flag nobody types is the same shape as the
+    #: defect this closes (LAW 28).
+    undeclared, stale_declines, note = reconcile()
+    if note:
+        print(f"\n{note}")
+        failures.append("no crawl to reconcile against")
+    elif undeclared:
+        print(f"\nundeclared stores, {len(undeclared)} the crawl found and this does not "
+              f"mention: {', '.join(str(u['id'])[:40] for u in undeclared[:6])}"
+              f"{' ...' if len(undeclared) > 6 else ''}")
+        failures.append(f"{len(undeclared)} store(s) in neither SOURCES nor DECLINED "
+                        f"(run --reconcile)")
+    if stale_declines:
+        print(f"declined for something that is gone: {', '.join(stale_declines)}")
 
     if failures:
         print("\nneeds attention:")

@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "roots": {
+    "home": "~",
+    "science": "."
+  },
+  "default_stale_after_hours": 48,
+  "sources": [
+    {
+      "name": "spend",
+      "root": "home",
+      "path": ".claude/estate-spend-history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 6
+    },
+    {
+      "name": "board",
+      "root": "home",
+      "path": ".claude/ESTATE_BOARD.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "ledger",
+      "root": "home",
+      "path": ".claude/state/ledger.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "close_guard",
+      "root": "home",
+      "path": ".claude/state/close-guard-observe.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "toolguard",
+      "root": "home",
+      "path": ".claude/state/toolguard/events.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "would_have_fired",
+      "root": "home",
+      "path": ".claude/state/one-branch/would-have-fired.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "drills",
+      "root": "home",
+      "path": ".claude/state/drills.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "ci_reach",
+      "root": "home",
+      "path": ".claude/state/ci-reach.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "aiden_ticks",
+      "root": "home",
+      "path": ".claude/state/aiden-ticks.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "stuck_detector",
+      "root": "home",
+      "path": ".claude/state/logs/stuck-detector.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "bundle_push",
+      "root": "home",
+      "path": ".claude/state/estate-bundle-push.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "agent_cert",
+      "root": "home",
+      "path": ".claude/agent-cert/history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "decisions",
+      "root": "home",
+      "path": ".claude/DECISIONS.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "consult",
+      "root": "home",
+      "path": ".claude/logs/consult.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "method_metrics",
+      "root": "home",
+      "path": "Documents/code/prospector/store/ops/method_metrics.json",
+      "kind": "json",
+      "time_field": "generated_at",
+      "stale_after_hours": 12
+    },
+    {
+      "name": "enforcement_map",
+      "root": "science",
+      "path": "enforcement-map.json",
+      "kind": "json",
+      "time_field": null
+    },
+    {
+      "name": "ships",
+      "root": "science",
+      "path": "ships.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 26
+    },
+    {
+      "name": "predictions",
+      "root": "science",
+      "path": "predictions.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "attention",
+      "root": "science",
+      "path": "attention.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 26
+    },
+    {
+      "name": "directives",
+      "root": "home",
+      "path": ".claude/directives",
+      "kind": "jsonl-dir",
+      "time_field": "at"
+    },
+    {
+      "name": "prompt_ledger",
+      "root": "home",
+      "path": ".claude/state/prompt-ledger",
+      "kind": "jsonl-dir",
+      "time_field": "at"
+    },
+    {
+      "name": "tickets",
+      "root": "home",
+      "path": ".claude/state/tickets",
+      "kind": "jsonl-dir",
+      "time_field": "at"
+    },
+    {
+      "name": "job_timelines",
+      "root": "home",
+      "path": ".claude/jobs",
+      "kind": "jsonl-dir",
+      "time_field": "at"
+    },
+    {
+      "name": "history",
+      "root": "home",
+      "path": ".claude/history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "goal_net",
+      "root": "home",
+      "path": ".claude/state/goal-net.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "estate_push",
+      "root": "home",
+      "path": ".claude/state/estate-push.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "drills_scripts",
+      "root": "home",
+      "path": ".claude/scripts/state/drills.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    },
+    {
+      "name": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "kind": "jsonl",
+      "time_field": "at"
+    }
+  ],
+  "declined": [
+    {
+      "id": "transcripts",
+      "reason": "6.5 GB of raw session text. It is rows in no sense this can ingest, and copying it would double the largest thing on the disk. It needs summarising into facts by a reader that does not exist yet, which is a ticket and not an exclusion forever."
+    },
+    {
+      "id": "telemetry",
+      "reason": "The CLI vendor's own failed event uploads. Not the estate's data, and it tells us nothing about the estate that spend and the ledgers do not say better."
+    },
+    {
+      "id": "toolguard-decisions",
+      "reason": "One file per tool decision, 28.5 MB of them. The rollup is already collected as the `toolguard` source, which is the same information joined."
+    },
+    {
+      "id": "prospector-dossiers",
+      "reason": "Product data belonging to the prospector domain, not estate telemetry. Fowler's point stands: centralising another domain's store here would make this the monolith the split is meant to avoid."
+    },
+    {
+      "id": "prospector-dossiers-worktree",
+      "reason": "The same product data, stranded in an abandoned agent worktree. That it holds 130.9 MB while the live store holds 0.0 MB is a real finding, and it belongs to prospector to fix rather than to this warehouse to absorb."
+    },
+    {
+      "id": "maestro-intents",
+      "reason": "Maestro's own working memory, one file per cycle. Another domain's store."
+    },
+    {
+      "id": ".claude/state/coord/jobs.sqlite",
+      "reason": "SQLite, not append-only rows. Ingesting it needs a reader that understands its schema; the generic jsonl path would produce garbage rows that look like data."
+    },
+    {
+      "id": ".estate/healthchecks/data/hc.sqlite",
+      "reason": "Healthchecks' own database, same reason. The estate reads its verdicts through the Healthchecks API, not by copying its tables."
+    },
+    {
+      "id": "dev/code/crew/science/warehouse.db",
+      "reason": "This is the sink. Collecting the warehouse into the warehouse is the loop LAW 30 warns about, and the row count would grow without bound."
+    },
+    {
+      "id": "crew-issues",
+      "reason": "Not a file. It is a GitHub API count, and it already reaches the estate through the inventory's own ledger row."
+    },
+    {
+      "id": ".maestro/experience_graph.db",
+      "reason": "SQLite, and one half of a duplicate the crawl reports in its own findings: the same graph exists at ~/.estate/knowledge/maestro/experience_graph.db. Which one is authoritative is maestro's call, not this warehouse's, and collecting both would make the duplicate look like twice the evidence."
+    },
+    {
+      "id": ".estate/knowledge/maestro/experience_graph.db",
+      "reason": "The other half of that duplicate. Declined for the same reason and named separately so neither disappears from the registry while the question is open."
+    }
+  ]
+}

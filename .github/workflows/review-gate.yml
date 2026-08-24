@@ -62,10 +62,45 @@
 # patterns and the `bad_name()` patterns OUT OF THIS FILE and runs them, so an edit here
 # that breaks them fails a test rather than a pull request. Rung 4.
 name: review-gate
+#
+# WHEN THIS GATE RUNS, AND WHY THE REVIEW ITSELF HAS TO BE THE TRIGGER. Until
+# 2026-08-24 this file listed `pull_request` alone. The gate's whole subject is a
+# review, and a review is not a `pull_request` event, so the gate could only ever run
+# BEFORE the thing it checks for existed. Every run therefore recorded the state of
+# the pull request as of some moment before its review, and the red stayed red until a
+# person noticed and pressed re-run.
+#
+# Measured on this repo the day it was fixed, all 60 runs this workflow had ever had:
+#
+#     60 runs, 100% triggered by `pull_request`.  0 by anything else.
+#     3 of 9 open pull requests were red on this gate WHILE CARRYING a REVIEW:
+#     comment that satisfies it -- #157, #152, #139. Each needed a hand on a button.
+#
+# `pull_request_review` is added below and `issue_comment` is deliberately NOT, which
+# is the opposite of the obvious fix. From GitHub's events reference:
+#
+#     issue_comment          GITHUB_SHA = last commit on the DEFAULT BRANCH
+#                            GITHUB_REF = default branch
+#     pull_request_review    GITHUB_SHA = last merge commit on the GITHUB_REF branch
+#                            GITHUB_REF = refs/pull/<n>/merge      (same as pull_request)
+#
+# So an `issue_comment` run is attached to main, not to the pull request's head. It
+# would never appear in that PR's checks and could never clear its red -- a job that
+# runs, passes, and is read by nobody, which is the LAW 28 defect and not a fix.
+# `pull_request_review` is attached exactly the way `pull_request` is, so its run lands
+# on the pull request and replaces the stale verdict.
+#
+# THE CONSEQUENCE, AND IT IS A CONVENTION CHANGE. A verdict posted as a plain issue
+# comment still SATISFIES this gate -- the accept side below is unchanged and reads
+# both -- but it will not re-run it. Post the verdict as a pull request review
+# (`gh pr review --comment --body "REVIEW: ... -- session <name>"`) and the gate
+# re-runs itself. The failure message below says so, at the moment a reader needs it.
 
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited]
 
 permissions:
   contents: read
@@ -173,6 +208,11 @@ jobs:
 
           if [ "$hit" -lt 1 ]; then
             echo "FAIL: no issue comment or review contains 'REVIEW:' together with 'session $reviewed_by' (e.g. 'REVIEW: <findings> — session $reviewed_by')." >&2
+            # Said here because this is where a reviewer who HAS posted a verdict and
+            # is staring at a red check will read it. A plain issue comment satisfies
+            # the check above but does not re-run this job: `issue_comment` runs against
+            # the default branch and never lands on the pull request. A review does.
+            echo "If you already posted a verdict as a plain comment, this job did not see it because a comment does not re-run it. Post it as a review instead -- gh pr review --comment --body 'REVIEW: ... -- session $reviewed_by' -- or re-run this job by hand." >&2
             exit 1
           fi
 

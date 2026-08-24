@@ -45,7 +45,7 @@ markdown files are invisible to every session, because they are not in git.
 |---|---|
 | Python manifests (`requirements.txt` / `pyproject.toml`) | 8 |
 | Python **lockfiles** | **1** (`hermes-v2/hermes-agent/uv.lock`) |
-| Pinned versions (`==`) across all `requirements*.txt` | **0 of 46 lines** |
+| Pinned versions (`==`) across platform `requirements*.txt` | **0 of 49 lines** |
 | Distinct Python versions across 6 venvs | **5** (3.10.9 ×3, 3.11, 3.11.15, 3.14.6) |
 | Dependabot / Renovate configs | **0** |
 | SBOM files in `idp/reports/` | 4 (spdx, spdx3, syft, cyclonedx) |

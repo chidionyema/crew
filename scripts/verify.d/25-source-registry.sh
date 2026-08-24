@@ -102,17 +102,23 @@ good_registry; rm -f "$WORK/inventory.json"
 run --check; expect 1 "a missing crawl refuses to return a verdict"
 
 echo "== G. the real registry against the real crawl =="
-# A guard that loses its evidence reports BLIND, never a verdict. The crawl is written
-# hourly by com.estate.inventory ON THE LAPTOP; a CI runner has no estate to crawl, and
-# grading the real reconcile there fails on absence, not on a defect. Controls A-F above
-# are hermetic and still decide this gate everywhere. Same default path as collect.py.
-REAL_INVENTORY="${ESTATE_INVENTORY:-$HOME/.estate/state/inventory.json}"
-if [ ! -f "$REAL_INVENTORY" ]; then
-  echo "  BLIND  no crawl on this host ($REAL_INVENTORY absent); the laptop grades this control"
-else
+# A through F run against scratch files and hold anywhere. G reads the estate's own
+# hourly crawl, which exists on the laptop and on no CI runner. Reporting FAIL there
+# says the registry does not reconcile, when what happened is that the check never
+# saw the registry. LAW 45: a guard that loses its evidence reports BLIND, never a
+# verdict. So G states that it was skipped and why, and the six controls above still
+# gate the run.
+REAL_CRAWL="${ESTATE_INVENTORY:-$HOME/.estate/state/inventory.json}"
+if [ -f "$REAL_CRAWL" ]; then
   echo "\$ collect.py --reconcile"
   "$PY" "$COLLECT" --reconcile 2>&1 | sed 's/^/    /'
   (exit "${PIPESTATUS[0]}"); expect 0 "the estate's own registry reconciles clean"
+else
+  echo "  SKIP  no estate crawl at $REAL_CRAWL, so there is no oracle to reconcile"
+  echo "        against on this machine. Control F above already proves the gate"
+  echo "        refuses rather than passes when the crawl is missing."
+  echo "  RESIDUAL: the real registry is reconciled only where the crawl is written,"
+  echo "            which is the laptop running com.estate.inventory."
 fi
 
 exit $fail

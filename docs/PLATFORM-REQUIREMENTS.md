@@ -20,7 +20,8 @@ currently unmeasured and unowned, and every other layer inherits from them.
 | Modified in 2026-08 | 2,480 of 2,497 | `stat -f %Sm` grouped by month |
 | Modified before 2026-06 | 7 | same |
 | Architecture decision records | **14** (2 idp, 12 prospector-main) | `find … -type d \( -iname 'adr' -o -iname 'decisions' \)` |
-| …of those, citing no evidence | 3 of 12 in prospector-main | `grep -rLE 'http\|\.py:[0-9]\|\$ '` |
+| …plus RFCs, which crew#183 counts and this doc does not | 2, in `hermes-v2/hermes-agent/docs/rfcs/` | `ls hermes-v2/hermes-agent/docs/rfcs/` |
+| …carrying a `Sources` section | 2 of 14 (both in idp) | `grep -LiE '^#{1,4}\s*sources' docs/decisions/*.md` |
 | `docs/` directories | 6 (crew, hermes-v2, idp, maestro, prospector-main, survival-stack) | `find . -maxdepth 2 -type d -name docs` |
 | `mkdocs.yml` files | **1** (`idp/mkdocs.yml`, added by `2fe28c2`) | `find … -maxdepth 3 -name mkdocs.yml` |
 | Backstage TechDocs referenced in idp config | yes (`app-config.yaml`, `catalog-info.yaml`) | `grep -rl techdocs idp` |
@@ -98,10 +99,15 @@ the four does not belong in `docs/`.
 MADR format in `docs/decisions/NNNN-title.md`. Every row of `crew/docs/STANDARDS.md` cites the ADR
 that chose it. The gap is not that we write no ADRs -- 14 exist, 2 in idp and 12 in
 prospector-main. It is that crew, which owns the 16 standards rows, has none, so 16 decisions
-are recorded as a table cell with no reasoning behind it; and 3 of prospector-main's 12 cite no
-evidence at all, which makes them prose in a numbered file.
+are recorded as a table cell with no reasoning behind it; and 12 of the 14 carry no `Sources`
+section, which makes them prose in a numbered file. The two that comply are both in idp.
+
+The test is the one crew#183 defines for this layer -- MADR with a mandatory `Sources` section --
+not a looser search for any URL in the body. An earlier draft of this row used
+`grep -rLE 'http|\.py:[0-9]|\$ '` and reported 3 of 12, because a record that mentions a link
+in passing passes that test while citing nothing for its actual decision.
 *Accept:* `ls docs/decisions/*.md | wc -l` > 0 in crew, every STANDARDS row carries an ADR id,
-and `grep -rLE 'http|\.py:[0-9]|\$ ' docs/decisions/` returns nothing.
+and `grep -LiE '^#{1,4}\s*sources' docs/decisions/*.md` returns nothing.
 
 **DOC-4 — No untracked markdown.**
 The gap between `git ls-files '*.md'` and `find -name '*.md'` is zero in every repo we own.

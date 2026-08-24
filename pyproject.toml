@@ -1,0 +1,66 @@
+# The first machine that reads this repo's Python.
+#
+# Measured on origin/main the day this file was written: 34 files, 6,173 lines, and no
+# linter or type checker had ever been run over any of it. ruff found 67 defect-class
+# hits and pyright found 24 errors in its *basic* mode, 13 of them attribute access on a
+# value that can be None. Not one of them was a test failure, because nothing was looking.
+#
+# Two rules govern what is selected below, and both come from watching linters get
+# switched off:
+#
+#   1. A rule earns its place by catching a defect, not a preference. `os.path.join`
+#      instead of `pathlib` is a taste; `subprocess.run` without `check=` is a script
+#      that carries on after `gh` failed and reports OK over nothing. Only the second
+#      kind is here.
+#   2. A guard that refuses correct work is an outage (LAW 38). Line length, statement
+#      layout and exception-message style are deliberately absent. The day this gate
+#      fails somebody's correct patch over a semicolon is the day it stops running.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".venv", "node_modules", "store", "storage"]
+
+[tool.ruff.lint]
+select = [
+    "F",        # pyflakes -- undefined name, unused import, f-string with no placeholder
+    "E4",       # imports: shadowed, and module-level ones that are not at the top
+    "E9",       # syntax and IO errors ruff could not parse past
+    # E7 is NOT taken whole. Its prefix covers `x = 1; y = 2` (E702) and `if a: b`
+    # (E701), which are layout, and 71 of them exist on main. Selecting the prefix
+    # would have failed 71 correct lines on day one and got this file deleted by
+    # lunchtime (LAW 38). The E7 rules that describe a defect are named individually:
+    "E711",     # `== None` -- compares by value, matches things that are not None
+    "E712",     # `== True`
+    "E713", "E714",  # `not x in y`, `not x is y` -- parse the opposite of the intent
+    "E721",     # `type(a) == type(b)` instead of isinstance
+    "E722",     # bare `except:` -- catches SystemExit and KeyboardInterrupt too
+    "E731",     # a lambda bound to a name, which loses the name in every traceback
+    "E741",     # `l`, `I`, `O` as names -- 4 on main, and `l` is unreadable next to `1`
+    "B",        # bugbear -- mutable default, loop-variable capture, raise-without-from
+    "C4",       # comprehensions that silently build the wrong thing
+    "DTZ",      # a datetime with no timezone. crew#107 is this defect, filed by hand.
+    "BLE",      # `except Exception` -- swallows the failure you needed to see
+    "S110",     # `try/except/pass` -- the same thing, written shorter
+    "SIM115",   # a file opened and never closed
+    "PLW1510",  # `subprocess.run` without `check=` -- 26 of these on main
+    "I",        # import order. Not a defect; free to fix, and it ends the diff noise.
+    "UP",       # constructs the target Python version has replaced
+    "RUF",      # ruff's own checks, including the ones about mutable class attributes
+]
+ignore = [
+    "E501",     # line length. `line-length` above formats; it does not fail a build.
+]
+
+[tool.ruff.lint.per-file-ignores]
+# A test may import a module for its side effect and hold a file open on purpose.
+"tests/*" = ["S110", "SIM115"]
+"checkpoints/*" = ["S110", "SIM115"]
+
+[tool.pyright]
+# `standard`, not `strict`, for the repo: strict demands an annotation on every
+# parameter of 6,173 lines that have none, which is a migration and not a gate.
+typeCheckingMode = "standard"
+pythonVersion = "3.11"
+exclude = [".venv", "node_modules", "store", "storage", "**/__pycache__"]
+reportMissingImports = "warning"   # several scripts import tools that are optional here

@@ -37,6 +37,7 @@ is 3.9.6, while ruff graded them at py311. The tests for that are at the foot of
 file, under the banner, and the declaration they check is
 `[tool.ruff.per-file-target-version]` in pyproject.toml.
 """
+import os
 import pathlib
 import plistlib
 import re
@@ -183,10 +184,36 @@ def _interpreter_for(argv: list[str], env_path: str | None) -> str | None:
         if pathlib.Path(a).name.startswith("python"):
             return a
     #: Nothing named, so the program's own shebang decides, and `env python3` walks PATH.
-    found = subprocess.run(["sh", "-c", "command -v python3"], check=False, text=True,
-                           capture_output=True,
-                           env={"PATH": env_path or LAUNCHD_DEFAULT_PATH})
-    return found.stdout.strip() or None
+    #:
+    #: Take the LOWEST version on that PATH, not the first hit. `command -v python3` answers
+    #: "what would run right now", and the answer moves without anything in this repo
+    #: changing: estate-snapshot's plist puts /opt/homebrew/bin first, which holds no python3
+    #: at all, so it falls through to /usr/local/bin/python3 3.14.6 -- and would fall to
+    #: /usr/bin/python3 3.9.6 the day a homebrew python appears there or /usr/local/bin goes.
+    #: Grading the file at the first hit told ruff py311, and ruff rewrote four
+    #: `dt.timezone.utc` calls to `dt.UTC`, which under 3.9.6 is `AttributeError: module
+    #: 'datetime' has no attribute 'UTC'` at line 521, in main() -- at call time, so
+    #: `py_compile` passes the file. Not the ImportError at line 8 of this docstring:
+    #: collect.py used `from datetime import UTC`, which fails at import; an attribute
+    #: access fails only when reached, and line 521 precedes the write at 555, so the job
+    #: dies with STATE.md untouched rather than blank.
+    #: Found by chidionyema-d1 on PR #159. A checker that reports what it happened to see
+    #: rather than what it is allowed to see is the defect this whole file exists for.
+    lowest: tuple[tuple[int, ...], str] | None = None
+    for entry in (env_path or LAUNCHD_DEFAULT_PATH).split(":"):
+        cand = pathlib.Path(entry) / "python3"
+        if not (cand.is_file() and os.access(cand, os.X_OK)):
+            continue
+        got = subprocess.run([str(cand), "-c",
+                              "import sys;print('%d.%d' % sys.version_info[:2])"],
+                             check=False, text=True, capture_output=True, timeout=30)
+        m = re.fullmatch(r"(\d+)\.(\d+)", got.stdout.strip())
+        if not m:
+            continue
+        ver = (int(m.group(1)), int(m.group(2)))
+        if lowest is None or ver < lowest[0]:
+            lowest = (ver, str(cand))
+    return lowest[1] if lowest else None
 
 
 def _same_program_here(target: pathlib.Path) -> pathlib.Path | None:
@@ -221,9 +248,24 @@ def _same_program_here(target: pathlib.Path) -> pathlib.Path | None:
         OK   scripts/estate-lander        /usr/bin/python3   -> 3.9    py39
         OK   scripts/estate-snapshot      /usr/local/bin/python3 -> 3.14   py311
 
-    estate-snapshot is absent from the pyproject table because its plist sets PATH and it
-    gets 3.14.6. It is present *here*, checked and passing, so the day somebody drops that
-    PATH line this test goes red rather than staying quiet.
+    That third line was read the wrong way round when it was written. "3.14 -> py311" is
+    what the plist's PATH resolves to on the day the resolver runs, and estate-snapshot was
+    left out of the pyproject table on the strength of it. chidionyema-d1 broke that
+    reviewing PR #159: the plist sets
+    PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin, `/opt/homebrew/bin`
+    is FIRST and holds no python3 at all, and the same PATH without /usr/local/bin resolves
+    to /usr/bin/python3 3.9.6. Nothing in this repo has to change for the answer to move.
+    Meanwhile ruff, told py311, had already rewritten four `dt.timezone.utc` calls in that
+    file to `dt.UTC`. Under 3.9.6 that is `AttributeError: module 'datetime' has no
+    attribute 'UTC'` at line 521, in main() -- at call time, so `py_compile` passes it. The
+    write is at line 555, so the job dies with STATE.md untouched and the page every session
+    reads stops moving without going blank.
+
+    So estate-snapshot is now IN the table at py39, and the rule this function serves is
+    the lower one: a program whose interpreter comes from PATH is graded at the lowest
+    version that PATH can reach, not at what it resolves to today. First-hit resolution is
+    the same defect this whole file was opened for, one level up -- a checker reporting
+    what it happened to see rather than what it is allowed to see.
     """
     for parent in target.parents:
         #: `.git` is a directory in a clone and a file in a worktree; either marks a root.

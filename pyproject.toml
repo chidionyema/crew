@@ -64,6 +64,31 @@ extend-exclude = [".venv", "node_modules", "store", "storage"]
 [tool.ruff.per-file-target-version]
 "scripts/estate-lander" = "py39"
 "science/law_enforcement.py" = "py39"
+# estate-snapshot is `#!/usr/bin/env python3` and its plist sets
+# PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin, so the interpreter
+# is whatever is first on that PATH when launchd fires, not a fixed program. Measured
+# 2026-08-24: /opt/homebrew/bin has no python3 at all, that PATH resolves to
+# /usr/local/bin/python3 3.14.6 today, and the same PATH without /usr/local/bin resolves
+# to /usr/bin/python3 3.9.6. The floor a `python3` on PATH can reach is 3.9, so 3.9 is what
+# this file is graded against -- and UP017 duly rewrote four `dt.timezone.utc` calls to
+# `dt.UTC` on the branch that paid this file's lint debt. Run under 3.9.6, measured:
+#
+#     File ".../estate-snapshot", line 521, in main
+#       now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M UTC")
+#   AttributeError: module 'datetime' has no attribute 'UTC'
+#
+# An AttributeError at call time, not an import error, which is why `py_compile` reports
+# the file as fine. Line 521 is in main() and the write is at line 555, so the job dies
+# with STATE.md untouched: the file is not emptied or deleted, it silently stops moving
+# while every session is still told to read it before measuring anything. A stale page that
+# looks current is the exact defect ~/AGENTS.md opens its State-is-a-probe section with.
+#
+# This is the second time the `datetime.UTC` rewrite has done this -- science/collect.py
+# was the first, and it is named at the top of this block. The rule that generalises both:
+# a program whose interpreter is resolved from PATH is graded at the LOWEST version that
+# PATH can reach, never at what it resolves to on the day somebody looks. Found by
+# chidionyema-d1 reviewing PR #159.
+"scripts/estate-snapshot" = "py39"
 
 [tool.ruff.lint]
 select = [

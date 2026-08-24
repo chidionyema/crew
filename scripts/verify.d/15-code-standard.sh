@@ -171,7 +171,7 @@ python_standard() {
     OUT="$(mktemp)"
     printf '%s\n' "$1" | xargs "$PYRIGHT" --outputjson --pythonpath "$PY" >"$OUT" 2>/dev/null
     "$PY" - "$OUT" <<'PYEOF'
-import json, sys
+import importlib.util, json, pathlib, re, sys
 try:
     d = json.load(open(sys.argv[1]))
 except (json.JSONDecodeError, OSError):
@@ -182,6 +182,78 @@ if n == 0:
     # It exits 0 having looked at nothing when handed paths it does not accept. Grading
     # that as a pass is the false-green this whole file exists to stop.
     print("pyright analysed 0 files -- it was handed paths it did not accept. BLIND.")
+    sys.exit(2)
+
+# A dependency this repo declares has to be visible to the type checker. When it is not,
+# every verdict on a file that imports it sits downstream of something pyright itself
+# said it could not read -- and `reportMissingImports = "warning"` in pyproject.toml
+# makes that admission a warning while its consequences arrive as errors. Until this
+# block existed the admission was dropped on the floor: `errs` below filters to
+# severity == "error", so nothing ever printed it.
+#
+# Measured on PR #166, 2026-08-24. Its new test file takes a `str | None` from
+# `shutil.which` and guards it with `pytest.skip()`, which is typed `NoReturn`, so the
+# value is `str` at every later use. Same file, same pyright 1.1.411, only the
+# interpreter handed to --pythonpath changing:
+#
+#     resolving against a venv holding the deps    0 errors, 0 warnings
+#     resolving against a bare 3.11 venv           5 errors, 1 warning
+#                                                  warning: Import "pytest" could not be resolved
+#                                                  errors on lines 117, 139, 151, 179
+#
+# CI reported exactly those five lines. The author's code was correct and this gate
+# spent a review cycle saying it was not, without once mentioning that it was reading
+# the file with pytest invisible. crew#164: a check that cannot reach its evidence
+# returns BLIND, and this one returned a verdict.
+#
+# Two signals, either of which puts the fault in the environment and not the code:
+#
+#   1. this interpreter can import the module, and pyright -- pointed at THIS
+#      interpreter by --pythonpath -- could not. They disagree, so the search is broken.
+#   2. requirements-dev.txt declares the module. Then it was meant to be installed where
+#      pyright looked, whether or not this process happens to import it.
+#
+# Neither fires for the imports that are legitimately unresolvable here. `datamap` and
+# `founder_board` are local modules reached through sys.path at run time; this
+# interpreter cannot import them either and no requirements file names them. Measured on
+# main the day this was written, with the deps visible: 3 unresolved diagnostics, 0
+# BLIND. A guard that refuses correct work is an outage (LAW 38), so that case is the
+# one this was checked against first.
+#
+# Residual, stated because it is real: signal 2 compares an import name to a
+# distribution name and the two differ for some packages -- PyYAML imports as `yaml`.
+# `dbt-duckdb` is the one such entry in this repo and it imports as `dbt`, so an
+# invisible dbt-duckdb is caught by signal 1 alone, which needs this interpreter to have
+# it installed. Signal 2 does not see it.
+unresolved = sorted({x["message"].split('"')[1].split(".")[0]
+                     for x in d["generalDiagnostics"]
+                     if x.get("rule") == "reportMissingImports"})
+declared = set()
+try:
+    for line in pathlib.Path("requirements-dev.txt").read_text().splitlines():
+        name = re.split(r"[<>=!;\[\s#]", line.strip(), maxsplit=1)[0]
+        if name:
+            declared.add(name.lower().replace("-", "_"))
+except OSError:
+    pass          # no requirements file: signal 1 still stands on its own
+blind = []
+for mod in unresolved:
+    try:
+        importable = importlib.util.find_spec(mod) is not None
+    except (ImportError, ValueError):
+        importable = False
+    if importable:
+        blind.append(f"{mod}: this interpreter imports it, pyright pointed at the same "
+                     f"interpreter could not. Its import search is broken, not your code.")
+    elif mod.lower() in declared:
+        blind.append(f"{mod}: requirements-dev.txt declares it and it is not installed "
+                     f"where pyright looked. Install the deps into that environment.")
+if blind:
+    print(f"pyright could not resolve {len(blind)} of this repo's own dependencies, so it "
+          f"graded files whose imports it cannot read. BLIND, not clean.")
+    print(f"  interpreter handed to --pythonpath: {sys.executable}")
+    for b in blind:
+        print(f"  {b}")
     sys.exit(2)
 for x in errs:
     print(f'{x["file"]}:{x["range"]["start"]["line"]+1}: {x["message"].splitlines()[0]}')

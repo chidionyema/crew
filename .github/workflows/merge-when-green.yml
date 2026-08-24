@@ -23,6 +23,10 @@
 #                              one merge without turning the mechanism off
 #   mergeStateStatus DIRTY     a real conflict; a person or an agent has to choose
 #   no checks at all           that is unproven, not green
+#   a required check absent    PR #111 merged unreviewed on 2026-08-24 because review-gate
+#                              was not on main, so its check never ran and "not failing"
+#                              read as green (crew#105 incident); qa and review-gate must
+#                              be present and SUCCESS
 #   any completed check that is not SUCCESS / SKIPPED / NEUTRAL
 #   any check still running
 name: Merge when green
@@ -66,10 +70,21 @@ jobs:
           python3 - <<'PY' > todo.txt
           import json
           HOLD = {"hold", "do-not-merge", "wip"}
+          # A check that never ran is not a check that passed. PR #111 merged at
+          # 2026-08-24T04:22:13Z with no review because review-gate.yml was not on main
+          # yet, so its check never appeared in the rollup and nothing here refused it
+          # (incident: crew#105). These two must be PRESENT and SUCCESS, not merely
+          # not-failing.
+          REQUIRED = {"qa", "review-gate"}
           for pr in json.load(open("prs.json")):
               why, verdict = None, "MERGE"
               labels = {l["name"].lower() for l in pr.get("labels") or []}
               checks = pr.get("statusCheckRollup") or []
+              missing = sorted(REQUIRED - {c.get("name") for c in checks})
+              weak = [c for c in checks
+                      if c.get("name") in REQUIRED
+                      and (c.get("status") or "COMPLETED") == "COMPLETED"
+                      and (c.get("conclusion") or "") != "SUCCESS"]
               done = [c for c in checks if (c.get("status") or "COMPLETED") == "COMPLETED"]
               bad = [c for c in done
                      if (c.get("conclusion") or "") not in ("SUCCESS", "SKIPPED", "NEUTRAL")]
@@ -88,8 +103,14 @@ jobs:
                   why = "state " + state
               elif not checks:
                   why = "no checks ran, so it is unproven rather than green"
+              elif missing:
+                  why = "required check(s) never ran: " + ",".join(missing)
               elif len(done) != len(checks):
                   why = str(len(checks) - len(done)) + " check(s) still running"
+              elif weak:
+                  why = "required check(s) not SUCCESS: " + ",".join(
+                      c.get("name", "?") + "=" + (c.get("conclusion") or "none")
+                      for c in weak[:3])
               elif bad:
                   why = "failing: " + ",".join(c.get("name", "?") for c in bad[:3])
               if why is not None and verdict == "MERGE":

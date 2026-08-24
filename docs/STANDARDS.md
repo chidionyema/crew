@@ -12,7 +12,7 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 
 | Layer | Standard | Status today | Why this one (ledger receipt) |
 |---|---|---|---|
-| Substrate | Laptop + launchd until managed k8s | live | Founder ruling: laptop is the substrate until k8s; the exit is MANAGED k8s — operating your own control plane is the wheel LAW 43 says not to reinvent. (A "~70% fail within 18 months" figure stood here; removed 2026-08-24, no source found — see crew#135) |
+| Substrate | Laptop + launchd until free-tier managed k8s (Oracle Always Free OKE — free control plane and Always Free ARM shapes; any paid tier waits on R14 sign-off) | live | Founder ruling: laptop is the substrate until k8s; the exit is MANAGED k8s — operating your own control plane is the wheel LAW 43 says not to reinvent. (A "~70% fail within 18 months" figure stood here; removed 2026-08-24, no source found — see crew#135.) R14 (2026-08-24) sharpens the exit: zero cost until proof is done. Manifests, policies and drills are proved locally (k3d/k3s on this machine, GitHub-hosted runners, free tiers); only a completed proof can reopen the spend question, and paid infra needs explicit founder sign-off first. |
 | GitOps (at k8s time) | Flux | not yet | Recommended for solo-operator clusters; CNCF Graduated, Apache-2.0. Argo CD is the reviewed deviation (97% of surveyed users run it in production, up from 93% in 2023 — [CNCF 2025 Argo CD End User Survey](https://www.cncf.io/announcements/2025/07/24/cncf-end-user-survey-finds-argo-cd-as-majority-adopted-gitops-solution-for-kubernetes/) — but it is a UI service to run) |
 | Admission policy | Kyverno, CEL ValidatingPolicy API only | migrating | CNCF Graduated 2026-03-24; legacy ClusterPolicy is REMOVED at v1.20 (Oct 2026) — new policies on the legacy API grade REWORK on sight |
 | Policy proof | `kustomize build \| kyverno apply/test`, grading the JSON REASON field | live in prospector | `kyverno test`'s summary has an open false-pass bug class (#11519); the REASON field is the truth |
@@ -125,3 +125,9 @@ to strict when its owner has annotated it; that is a per-lane ratchet, not a pag
    `Standard:` line naming the row it uses, or a `Deviation:` line stating what and why
    (LAW 44, crew#135). `pr-evidence check` reports it on every PR — report-only today;
    flipping it to blocking is its own reviewed PR. A deviation is never refused, only graded.
+7. Every ADOPT verdict names its cost tier (R14, 2026-08-24). Anything over EUR 0 — a rented
+   node, a managed cluster, a paid tier — is refused with "Founder ruling R14: Mac substrate
+   only", not escalated and not re-asked in different words. The available answers are free
+   tiers, GitHub-hosted runners, and local k3d/k3s; "self-hosted on a small rented box" is
+   not one of them. However mature the tool, a paid requirement parks it until the local
+   proof is done and the founder reopens the spend question.

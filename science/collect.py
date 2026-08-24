@@ -424,13 +424,15 @@ def staleness(entry: dict) -> str:
     return f"STALE {age_h:.0f}h" if age_h > limit else f"fresh {age_h:.0f}h"
 
 
-def reconcile() -> tuple[list[dict], list[str], str]:
+def reconcile() -> tuple[list[dict], list[str], list[str], str]:
     """Compare the machine's crawl against this registry.
 
-    Returns (undeclared, stale_declines, note). `undeclared` is the finding that matters:
-    a store that exists, that the crawler found, and that this file has never heard of.
-    `stale_declines` is the other direction, an exclusion for something that is no longer
-    there, which is how a DECLINED map rots into a list of ghosts.
+    Returns (undeclared, stale_declines, blind_declines, note). `undeclared` is the
+    finding that matters: a store that exists, that the crawler found, and that this file
+    has never heard of. `stale_declines` is the other direction, an exclusion for
+    something that is no longer there, which is how a DECLINED map rots into a list of
+    ghosts. `blind_declines` is neither: an exclusion whose directory could not be read,
+    so this run has no opinion about it and says so instead of guessing.
 
     A shard is covered by its parent. The crawl already groups shard files under a
     logical store in its `member_of` field, so `directives/-Users-...jsonl` is answered
@@ -441,13 +443,13 @@ def reconcile() -> tuple[list[dict], list[str], str]:
     because it reads as proof of coverage.
     """
     if not INVENTORY.exists():
-        return [], [], (f"NO CRAWL TO RECONCILE AGAINST: {INVENTORY} is missing, so this "
+        return [], [], [], (f"NO CRAWL TO RECONCILE AGAINST: {INVENTORY} is missing, so this "
                         f"cannot tell a complete registry from an empty one. Run "
                         f"com.estate.inventory, or ~/.estate/scripts/inventory.py.")
     try:
         crawl = json.loads(INVENTORY.read_text())
     except (json.JSONDecodeError, OSError) as exc:
-        return [], [], f"CRAWL UNREADABLE: {INVENTORY}: {exc}"
+        return [], [], [], f"CRAWL UNREADABLE: {INVENTORY}: {exc}"
 
     declared_paths = {str(p.resolve()) if p.exists() else str(p)
                       for p, _k, _t in SOURCES.values()}
@@ -467,9 +469,35 @@ def reconcile() -> tuple[list[dict], list[str], str]:
             return False
         return any(d == rp or d in rp.parents for d in declared_dirs)
 
+    def presence_of(d: Path) -> str:
+        """"there", "gone" or "blind" -- and never "gone" because we could not look.
+
+        `Path.exists()` answers False for two different facts: the directory is not
+        there, and the directory could not be read. A permission error, a dead mount, a
+        network filesystem that timed out all come back as False, so an exclusion whose
+        directory is merely unreachable reports as a ghost, gets deleted as dead wood,
+        and the registry then goes red on a morning nobody typed anything wrong -- which
+        is the exact failure this directory exclusion exists to stop.
+
+        Three checks on this estate collapsed the same two facts on 2026-08-24: an escrow
+        check printed NOT PRESENT for a permission error, a database drill printed
+        corruption for SQLITE_CANTOPEN on a locked file, and a research pass reported a
+        file unmerged after looking at one branch. Attributed by session chidionyema-7e
+        reviewing this change, before it merged.
+        """
+        try:
+            d.stat()
+        except (FileNotFoundError, NotADirectoryError):
+            return "gone"
+        except OSError:
+            return "blind"
+        return "there"
+
     #: Resolved once, outside the row loop, because resolve() hits the filesystem and the
     #: crawl has thousands of rows.
-    declined_dirs = {i: (d.resolve() if d.exists() else d) for i, d in DECLINED_DIRS.items()}
+    presence = {i: presence_of(d) for i, d in DECLINED_DIRS.items()}
+    declined_dirs = {i: (d.resolve() if presence[i] == "there" else d)
+                     for i, d in DECLINED_DIRS.items()}
 
     def covering_decline(p: Path) -> str:
         """The id of the directory exclusion that covers this path, or ""."""
@@ -511,10 +539,15 @@ def reconcile() -> tuple[list[dict], list[str], str]:
     #: crawl happened to find nothing inside it. Judging it by crawl rows would report
     #: `dagster-run-store` as a ghost on any morning Dagster had not run overnight, and an
     #: instrument that cries ghost on a quiet night gets ignored on the night it means it.
+    #: An exclusion with no directory is not in `presence` at all, and defaults to "gone"
+    #: so that an id-only decline is judged exactly as it was before directories existed.
     stale = sorted(i for i in DECLINED
-                   if i not in seen_ids
-                   and not (i in DECLINED_DIRS and DECLINED_DIRS[i].exists()))
-    return undeclared, stale, ""
+                   if i not in seen_ids and presence.get(i, "gone") == "gone")
+    #: Reported separately rather than folded into either answer. A directory that could
+    #: not be read is not evidence of anything, and a checker that quietly picks one of
+    #: the two verdicts it cannot distinguish is the defect, whichever one it picks.
+    blind = sorted(i for i, v in presence.items() if v == "blind")
+    return undeclared, stale, blind, ""
 
 
 def main() -> int:
@@ -527,7 +560,7 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.reconcile:
-        undeclared, stale, note = reconcile()
+        undeclared, stale, blind, note = reconcile()
         print(f"registry : {len(SOURCES)} collected, {len(DECLINED)} declined with a reason")
         print(f"crawl    : {INVENTORY}")
         if note:
@@ -546,6 +579,11 @@ def main() -> int:
                   "declined with a stated reason.")
         if stale:
             print(f"\nDECLINED FOR SOMETHING THAT IS GONE, {len(stale)}: {', '.join(stale)}")
+        if blind:
+            print(f"\nCOULD NOT LOOK, {len(blind)}: {', '.join(blind)}. These exclusions "
+                  f"name a directory this run could not read -- a permission error, an "
+                  f"unmounted volume, a filesystem that timed out. They are not stale and "
+                  f"they are not confirmed; nobody should delete them on this evidence.")
         return 1 if undeclared else 0
 
     # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
@@ -586,7 +624,7 @@ def main() -> int:
     #: The registry checks itself against the machine on every run, not only when asked.
     #: A gap that is only visible behind a flag nobody types is the same shape as the
     #: defect this closes (LAW 28).
-    undeclared, stale_declines, note = reconcile()
+    undeclared, stale_declines, blind_declines, note = reconcile()
     if note:
         print(f"\n{note}")
         failures.append("no crawl to reconcile against")
@@ -598,6 +636,12 @@ def main() -> int:
                         f"(run --reconcile)")
     if stale_declines:
         print(f"declined for something that is gone: {', '.join(stale_declines)}")
+    #: Printed, never counted as a failure. A directory this run could not read is a
+    #: blind spot, and failing the check on a blind spot is how a check that refuses
+    #: correct work gets switched off (LAW 38).
+    if blind_declines:
+        print(f"declined for a directory this run could not read, so no verdict on it: "
+              f"{', '.join(blind_declines)}")
 
     if failures:
         print("\nneeds attention:")

@@ -104,7 +104,11 @@ SH_FILES="$(printf '%s\n' "$ALL" | while read -r f; do [ -n "$f" ] && is_shell "
 # Newly visible, and reported rather than enforced for now -- see REPORT-ONLY below.
 PY_NEW="$(printf '%s\n' "$ALL" | while read -r f; do
   [ -n "$f" ] || continue
-  case "$f" in *.py) continue;; esac
+  # The leading paren is load-bearing. bash 3.2 -- which is /bin/bash on every Mac in this
+  # estate -- cannot parse a case pattern's closing `)` inside `$( )`, so the whole gate died
+  # with "command substitution: syntax error" and then ran on with $f unbound. bash 5 on
+  # ubuntu-latest parses it, which is why CI was green while the gate was broken locally.
+  case "$f" in (*.py) continue;; esac
   is_python "$f" && echo "$f"
 done)"
 WF_FILES="$(printf '%s\n' "$ALL" | grep -E '^\.github/workflows/.*\.ya?ml$' || true)"

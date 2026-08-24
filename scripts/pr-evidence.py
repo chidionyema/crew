@@ -270,6 +270,112 @@ OPTIONS_CHOSEN = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*chosen\s*:", 
 #: a heading with nothing under it satisfies a word search and satisfies nobody reading it.
 OPTION_MIN_CHARS = 40
 
+#: Every file in a diff opens with this header, and for a BINARY file it is the only place the
+#: path appears in full. git prints no `---`/`+++` lines and no hunks for a binary; it prints
+#: one line, `Binary files /dev/null and b/<path> differ`. Evidence is screenshots, so a pattern
+#: written for text hunks matches nothing at all -- measured against #137's own diff on
+#: 2026-08-24, where `+++ b/` found 0 paths while the image sat committed in the branch.
+DIFF_SECTION = re.compile(r"^diff --git a/\S+ b/(\S+)$", re.M)
+#: What a section says when it REMOVES the file instead of adding it. Any one of these and the
+#: post-image is /dev/null whatever the header said. Without this a pull request could satisfy
+#: the gate by deleting somebody else's screenshot.
+DELETED_SECTION = re.compile(
+    r"^(?:deleted file mode|\+\+\+ /dev/null|Binary files a/.* and /dev/null differ)", re.M)
+def evidence_dir(number=None) -> str:
+    """The directory fragment that counts as evidence, for one pull request or for any.
+
+    `attach` always writes under the pull request's OWN number, so scoping to it is what
+    the tool already produces. It also closes a hole: #137 restores two screenshots deleted
+    from #120 and #128, and without the scope those restorations read as #137's own
+    verification. A pull request could then pass the gate by restoring somebody else's
+    evidence, which is the mirror of passing it by deleting somebody else's.
+
+    Measured before narrowing it, 2026-08-24: of the 10 open pull requests, 6 have evidence
+    in their diff and all 6 have it under their own number, so this refuses none of them
+    (LAW 38).
+    """
+    return "docs/evidence/pr-%s/" % (
+        re.escape(str(number)) if number is not None else r"\d+")
+
+
+def added_evidence(diff: str, number=None) -> set:
+    """Every evidence file a diff ADDS or MODIFIES, by path, ignoring the ones it deletes.
+
+    Reads the diff a file at a time rather than pattern-matching the whole blob, because the
+    only fact that decides an evidence path is whether ITS OWN section is a deletion. A regex
+    over the whole text cannot tell which section a `deleted file mode` line belongs to.
+    """
+    diff = diff or ""
+    wanted = re.compile("^" + evidence_dir(number) + ".")
+    marks = list(DIFF_SECTION.finditer(diff))
+    out = set()
+    for i, m in enumerate(marks):
+        path = m.group(1)
+        if not wanted.match(path):
+            continue
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(diff)
+        if DELETED_SECTION.search(diff[m.end():end]):
+            continue
+        out.add(path)
+    return out
+
+
+EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
+NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
+FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
+#: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+TRANSCRIPT_MIN_CHARS = 40
+
+
+def transcript_evidence(body: str) -> int:
+    """How many command transcripts the Verification evidence section actually contains.
+
+    Not every pull request can produce a screenshot. #139 changes one markdown file and one
+    ledger, and its evidence is pasted `git status` and secret-scan output -- which is the
+    form this estate asks for everywhere else ("show the green run, do not describe it").
+    Requiring an image would refuse correct work, and a guard that refuses correct work is
+    an outage (LAW 38).
+
+    This still is not grading a proxy. The proxy was the marker comment, which asserted that
+    a section existed; an empty section satisfied it. What is counted here is the transcript
+    itself, which is the evidence a text change can offer.
+    """
+    m = EVIDENCE_SECTION.search(body or "")
+    if not m:
+        return 0
+    tail = body[m.end():]
+    nxt = NEXT_HEADING.search(tail)
+    section = tail[:nxt.start()] if nxt else tail
+    return sum(1 for block in FENCE.findall(section)
+               if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
+
+
+def evidence_paths(body: str, diff: str, number=None) -> tuple:
+    """(paths, where) for a pull request's evidence: ask the diff first, the body second.
+
+    INCIDENT, 2026-08-24. `check` decided a pull request had no evidence by looking for one
+    marker comment in the body. A body is prose. `gh pr edit --body-file` replaces it whole
+    and takes the marker with it, which is the ordinary way a body gets rewritten, and the
+    image it pointed at is untouched in the commit the whole time. It red-lit #156 and #159
+    that day, and left #137 red while `docs/evidence/pr-137/20260824T080641Z-1.png` sat
+    committed in #137's own diff.
+
+    The class is grading a proxy. A marker in editable prose is a CLAIM that evidence exists;
+    the file the diff adds IS the evidence, and no body edit can take it away. crew#161 is the
+    same class seen from the other end -- an evidence link written as `blob/<branch>/...` dies
+    when the branch is pruned -- and a SHA permalink does not fix it, because the grader would
+    still be reading prose.
+
+    The body stays as the fallback for the one case the diff is not available, so a pull
+    request that links evidence it did not commit is still read the way it always was.
+    """
+    added = added_evidence(diff, number)
+    if added:
+        return added, "committed in the diff"
+    #: The same files as the body links them, inline and as a link, hence the set.
+    linked = re.compile("/" + evidence_dir(number) + r"[^)\s?]+")
+    return set(linked.findall(body or "")), "linked from the body"
+
 
 def options_considered(body: str) -> tuple:
     """(ok, message) for the requirement that a pull request shows the roads it did not take.
@@ -459,17 +565,9 @@ def standards_line(body: str, diff: str) -> tuple:
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
-    if MARKER not in body:
-        return False, (f"#{info['number']} has no verification evidence. "
-                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`")
-    # Each image appears twice in a row, inline and as a link. Count the file,
-    # not the mention, or the gate reports double what is there.
-    imgs = set(re.findall(r"/docs/evidence/pr-\d+/[^)\s?]+", body))
-    if not imgs:
-        return False, f"#{info['number']} has an evidence section with no image in it"
-    ok_opts, why_opts = options_considered(body)
-    if not ok_opts:
-        return False, "#{} {}".format(info["number"], why_opts)
+    # The diff is fetched before anything is graded, because the evidence lives in it. See
+    # evidence_paths: reading the body's marker first is what made a body edit look like
+    # missing evidence.
     args = ["pr", "diff", pr] + (["--repo", repo] if repo else [])
     try:
         diff = gh(args)
@@ -477,7 +575,19 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
         # Blind on purpose, fail-closed: ANY fetch error must become a FAIL verdict, not a
         # crash. A diff we cannot fetch is not a pass. Say which check did not run, because
         # a gate that goes quiet on its own failure is the shape LAW 28 forbids.
-        return False, "#{}: could not fetch the diff, so LAW 34 coupling was not checked".format(info["number"])
+        return False, ("#{}: could not fetch the diff, so neither the evidence nor LAW 34 "
+                       "coupling was checked".format(info["number"]))
+    imgs, where = evidence_paths(body, diff, info["number"])
+    transcripts = transcript_evidence(body)
+    if not imgs and not transcripts:
+        return False, (f"#{info['number']} has no verification evidence. "
+                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`, "
+                       f"or paste the command output under `## Verification evidence`")
+    if not imgs:
+        where = f"{transcripts} command transcript(s) in the body"
+    ok_opts, why_opts = options_considered(body)
+    if not ok_opts:
+        return False, "#{} {}".format(info["number"], why_opts)
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
         return False, "#{} {}".format(info["number"], why_cpl)
@@ -485,7 +595,8 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
-    return True, (f"#{info['number']} carries {len(imgs)} evidence image(s), {why_opts}, "
+    carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
+    return True, (f"#{info['number']} carries {carries}, {why_opts}, "
                   f"{why_cpl}; standards (report-only): {std}")
 
 

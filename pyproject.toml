@@ -30,6 +30,41 @@ target-version = "py311"
 line-length = 100
 extend-exclude = [".venv", "node_modules", "store", "storage"]
 
+# One target for the whole repo assumes one interpreter runs the whole repo. Two scheduled
+# programs are handed to Python 3.9.6 instead, because their launchd plists name
+# /usr/bin/python3 in argv and set no PATH that would find a newer one:
+#
+#   com.founder.estatelander     argv: /usr/bin/python3 <repo>/scripts/estate-lander --push
+#   com.founder.lawenforcement   argv: ... /usr/bin/python3 <repo>/science/law_enforcement.py
+#   $ /usr/bin/python3 -V   ->   Python 3.9.6                       (measured 2026-08-24)
+#
+# The other scheduled jobs are not in this table because their plists set
+# PATH=/opt/homebrew/bin:/usr/local/bin:... and get /usr/local/bin/python3, 3.14.6.
+#
+# Left at py311 these two are graded against an interpreter that never runs them, and
+# `ruff check --fix` may rewrite them into names 3.9.6 does not have -- `datetime.UTC` is
+# the one that already did it once, to science/collect.py. `py_compile` does not catch it,
+# because the rewrite is an attribute access and not a syntax error: the file compiles, the
+# standard says PASS, and the hourly job dies at import.
+#
+# Declaring the target rather than ignoring the rule is deliberate. An ignore list names
+# the rules that have bitten so far and is silent about the next one; a target is the fact,
+# and every version-gated rule reads it.
+#
+# per-file-target-version needs ruff >= 0.11, and the floor requirements-dev.txt states is
+# `ruff>=0.14`, which is what this table relies on. Naming one version here would have been
+# wrong: two copies are installed and which one runs depends on who is asking --
+#   .venv/bin/ruff     0.16.4        what the gate finds first
+#   /usr/local/bin/ruff  0.15.18     what `command -v ruff` gives         (2026-08-24)
+# Both are past 0.11. The floor is the fact; the versions drift.
+#
+# tests/test_incident_linter_target_newer_than_the_interpreter.py asserts this table
+# against the plists on the machine, so a new scheduled program cannot be added under the
+# old interpreter without either an entry here or a red test.
+[tool.ruff.per-file-target-version]
+"scripts/estate-lander" = "py39"
+"science/law_enforcement.py" = "py39"
+
 [tool.ruff.lint]
 select = [
     "F",        # pyflakes -- undefined name, unused import, f-string with no placeholder

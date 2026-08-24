@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-24 00:43 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-24 00:44 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -11,7 +11,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | The Architect | RED | `bin/verify`: 15 passed, 2 failed |
 | &nbsp;&nbsp;failing | | FAIL  README describes what ships        docs/demo/claim-gate.md is in the repo, and the README never says why |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         b3ec1c9bc3 (want 1220c4ad24) |
-| maestro | GREEN | last cycle 3 min ago (`INTENT-20260824-003855-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260824-004155-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | 2 deployed, 12 suspended | `flyctl apps list` |
 | estate spend | RED | $773/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |

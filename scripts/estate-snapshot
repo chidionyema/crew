@@ -210,7 +210,7 @@ def delivery() -> list[str]:
     candidates = [*sorted(HOME.glob("dev/code/*")),
                   HOME / ".claude/scripts", HOME / ".claude",
                   HOME / "Documents/code/prospector"]
-    now = dt.datetime.now(dt.UTC).timestamp()
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
     seen: set[str] = set()
     per_repo: list[tuple[int, float, int, str]] = []
     for d in candidates:
@@ -239,7 +239,7 @@ def delivery() -> list[str]:
     oldest = max((r[1] for r in per_repo), default=0.0)
     dirty = sum(r[2] for r in per_repo)
 
-    since = (dt.datetime.now(dt.UTC) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
+    since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
     # Bot bumps are not the fleet delivering; a capped count is a floor, not a count.
     cap = 1000
     rc, out = sh(f"gh search prs --owner chidionyema --merged --merged-at '>={since}' "
@@ -343,7 +343,7 @@ def collectors() -> list[str]:
     if rc or not out.strip():
         return ["| collectors | NOT RUN | `ingest_log` did not answer |"]
 
-    now = dt.datetime.now(dt.UTC)
+    now = dt.datetime.now(dt.timezone.utc)
     dead, newest_ingest = [], None
     for line in out.strip().split("\n"):
         parts = line.split("\t")
@@ -518,7 +518,7 @@ def commit(now: str) -> int:
 
 
 def main() -> int:
-    now = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M UTC")
+    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     #: Asked before the estate is measured, not after. Measuring takes half a minute and
     #: the answer cannot change the verdict, so a refusal should cost nothing.

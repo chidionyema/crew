@@ -272,7 +272,12 @@ LOCKIN = [
 ]
 
 COUPLING_HEAD = re.compile(r"^\s*#{1,4}\s*provider coupling\s*$", re.I | re.M)
-COUPLING_SWAP = re.compile(r"^\s*[-*]?\s*swap\s*:", re.I | re.M)
+#: Same shape as OPTIONS_CHOSEN above, and for the same reason. This pattern was left as
+#: ``[-*]?\s*swap`` when the Chosen one was fixed, so it kept the bug: the ``[-*]?`` eats the
+#: first asterisk of ``**Swap:**`` and then the pattern fails on the second, and a body that
+#: declared its coupling correctly was refused (measured on PR #19, 2026-08-24). Fixing one
+#: copy of a bug and leaving the other is how it comes back.
+COUPLING_SWAP = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*swap\s*:", re.I | re.M)
 
 #: Prose and evidence are exempt. This law's own onboarding page names every vendor in the table
 #: above, and a gate that refuses the document explaining it is a gate that gets deleted.
@@ -440,6 +445,17 @@ def selftest_options() -> int:
     check_one("a coupling named with no Swap line fails",
               provider_coupling("## Provider coupling\nWe call claude-opus-5 in the daily "
                                 "summary path and it works well.\n", d_model)[0], False)
+    # The paired half: the gate has to say yes to a body that is correct. Every one of these
+    # is how somebody actually types the line, and the old pattern refused the first three.
+    for label, line in (("bold", "**Swap:** any chat model behind providers.chat, an hour"),
+                        ("bold bullet", "- **Swap:** any chat model behind providers.chat, an hour"),
+                        ("underscore bold", "__Swap:__ any chat model behind providers.chat, an hour"),
+                        ("bare", "Swap: any chat model behind providers.chat, an hour"),
+                        ("plain bullet", "- Swap: any chat model behind providers.chat, an hour")):
+        check_one("a %s Swap line is accepted" % label,
+                  provider_coupling("## Provider coupling\nThe tick names claude-opus-5 "
+                                    "directly when it summarises the day.\n" + line + "\n",
+                                    d_model)[0], True)
     check_one("claude gets no exemption from the law it is named in",
               provider_coupling("no section at all",
                                 "+++ b/scripts/t.py\n+p = HOME / \".claude/projects\"\n")[0], False)

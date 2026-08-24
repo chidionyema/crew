@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -294,8 +295,8 @@ def evidence_dir(number=None) -> str:
     in their diff and all 6 have it under their own number, so this refuses none of them
     (LAW 38).
     """
-    return "docs/evidence/pr-%s/" % (
-        re.escape(str(number)) if number is not None else r"\d+")
+    n = re.escape(str(number)) if number is not None else r"\d+"
+    return f"docs/evidence/pr-{n}/"
 
 
 def added_evidence(diff: str, number=None) -> set:
@@ -613,9 +614,9 @@ def selftest_commit_scope() -> int:
     def check_one(name, got, want):
         ran.append(name)
         if got == want:
-            print("  ok   %s" % name)
+            print(f"  ok   {name}")
         else:
-            print("  FAIL %s: got %r, want %r" % (name, got, want))
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
             fails.append(name)
 
     work = Path(tempfile.mkdtemp(prefix="pr-evidence-scope-"))
@@ -656,7 +657,7 @@ def selftest_commit_scope() -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
-    print("selftest-commit-scope: %d/%d passed" % (len(ran) - len(fails), len(ran)))
+    print(f"selftest-commit-scope: {len(ran) - len(fails)}/{len(ran)} passed")
     return 1 if fails else 0
 
 

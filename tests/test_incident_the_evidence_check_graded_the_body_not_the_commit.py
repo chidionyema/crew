@@ -114,6 +114,7 @@ BODY_REPLACED_BY_HAND = (
 
 def _mod():
     spec = importlib.util.spec_from_file_location("pr_evidence", SCRIPT)
+    assert spec is not None and spec.loader is not None, f"cannot load {SCRIPT}"
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

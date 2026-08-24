@@ -60,6 +60,42 @@ diligence note. GPL server components: flag before adopting. A dependency with N
 file grants nothing and is unusable. Never call a project "CNCF Graduated" without checking
 `landscape.yml` — Backstage is Incubating, k3s and Velero are Sandbox, Talos is not CNCF.
 
+## Widening a gate: report-only first, then flip
+
+A gate that starts checking something it did not check yesterday turns branches red on
+findings their authors did not write and could not have seen coming. The estate already
+knows what happens then. Every session learns within a day to scroll past a red check, and
+after that nothing is enforced at all — which is where the code standard found us in the
+first place (crew#134). A guard that refuses correct work is an outage (LAW 38), and
+"correct" here includes work that was correct under yesterday's rule.
+
+So widening lands in two PRs, and the split is not optional.
+
+**PR one widens the selection and reports.** The new files are checked by the same code
+path the enforced files go through — not a second, simpler path, because a report produced
+by a different implementation is a report about that implementation. The run prints which
+files are newly visible, every finding on them, and one verdict line: `WOULD-FAIL`,
+`WOULD-BE-BLIND`, or nothing. The exit code does not move. A test asserts that it does not
+move, so the report-only property is a red line in a suite rather than a habit.
+
+**Paired controls run in report mode too.** A report only ever seen complaining has not
+been shown to be reading the files — it may be reacting to their existence. So the same PR
+ships the permit case: a clean file in the newly-visible set produces no would-fail
+verdict. And it ships the other half of the pair, an assertion that what was already
+enforced still fails, because a widening that quietly turned the old check into a report
+would satisfy every other assertion and delete the gate.
+
+**PR two flips it to blocking, and quotes the count.** Its body carries the WOULD-FAIL
+number that report-only has been printing, so the review is about a measured debt and not
+an estimate. The flip is a diff — the report-only assertion inverts — and never a side
+effect of some other change. Between the two PRs the debt is paid in the lane that owns
+each file, which is what report-only buys: the number is visible to everyone who touches
+those files, and it goes down before it starts blocking.
+
+Nothing here says how long the gap is. A widening whose debt is zero flips the same week.
+One with hundreds of findings flips when the lane has paid them, and the printed count is
+the thing that stops it being forgotten (LAW 28).
+
 ## Stated deviations from this page
 
 One per line, with the reason. The page's own rule is that a deviation is stated in the PR

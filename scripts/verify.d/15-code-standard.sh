@@ -75,12 +75,38 @@ changed_files() {
   } | grep -v '^$' | sort -u | while read -r f; do [ -f "$f" ] && echo "$f"; done
 }
 ALL="$(changed_files)"
+# A file is what its shebang says it is. The extension is a hint, and on this estate the
+# scripts a person types the name of -- `bin/crew`, `scripts/estate-snapshot` -- do not
+# carry one, because a user-facing command should not make anyone type `.py`.
+#
+# INCIDENT, 2026-08-24. This gate sniffed the shebang for shell and matched `\.py$` for
+# Python, so four tracked Python programs were invisible to it. It was found when a PR
+# that rewrote `scripts/estate-snapshot`'s commit path introduced 16 new percent-format
+# findings in its own new lines and this gate printed PASS over them:
+#
+#     scripts/estate-snapshot on origin/main   64 ruff findings
+#     the same file on that branch             77
+#     inside the lines that branch added       16
+#     $ bash scripts/verify.d/15-code-standard.sh
+#     PASS: every file this branch touched meets the standard.
+#
+# The gate graded correctly every file it opened. It opened the wrong set of files.
 is_shell() {
   case "$1" in *.sh|*.bash) return 0;; esac
   head -c 60 "$1" 2>/dev/null | grep -qE '^#!.*(bash|/sh|zsh)'
 }
+is_python() {
+  case "$1" in *.py) return 0;; esac
+  head -c 60 "$1" 2>/dev/null | grep -qE '^#!.*python'
+}
 PY_FILES="$(printf '%s\n' "$ALL" | grep '\.py$' || true)"
 SH_FILES="$(printf '%s\n' "$ALL" | while read -r f; do [ -n "$f" ] && is_shell "$f" && echo "$f"; done)"
+# Newly visible, and reported rather than enforced for now -- see REPORT-ONLY below.
+PY_NEW="$(printf '%s\n' "$ALL" | while read -r f; do
+  [ -n "$f" ] || continue
+  case "$f" in *.py) continue;; esac
+  is_python "$f" && echo "$f"
+done)"
 WF_FILES="$(printf '%s\n' "$ALL" | grep -E '^\.github/workflows/.*\.ya?ml$' || true)"
 
 # The whole-repo number, printed on every run whatever the verdict. A debt nobody prints
@@ -92,7 +118,8 @@ fi
 
 count() { printf '%s\n' "$1" | grep -c . || true; }
 echo "changed on this branch: $(count "$PY_FILES") python, $(count "$SH_FILES") shell, $(count "$WF_FILES") workflow"
-if [ -z "$PY_FILES$SH_FILES$WF_FILES" ]; then
+[ -n "$PY_NEW" ] && echo "                      + $(count "$PY_NEW") python by shebang, report-only (see the tail of this run)"
+if [ -z "$PY_FILES$SH_FILES$WF_FILES$PY_NEW" ]; then
   echo "nothing this gate checks was added or changed. Nothing to enforce."
   exit 0
 fi
@@ -103,15 +130,21 @@ rc=0
 # must not soften the verdict to BLIND. The first draft of this gate did exactly that.
 note() { if [ "$1" -eq 1 ]; then rc=1; elif [ "$1" -ne 0 ] && [ "$rc" -eq 0 ]; then rc="$1"; fi; }
 
-if [ -n "$PY_FILES" ]; then
-  echo "--- ruff, on $(count "$PY_FILES") changed python file(s) ---"
+# Both checkers, over a newline-separated file list. Returns the same 0/1/2 the gate uses,
+# and is called twice: once for the files this gate enforces, once for the report-only set.
+# One implementation, so the report says exactly what the enforced run would say -- a
+# report produced by a second, simpler code path is a report about the second code path.
+python_standard() {
+  local _r=0 _p=0 OUT
+  echo "--- ruff, on $(count "$1") python file(s) ---"
   if [ -z "$RUFF" ]; then
     echo "BLIND: no ruff. \`.venv/bin/pip install ruff pyright\`, or add it to the runner."
-    note 2
-  elif printf '%s\n' "$PY_FILES" | xargs "$RUFF" check --no-cache --output-format concise; then
+    _r=2
+  elif printf '%s\n' "$1" | xargs "$RUFF" check --no-cache --output-format concise; then
     echo "clean."
+    _r=0
   else
-    note 1
+    _r=1
     echo
     echo "Fix, do not silence. \`ruff check --fix\` handles the mechanical ones; a rule that"
     echo "is genuinely wrong for a line takes a \`# noqa: RULE\` with the reason beside it."
@@ -121,10 +154,10 @@ if [ -n "$PY_FILES" ]; then
   echo "--- pyright, on the same file(s) ---"
   if [ -z "$PYRIGHT" ]; then
     echo "BLIND: no pyright, so types went unchecked."
-    note 2
+    [ "$_r" -eq 1 ] || _r=2
   else
     OUT="$(mktemp)"
-    printf '%s\n' "$PY_FILES" | xargs "$PYRIGHT" --outputjson --pythonpath "$PY" >"$OUT" 2>/dev/null
+    printf '%s\n' "$1" | xargs "$PYRIGHT" --outputjson --pythonpath "$PY" >"$OUT" 2>/dev/null
     "$PY" - "$OUT" <<'PYEOF'
 import json, sys
 try:
@@ -143,10 +176,17 @@ for x in errs:
 print(f'{len(errs)} error(s) over {n} file(s).')
 sys.exit(1 if errs else 0)
 PYEOF
-    note $?
+    _p=$?
     rm -f "$OUT"
+    if [ "$_p" -eq 1 ]; then _r=1; elif [ "$_p" -ne 0 ] && [ "$_r" -eq 0 ]; then _r="$_p"; fi
   fi
   echo
+  return "$_r"
+}
+
+if [ -n "$PY_FILES" ]; then
+  python_standard "$PY_FILES"
+  note $?
 fi
 
 if [ -n "$SH_FILES" ]; then
@@ -183,6 +223,28 @@ if [ -n "$WF_FILES" ]; then
   echo
 fi
 
+# REPORT-ONLY. New coverage lands visible before it lands blocking (docs/STANDARDS.md,
+# "Widening a gate"). Widening the selection above and enforcing it in the same change
+# would turn branches red on findings their authors did not write and could not have seen
+# coming, and the estate already knows what happens then: a red check everyone learns to
+# ignore, which is no gate at all (LAW 38). So this section prints the verdict it WOULD
+# reach and leaves `rc` alone. Flipping it to blocking is its own PR, and that PR quotes
+# the WOULD-FAIL count printed here.
+WOULD=""
+if [ -n "$PY_NEW" ]; then
+  echo "=== REPORT-ONLY: $(count "$PY_NEW") python file(s) found by shebang, not by extension ==="
+  printf '%s\n' "$PY_NEW" | sed 's/^/  /'
+  echo
+  python_standard "$PY_NEW"
+  case $? in
+    0) WOULD="";;
+    1) WOULD="WOULD-FAIL";;
+    *) WOULD="WOULD-BE-BLIND";;
+  esac
+  echo "verdict on the files above: ${WOULD:-would pass}. Reported, not enforced."
+  echo
+fi
+
 if [ "$rc" -eq 0 ]; then
   echo "PASS: every file this branch touched meets the standard."
 elif [ "$rc" -eq 2 ]; then
@@ -190,4 +252,5 @@ elif [ "$rc" -eq 2 ]; then
 else
   echo "FAIL: this branch adds or edits code that breaks the standard."
 fi
+[ -n "$WOULD" ] && echo "  ($WOULD on $(count "$PY_NEW") shebang-python file(s), reported above and not yet enforced)"
 exit "$rc"

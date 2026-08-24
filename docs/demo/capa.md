@@ -1,5 +1,8 @@
 # Demo — science/capa.py
 
+Owner: the data science lane (crew#105)
+Last true: 2026-08-24
+
 What it does: takes a complaint the founder made, the law that was written to fix it, and
 goes back to the transcripts to ask whether he has said it again since. The estate has
 never once performed that check.

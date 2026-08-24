@@ -57,6 +57,24 @@ jobs:
           ln -sf "$PWD/scripts/pr-evidence.py" "$HOME/.local/bin/pr-evidence"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # The checkers `scripts/verify.d/15-code-standard.sh` runs. ruff and pyright come
+      # from requirements-dev.txt above; shellcheck is already on ubuntu-latest. Without
+      # these the gate reports BLIND rather than PASS, and a check that is permanently
+      # BLIND is a check nobody has -- so a failure to install one has to be loud.
+      - name: The checkers
+        run: |
+          set -euo pipefail
+          # `go install` at a pinned tag, not the project's curl-into-bash installer.
+          # Piping a remote script into a shell hands whoever controls that URL our
+          # runner; the module proxy at least resolves a tag to a checksummed module.
+          GOBIN="$HOME/.local/bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          for t in ruff pyright shellcheck actionlint; do
+            printf '%-12s ' "$t"
+            if [ -x "./.venv/bin/$t" ]; then ./.venv/bin/$t --version | head -1
+            elif command -v "$t" >/dev/null; then "$t" --version | head -1
+            else echo "MISSING"; exit 1; fi
+          done
+
       - name: The suite
         run: .venv/bin/python -m pytest -q
 

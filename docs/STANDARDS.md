@@ -26,6 +26,7 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 | Agent traces | OpenTelemetry GenAI semconv → Langfuse (MIT core, self-hosted) | partially live | The single largest lock-in escape available; Langfuse containers already run |
 | Agent board / sync | GitHub Issues (crew repo) | live | No mature OSS agent board exists (researched); do not build one |
 | CI/CD | GitHub Actions; evidence gates; merge-when-green poller until required checks return with a deploy-key bypass | live | Native auto-merge cannot arm before checks pass; required checks block the hourly snapshot push until the bypass actor exists |
+| Code quality | `ruff` + `pyright` (Python), `shellcheck` (shell), `actionlint` (workflows), enforced on the diff by `scripts/verify.d/15-code-standard.sh` | live, gated | Founder 2026-08-24: "we don't have engineering standards at all". Measured that morning: 6,173 lines of Python, no `pyproject.toml`, nothing ever run over it — 121 ruff findings, 24 pyright errors in basic mode. crew#134 |
 | Instructions | `AGENTS.md` per repo, vendor files are symlinks | live | R8: no estate asset in a vendor-named home |
 
 ## Founder table, 2026-08-24: "custom code is a last resort — stop writing wrappers"
@@ -42,7 +43,7 @@ a kept custom piece needs the mature tool named that was rejected, and why.
 | Custom scheduled jobs → systemd timers | INTENT ADOPTED, TOOL CORRECTED: systemd does not exist on macOS (`ps -p 1` → `/sbin/launchd`; `command -v systemctl` → none). launchd IS the native scheduler and is already the substrate row above. Any Python-loop scheduler grades REWORK to a launchd job; at k8s time these become CronJobs | measured this session |
 | Custom alerting loops → Gotify / Telegram Bot API | Apprise row above stays: it is the mature OSS send path (BSD-2, ~100 providers incl. Telegram) and needs zero daemon; Gotify would add a server to run. Any custom polling/alerting daemon grades REWORK to a launchd job + Apprise send | ledger 2026-08-24 notifications entry |
 | Custom data pipeline wrappers → Dagster native | ADOPT: Dagster used natively, wrapper layer deleted. Dagster's own docs run schedules via `dagster-daemon` supervised as a service — launchd here; `dagster dev` is development-only. Probe: the daemon must tick schedules across a reboot. Owned by the platform-engineering session as crew#126 | crew#126; ledger 2026-08-24 founder-table entry |
-| Code quality gates → pre-commit + ruff + mypy | ADOPT pre-commit + ruff (drop-in for flake8+black+isort; PyPI Warehouse migrated to it Apr 2026). Typing gate: pyright --strict is the estate testing law's named tool for the same slot and the 2026 strict-gate consensus; mypy is the stated deviation only where a plugin no stub covers is demonstrably needed | ledger 2026-08-24 founder-table entry; measured: `ruff` installed, `pre-commit` not yet |
+| Code quality gates → pre-commit + ruff + mypy | **DONE for the CI side (crew#134): ruff + pyright live and blocking, plus shellcheck and actionlint for the other two languages this estate writes.** pre-commit (the git-side half) remains open as crew#130 and must register these same three tools, not pick different ones. ADOPT pre-commit + ruff (drop-in for flake8+black+isort; PyPI Warehouse migrated to it Apr 2026). Typing gate: pyright --strict is the estate testing law's named tool for the same slot and the 2026 strict-gate consensus; mypy is the stated deviation only where a plugin no stub covers is demonstrably needed | ledger 2026-08-24 founder-table entry; measured: `ruff` installed, `pre-commit` not yet |
 
 ## What stays custom, on purpose
 
@@ -58,6 +59,19 @@ Apache-2.0 / MIT / BSD: use freely. ELv2 / FSL / Collate CCL: internal use is fi
 diligence note. GPL server components: flag before adopting. A dependency with NO licence
 file grants nothing and is unusable. Never call a project "CNCF Graduated" without checking
 `landscape.yml` — Backstage is Incubating, k3s and Velero are Sandbox, Talos is not CNCF.
+
+## Stated deviations from this page
+
+One per line, with the reason. The page's own rule is that a deviation is stated in the PR
+and graded; these are the ones that have been.
+
+**`pyright` runs in `standard` mode, not `--strict`, on the repo as a whole (crew#134).**
+The testing law names `pyright --strict` and it is the right target. Strict demands an
+annotation on every parameter of 6,173 lines that currently have almost none, which is a
+migration and not a gate — shipped as strict it would have failed every branch on day one
+and been switched off inside a day (LAW 38). Standard mode already finds 24 errors nobody
+was looking at, 13 of them attribute access on a possibly-None value. A directory tightens
+to strict when its owner has annotated it; that is a per-lane ratchet, not a page-wide flip.
 
 ## Review acceptance criteria (every review, every lane)
 

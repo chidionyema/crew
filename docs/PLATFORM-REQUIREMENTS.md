@@ -16,12 +16,13 @@ currently unmeasured and unowned, and every other layer inherits from them.
 
 | Measurement | Value | Command |
 |---|---|---|
-| Markdown files under `~/dev/code` | 2,497 | `find … -name '*.md' \| wc -l` |
+| Markdown files under `~/dev/code` | 2,644 | `find … -name '*.md' -not -path '*/node_modules/*' \| wc -l` |
 | Modified in 2026-08 | 2,480 of 2,497 | `stat -f %Sm` grouped by month |
 | Modified before 2026-06 | 7 | same |
-| Architecture decision records | **0** | `find … -type d -iname 'adr*' -o -iname 'decisions'` |
+| Architecture decision records | **14** (2 idp, 12 prospector-main) | `find … -type d \( -iname 'adr' -o -iname 'decisions' \)` |
+| …of those, citing no evidence | 3 of 12 in prospector-main | `grep -rLE 'http\|\.py:[0-9]\|\$ '` |
 | `docs/` directories | 6 (crew, hermes-v2, idp, maestro, prospector-main, survival-stack) | `find . -maxdepth 2 -type d -name docs` |
-| `mkdocs.yml` files | **0** | `find … -name mkdocs.yml` |
+| `mkdocs.yml` files | **1** (`idp/mkdocs.yml`, added by `2fe28c2`) | `find … -maxdepth 3 -name mkdocs.yml` |
 | Backstage TechDocs referenced in idp config | yes (`app-config.yaml`, `catalog-info.yaml`) | `grep -rl techdocs idp` |
 | Markdown on disk but **not in git** | **2,034** | `git ls-files '*.md'` vs `find` per repo |
 
@@ -35,9 +36,11 @@ prospector-main  tracked=303    onDisk=304
 maestro          tracked=9      onDisk=10
 ```
 
-Two things follow directly. The portal has a documentation plugin configured and **zero pages to
-serve**, because TechDocs renders MkDocs and there is no `mkdocs.yml` anywhere. And 2,033 of our
-markdown files are invisible to every session, because they are not in git.
+Two things follow directly. TechDocs renders MkDocs, and until `2fe28c2` there was no
+`mkdocs.yml` anywhere, so the portal had a documentation plugin configured and **zero pages to
+serve**. There is now exactly one, in idp, which makes the count 1 of 6 repos rather than 0 --
+the plugin has something to render and nothing to render it *from* for the other five. And 2,033
+of our markdown files are invisible to every session, because they are not in git.
 
 ### Dependencies
 
@@ -45,9 +48,10 @@ markdown files are invisible to every session, because they are not in git.
 |---|---|
 | Python manifests (`requirements.txt` / `pyproject.toml`) | 8 |
 | Python **lockfiles** | **1** (`hermes-v2/hermes-agent/uv.lock`) |
-| Pinned versions (`==`) across platform `requirements*.txt` | **0 of 49 lines** |
+| Pinned versions (`==`), the five repos this doc covers | **0 of 44 floating lines** |
+| Pinned versions (`==`), estate-wide | 52 lines, all in survival-stack and QAlgo |
 | Distinct Python versions across 6 venvs | **5** (3.10.9 ×3, 3.11, 3.11.15, 3.14.6) |
-| Dependabot / Renovate configs | **0** |
+| Dependabot / Renovate configs | **1** (`hermes-v2/hermes-agent/.github/dependabot.yml`) |
 | SBOM files in `idp/reports/` | 4 (spdx, spdx3, syft, cyclonedx) |
 | `uv` installed | yes, 0.12.5 |
 | poetry / pipenv / pip-compile installed | none |
@@ -92,9 +96,12 @@ the four does not belong in `docs/`.
 
 **DOC-3 — Decisions are ADRs, not prose in a README.**
 MADR format in `docs/decisions/NNNN-title.md`. Every row of `crew/docs/STANDARDS.md` cites the ADR
-that chose it. We currently have 0 ADRs and 16 standards rows, so 16 decisions exist with no
-recorded reasoning.
-*Accept:* `ls docs/decisions/*.md | wc -l` > 0 in crew, and every STANDARDS row carries an ADR id.
+that chose it. The gap is not that we write no ADRs -- 14 exist, 2 in idp and 12 in
+prospector-main. It is that crew, which owns the 16 standards rows, has none, so 16 decisions
+are recorded as a table cell with no reasoning behind it; and 3 of prospector-main's 12 cite no
+evidence at all, which makes them prose in a numbered file.
+*Accept:* `ls docs/decisions/*.md | wc -l` > 0 in crew, every STANDARDS row carries an ADR id,
+and `grep -rLE 'http|\.py:[0-9]|\$ ' docs/decisions/` returns nothing.
 
 **DOC-4 — No untracked markdown.**
 The gap between `git ls-files '*.md'` and `find -name '*.md'` is zero in every repo we own.
@@ -129,9 +136,15 @@ We are on five versions across six venvs, including a directory literally named
 *Accept:* every Python repo has `.python-version`; `python -V` inside its venv matches it.
 
 **DEP-4 — Dependency updates arrive as pull requests, not as a session's decision at 03:00.**
-Renovate, configured once, per repo. It is the mature tool and it replaces every hand-rolled
-update script.
-*Accept:* `renovate.json` present; at least one Renovate PR open or merged.
+**Dependabot, not Renovate, and the decision is already made.** `hermes-v2/hermes-agent` carries
+a `.github/dependabot.yml` that scopes updates to `github-actions` only and says why in the file:
+source dependencies are pinned exactly in `uv.lock`, and scheduled bump PRs against a pin would
+undermine the pin. That is the posture DEP-1 and DEP-2 ask for, already reasoned and already
+running in one repo. Proposing Renovate here would be reinventing a wheel we have (LAW 43) and
+would put two update tools in one estate. The work is to copy that config to the other repos and
+promote its reasoning to an ADR, not to choose a tool.
+*Accept:* every Python repo has `.github/dependabot.yml` scoped to `github-actions`; at least one
+Dependabot PR open or merged; an ADR records the pin-plus-actions-only decision.
 
 **DEP-5 — The SBOM is generated in CI from the lockfile, not on a laptop from a live venv.**
 *Accept:* a clean checkout regenerates the SBOM identically; the CI job that produces it is green.

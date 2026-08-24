@@ -94,6 +94,20 @@ def main() -> int:
             rc, out = sh(["git", "-C", str(d), "push", "-u", "origin",
                           f"{branch}:{branch}"], timeout=120)
             if rc:
+                #: KNOWN DEFECT, deliberately unchanged here. `[-1]` takes git's LAST
+                #: line, which is always the generic `error: failed to push some refs
+                #: to '<url>'` summary, and the reason is in the lines above it.
+                #: Measured on a real refusal: 1049 bytes / 15 non-empty lines in,
+                #: 80 bytes of boilerplate out, and the actual cause -- a pre-push
+                #: guard refusing an unclassified dependency -- was in what got
+                #: dropped. That made this job read as "estatelander pushed 0/2", a
+                #: failure, when the guard was working correctly.
+                #:
+                #: Not fixed in this commit because this commit's proof is that its
+                #: output is byte-identical to the old one, and a fix changes the
+                #: output. It is crew#164's fifth listed instance and it gets its own
+                #: pull request straight after this one. Naming it here so the next
+                #: reader does not take a considered-looking line for a correct one.
                 why = out.splitlines()[-1][:80] if out else "push failed"
                 failed.append(f"{d.name} {branch}: {why}")
                 print(f"FAIL  {d.name} {branch}")

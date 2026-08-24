@@ -282,13 +282,22 @@ board in one command.
 ## Tests
 
 ```bash
-python3 -m venv .venv
+python3.11 -m venv .venv          # the version matters -- see below
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest -q
 ```
 
-`hypothesis` is not in the standard library, so the suite does not collect
-without that install. Expect `40 passed`.
+Name the version. This said `python3 -m venv .venv` until 2026-08-24, and on this
+laptop `python3` was anaconda's 3.10.9 while `crew-qa.yml` pinned 3.11 and the line
+above said "Python 3.11+". Nothing could see the disagreement, so `ruff check --fix`
+rewrote `timezone.utc` into `datetime.UTC` — correct for the 3.11 it was configured
+for, unimportable on the 3.10 that actually ran it — and the code-standard gate
+printed PASS over code that crashed on import.
+`tests/test_incident_linter_target_newer_than_the_interpreter.py` now fails instead.
+
+`hypothesis` is not in the standard library, so the suite does not collect without
+that install. The count is not written here because a number in prose goes stale and
+then gets believed; `pytest -q` prints it.
 
 The checkpoint suites are separate and are not in the default run:
 `.venv/bin/python -m pytest -q -m cp2 checkpoints`.

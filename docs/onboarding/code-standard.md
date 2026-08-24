@@ -84,6 +84,31 @@ paths are wrong, which reads as a clean pass. The gate asserts `filesAnalyzed > 
 calls the alternative BLIND. It is the same trap as the `kyverno test` false-pass already
 in `RESEARCH-LEDGER.jsonl`: never grade a tool by its exit code alone.
 
+## The linters must never target a newer Python than the one you run
+
+This one bit on 2026-08-24 and it is the worst failure this gate can have, because it
+produces a green.
+
+`pyproject.toml` said `target-version = "py311"`. The venv every session ran gates
+through was 3.10.9, because README's setup line said `python3 -m venv .venv` and
+`python3` on this laptop was anaconda's. So `ruff check --fix` applied UP017 —
+`timezone.utc` → `datetime.UTC`, a name that arrived in 3.11 — the gate graded its own
+rewrite, printed `PASS: every file this branch touched meets the standard`, and
+`science/collect.py` then died on import. Running the collector caught it. No checker
+did.
+
+A linter configured for a newer runtime than the real one does not just miss defects, it
+manufactures them, and the stricter you make it the more it manufactures.
+
+`tests/test_incident_linter_target_newer_than_the_interpreter.py` asserts the rule now:
+`[tool.ruff] target-version` and `[tool.pyright] pythonVersion` are never newer than the
+interpreter running the suite, and they agree with each other. Older is fine and expected
+— code written for 3.10 runs on 3.11, so a py310 target stays green on a 3.11 runner.
+Newer is the break.
+
+Create the venv with the version named — `python3.11 -m venv .venv`, never bare
+`python3`.
+
 ## When a rule is wrong for your line
 
 Fix it first. `ruff check --fix` handles the mechanical ones on its own.

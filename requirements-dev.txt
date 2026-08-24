@@ -1,6 +1,14 @@
 hypothesis>=6
 pytest>=8
 
+# tests/test_incident_linter_target_newer_than_the_interpreter.py reads pyproject.toml to
+# check that the linters are not configured for a newer Python than the one running. On
+# 3.11+ that is tomllib in the standard library. Below it, the test is the only thing that
+# will say so -- so it has to be able to run there, which needs the backport. It was
+# already present as a dbt transitive; a check against a version floor cannot depend on
+# another package's dependency tree happening to include it.
+tomli>=2 ; python_version < "3.11"
+
 # The warehouse loader crew#74 replaces read_rows()/row_time() with. dbt-duckdb pulls
 # dbt-core; both were absent from this machine until 2026-08-24, so anyone reproducing
 # science/duckdb_differential.py needs them named here rather than in a shell history.

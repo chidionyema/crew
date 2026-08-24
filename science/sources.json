@@ -260,6 +260,12 @@
     {
       "id": ".claude/state/one-branch/would-have-fired.jsonl",
       "reason": "Producer (~/.claude/quarantine/2026-08-21-pipeline-workarounds/one-branch-fence.py) was quarantined 2026-08-21 22:42 -- not in ~/.claude/settings.json hooks, mode file ~/.claude/one-branch-fence.mode still reads 'refuse' but nothing calls it. Last write to would-have-fired.jsonl is 2026-08-21 22:38, the same window. This is a decommissioned guard, not a live source going quiet: it will never write again unless someone restores the hook. Declined 2026-08-24 by the on-call attribution (LAW 29) rather than left as a stale-source alert that can never clear itself. If the fence is restored, move this back to sources."
+    },
+    {
+      "id": "dagster-run-store",
+      "root": "home",
+      "path": ".estate/dagster",
+      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs."
     }
   ]
 }

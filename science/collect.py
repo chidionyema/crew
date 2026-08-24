@@ -58,8 +58,9 @@ import os
 import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 
 #: Every path this program uses is overridable from the environment, and none of the
 #: three defaults is baked into the registry file. code-84, on the estate's kubernetes
@@ -121,6 +122,7 @@ def load_registry(path: Path = REGISTRY) -> dict:
             stale[s["name"]] = int(s["stale_after_hours"])
 
     declined: dict[str, str] = {}
+    declined_dirs: dict[str, Path] = {}
     for d in reg.get("declined", []):
         #: A reason is not decoration. An exclusion with no stated reason is
         #: indistinguishable from a store somebody forgot, which is the thing being
@@ -129,14 +131,30 @@ def load_registry(path: Path = REGISTRY) -> dict:
             sys.exit(f"registry declines {d.get('id')!r} with no reason. "
                      f"Every exclusion states why, or it is not an exclusion.")
         declined[d["id"]] = d["reason"]
+        #: An exclusion may name a directory instead of matching one crawl id, using the
+        #: same root/path pair a source uses. Without this, a tool that writes one file
+        #: per run -- Dagster's run store writes `<uuid>.db` -- has to be re-declined by
+        #: hand every time it runs, and the reconcile goes red on the next run whatever
+        #: anyone typed today. An exclusion that must be restated per run is not an
+        #: exclusion, it is a chore, and a chore in front of a gate is how the gate gets
+        #: switched off.
+        if d.get("path"):
+            root = roots.get(d.get("root", "home"))
+            if root is None:
+                sys.exit(f"registry declines {d.get('id')!r} against an unknown root "
+                         f"{d.get('root')!r}")
+            declined_dirs[d["id"]] = root / d["path"]
 
-    return {"sources": sources, "declined": declined, "stale": stale,
+    return {"sources": sources, "declined": declined, "declined_dirs": declined_dirs,
+            "stale": stale,
             "default_stale": int(reg.get("default_stale_after_hours", 48))}
 
 
 _REG = load_registry()
 SOURCES: dict[str, tuple[Path, str, str | None]] = _REG["sources"]
 DECLINED: dict[str, str] = _REG["declined"]
+#: The subset of DECLINED that excludes a whole directory rather than one crawl id.
+DECLINED_DIRS: dict[str, Path] = _REG["declined_dirs"]
 
 # A source that has not been written inside this many hours is reported STALE. The
 # number is the source's own cadence times three, not a guess, and it lives beside the
@@ -241,7 +259,7 @@ ORDER BY a.day;
 
 
 def iso(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="seconds")
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat(timespec="seconds")
 
 
 def shard_files(path: Path) -> list[Path]:
@@ -449,6 +467,21 @@ def reconcile() -> tuple[list[dict], list[str], str]:
             return False
         return any(d == rp or d in rp.parents for d in declared_dirs)
 
+    #: Resolved once, outside the row loop, because resolve() hits the filesystem and the
+    #: crawl has thousands of rows.
+    declined_dirs = {i: (d.resolve() if d.exists() else d) for i, d in DECLINED_DIRS.items()}
+
+    def covering_decline(p: Path) -> str:
+        """The id of the directory exclusion that covers this path, or ""."""
+        try:
+            rp = p.resolve()
+        except OSError:
+            rp = p
+        for i, d in declined_dirs.items():
+            if d == rp or d in rp.parents:
+                return i
+        return ""
+
     undeclared, seen_ids = [], set()
     for row in crawl.get("rows", []):
         if row.get("kind") not in ("data", "ledger"):
@@ -459,6 +492,10 @@ def reconcile() -> tuple[list[dict], list[str], str]:
         if ident in known_ids or (row.get("id") or "") in known_ids:
             continue
         p = Path(row.get("path") or "")
+        covered = covering_decline(p)
+        if covered:
+            seen_ids.add(covered)
+            continue
         if (str(p.resolve()) if p.exists() else str(p)) in declared_paths:
             continue
         if p.exists() and inside_declared_dir(p):
@@ -470,7 +507,13 @@ def reconcile() -> tuple[list[dict], list[str], str]:
         undeclared.append({"id": row.get("id"), "path": row.get("path"),
                            "rows": row.get("rows"), "mb": row.get("mb")})
 
-    stale = sorted(i for i in DECLINED if i not in seen_ids)
+    #: A directory exclusion is stale when the directory is gone, not when this hour's
+    #: crawl happened to find nothing inside it. Judging it by crawl rows would report
+    #: `dagster-run-store` as a ghost on any morning Dagster had not run overnight, and an
+    #: instrument that cries ghost on a quiet night gets ignored on the night it means it.
+    stale = sorted(i for i in DECLINED
+                   if i not in seen_ids
+                   and not (i in DECLINED_DIRS and DECLINED_DIRS[i].exists()))
     return undeclared, stale, ""
 
 

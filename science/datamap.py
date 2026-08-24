@@ -159,12 +159,42 @@ NEVER_EMITTED: list[tuple[str, str, str]] = [
 ]
 
 
+# A dict is a record when its keys are schema, and a map when its keys are data.
+# Both are dicts, and walking them the same way is what produced 810 "fields" for
+# agent_cert out of 12 rows: 160 test IDs used as keys, times 5 attributes each.
+# Those 800 paths are not schema. No contract can be written against them, because
+# the next certification run invents new ones.
+#
+# The tell is not the key count on its own -- a wide record is legal. It is that a
+# map's values all have the SAME shape as each other, because they are instances of
+# one thing, while a record's values are unrelated. So: many keys AND near-identical
+# child key sets means a map, and the child shape is recorded once under `path.*`
+# instead of once per key. The thresholds are deliberately conservative so a genuinely
+# wide record is not misread as a map.
+MAP_MIN_KEYS = 12      # below this, a wide record is more likely than a map
+MAP_SHAPE_AGREEMENT = 0.8   # share of children that must have the modal key set
+
+
+def _is_map(v: dict) -> bool:
+    """True when this dict's keys are data rather than schema."""
+    if len(v) < MAP_MIN_KEYS:
+        return False
+    children = [c for c in v.values() if isinstance(c, dict)]
+    if len(children) < len(v) * MAP_SHAPE_AGREEMENT:
+        return False          # values are not uniformly records
+    shapes = collections.Counter(frozenset(c) for c in children)
+    modal, n = shapes.most_common(1)[0]
+    return bool(modal) and n >= len(children) * MAP_SHAPE_AGREEMENT
+
+
 def sh_fields(rows: list[dict]) -> tuple[collections.Counter, dict[str, str]]:
     """Walk every row and return each leaf field path, how often it appeared, and its type.
 
     Nested dicts become dotted paths. Lists are leaves: their contents vary row to row and
     counting inside them produces a field list that grows with the data rather than with
-    the schema.
+    the schema. A dict whose keys are data rather than schema is treated the same way as a
+    list: recorded once as a map, with its child shape under `path.*`, so the field count
+    describes the schema instead of growing with the rows.
     """
     keys: collections.Counter = collections.Counter()
     types: dict[str, str] = {}
@@ -174,7 +204,19 @@ def sh_fields(rows: list[dict]) -> tuple[collections.Counter, dict[str, str]]:
             return
         for k, v in obj.items():
             path = f"{prefix}.{k}" if prefix else k
-            if isinstance(v, dict):
+            if isinstance(v, dict) and _is_map(v):
+                keys[path] += 1
+                types.setdefault(path, "map")
+                # Record the child shape once, from the modal child, so the fields
+                # inside the map are still described and still contractable.
+                children = [c for c in v.values() if isinstance(c, dict)]
+                shapes = collections.Counter(frozenset(c) for c in children)
+                modal = shapes.most_common(1)[0][0]
+                for c in children:
+                    if frozenset(c) == modal:
+                        walk(c, f"{path}.*")
+                        break
+            elif isinstance(v, dict):
                 walk(v, path)
             else:
                 keys[path] += 1

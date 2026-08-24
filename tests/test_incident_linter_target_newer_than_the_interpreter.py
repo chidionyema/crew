@@ -196,6 +196,13 @@ def _checkouts() -> list[pathlib.Path]:
     never the throwaway worktree a branch lives in. Matching only against `ROOT` would make
     this test skip in every worktree and run only in the main checkout, which is the
     skip-everywhere shape that let #149's tests sit unrun outside CI.
+
+    These four lines are load-bearing, and chidionyema-03 measured it on review rather
+    than taking it on trust: from a worktree with the main-checkout fallback stubbed
+    out, the suite reports `5 passed, 1 skipped -- no launchd job on this machine runs a
+    Python file from this repo`. Restored, same worktree: 6 passed. Without them the
+    test is green because it saw nothing, in every worktree anyone works in. Delete them
+    and the suite will not tell you.
     """
     roots = [ROOT.resolve()]
     r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -276,6 +283,21 @@ def test_a_scheduled_program_is_linted_for_the_python_that_runs_it():
 
     This is the test that would have gone red the moment somebody scheduled a program under
     /usr/bin/python3 without saying so, which is how the seam opened.
+
+    Two limits, both measured 2026-08-24 rather than assumed:
+
+    It reads ~/Library/LaunchAgents and not /Library/LaunchDaemons. There are 18
+    non-Apple plists there, all vendor (Adobe, Cisco, Docker, Google, Microsoft, Nord,
+    Oracle, homebrew, Canon, postgres, Zoom), and `grep -l dev/code/crew` over them
+    returns 0. It misses nothing today; an estate daemon added there would be invisible.
+
+    It fires only where the plists are. A GitHub runner has no ~/Library/LaunchAgents, so
+    it skips in CI by construction, and no loaded plist runs this suite -- 03 checked
+    every argv for pytest, run_tests and verify and found none. The declaration is what
+    is enforced everywhere: ruff reads per-file-target-version on every run including
+    CI, so the autofix cannot rewrite those two files whoever runs it. Declaration is the
+    brace, this test is the belt, and only the belt is machine-local. 03 is landing the
+    launchd job that runs the suite here.
     """
     global_target = _config()["tool"]["ruff"]["target-version"]
     m = re.fullmatch(r"py(\d)(\d+)", global_target)

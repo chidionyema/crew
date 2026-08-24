@@ -49,7 +49,14 @@ extend-exclude = [".venv", "node_modules", "store", "storage"]
 #
 # Declaring the target rather than ignoring the rule is deliberate. An ignore list names
 # the rules that have bitten so far and is silent about the next one; a target is the fact,
-# and every version-gated rule reads it. Needs ruff >= 0.11 (this repo runs 0.16.4).
+# and every version-gated rule reads it.
+#
+# per-file-target-version needs ruff >= 0.11, and the floor requirements-dev.txt states is
+# `ruff>=0.14`, which is what this table relies on. Naming one version here would have been
+# wrong: two copies are installed and which one runs depends on who is asking --
+#   .venv/bin/ruff     0.16.4        what the gate finds first
+#   /usr/local/bin/ruff  0.15.18     what `command -v ruff` gives         (2026-08-24)
+# Both are past 0.11. The floor is the fact; the versions drift.
 #
 # tests/test_incident_linter_target_newer_than_the_interpreter.py asserts this table
 # against the plists on the machine, so a new scheduled program cannot be added under the

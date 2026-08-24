@@ -376,10 +376,61 @@ def collectors() -> list[str]:
             "(`ingest_log`, checked %.0fh ago) |" % since_h]
 
 
+def runtime() -> list[str]:
+    """One container runtime -- colima -- and the CLI pointing at it, and it answering.
+
+    Incident 2026-08-24: Docker Desktop ran beside colima for hours holding zero
+    containers, the default docker context pointed at Desktop's dead daemon, and
+    `docker ps` hung for minutes in every session that tried. No instrument said so;
+    the founder found it by asking. The class is a second runtime nobody chose and a
+    context nobody checked, so this row measures three things and is GREEN only when
+    all three hold: context is colima, no second runtime process, colima's dockerd
+    actually answers. The socket probe uses curl with a hard timeout because the
+    docker CLI blocks unboundedly against a wedged daemon -- that hang WAS the
+    incident, and an instrument that hangs the same way measures nothing.
+    """
+    rows = []
+    rc, ctx = sh("docker context show", timeout=15)
+    ctx = ctx.strip()
+    if rc:
+        rows.append("| docker context | NOT RUN | `docker context show` rc=%d |" % rc)
+    elif ctx == "colima":
+        rows.append("| docker context | GREEN | `docker context show` -> colima |")
+    else:
+        rows.append("| docker context | RED | `docker context show` -> %s; sessions'"
+                    " docker commands are landing off the standard runtime |" % ctx)
+
+    # macOS pgrep has no -c; count with wc. A non-numeric answer is NOT RUN, never a
+    # verdict -- the first draft of this row read pgrep's usage error as a count.
+    rc, n = sh("pgrep -f 'Docker.app/Contents/MacOS' | wc -l", timeout=10)
+    n = n.strip()
+    if not n.isdigit():
+        rows.append("| second container runtime | NOT RUN | pgrep gave %r |" % n[:60])
+    elif n != "0":
+        rows.append("| second container runtime | RED | Docker Desktop is running "
+                    "beside colima (%s processes); one of them is paying for a VM "
+                    "nothing uses |" % n)
+    else:
+        rows.append("| second container runtime | GREEN | `pgrep -f "
+                    "'Docker.app/Contents/MacOS' | wc -l` -> 0 |")
+
+    sock = pathlib.Path.home() / ".colima" / "default" / "docker.sock"
+    rc, out = sh("curl -s --max-time 8 --unix-socket %s "
+                 "http://localhost/v1.43/containers/json" % sock, timeout=15)
+    if rc == 0 and out.startswith("["):
+        rows.append("| colima dockerd | GREEN | socket answered containers/json |")
+    else:
+        rows.append("| colima dockerd | RED | socket gave %s in 8s -- every estate "
+                    "container is unserved; do NOT restart colima, route to the "
+                    "firefighter |" % ("nothing" if not out else "rc=%d" % rc))
+    return rows
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1):
+    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1,
+               runtime):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

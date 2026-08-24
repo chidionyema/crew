@@ -229,3 +229,43 @@ def test_incident_unreadable_and_gone_do_not_produce_the_same_verdict(
 
     assert (stale_blind, blind_blind) == ([], ["dagster"])
     assert (stale_gone, blind_gone) == (["dagster"], [])
+
+
+def test_incident_a_directory_under_an_unreachable_parent_is_blind_not_gone(
+        registry, tmp_path):
+    """An unmounted volume raises FileNotFoundError, the same as a deleted directory.
+
+    Demonstrated by session chidionyema-73 on a real disk image while reviewing the fix
+    above: detach the volume and `stat` said the directory was gone; reattach it and the
+    data was untouched. A decline on an external disk or a dead network mount would
+    therefore have been called a ghost, deleted, and the registry would go red the next
+    time the volume came back -- #142's failure one layer down.
+
+    A test cannot mount and detach a volume, so this stages the same shape the mountpoint
+    produces: the directory is absent AND its parent is absent too, which is what "the
+    filesystem under this path is not here" looks like from `stat`. It also pins the
+    residual named in the docstring -- a whole-tree deletion reads blind from then on.
+    """
+    registry({"dagster": "the orchestrator's own bookkeeping"},
+             {"dagster": tmp_path / "detached-volume" / "dagster"},
+             _crawl(tmp_path, []))
+
+    _undeclared, stale, blind, _note = collect.reconcile()
+    assert stale == [], "a decline under an unreachable parent was called a ghost"
+    assert blind == ["dagster"]
+
+
+def test_a_missing_directory_beside_a_reachable_parent_is_still_gone(registry, tmp_path):
+    """The other half of the parent check, so it cannot answer "blind" to everything.
+
+    A guard only ever seen refusing has not been shown to permit. If asking the parent
+    made every absence blind, nothing would ever be reported stale again and the
+    DECLINED map would rot silently -- which is the reason the stale check exists.
+    """
+    registry({"dagster": "the orchestrator's own bookkeeping"},
+             {"dagster": tmp_path / "never-existed"},
+             _crawl(tmp_path, []))
+
+    _undeclared, stale, blind, _note = collect.reconcile()
+    assert stale == ["dagster"], "tmp_path is right there; this absence is a real absence"
+    assert blind == []

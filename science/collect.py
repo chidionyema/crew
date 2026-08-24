@@ -484,10 +484,33 @@ def reconcile() -> tuple[list[dict], list[str], list[str], str]:
         corruption for SQLITE_CANTOPEN on a locked file, and a research pass reported a
         file unmerged after looking at one branch. Attributed by session chidionyema-7e
         reviewing this change, before it merged.
+
+        FileNotFoundError is on both sides, which is why the parent is asked. An
+        unmounted volume raises FileNotFoundError for everything beneath its mountpoint,
+        so a decline on an external disk or a dead network mount arrives looking exactly
+        like a deleted directory -- and the data is provably still there when it comes
+        back. Demonstrated by session chidionyema-73 on a real disk image: detach the
+        volume and this said "gone"; reattach it and the file was untouched. So an
+        absence only counts when it is an absence inside a filesystem we can still see:
+        if the parent is reachable the directory really is missing, and if the parent is
+        unreachable too we are looking at a hole rather than an absence.
+
+        RESIDUAL, stated rather than hidden: deleting a whole tree removes the parent as
+        well, so that reads "blind" from then on and the exclusion is never called stale.
+        That is the safe direction -- an exclusion nobody deletes costs a printed line,
+        where an exclusion wrongly deleted turns the registry red on the next run -- but
+        it is a real limit and the "COULD NOT LOOK" line is the only thing that surfaces
+        it.
         """
         try:
             d.stat()
-        except (FileNotFoundError, NotADirectoryError):
+        except NotADirectoryError:
+            return "gone"
+        except FileNotFoundError:
+            try:
+                d.parent.stat()
+            except OSError:
+                return "blind"
             return "gone"
         except OSError:
             return "blind"

@@ -13,5 +13,23 @@ for f in "${CANDIDATES[@]}"; do
   echo "\$ grep -n '^# LAW 22' $f"
   if grep -n "^# LAW 22" "$f"; then found="$f"; break; fi
 done
-[ -n "$found" ] || { echo "LAW 22 has no section in any of: ${CANDIDATES[*]}"; exit 1; }
+if [ -z "$found" ]; then
+  # Two different situations were reaching the same exit code. If a laws file is here
+  # and LAW 22 has no section in it, that is a real failure. If no laws file is here at
+  # all, the check never saw the thing it grades: that is CANNOT RUN (exit 2), which
+  # verify.sh defines as "the check needs something this machine does not have". A CI
+  # runner has no ~/AGENTS.md, so this reported the laws as broken on every pull
+  # request in the repo. LAW 45: a guard that loses its evidence reports BLIND, never
+  # a verdict.
+  present=""
+  for f in "${CANDIDATES[@]}"; do [ -f "$f" ] && present="$f"; done
+  if [ -z "$present" ]; then
+    echo "no laws file on this machine: none of ${CANDIDATES[*]} exists"
+    echo "RESIDUAL: LAW 22's section is graded only where the laws live, which is the"
+    echo "          estate laptop. Set LAWS_FILE to grade it anywhere else."
+    exit 2
+  fi
+  echo "FAIL: LAW 22 has no section in $present"
+  exit 1
+fi
 echo "law bodies read from $found"

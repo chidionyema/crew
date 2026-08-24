@@ -1,0 +1,15 @@
+[project]
+name = "estate-dagster"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "dagster",
+  "dagster-webserver",
+  "dagster-dbt",
+  "dagster-duckdb",
+  "dbt-duckdb",
+]
+
+[tool.dagster]
+module_name = "estate_dagster.definitions"
+code_location_name = "estate"

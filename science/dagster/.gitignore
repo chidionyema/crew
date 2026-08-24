@@ -1,0 +1,4 @@
+# Build output of `pip install -e .`, which is how the daemon and the webserver
+# import this code location without a PYTHONPATH.
+*.egg-info/
+__pycache__/

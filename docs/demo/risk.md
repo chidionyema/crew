@@ -50,37 +50,14 @@ verifiers.
 
 ```
 $ bash scripts/verify.d/85-risk-register.sh; echo "exit=$?"
-$ python3 - .../crew-risk-wt/risk/REGISTER.jsonl
-PASS: 11 risks, 1 mitigated or closed, 11 receipts present here
+$ python3 - /Users/chidionyema/dev/code/crew/risk/REGISTER.jsonl
+PASS: 11 risks, 1 mitigated or closed, every receipt runnable
 exit=0
 ```
 
-"Receipts present here" is the part that does work. It expands `~`, takes the
+"Every receipt runnable" is the part that does work. It expands `~`, takes the
 first token of each evidence command and requires it to be on PATH or to be a
 real file, because a receipt nobody can run is the same as no receipt.
-
-Existence is judged against the directory, not the file. A receipt reading
-`~/dev/code/idp/bin/idp-verify` is correct on the estate and cannot exist on a
-CI runner, so a check that failed there would be grading which machine ran it.
-When the directory is absent too, the row is counted separately and said out
-loud rather than passed in silence:
-
-```
-$ CREW_ROOT=$SP/ci bash scripts/verify.d/85-risk-register.sh; echo "exit=$?"
-$ python3 - .../ci/risk/REGISTER.jsonl
-PASS: 11 risks, 1 mitigated or closed, 10 receipts present here, 1 naming a directory this machine does not have (not the estate -- shape checked, existence not)
-exit=0
-```
-
-When the directory is there and the file is not, the receipt really is broken
-and it still refuses:
-
-```
-$ CREW_ROOT=$SP/broken bash scripts/verify.d/85-risk-register.sh; echo "exit=$?"
-$ python3 - .../broken/risk/REGISTER.jsonl
-FAIL: R8 evidence starts with '/Users/chidionyema/dev/code/idp/bin/no-such-verifier', which is not on PATH and is not a file -- nobody can run this receipt
-exit=1
-```
 
 ## Seeing it refuse
 

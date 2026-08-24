@@ -73,15 +73,8 @@ git checkout scripts/verify.d/85-risk-register.sh && chmod +x scripts/verify.d/8
 field.
 
 **The check fails on `evidence`.** The first word of your evidence command is
-not on PATH and is not a file, and the directory it names is here. Write the
-receipt as something a stranger could paste, with a full path or a program that
-actually exists.
-
-**The check passes but says a receipt was not checked.** The row names a
-directory this machine does not have, so it is not the estate — a CI runner, a
-fresh clone. The shape was checked and the existence was not, and the count is
-printed rather than hidden, so a green run on CI cannot be read as the full
-check having run.
+not on PATH and is not a file. Write the receipt as something a stranger could
+paste, with a full path or a program that actually exists.
 
 **The check fails saying every risk is open.** That is intentional. A register
 where nothing has ever moved to mitigated is a list of complaints, and it

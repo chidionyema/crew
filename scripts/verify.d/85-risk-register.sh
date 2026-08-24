@@ -10,15 +10,6 @@
 #        unrunnable receipt is the same as no receipt,
 #   FAIL when every row is still open, which means nothing has been worked.
 #
-# "Does not exist" is judged against the directory, not the file. A receipt
-# reading ~/dev/code/idp/bin/idp-verify is correct on the estate and absent on
-# a CI runner, and failing there would grade which machine ran the check rather
-# than the register -- measured 2026-08-24, this check went red on GitHub
-# Actions for a receipt that was fine. So: if the directory is here and the
-# file is not, the receipt is broken and it fails. If the directory is not here
-# either, this is not the estate, and the row is counted separately and said
-# out loud rather than passed in silence.
-#
 # It deliberately does NOT run the evidence commands. Some of them are drills
 # that take minutes and touch credentials, and a verifier that is expensive is
 # a verifier that gets skipped. What it checks is that each receipt could be
@@ -39,8 +30,6 @@ required = {"id", "opened", "title", "what_goes_wrong", "likelihood", "cost",
             "mitigation", "residual", "owner", "evidence", "status"}
 seen_ids = set()
 worked = 0
-checked = 0     # receipts proved present here
-elsewhere = 0   # receipts naming a directory this machine does not have
 
 for i, line in enumerate(lines, 1):
     try:
@@ -71,17 +60,25 @@ for i, line in enumerate(lines, 1):
         worked += 1
 
     # The first token of the evidence line has to be something that exists.
-    # Expand ~ because a receipt written for a person will use it.
-    prog = os.path.expanduser(r["evidence"].strip().split()[0])
-    if shutil.which(prog) or os.path.isfile(prog):
-        checked += 1
-    elif os.path.isabs(prog) and not os.path.isdir(os.path.dirname(prog)):
-        # The directory the receipt names is not on this machine at all, so this
-        # is not the estate -- a CI runner, a fresh clone, somebody's laptop.
-        # Absence here says nothing about the receipt, and failing on it would
-        # be grading which machine ran the check rather than the register.
-        elsewhere += 1
-    else:
+    raw = r["evidence"].strip().split()[0]
+
+    # A receipt that begins with an absolute path into somebody's home directory is
+    # this estate's fingerprint (LAW 40), and it is the exact failure this check was
+    # meant to catch: it runs on one machine and nowhere else. It used to pass here
+    # and fail only in CI, where ~ expands to /home/runner -- so the defect reached
+    # main and the runner reported it as a broken register rather than as a receipt
+    # nobody but the author can run. Refuse it on the author's machine too, where it
+    # is cheap to fix, and say what to write instead.
+    if raw.startswith("~") or raw.startswith(os.path.expanduser("~") + os.sep):
+        print(f"FAIL: {r['id']} evidence starts with {raw!r}, a path inside one "
+              "person's home directory. Nobody else can run it, and in CI it "
+              "resolves to a home that does not hold this estate. Write a receipt "
+              "whose first word is a program on PATH -- curl the surface, or run "
+              "the checked-in script by its repo-relative path.")
+        sys.exit(1)
+
+    prog = os.path.expanduser(raw)
+    if not (shutil.which(prog) or os.path.isfile(prog)):
         print(f"FAIL: {r['id']} evidence starts with {prog!r}, which is not on "
               "PATH and is not a file -- nobody can run this receipt")
         sys.exit(1)
@@ -95,9 +92,5 @@ if worked == 0:
           "grows is a list of complaints, not a register")
     sys.exit(1)
 
-tail = f", {checked} receipts present here"
-if elsewhere:
-    tail += (f", {elsewhere} naming a directory this machine does not have "
-             "(not the estate -- shape checked, existence not)")
-print(f"PASS: {len(lines)} risks, {worked} mitigated or closed{tail}")
+print(f"PASS: {len(lines)} risks, {worked} mitigated or closed, every receipt runnable")
 PY

@@ -28,6 +28,22 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 | CI/CD | GitHub Actions; evidence gates; merge-when-green poller until required checks return with a deploy-key bypass | live | Native auto-merge cannot arm before checks pass; required checks block the hourly snapshot push until the bypass actor exists |
 | Instructions | `AGENTS.md` per repo, vendor files are symlinks | live | R8: no estate asset in a vendor-named home |
 
+## Founder table, 2026-08-24: "custom code is a last resort — stop writing wrappers"
+
+Founder, verbatim: "everything we write ourselves breaks." Each row of his table, evaluated
+against this page and the estate as measured today. DELETE-custom is the default verdict;
+a kept custom piece needs the mature tool named that was rejected, and why.
+
+| Founder row | Verdict | Receipt |
+|---|---|---|
+| Custom guard scripts → pre-commit framework | ADOPT for every git-side gate (jargon, LAW 32 docs pair, ledger shape); the agent-harness PreToolUse guards stay custom because pre-commit runs at commit time and cannot see an agent's tool call before it executes | research landing on the ledger this session; `pre-commit` not yet installed (measured: `command -v pre-commit` → none) |
+| Custom health monitors → Uptime Kuma / Healthchecks | ALREADY THE STANDARD: Healthchecks (self-hosted, BSD-3) row above. Uptime Kuma was researched and rejected: it probes reachability and cannot tell PASS from NOT RUN for a scheduled job, which is this estate's actual failure mode | ledger 2026-08-24 monitoring entry |
+| Custom secrets store → SOPS + age | ALREADY THE STANDARD and live, row above | ledger 2026-08-24 secrets entry |
+| Custom scheduled jobs → systemd timers | INTENT ADOPTED, TOOL CORRECTED: systemd does not exist on macOS (`ps -p 1` → `/sbin/launchd`; `command -v systemctl` → none). launchd IS the native scheduler and is already the substrate row above. Any Python-loop scheduler grades REWORK to a launchd job; at k8s time these become CronJobs | measured this session |
+| Custom alerting loops → Gotify / Telegram Bot API | Apprise row above stays: it is the mature OSS send path (BSD-2, ~100 providers incl. Telegram) and needs zero daemon; Gotify would add a server to run. Any custom polling/alerting daemon grades REWORK to a launchd job + Apprise send | ledger 2026-08-24 notifications entry |
+| Custom data pipeline wrappers → Dagster native | ADOPT: Dagster used natively, wrapper layer deleted. Owned by the platform-engineering session as crew#126 | crew#126 |
+| Code quality gates → pre-commit + ruff + mypy | ADOPT pre-commit + ruff (ruff already installed). Typing gate: pyright --strict is the estate testing law's named tool for the same slot; mypy is the stated deviation if a repo cannot run pyright | measured: `ruff` yes, `pre-commit`/`pyright`/`mypy` not installed yet |
+
 ## What stays custom, on purpose
 
 Researched, no mature equivalent exists — these are NOT wheels: the claim gate (DONE must

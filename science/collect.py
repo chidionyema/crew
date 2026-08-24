@@ -189,11 +189,38 @@ def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
     return rows, bad
 
 
+#: Producers on this estate name the row's own timestamp three different ways and
+#: encode it two different ways. Measured 2026-08-24: 4,261 of 5,548 rows landed with
+#: at=NULL because this function looked only for a field literally called "at" and
+#: only accepted strings. Eight of nineteen sources had every row untimestamped,
+#: including the two largest, which makes any time series over them impossible.
+TIME_KEYS = ("at", "ts", "t", "timestamp", "generated_at")
+
+#: 2001-09-09 to 2033-05-18. A number outside this range is not a unix timestamp, so a
+#: field that happens to be called "t" and holds something else is dropped rather than
+#: silently recorded as a date in 1970.
+EPOCH_LO, EPOCH_HI = 1_000_000_000, 2_000_000_000
+
+
 def row_time(obj: dict, field: str | None) -> str | None:
-    if not field:
-        return None
-    v = obj.get(field)
-    return v if isinstance(v, str) else None
+    """The row's own timestamp as ISO-8601, or None when it genuinely carries none.
+
+    The configured field wins; the rest of TIME_KEYS are tried after it so a new source
+    is timestamped without anyone remembering to declare which key it uses. Anything
+    that will not validate as a time returns None, because a wrong date is worse than a
+    missing one: a missing one shows up as a gap and a wrong one shows up as a trend.
+    """
+    for key in ((field,) if field else ()) + TIME_KEYS:
+        v = obj.get(key)
+        if isinstance(v, str) and v.strip():
+            try:
+                datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            return v
+        if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
+            return iso(float(v))
+    return None
 
 
 def collect(conn: sqlite3.Connection) -> list[dict]:

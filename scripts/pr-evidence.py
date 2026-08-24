@@ -350,6 +350,49 @@ def provider_coupling(body: str, diff: str) -> tuple:
     return True, "%d coupling(s) declared with a swap" % len(hits)
 
 
+#: Where a change is infra work and must name its standard. Exactly the paths crew#135 names,
+#: no wider: scripts/, workflows, launchd plists, and docs/STANDARDS.md itself — editing the
+#: standard IS infra work. Other docs prose stays exempt for the same reason EXEMPT exists
+#: above: a gate that refuses the page explaining it is a gate that gets deleted.
+INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
+
+#: Same emphasis-tolerant shape as OPTIONS_CHOSEN and COUPLING_SWAP, for the same measured
+#: reason (PR #19): people write `**Standard:**` and a pattern that only accepts the bare form
+#: refuses correct work, which LAW 38 calls an outage.
+STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|deviation)\s*:"
+                            r"(?:\*\*|__|\*|_)?\s*(.*)$", re.I | re.M)
+
+
+def infra_paths(diff: str) -> list:
+    """The infra files this diff touches, from the +++ headers — [] when it touches none."""
+    return [line[6:].strip() for line in (diff or "").splitlines()
+            if line.startswith("+++ b/") and INFRA_PATH.search(line[6:].strip())]
+
+
+def standards_line(body: str, diff: str) -> tuple:
+    """(ok, message) for R7 / LAW 44. A pull request that touches infra names its standard.
+
+    docs/STANDARDS.md says a component not on the page needs a stated, reviewed deviation, and
+    until crew#135 nothing enforced that — a law without a protocol is a wish (LAW 44). The ask
+    is one line in the body: `Standard: <the STANDARDS.md row this uses>` or `Deviation: <what
+    and why>`. A deviation is never refused here — stating it is the whole requirement; the
+    review grades it (LAW 38: the escape hatch is writing the line, not routing around the gate).
+
+    A diff that touches no infra path passes without the author writing anything.
+    """
+    touched = infra_paths(diff)
+    if not touched:
+        return True, "touches no infra path"
+    for m in STANDARDS_MARK.finditer(body or ""):
+        if len(re.sub(r"[^A-Za-z0-9 ]", "", m.group(2)).strip()) >= 3:
+            return True, "%s line covers %d infra file(s)" % (m.group(1).capitalize(), len(touched))
+    what = ", ".join(sorted(touched)[:5])
+    return False, ("touches infra (%s) with no 'Standard:' or 'Deviation:' line. R7/LAW 44: add "
+                   "'Standard: <the docs/STANDARDS.md row this uses>' or 'Deviation: <what and "
+                   "why>' to the body. A deviation is allowed — stating it is the whole ask"
+                   % what)
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -374,8 +417,12 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
         return False, "#%s %s" % (info["number"], why_cpl)
-    return True, "#%s carries %d evidence image(s), %s, %s" % (
-        info["number"], len(imgs), why_opts, why_cpl)
+    # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
+    # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
+    ok_std, why_std = standards_line(body, diff)
+    std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
+    return True, "#%s carries %d evidence image(s), %s, %s; standards (report-only): %s" % (
+        info["number"], len(imgs), why_opts, why_cpl, std)
 
 
 def selftest_options() -> int:
@@ -459,6 +506,36 @@ def selftest_options() -> int:
     check_one("claude gets no exemption from the law it is named in",
               provider_coupling("no section at all",
                                 "+++ b/scripts/t.py\n+p = HOME / \".claude/projects\"\n")[0], False)
+    # ---- R7 / LAW 44 standards line, on literal diffs. Paired controls again: every refusal
+    # has the pass that shows the gate still says yes to correct work (LAW 38).
+    d_scripts = "+++ b/scripts/tick.py\n+    total = count_rows(db)\n"
+    d_wf = "+++ b/.github/workflows/crew-qa.yml\n+      - name: step\n"
+    d_plist = "+++ b/ops/com.founder.board.plist\n+<key>Label</key>\n"
+    d_page = "+++ b/docs/STANDARDS.md\n+| a row |\n"
+    d_prose = "+++ b/docs/onboarding/law-44.md\n+Some words about the gate.\n"
+    named = "Standard: launchd, per the substrate row\n"
+
+    check_one("a non-infra diff passes with nothing written",
+              standards_line("no line at all", d_prose)[0], True)
+    check_one("a scripts/ diff with no line fails",
+              standards_line("no line at all", d_scripts)[0], False)
+    check_one("a workflow diff with no line fails",
+              standards_line("no line at all", d_wf)[0], False)
+    check_one("a plist diff with no line fails",
+              standards_line("no line at all", d_plist)[0], False)
+    check_one("editing STANDARDS.md itself is infra work",
+              standards_line("no line at all", d_page)[0], False)
+    check_one("a Standard line passes", standards_line(named, d_scripts)[0], True)
+    check_one("a Deviation line passes",
+              standards_line("Deviation: cron here because launchd lacks a calendar for it\n",
+                             d_scripts)[0], True)
+    check_one("a bold Standard line passes",
+              standards_line("**Standard:** launchd, per the substrate row\n", d_scripts)[0], True)
+    check_one("a bulleted bold Deviation line passes",
+              standards_line("- **Deviation:** cron here, launchd lacks the trigger\n",
+                             d_scripts)[0], True)
+    check_one("a Standard line with nothing after the colon fails",
+              standards_line("Standard:\n", d_scripts)[0], False)
     print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
     return 1 if fails else 0
 

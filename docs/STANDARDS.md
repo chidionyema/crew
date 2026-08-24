@@ -12,8 +12,8 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 
 | Layer | Standard | Status today | Why this one (ledger receipt) |
 |---|---|---|---|
-| Substrate | Laptop + launchd until managed k8s | live | Founder ruling: laptop is the substrate until k8s; self-hosted k8s starts fail ~70% within 18 months, so the exit is MANAGED k8s |
-| GitOps (at k8s time) | Flux | not yet | Recommended for solo-operator clusters; CNCF Graduated, Apache-2.0. Argo CD is the reviewed deviation (97% prod adoption, but a UI service to run) |
+| Substrate | Laptop + launchd until managed k8s | live | Founder ruling: laptop is the substrate until k8s; the exit is MANAGED k8s — operating your own control plane is the wheel LAW 43 says not to reinvent. (A "~70% fail within 18 months" figure stood here; removed 2026-08-24, no source found — see crew#135) |
+| GitOps (at k8s time) | Flux | not yet | Recommended for solo-operator clusters; CNCF Graduated, Apache-2.0. Argo CD is the reviewed deviation (97% of surveyed users run it in production, up from 93% in 2023 — [CNCF 2025 Argo CD End User Survey](https://www.cncf.io/announcements/2025/07/24/cncf-end-user-survey-finds-argo-cd-as-majority-adopted-gitops-solution-for-kubernetes/) — but it is a UI service to run) |
 | Admission policy | Kyverno, CEL ValidatingPolicy API only | migrating | CNCF Graduated 2026-03-24; legacy ClusterPolicy is REMOVED at v1.20 (Oct 2026) — new policies on the legacy API grade REWORK on sight |
 | Policy proof | `kustomize build \| kyverno apply/test`, grading the JSON REASON field | live in prospector | `kyverno test`'s summary has an open false-pass bug class (#11519); the REASON field is the truth |
 | Data | DuckDB 1.4 LTS + dbt-core (Apache-2.0), DuckLake v1.0 when data outgrows one file | live | Licence survives resale; DuckLake is plain Parquet + a catalog file, portable by construction (LAW 19) |
@@ -22,7 +22,7 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 | Notifications | Apprise (BSD-2) | to adopt | Provider-agnostic send path (~100 services incl. Telegram); delivery proof stays on the caller (LAW 28) |
 | Backups | restic, with a monthly restore drill | to adopt | Closest 1:1 for the custom backup scripts; `restic check` is the drill |
 | Secrets | sops + age; in-cluster later: secrets-as-files, rotation-safe precedence (file wins) | live | Research found nothing that supplants sops+age; pydantic-settings' env-over-file precedence is the wrong direction for rotation |
-| LLM providers | prospector `operator.py` factory today; LiteLLM (MIT core) is a CANDIDATE, not a component | live (factory) | Measured 2026-08-24: litellm is importable in 0 venvs and imported by 0 files on this estate — its CVE record is adoption cost, not live exposure. Routing today is one `Operator` ABC with 10 subclasses (8 in `operator.py`, plus `ClaudeCliOperator` and `GeminiCliOperator`), config-driven factory. Count: `grep -rhc '^class .*(Operator):' prospector/{operator,claude_cli,gemini_cli}.py`. Adopting LiteLLM needs its own reviewed PR; flags on record: enterprise split, 4,889 open issues |
+| LLM providers | prospector `operator.py` factory today; LiteLLM (MIT core) is a CANDIDATE, not a component | live (factory) | Measured 2026-08-24: litellm is importable in 0 venvs and imported by 0 files on this estate — its CVE record is adoption cost, not live exposure. Routing today is one `Operator` ABC with 10 subclasses (8 in `operator.py`, plus `ClaudeCliOperator` and `GeminiCliOperator`), config-driven factory. Count: `grep -rhc '^class .*(Operator):' prospector/{operator,claude_cli,gemini_cli}.py`. Adopting LiteLLM needs its own reviewed PR; flags on record: enterprise split; open issues: `gh api repos/BerriAI/litellm --jq .open_issues_count` → 4,909 on 2026-08-24 |
 | Agent traces | OpenTelemetry GenAI semconv → Langfuse (MIT core, self-hosted) | partially live | The single largest lock-in escape available; Langfuse containers already run |
 | Agent board / sync | GitHub Issues (crew repo) | live | No mature OSS agent board exists (researched); do not build one |
 | CI/CD | GitHub Actions; evidence gates; merge-when-green poller until required checks return with a deploy-key bypass | live | Native auto-merge cannot arm before checks pass; required checks block the hourly snapshot push until the bypass actor exists |
@@ -71,3 +71,7 @@ file grants nothing and is unusable. Never call a project "CNCF Graduated" witho
 4. Defects get a demonstrated failing input, or they are labelled "process risk:".
 5. Evidence is shown, not described: screenshot on the PR (LAW 22), `Options considered`
    in the body, receipts in the commit message.
+6. A PR touching infra paths (`scripts/`, `.github/`, launchd plists, this page) carries a
+   `Standard:` line naming the row it uses, or a `Deviation:` line stating what and why
+   (LAW 44, crew#135). `pr-evidence check` reports it on every PR — report-only today;
+   flipping it to blocking is its own reviewed PR. A deviation is never refused, only graded.

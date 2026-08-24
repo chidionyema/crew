@@ -131,6 +131,87 @@ def spend() -> list[str]:
             "(`spend_daily`, %s) |" % (state, rate, cap, db.name)]
 
 
+def delivery() -> list[str]:
+    """What the fleet shipped against what it stranded.
+
+    First run, 2026-08-24 (crew #97): 32 commits sat on branches no remote holds,
+    the oldest 7.7 days old — and the estate board's last 24 hours held 130
+    guard-broken rows and not one row saying anything shipped. The spend row above is rebuilt hourly; nothing measured
+    what the spend bought. A pipeline nobody measures is how "cost drain not
+    delivering" stayed a feeling instead of a number (LAW 28).
+
+    Stranded means commits reachable from a local branch and from no remote ref —
+    work that dies with this laptop. Dormant repos (no commit anywhere in 30 days)
+    are dead weight, not stranded work, and are excluded.
+    """
+    candidates = sorted(HOME.glob("dev/code/*")) + [
+        HOME / ".claude/scripts", HOME / ".claude",
+        HOME / "Documents/code/prospector"]
+    now = dt.datetime.now(dt.timezone.utc).timestamp()
+    seen: set[str] = set()
+    per_repo: list[tuple[int, float, int, str]] = []
+    for d in candidates:
+        if not (d / ".git").exists():
+            continue
+        rc, url = sh("git -C '%s' remote get-url origin" % d, timeout=10)
+        key = url if not rc and url else str(d)
+        if key in seen:            # prospector has two checkouts of one repo
+            continue
+        seen.add(key)
+        rc, last = sh("git -C '%s' log -1 --format=%%ct --all" % d, timeout=10)
+        if rc or not last.isdigit() or now - int(last) > 30 * 86400:
+            continue
+        rc, out = sh("git -C '%s' log --branches --not --remotes --format=%%ct" % d,
+                     timeout=20)
+        cts = [int(t) for t in out.split() if t.isdigit()]
+        rc, st = sh("git -C '%s' status --porcelain" % d, timeout=20)
+        dirty = len([l for l in st.splitlines() if l.strip()])
+        if cts or dirty:
+            oldest = (now - min(cts)) / 86400 if cts else 0.0
+            per_repo.append((len(cts), oldest, dirty, d.name))
+
+    stranded = sum(r[0] for r in per_repo)
+    oldest = max((r[1] for r in per_repo), default=0.0)
+    dirty = sum(r[2] for r in per_repo)
+
+    since = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
+    # Bot bumps are not the fleet delivering; a capped count is a floor, not a count.
+    cap = 1000
+    rc, out = sh("gh search prs --owner chidionyema --merged --merged-at '>=%s' "
+                 "-L %d --json number --jq length -- -author:app/dependabot"
+                 % (since, cap), timeout=45)
+    merged = int(out) if not rc and out.isdigit() else None
+
+    state = "GREEN" if stranded == 0 else ("STALE" if oldest < 1 else "RED")
+    rows = ["| delivery | %s | %d commits on no remote (oldest %.1fd), %d dirty files, "
+            "%d live repos (`git log --branches --not --remotes`) |"
+            % (state, stranded, oldest, dirty, len(per_repo))]
+    if merged is None:
+        rows.append("| &nbsp;&nbsp;shipped | NOT RUN | `gh search prs --merged` "
+                    "did not answer |")
+    else:
+        cost = ""
+        db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
+        rc, rate = sh("sqlite3 %s \"select round(avg(usd),0) from (select usd from "
+                      "spend_daily order by day desc limit 7);\"" % db, timeout=20)
+        try:
+            if not rc and merged:
+                cost = ", ~$%.0f of estate spend per shipped change" % (
+                    7 * float(rate) / merged)
+        except ValueError:
+            pass
+        shown = str(merged) if merged < cap else ">=%d" % merged
+        if merged >= cap:
+            cost = ""
+        rows.append("| &nbsp;&nbsp;shipped | %s merged | non-bot PRs merged across the "
+                    "estate in 7d%s (`gh search prs`) |" % (shown, cost))
+    for n, old, dr, name in sorted(per_repo, reverse=True)[:3]:
+        if n:
+            rows.append("| &nbsp;&nbsp;stranded | %s | %d commits no remote holds, "
+                        "oldest %.1fd, %d dirty |" % (name, n, old, dr))
+    return rows
+
+
 def founder() -> list[str]:
     """What the estate cost HIM this week, against last week.
 
@@ -240,7 +321,7 @@ def collectors() -> list[str]:
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, founder, collectors, crew_p1):
+    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

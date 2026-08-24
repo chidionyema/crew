@@ -1,0 +1,49 @@
+name: deadman
+
+# The receiver that is not on the Mac.
+#
+# Runs on GitHub, so it keeps reporting when the machine it watches does not. See
+# scripts/deadman-check.sh for what it measures and why the threshold is loose.
+#
+# A failure here mails the repository owner, which is the alert. No secret, no account, no
+# webhook, nothing to keep alive.
+#
+# Two things GitHub does to scheduled workflows, stated because finding them out during an
+# outage is the worst time. Runs are queued at best effort and are commonly minutes late
+# under load, which the 180m threshold absorbs. And GitHub disables a schedule after 60
+# days with no commits in the repository -- so the dead-man stops with the repository, and
+# a truly abandoned estate goes quiet rather than loud. That residual is not closed here.
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/deadman.yml'
+      - 'scripts/deadman-check.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check reads commit dates, so it needs history. A shallow clone makes it
+          # report BLIND, which is honest but useless.
+          fetch-depth: 0
+
+      - name: Prove the check refuses, before trusting it to permit
+        run: |
+          set -u
+          if DEADMAN_AGE_MINUTES=999 ./scripts/deadman-check.sh; then
+            echo "the dead-man passed a 999m silence. It is not a dead-man."
+            exit 1
+          fi
+          echo "refuses as it should."
+
+      - name: Is the Mac alive?
+        run: ./scripts/deadman-check.sh

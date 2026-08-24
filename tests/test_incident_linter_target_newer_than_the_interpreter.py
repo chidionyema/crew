@@ -189,29 +189,48 @@ def _interpreter_for(argv: list[str], env_path: str | None) -> str | None:
     return found.stdout.strip() or None
 
 
-def _checkouts() -> list[pathlib.Path]:
-    """This checkout, and the main one if this is a worktree.
+def _same_program_here(target: pathlib.Path) -> pathlib.Path | None:
+    """The path a plist names, expressed as a path in THIS checkout, or None.
 
-    A plist names an absolute path, and it names the checkout the founder's jobs run from --
-    never the throwaway worktree a branch lives in. Matching only against `ROOT` would make
-    this test skip in every worktree and run only in the main checkout, which is the
-    skip-everywhere shape that let #149's tests sit unrun outside CI.
+    Asked from the plist's side, not from this checkout's side. Walk up from the file
+    launchd actually runs until something marks a repo root, take the path relative to it,
+    and ask whether this checkout holds the same file. So the question is "does the repo I
+    am testing contain the program that job runs", which is the question, and it does not
+    care whether this checkout is the main one, a worktree of it, or a separate clone.
 
-    These four lines are load-bearing, and chidionyema-03 measured it on review rather
-    than taking it on trust: from a worktree with the main-checkout fallback stubbed
-    out, the suite reports `5 passed, 1 skipped -- no launchd job on this machine runs a
-    Python file from this repo`. Restored, same worktree: 6 passed. Without them the
-    test is green because it saw nothing, in every worktree anyone works in. Delete them
-    and the suite will not tell you.
+    It was written from this checkout's side first: `_checkouts()` matched against ROOT and
+    the main checkout found via `git rev-parse --git-common-dir`. That handled a worktree
+    and nothing else. chidionyema-03 broke it on review, from a plain clone, and measured
+    both halves rather than describing them:
+
+        $ git clone --local ~/dev/code/crew crew-clone-test
+        $ python3 -m pytest tests/test_incident_...py -q -rs
+        5 passed, 1 skipped
+        SKIPPED [1] no launchd job on this machine runs a Python file from this repo
+
+    Green because it saw nothing, one level out from the case it had just fixed. That is
+    not academic: the scheduled runner for this suite has to use an isolated clone -- an
+    hourly job cannot run pytest in ~/dev/code/crew, which sits on whatever branch another
+    session left it on and whose tracked store/ and storage/ pytest writes into. So the
+    clone is the case the guard exists for, and it was the one case it could not see.
+
+    From that same clone, this version finds three programs where the old one found zero,
+    and the third is the point:
+
+        OK   science/law_enforcement.py   /usr/bin/python3   -> 3.9    py39
+        OK   scripts/estate-lander        /usr/bin/python3   -> 3.9    py39
+        OK   scripts/estate-snapshot      /usr/local/bin/python3 -> 3.14   py311
+
+    estate-snapshot is absent from the pyproject table because its plist sets PATH and it
+    gets 3.14.6. It is present *here*, checked and passing, so the day somebody drops that
+    PATH line this test goes red rather than staying quiet.
     """
-    roots = [ROOT.resolve()]
-    r = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                       cwd=ROOT, check=False, capture_output=True, text=True)
-    if r.returncode == 0:
-        main = pathlib.Path(r.stdout.strip().removesuffix("/.git")).resolve()
-        if main not in roots:
-            roots.append(main)
-    return roots
+    for parent in target.parents:
+        #: `.git` is a directory in a clone and a file in a worktree; either marks a root.
+        if (parent / ".git").exists() or (parent / "pyproject.toml").is_file():
+            here = ROOT / target.relative_to(parent)
+            return here.relative_to(ROOT) if here.is_file() else None
+    return None
 
 
 def _scheduled_repo_programs() -> dict[pathlib.Path, str]:
@@ -220,7 +239,6 @@ def _scheduled_repo_programs() -> dict[pathlib.Path, str]:
     Read from the plists rather than from a list in this file, because a list in this file
     is a claim about the machine that nothing checks. This is the machine.
     """
-    roots = _checkouts()
     out: dict[pathlib.Path, str] = {}
     for plist in sorted(LAUNCH_AGENTS.glob("*.plist")):
         try:
@@ -241,13 +259,7 @@ def _scheduled_repo_programs() -> dict[pathlib.Path, str]:
             p = pathlib.Path(a)
             if not p.is_absolute() or not p.is_file():
                 continue
-            rel = None
-            for root in roots:
-                try:
-                    rel = p.resolve().relative_to(root)
-                    break
-                except ValueError:
-                    continue
+            rel = _same_program_here(p.resolve())
             if rel is None:
                 continue
             if p.suffix == ".py" or re.match(rb"^#!.*python", p.open("rb").read(60)):

@@ -154,6 +154,56 @@ def evidence_name(dest: Path, src: Path, stamp: str, i: int) -> tuple[str, bool]
     return f"{stamp}-{i}{src.suffix or '.png'}", True
 
 
+def commit_evidence(root: Path, rels: list[str], caption: str) -> list[str]:
+    """Commit exactly these paths, and return what actually went into the commit.
+
+    This used to be `git add <images>` then a bare `git commit`, which commits the
+    whole index. On 2026-08-24 that turned one screenshot into crew 097eccd: the
+    commit also deleted two merged evidence images, reverted the --selftest alias
+    below, and re-applied a stale copy of two verify.d gates, because the checkout
+    it ran in had those changes sitting staged from earlier work.
+
+    The class is not "that worktree was dirty". It is that a tool which is handed
+    a list of files must commit that list and nothing else. A pathspec commit does
+    exactly that: it takes the working-tree content of the named paths, ignores the
+    rest of the index, and leaves other staged work staged for whoever staged it.
+
+    An empty result is the ordinary retry, not an error: an earlier run already
+    committed these exact bytes and only its push failed. `git commit` on an empty
+    change exits 1, which would abort the retry before it reached the push.
+    """
+    abs_paths = [str(root / r) for r in rels]
+    run(["git", "add", "--", *abs_paths], cwd=root)
+    staged = [p for p in run(["git", "diff", "--cached", "--name-only", "--",
+                              *abs_paths], cwd=root).split("\n") if p.strip()]
+    if staged:
+        run(["git", "commit", "-m", f"evidence: {caption}", "--", *abs_paths], cwd=root)
+    return staged
+
+
+def warn_if_behind_main(root: Path) -> bool:
+    """Say so, loudly, when this branch is behind the default branch.
+
+    The other half of 097eccd. This does not refuse: refusing to record evidence
+    because a branch is stale would be LAW 38, a guard that blocks correct work,
+    and the evidence is usually the last thing standing between a fix and a merge.
+    It prints the count and the command, at the moment a session is about to push.
+    """
+    try:
+        base = run(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+                   cwd=root).strip() or "origin/main"
+    except Fail:
+        base = "origin/main"
+    try:
+        behind = int(run(["git", "rev-list", "--count", f"HEAD..{base}"], cwd=root).strip())
+    except (Fail, ValueError):
+        return False        # no such ref here; nothing to compare against
+    if behind:
+        print(f"WARNING: this branch is {behind} commit(s) behind {base}. LAW 7: "
+              f"refresh before review, `git merge {base}`. The evidence still attaches.")
+    return bool(behind)
+
+
 def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bool) -> str:
     info = pr_info(pr, repo)
     n, branch = info["number"], info["headRefName"]
@@ -176,12 +226,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
             shutil.copyfile(src, dest / name)
         links.append(f"docs/evidence/pr-{n}/{name}")
 
-    run(["git", "add", *[str(dest / Path(l).name) for l in links]], cwd=root)
-    # Nothing staged means an earlier run already committed these exact bytes and only
-    # its push failed. That is the ordinary retry, not an error, and `git commit` with
-    # an empty index exits 1 and would abort the retry before it reached the push.
-    if run(["git", "diff", "--cached", "--name-only"], cwd=root).strip():
-        run(["git", "commit", "-m", f"evidence: {caption}"], cwd=root)
+    warn_if_behind_main(root)
+    commit_evidence(root, links, caption)
     if push:
         run(["git", "push", "origin", branch], cwd=root)
 
@@ -378,6 +424,66 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
         info["number"], len(imgs), why_opts, why_cpl)
 
 
+def selftest_commit_scope() -> int:
+    """commit_evidence commits what it was handed, in a throwaway repository.
+
+    Four controls, and two of them are the tool saying yes. The incident (crew
+    097eccd) is control B: unrelated work was staged, and the evidence commit
+    swallowed it. Control A is the paired half, because a guard only ever seen
+    refusing has never been shown to permit.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print("  ok   %s" % name)
+        else:
+            print("  FAIL %s: got %r, want %r" % (name, got, want))
+            fails.append(name)
+
+    work = Path(tempfile.mkdtemp(prefix="pr-evidence-scope-"))
+    try:
+        env = {"GIT_AUTHOR_NAME": "selftest", "GIT_AUTHOR_EMAIL": "selftest@localhost",
+               "GIT_COMMITTER_NAME": "selftest", "GIT_COMMITTER_EMAIL": "selftest@localhost",
+               **os.environ}
+        run(["git", "init", "-q", "-b", "main", str(work)], env=env)
+        (work / "keep.txt").write_text("as merged\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+        run(["git", "commit", "-q", "-m", "base"], cwd=work, env=env)
+
+        # The dirty index that caused the incident: an unrelated file rewritten and
+        # staged, exactly as a stale checkout leaves it.
+        (work / "keep.txt").write_text("a rider from another branch\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+
+        ev = work / "docs" / "evidence" / "pr-1"
+        ev.mkdir(parents=True)
+        (ev / "shot.png").write_bytes(b"\x89PNG evidence")
+        rel = "docs/evidence/pr-1/shot.png"
+
+        staged = commit_evidence(work, [rel], "a screenshot")
+        in_commit = sorted(p for p in run(["git", "show", "--pretty=", "--name-only", "HEAD"],
+                                          cwd=work, env=env).split("\n") if p.strip())
+
+        check_one("A the evidence image is in the commit", in_commit, [rel])
+        check_one("B the unrelated staged file is NOT in the commit",
+                  "keep.txt" in in_commit, False)
+        check_one("C the unrelated change is still staged, for whoever staged it",
+                  run(["git", "diff", "--cached", "--name-only"], cwd=work,
+                      env=env).strip(), "keep.txt")
+        # The retry path: same bytes, nothing to commit, and no exception. This is
+        # what a refused push leaves behind, and it has to stay free.
+        check_one("D re-attaching the same bytes commits nothing and does not raise",
+                  commit_evidence(work, [rel], "a screenshot"), [])
+        check_one("E the first call did report what it committed", staged, [rel])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    print("selftest-commit-scope: %d/%d passed" % (len(ran) - len(fails), len(ran)))
+    return 1 if fails else 0
+
+
 def selftest_options() -> int:
     """The options gate, proved on literal bodies. Paired controls, as everywhere else here."""
     fails, ran = [], []
@@ -494,10 +600,25 @@ def main() -> int:
 
     sub.add_parser("selftest-options",
                    help="prove the options gate on literal bodies, no network")
+    sub.add_parser("selftest-commit-scope",
+                   help="prove the evidence commit takes only its own files, in a temp repo")
+
+    # estate-selftest.py runs every script under ~/.claude/scripts that accepts
+    # `--selftest`, once an hour, and this file is symlinked in there. It was
+    # reported as NO SELFTEST because the cases live behind a subcommand with a
+    # different name, so 24 paired-control cases sat on disk and nothing ran them.
+    # A control nobody runs is not a control, so the estate's spelling is accepted
+    # as an alias for the subcommand rather than the cases being moved.
+    if "--selftest" in sys.argv[1:]:
+        # Every suite in this file, not the first one that was written. A second
+        # suite added beside a hardcoded call is a suite the hourly run never sees.
+        return max(selftest_options(), selftest_commit_scope())
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()
+    if ns.cmd == "selftest-commit-scope":
+        return selftest_commit_scope()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

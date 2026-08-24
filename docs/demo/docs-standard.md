@@ -58,16 +58,44 @@ Both halves matter. A gate that has only ever been shown saying no is a gate nob
 proved is safe to install, and this estate has twice shipped one that refused correct
 work and blocked every push on the machine.
 
+## The gate catching a new document within the hour
+
+Not a constructed example. Between writing the baseline and opening the pull request,
+another session added three documents to `~/dev/code/idp` and tracked none of them:
+
+```
+$ bash scripts/verify.d/95-docs.sh ; echo "rc=$?"
+NOTE: 3 document(s) in other repositories are new or worse since the baseline.
+Reported, not refused: this gate only fails for ~/dev/code/crew, because that is
+the only repository whoever is reading this can fix.
+  ~/dev/code/idp::docs/demo/placement.md
+      missing: owned, persisted
+  ~/dev/code/idp::docs/demo/supply-chain.md
+      missing: owned, persisted
+  ~/dev/code/idp::docs/onboarding/placement.md
+      missing: owned, persisted
+
+PASS: 196 documents graded, 3 meet the standard, 193 on the baseline backlog,
+      0 new failures, 0 regressions
+rc=0
+```
+
+The first run of that check refused instead of reporting, and turned crew's suite red
+over files in another repository that this session had no business editing. The finding
+was right and the refusal was wrong: a fence whose only remedy is somebody else's
+in-flight work is a queue, and LAW 38 grades a queue as an outage. So other repositories
+are reported and the home repository is refused.
+
 ## Inside the full suite
 
 ```
 $ bash scripts/verify.sh
 PASS: 16 entries, newest 2026-08-24, every entry carries sources
 PASS: 11 risks, 1 mitigated or closed, every receipt runnable
-PASS: 191 documents graded, 1 meet the standard, 190 on the baseline backlog
+PASS: 196 documents graded, 3 meet the standard, 193 on the baseline backlog
 PASS=9  FAIL=0  CANNOT RUN=3   of 12
 ```
 
-The one document meeting the standard is `ARCHITECTURE.md`, written the same day. The
-other 190 are the backlog, tolerated by a committed baseline so that turning the
-standard on did not turn CI red for a month.
+The three documents meeting the standard are `ARCHITECTURE.md` and this page and its
+onboarding, all written the same day. The other 193 are the backlog, tolerated by a
+committed baseline so that turning the standard on did not turn CI red for a month.

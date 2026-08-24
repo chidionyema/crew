@@ -38,6 +38,16 @@
 # In CI only the crew repository is checked out, so only crew's documents are graded
 # there. Locally all seven are. The baseline is keyed by repo AND path, so a repo that
 # is absent simply contributes nothing rather than reading as deleted.
+#
+# IT REFUSES ONLY FOR THE REPOSITORY IT RUNS IN. Measured within an hour of the baseline
+# being written: another session added three documents under ~/dev/code/idp, untracked
+# and unowned, and this gate turned crew's verify red over them. The finding was correct
+# and the refusal was wrong -- the only remedy available to whoever hit it is to go and
+# edit another session's in-flight work in a different repository, which is a queue, and
+# LAW 38 grades a fence whose remedy is somebody else's decision as an outage. So the
+# other six repositories are REPORTED, loudly, and never refused. A finding you can act
+# on is a gate; a finding you cannot is a report, and calling the second one a gate is
+# how a suite becomes something everybody learns to skip.
 set -uo pipefail
 ROOT="${CREW_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 cd "$ROOT" || exit 2
@@ -70,17 +80,33 @@ docs = json.loads(proc.stdout)
 present = {d["repo"] for d in docs}
 graded = {k: v for k, v in baseline.items() if k.split("::", 1)[0] in present}
 
-new_failures, regressions = [], []
+# The repository this gate is running in, in the same tilde form docsmap.py labels with.
+home = str(root).replace(str(pathlib.Path.home()), "~", 1)
+
+new_failures, regressions, elsewhere = [], [], []
 for d in docs:
     key = f"{d['repo']}::{d['path']}"
     now = set(d["failures"])
     if not now:
         continue
     was = set(graded.get(key, []))
-    if key not in graded:
-        new_failures.append((key, sorted(now)))
-    elif now - was:
-        regressions.append((key, sorted(was), sorted(now)))
+    if key in graded and not (now - was):
+        continue
+    finding = (key, sorted(was), sorted(now)) if key in graded else (key, sorted(now))
+    if d["repo"] != home:
+        elsewhere.append((key, sorted(now)))
+    elif key in graded:
+        regressions.append(finding)
+    else:
+        new_failures.append(finding)
+
+if elsewhere:
+    print(f"NOTE: {len(elsewhere)} document(s) in other repositories are new or worse "
+          f"since the baseline. Reported, not refused: this gate only fails for {home}, "
+          "because that is the only repository whoever is reading this can fix.")
+    for key, f in elsewhere[:12]:
+        print(f"  {key}\n      missing: {', '.join(f)}")
+    print()
 
 if new_failures:
     print(f"FAIL: {len(new_failures)} document(s) introduced that do not meet the standard.")

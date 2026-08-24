@@ -71,6 +71,14 @@ Regenerate it with `python3 science/docsmap.py --write-baseline
 science/DOCS-BASELINE.json`, but read the diff first: regenerating it against a worse
 tree silently forgives every failure introduced since the last one.
 
+**It reports documents in a repository you are not working in.** Also the design. The
+inventory grades all seven repositories because that is where "things get lost" is
+visible, but the gate only ever fails for the repository it is running in. Anything
+found elsewhere prints under `NOTE:` and does not affect the exit code, because the
+person reading it cannot fix another session's in-flight work and a fence they cannot
+satisfy is an outage rather than a standard. Tell the session that owns the repository,
+on the board; do not commit on their behalf.
+
 **The count drops in CI.** Expected. Only this repository is checked out on a runner, so
 only its documents are graded there. The baseline is keyed by repository as well as
 path, so an absent repository contributes nothing rather than reading as fixed.

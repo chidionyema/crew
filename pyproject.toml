@@ -16,6 +16,15 @@
 #      layout and exception-message style are deliberately absent. The day this gate
 #      fails somebody's correct patch over a semicolon is the day it stops running.
 
+# The Python floor. README.md has said "Python 3.11+" and crew-qa.yml has pinned 3.11
+# since before this file existed, but the laptop venv every session ran gates through was
+# 3.10.9, and nothing anywhere could see the disagreement. So `ruff check --fix` applied a
+# 3.11-only rewrite (UP017, `timezone.utc` -> `datetime.UTC`), this standard graded its own
+# rewrite PASS, and the collector then failed to import. A floor stated only in prose is
+# not a floor: the two settings below are now asserted against the running interpreter by
+# tests/test_incident_linter_target_newer_than_the_interpreter.py, and neither may be
+# newer than it.
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

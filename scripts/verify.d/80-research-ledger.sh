@@ -36,6 +36,24 @@ for i, line in enumerate(lines, 1):
     if not e["sources"]:
         print(f"FAIL: line {i} has no sources — research with no trace did not happen")
         sys.exit(1)
+
+    # findings must be a list of statements, never one string. Both shapes used to
+    # pass here, and a string is the dangerous one because iterating it succeeds:
+    # a consumer that loops over findings gets one character per finding and never
+    # raises. That is how it was read on 2026-08-24 and briefly reported as data
+    # corruption. Pick one shape and make the gate hold it (LAW 30: the ledger has
+    # to be queryable, which means a consumer can trust the type).
+    f = e["findings"]
+    if not isinstance(f, list) or not f:
+        print(f"FAIL: line {i} findings is {type(f).__name__}, expected a non-empty "
+              "list of statements. A string iterates into characters, so a consumer "
+              "reading it gets silent nonsense instead of an error.")
+        sys.exit(1)
+    if any(not isinstance(x, str) or len(x) < 20 for x in f):
+        print(f"FAIL: line {i} has a finding under 20 characters. That is the "
+              "signature of a string that was split into characters somewhere "
+              "upstream, and of a finding that says nothing.")
+        sys.exit(1)
     d = date.fromisoformat(e["date"])
     newest = max(newest or d, d)
     if e.get("metric_after") is None and not e.get("abandoned") and today - d > timedelta(days=14):

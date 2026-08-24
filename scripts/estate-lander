@@ -32,17 +32,21 @@ DORMANT_DAYS = 30
 
 def sh(args: list[str], timeout: int = 60) -> tuple[int, str]:
     try:
+        #: check=False: every caller reads the return code and decides what it means --
+        #: a non-zero `git remote get-url` is "this directory has no origin", not an
+        #: error. Raising here would turn each of those into a crash.
         p = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
-                           errors="replace")
+                           errors="replace", check=False)
         return p.returncode, (p.stdout + p.stderr).strip()
     except subprocess.TimeoutExpired:
-        return 124, "TIMED OUT after %ds" % timeout
+        return 124, f"TIMED OUT after {timeout}s"
     except OSError as exc:
         return 1, str(exc)
 
 
 def live_repos() -> list[pathlib.Path]:
-    candidates = sorted(HOME.glob("dev/code/*")) + [
+    candidates = [
+        *sorted(HOME.glob("dev/code/*")),
         HOME / ".claude/scripts", HOME / ".claude",
         HOME / "Documents/code/prospector"]
     out, seen = [], set()
@@ -71,10 +75,10 @@ def main() -> int:
         rc, remote_heads = sh(["git", "-C", str(d), "ls-remote", "--heads", "origin"],
                               timeout=45)
         if rc:
-            failed.append("%s: ls-remote failed: %s" % (d.name, remote_heads[:60]))
+            failed.append(f"{d.name}: ls-remote failed: {remote_heads[:60]}")
             continue
-        remote = {l.split("refs/heads/", 1)[1] for l in remote_heads.splitlines()
-                  if "refs/heads/" in l}
+        remote = {ref.split("refs/heads/", 1)[1] for ref in remote_heads.splitlines()
+                  if "refs/heads/" in ref}
         rc, refs = sh(["git", "-C", str(d), "for-each-ref", "refs/heads",
                        "--format=%(refname:short)\t%(upstream:short)"], timeout=10)
         for line in refs.splitlines():
@@ -85,20 +89,20 @@ def main() -> int:
                 continue
             planned += 1
             if not do_push:
-                print("PLAN  %s %s" % (d.name, branch))
+                print(f"PLAN  {d.name} {branch}")
                 continue
             rc, out = sh(["git", "-C", str(d), "push", "-u", "origin",
-                          "%s:%s" % (branch, branch)], timeout=120)
+                          f"{branch}:{branch}"], timeout=120)
             if rc:
-                failed.append("%s %s: %s" % (d.name, branch, out.splitlines()[-1][:80]
-                                             if out else "push failed"))
-                print("FAIL  %s %s" % (d.name, branch))
+                why = out.splitlines()[-1][:80] if out else "push failed"
+                failed.append(f"{d.name} {branch}: {why}")
+                print(f"FAIL  {d.name} {branch}")
             else:
                 pushed += 1
-                print("PUSHED %s %s" % (d.name, branch))
+                print(f"PUSHED {d.name} {branch}")
     verb = "pushed" if do_push else "would push"
-    print("lander: %s %d branch(es), %d failed"
-          % (verb, pushed if do_push else planned, len(failed)))
+    count = pushed if do_push else planned
+    print(f"lander: {verb} {count} branch(es), {len(failed)} failed")
     for f in failed:
         print("  " + f)
     return 1 if failed else 0

@@ -364,9 +364,26 @@ STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|dev
 
 
 def infra_paths(diff: str) -> list:
-    """The infra files this diff touches, from the +++ headers — [] when it touches none."""
-    return [line[6:].strip() for line in (diff or "").splitlines()
-            if line.startswith("+++ b/") and INFRA_PATH.search(line[6:].strip())]
+    """The infra files this diff touches — [] when it touches none.
+
+    All four header shapes, not just `+++ b/`: the first version read added files only, so a
+    PR DELETING `scripts/backup.py` because restic replaced it — exactly the change R7 wants a
+    line on — passed with nothing written, and a 100% rename emits no +++/--- lines at all,
+    only `rename from/to`. Demonstrated by code-3a on the #138 review; the goal-guard names
+    this exact class: an allow-list with a silent miss case. /dev/null never matches a prefix
+    below, so deletions surface through their `--- a/` side.
+    """
+    paths = set()
+    for line in (diff or "").splitlines():
+        if line.startswith(("+++ b/", "--- a/")):
+            p = line[6:].strip()
+        elif line.startswith(("rename from ", "rename to ")):
+            p = line.split(" ", 2)[2].strip()
+        else:
+            continue
+        if INFRA_PATH.search(p):
+            paths.add(p)
+    return sorted(paths)
 
 
 def standards_line(body: str, diff: str) -> tuple:
@@ -536,6 +553,21 @@ def selftest_options() -> int:
                              d_scripts)[0], True)
     check_one("a Standard line with nothing after the colon fails",
               standards_line("Standard:\n", d_scripts)[0], False)
+    # The miss case code-3a demonstrated on the #138 review: deletions carry only a `--- a/`
+    # header and pure renames carry only `rename from/to` lines. Paired both ways again.
+    d_del = "--- a/scripts/backup.py\n+++ /dev/null\n"
+    d_ren = ("diff --git a/scripts/old-name.sh b/scripts/new-name.sh\n"
+             "rename from scripts/old-name.sh\nrename to scripts/new-name.sh\n")
+    check_one("deleting an infra file with no line fails",
+              standards_line("no line at all", d_del)[0], False)
+    check_one("deleting an infra file with a Deviation line passes",
+              standards_line("Deviation: backup.py deleted, restic owns backups now\n",
+                             d_del)[0], True)
+    check_one("a pure rename of an infra file with no line fails",
+              standards_line("no line at all", d_ren)[0], False)
+    check_one("deleting a docs prose file passes with nothing written",
+              standards_line("no line at all", "--- a/docs/onboarding/old.md\n+++ /dev/null\n")[0],
+              True)
     print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
     return 1 if fails else 0
 

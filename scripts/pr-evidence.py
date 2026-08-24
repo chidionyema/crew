@@ -329,9 +329,39 @@ EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.
 #: gate reported "no verification evidence" over a body carrying four command transcripts.
 #: That is a guard refusing correct work, which is the outage (LAW 38). Measured on
 #: chidionyema/idp#17 on 2026-08-24: 4 transcripts in the body, gate said 0.
+def mask_fences(text: str) -> str:
+    """`text` with the inside of every fenced block replaced by blanks of the same length.
+
+    Offsets are preserved, so an index found in the masked copy indexes the original.
+
+    Why. `section_end` scans raw markdown for a heading, and a heading is any line starting
+    with a hash. A shell comment at column 0 inside a fence -- `# prove it fails`, which is
+    how every both-ways proof in this estate is written -- is a level-1 heading to that scan,
+    shallower than any evidence heading, so it ends the section from inside the evidence.
+    Found by session chidionyema-b0 reviewing crew#187 on 2026-08-24, measured: a fence
+    opening with `# prove it fails` counted 0 transcripts where 1 was correct, and two fences
+    whose second opened `# must fail` counted 1 where 2 was correct. It predates that PR.
+
+    The fence markers themselves are left in place so FENCE still finds the blocks.
+    """
+    out, inside = [], False
+    for line in text.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            inside = not inside
+            out.append(line)
+            continue
+        out.append(" " * (len(line) - 1) + "\n" if inside and line.endswith("\n")
+                   else " " * len(line) if inside else line)
+    return "".join(out)
+
+
 def section_end(tail: str, level: int):
-    """Index where a section opened at `level` ends, or None if it runs to the end."""
-    for m in re.finditer(r"^(#{1,6})\s+\S", tail, re.M):
+    """Index where a section opened at `level` ends, or None if it runs to the end.
+
+    Headings are looked for in a fence-masked copy so that code, command output and shell
+    comments cannot close the section they are the evidence for.
+    """
+    for m in re.finditer(r"^(#{1,6})\s+\S", mask_fences(tail), re.M):
         if len(m.group(1)) <= level:
             return m.start()
     return None
@@ -1040,6 +1070,23 @@ def selftest_evidence_section() -> int:
                                   + "x" * TRANSCRIPT_MIN_CHARS + "\n```\n"), 1)
     check_one("a fence shorter than the floor does not count",
               transcript_evidence("## Verification evidence\n\n```\nok\n```\n"), 0)
+    # crew#187 review, session chidionyema-b0. A heading-shaped line INSIDE a fence is
+    # evidence, not a heading. Every both-ways proof in this estate opens a fence with a
+    # shell comment, and at column 0 that is a level-1 heading to a raw scan.
+    body_pad = "y" * (TRANSCRIPT_MIN_CHARS + 5)
+    check_one("a shell comment opening a fence does not end the section",
+              transcript_evidence("## Verification evidence\n\n```\n# prove it fails\n"
+                                  + body_pad + "\n```\n"), 1)
+    check_one("a second fence opening with a comment still counts",
+              transcript_evidence("## Verification evidence\n\n```\n" + body_pad + "\n```\n"
+                                  "```\n# must fail\n" + body_pad + "\n```\n"), 2)
+    check_one("a markdown heading inside command output does not end the section",
+              transcript_evidence("## Verification evidence\n\n```\n$ cat README.md\n"
+                                  "## Install\n" + body_pad + "\n```\n"), 1)
+    check_one("a real heading after a fence still ends the section",
+              transcript_evidence("## Verification evidence\n\n```\n# a comment\n"
+                                  + body_pad + "\n```\n## Options considered\n\n```\n"
+                                  + body_pad + "\n```\n"), 1)
     print(f"selftest-evidence-section: {len(ran) - len(fails)}/{len(ran)} passed")
     return 1 if fails else 0
 

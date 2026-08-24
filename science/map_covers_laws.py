@@ -17,18 +17,57 @@ import json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAP  = os.path.join(HERE, "enforcement-map.json")
-LAWS = os.path.expanduser("~/AGENTS.md")
+#: The laws do not always live in one file. At 03:37 on 2026-08-24 a session split
+#: them: ~/AGENTS.md kept the table and the working rules, and the 42 law bodies
+#: moved to ~/AGENTS-FULL.md, which cut about 80 KB off every session's injected
+#: context. That is a good change and this file broke on it within the hour,
+#: exiting 1 with "NO LAW HEADINGS FOUND" and taking G1, the law-coverage metric,
+#: down with it. Naming one path was the defect. Ask which file actually holds the
+#: bodies rather than assuming, and say which one was read.
+LAW_FILES = [os.path.expanduser(p) for p in ("~/AGENTS.md", "~/AGENTS-FULL.md")]
+
+HEADING = re.compile(r"^#+\s*LAW (\d+)\s*[—-]\s*(.+)$", re.M)
 
 
 def titles(path):
     #: `#+`, not `#`. For a few minutes on 2026-08-23 the headings were `##` and
     #: this file read zero laws, which made every entry look like an orphan and
     #: buried the real change under the noise.
-    return dict(re.findall(r"^#+\s*LAW (\d+)\s*[—-]\s*(.+)$",
-                           open(path, encoding="utf-8").read(), re.M))
+    try:
+        return dict(HEADING.findall(open(path, encoding="utf-8").read()))
+    except OSError:
+        return {}
+
+
+def law_source():
+    """The file that actually carries the law bodies, and its titles.
+
+    Whichever candidate yields the most headings wins, so a split, a rename or a
+    move back into one file all keep working without an edit here. Returning zero
+    from every candidate is a real finding and stays a hard failure.
+    """
+    best = ("", {})
+    for p in LAW_FILES:
+        t = titles(p)
+        if len(t) > len(best[1]):
+            best = (p, t)
+    return best
 
 
 SNAPSHOT = os.path.expanduser("~/.claude/AGENTS.snapshot.md")
+
+
+def snapshot_for(path):
+    """The tracked copy that should hold this law file.
+
+    `~/AGENTS.md` keeps its historical snapshot name so the existing sync and the
+    git history that goes with it are untouched. Anything else takes its own
+    basename, so `~/AGENTS-FULL.md` wants `~/.claude/AGENTS-FULL.snapshot.md`.
+    """
+    if os.path.abspath(path) == os.path.expanduser("~/AGENTS.md"):
+        return SNAPSHOT
+    stem = os.path.basename(path)[:-3] if path.endswith(".md") else os.path.basename(path)
+    return os.path.expanduser(f"~/.claude/{stem}.snapshot.md")
 
 
 def laws_commit_now():
@@ -51,11 +90,13 @@ def laws_commit_now():
 def main():
     m = json.load(open(MAP))
     entries = m["laws"]
-    now = {int(k): v.strip() for k, v in titles(LAWS).items()}
+    laws_path, raw = law_source()
+    now = {int(k): v.strip() for k, v in raw.items()}
     if not now:
-        print(f"NO LAW HEADINGS FOUND in {LAWS}. The parser and the file "
-              f"disagree; fix the parser before trusting any count below.")
+        print(f"NO LAW HEADINGS FOUND in any of {', '.join(LAW_FILES)}. The parser "
+              f"and the files disagree; fix the parser before trusting any count below.")
         return 1
+    print(f"laws read from {laws_path}  ({len(now)} laws)")
 
     live    = [e for e in entries if e.get("law") is not None]
     retired = [e for e in entries if e.get("law") is None]
@@ -76,12 +117,25 @@ def main():
 
     #: A copy is not the thing. If the sync that writes the snapshot stops, the
     #: laws leave version control and nothing goes red, so say it here.
-    try:
-        same = open(SNAPSHOT, encoding="utf-8").read() == open(LAWS, encoding="utf-8").read()
-    except OSError:
-        same = False
-    if not same:
-        print(f"TRACKED COPY IS STALE    : {SNAPSHOT} differs from {LAWS}")
+    #:
+    #: Every law file gets its own check, not just the one the injector reads.
+    #: Measured 2026-08-24 03:37: the split moved all 42 law bodies into
+    #: ~/AGENTS-FULL.md, no repository held that file, and this check stayed quiet
+    #: because it only ever looked at ~/AGENTS.md. A missing snapshot is a louder
+    #: finding than a stale one and is reported as its own line (LAW 24).
+    for path in LAW_FILES:
+        if not os.path.exists(path):
+            continue
+        snap = snapshot_for(path)
+        if not os.path.exists(snap):
+            print(f"LAWS NOT IN VERSION CONTROL : {path} has no tracked copy at {snap}")
+            continue
+        try:
+            same = open(snap, encoding="utf-8").read() == open(path, encoding="utf-8").read()
+        except OSError:
+            same = False
+        if not same:
+            print(f"TRACKED COPY IS STALE    : {snap} differs from {path}")
 
     was_sha = (m.get("laws_commit") or {}).get("sha", "")
     now_sha = laws_commit_now()
@@ -89,7 +143,7 @@ def main():
         print(f"laws moved since the map : written against {was_sha[:7]}, "
               f"tracked copy is now {now_sha[:7]}")
 
-    print(f"laws in AGENTS.md        : {len(now)}")
+    print(f"laws found               : {len(now)}")
     print(f"checks in the map        : {len(live)} bound to a law, {len(retired)} retired to a machine")
     print(f"laws with at least one   : {len(covered & set(now))}")
     if missing:

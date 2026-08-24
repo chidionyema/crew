@@ -420,6 +420,42 @@
    "check": "a commit touches a shared path and references no open crew issue",
    "state": "absent",
    "guards": []
+  },
+  {
+   "rule": "define-done-before-you-start",
+   "was": null,
+   "law": 33,
+   "id": 33,
+   "law_title": "DEFINE DONE BEFORE YOU START, IN COMMANDS",
+   "verdict": "mechanical",
+   "where": "GitHub Actions: pull_request",
+   "check": "PR template's DoD boxes are commands (crew qa, pr-evidence check --pr <n>, Author-session/Reviewed-by + REVIEW: comment), and review-gate.yml fails the PR until they resolve",
+   "state": "live",
+   "guards": []
+  },
+  {
+   "rule": "a-law-without-a-protocol",
+   "was": null,
+   "law": 44,
+   "id": 44,
+   "law_title": "A law without a protocol is a wish",
+   "verdict": "mechanical",
+   "where": "GitHub Actions: pull_request",
+   "check": "review-gate.yml is the protocol: it fails closed on any gh api error and refuses a PR with no Author-session/Reviewed-by pair and no matching REVIEW: comment",
+   "state": "live",
+   "guards": []
+  },
+  {
+   "rule": "never-reinvent-the-wheel",
+   "was": null,
+   "law": 43,
+   "id": 43,
+   "law_title": "Never reinvent the wheel and do a worse job",
+   "verdict": "mechanical",
+   "where": "pr-evidence.py check",
+   "check": "pr-evidence.py's Options-considered gate fails a PR body with no '## Options considered' heading, fewer than 2 real bullets, or no Chosen: line naming what was picked over a researched off-the-shelf option",
+   "state": "live",
+   "guards": []
   }
  ],
  "sections": [

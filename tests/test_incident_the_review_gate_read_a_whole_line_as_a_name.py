@@ -27,12 +27,33 @@ its own header and prints that exact example in the failure message, so refusing
 comment that ignores the printed contract is the gate working. Two accepted shapes for
 one thing is how the next session gets it wrong.
 
-These tests do not re-implement the gate. They read the two `grep -Po` patterns and the
-`bad_name()` patterns out of `.github/workflows/review-gate.yml` and run them, so a
-workflow edit that breaks them fails here instead of passing against a stale copy.
+Second incident, found by chidionyema-03 reviewing the fix above and fixed in the same PR
+because the hole opens the moment the narrowing merges. Taking one token made the parse
+strictly more accepting, and the body it reads has no notion of a code fence:
+
+    body line  5   Reviewed-by: chidionyema-03 -- KEEP, ...     <- quoted, inside a fence
+    body line 71   Reviewed-by: <fill in>                       <- the actual field
+
+`head -1` takes line 5. Measured against the real API on PR #160: author_session=code-3a,
+reviewed_by=chidionyema-03, both accepted, not equal, one matching REVIEW: comment. Every
+branch green with the field unfilled. Under the old `\\S.*$` the quoted line yielded a
+sentence that named no session, so the gate failed closed by accident; the narrowing
+removed the accident that was holding the case shut.
+
+The class is not "someone quoted an example". It is **a field read by scanning a whole
+document for the first line that looks like it**, which cannot tell the field from a
+mention of the field -- and every future PR against this workflow mentions it. The gate
+now refuses a body carrying more than one of either line rather than guessing which is
+which; two spaces of indent on the quoted one is the author's way out (LAW 38).
+
+These tests do not re-implement the gate. They read the two `grep -Po` patterns, the
+`bad_name()` patterns and the whole `dup_field()` function out of
+`.github/workflows/review-gate.yml` and run them, so a workflow edit that breaks them
+fails here instead of passing against a stale copy.
 
 Rung 4.
 """
+import os
 import pathlib
 import re
 import shutil
@@ -110,6 +131,70 @@ def _rejected_by_bad_name(name: str) -> bool:
         if "M" in r.stdout:
             return True
     return False
+
+
+def _refused_as_duplicate(body: str, field: str) -> bool:
+    """Run the workflow's own `dup_field()` over a body, in bash, as the gate runs it.
+
+    The function is lifted out of the YAML and executed rather than re-implemented in
+    Python: a copy here would agree with itself after the workflow drifted. It needs no
+    perl, because `^Author-session:` is a plain anchored literal that BSD grep handles,
+    so unlike the PCRE tests above these two run on every machine.
+    """
+    parts = _workflow_text().split("dup_field() {", 1)
+    assert len(parts) == 2, (
+        "no `dup_field()` in the workflow, so nothing stops a quoted example from being "
+        "read as the field")
+    src = parts[1].split("\n          }", 1)[0]
+    #: A printed mark, not the exit status, for the reason given in `_rejected_by_bad_name`.
+    script = f'body="$BODY"\ndup_field() {{{src}\n}}\nif dup_field "$1"; then echo DUP; fi'
+    r = subprocess.run(["bash", "-c", script, "bash", field],
+                       env={**os.environ, "BODY": body},
+                       capture_output=True, text=True, check=False)
+    assert r.returncode == 0, f"the lifted dup_field did not run:\n{r.stderr}"
+    return "DUP" in r.stdout
+
+
+def test_incident_a_quoted_example_field_does_not_satisfy_the_gate():
+    """PR #160's own body, reduced. The quoted example must not be read as the field.
+
+    This is the regression the narrowing above introduces and does not inherit. Under the
+    old `\\S.*$` the quoted line yielded a whole sentence, which named no session, so the
+    gate failed closed by accident; taking one token turns that same line into a valid
+    reviewer while the real field two screens below still says `<fill in>`. Found by
+    chidionyema-03 reviewing #160, and reproduced here against the real body shape.
+    """
+    body = ("Fixes the parse. On #156 the gate read:\n"
+            "```\n"
+            "Reviewed-by: chidionyema-03 -- KEEP, non-author, comment 5393770837.\n"
+            "```\n"
+            "\n"
+            "Author-session: code-3a\n"
+            "Reviewed-by: <fill in>\n")
+
+    assert _extract("reviewed_by", body) == "chidionyema-03", (
+        "the premise of this test has changed: the parse no longer reaches the quoted "
+        "line at all, so the duplicate check below is guarding nothing")
+    assert _refused_as_duplicate(body, "Reviewed-by"), (
+        "a body carrying a quoted `Reviewed-by:` example and an unfilled real field is "
+        "accepted, so any PR documenting this gate reviews itself by quotation")
+
+
+def test_a_body_with_one_of_each_field_is_not_refused():
+    """The paired control. Refusing two of a field must not have become refusing one.
+
+    Measured on the six most recent PRs when this landed: #137, #149, #154, #156 and #159
+    carry at most one of each line and must stay mergeable.
+    """
+    body = "Author-session: code-3a\nReviewed-by: chidionyema-03\n"
+
+    assert not _refused_as_duplicate(body, "Reviewed-by")
+    assert not _refused_as_duplicate(body, "Author-session")
+    #: And the indent an author is told to apply must actually work, or the failure
+    #: message sends them somewhere that does not fix it.
+    indented = "  Reviewed-by: quoted-example\n" + body
+    assert not _refused_as_duplicate(indented, "Reviewed-by"), (
+        "the two-space indent the FAIL message prescribes does not clear the refusal")
 
 
 @needs_perl

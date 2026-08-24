@@ -99,6 +99,35 @@ jobs:
           author_session=$(printf '%s\n' "$body" | grep -Po '^Author-session:\s*\K\S+' | head -1 || true)
           reviewed_by=$(printf '%s\n' "$body" | grep -Po '^Reviewed-by:\s*\K\S+' | head -1 || true)
 
+          # One occurrence per field, or refuse. `head -1` picks the first match in the
+          # WHOLE body, and this parse has no notion of a code fence, so a PR that quotes
+          # the contract in an example satisfies the gate by quotation while its real
+          # field below still reads `<fill in>`. Measured on PR #160, 2026-08-24: the
+          # quoted line at body line 5 was taken as the reviewer and the actual field at
+          # line 71 was never read. Every future PR against this file quotes this
+          # contract, so that is the normal case here and not a freak body.
+          #
+          # Narrowing the name parse to one token is what opened it. Under the old
+          # `\S.*$` the quoted line yielded a whole sentence, which named no session, and
+          # the gate failed closed by accident. Found by chidionyema-03 reviewing #160.
+          #
+          # Refuse the ambiguity rather than guess which line is the field: a body with
+          # two candidates does not say which one the author meant, and picking either
+          # one is the bug again with a different index. The cost to a legitimate author
+          # is two spaces of indent on the quoted example, which takes it out of `^`.
+          # Measured across the six most recent PRs: refuses 1 (#160, this one), permits
+          # #137, #149, #154, #156 and #159.
+          dup_field() {
+            n=$(printf '%s\n' "$body" | grep -c "^$1:" || true)
+            [ "${n:-0}" -gt 1 ]
+          }
+          for f in Author-session Reviewed-by; do
+            if dup_field "$f"; then
+              echo "FAIL: the PR body has more than one line beginning '$f:'. This gate cannot tell the field from a quoted example, so it refuses instead of guessing. Indent the quoted one by two spaces to take it out of the match." >&2
+              exit 1
+            fi
+          done
+
           bad_name() {
             # empty, the unfilled "<...>" template placeholder, or the literal
             # word "author" (case-insensitive) -- none of those name a session.

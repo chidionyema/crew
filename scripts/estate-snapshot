@@ -16,6 +16,7 @@ healthy estate must never look the same (LAW 31).
 from __future__ import annotations
 
 import datetime as dt
+import json
 import pathlib
 import re
 import subprocess
@@ -131,6 +132,46 @@ def spend() -> list[str]:
             "(`spend_daily`, %s) |" % (state, rate, cap, db.name)]
 
 
+def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
+    """Tell the lane that owns a strand, once a day, on the channel it already reads.
+
+    A RED row on a page is pull, and the session that stranded the work never pulls.
+    The estate board is injected into every session at prompt time, so a row here
+    reaches the owning lane without anyone polling (crew #97 phase 2a). One row per
+    repo per day; the dedup key is the repo name before the colon.
+    """
+    board = HOME / ".claude/ESTATE_BOARD.jsonl"
+    caster = HOME / ".claude/scripts/estate-broadcast.py"
+    if not caster.exists():
+        return
+    try:
+        seen = set()
+        cutoff = now - 24 * 3600
+        lines = board.read_text().splitlines()[-500:] if board.exists() else []
+        for line in lines:
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if row.get("from") != "estate-delivery" or row.get("kind") != "stranded":
+                continue
+            try:
+                ts = dt.datetime.fromisoformat(
+                    str(row.get("ts") or row.get("timestamp")).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if ts.timestamp() >= cutoff:
+                seen.add(str(row.get("message", "")).split(":", 1)[0])
+        for n, oldest, _dirty, name in per_repo:
+            if n and oldest > 1.0 and name not in seen:
+                sh("python3 '%s' --from estate-delivery --kind stranded --message "
+                   "'%s: %d commits on no remote, oldest %.1fd. Push the branch or say "
+                   "on crew #97 why it must stay local.'" % (caster, name, n, oldest),
+                   timeout=20)
+    except OSError:
+        pass
+
+
 def delivery() -> list[str]:
     """What the fleet shipped against what it stranded.
 
@@ -169,6 +210,8 @@ def delivery() -> list[str]:
         if cts or dirty:
             oldest = (now - min(cts)) / 86400 if cts else 0.0
             per_repo.append((len(cts), oldest, dirty, d.name))
+
+    _broadcast_strands(per_repo, now)
 
     stranded = sum(r[0] for r in per_repo)
     oldest = max((r[1] for r in per_repo), default=0.0)

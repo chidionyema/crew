@@ -11,21 +11,28 @@ Closes #
 
 Verifies: #<issue> CP<n> CP<n>
 
-<!-- Filled in by whoever reviews this diff, not by the author. review-gate.yml
-     (crew#105) refuses to go green without this line naming a real person or
-     session, and without a `REVIEW:` comment or review on this PR from that
-     same login. Leave the placeholder in place and the gate fails on purpose. -->
+<!-- Both filled in before review-gate.yml can pass. Every session on this
+     estate shares one GitHub login, so the gate cannot tell reviewer from
+     author by login -- it reads these two self-declared session names
+     instead and requires them to differ. `Author-session` is filled by
+     whoever opens this PR; `Reviewed-by` is filled by whoever reviews it,
+     not by the author. Leave a placeholder in place and the gate fails on
+     purpose. -->
 
-Reviewed-by: <name or session, not "author">
+Author-session: <name of the session opening this PR>
+Reviewed-by: <name of the session reviewing it, not "author", not the same as Author-session>
 
 ## Definition of done — crew#105, each line a command run against THIS pr
 
 - [ ] `crew qa` is green on this PR's head commit (the `crew qa` check below)
 - [ ] `pr-evidence check --pr $(gh pr view --json number -q .number)` exits 0
       (screenshot committed, Options considered section, provider coupling)
-- [ ] `review-gate` (this repo's check for this PR) is green: a `Reviewed-by:`
-      line above naming a non-author session or person, AND a `REVIEW:`
-      comment or formal review on this PR from that same login
+- [ ] `review-gate` (this repo's check for this PR) is green: `Author-session`
+      and `Reviewed-by` above name two different sessions, AND a `REVIEW:`
+      comment or formal review on this PR names the same session as
+      `Reviewed-by` (e.g. `REVIEW: <findings> — session <name>`). Session
+      names are self-declared, not authenticated -- this proves process was
+      followed, not identity.
 - [ ] For a feature (not a fix/chore): the demo and onboarding doc named in
       the LAW 32 pre-push hook are present in this diff
 - [ ] Merged only after every line above is green — not before

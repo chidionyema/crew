@@ -9,22 +9,42 @@
 # cannot take crew-qa.yml down with it. This file adds a new workflow only -- no line
 # of crew-qa.yml is touched.
 #
+# IDENTITY IS THE SESSION, NOT THE GITHUB LOGIN. Every session on this estate pushes
+# and comments as the one GitHub login this repo has -- `gh api collaborators`
+# returns exactly one login, `chidionyema`, measured before this fix was written.
+# The first version of this file compared `.user.login` between the PR author and
+# the reviewer, which can never differ on this repo: it would have blocked every
+# pull request forever, which is the LAW 38 outage ("a guard that refuses correct
+# work is an outage"). Fixed the same day it was caught, before merge. Identity here
+# is a self-declared session name in two PR-body lines instead: `Author-session:`
+# and `Reviewed-by:`, which must name two different sessions, plus a `REVIEW:`
+# comment or review naming the same session as `Reviewed-by:`.
+#
+# HONEST LIMIT. Session names are self-declared text in a PR body and a comment,
+# not an authenticated identity -- nothing here cryptographically proves the named
+# session is who posted the `REVIEW:` comment, only that someone typed the name.
+# This gate proves the PROCESS was followed (two named sessions, one comment tying
+# them together), not identity. The transcript corpus is the audit trail for
+# identity, if that is ever disputed -- this gate does not attempt to replace it.
+#
 # FAIL-CLOSED, NOT FAIL-OPEN. PR #99 shipped a fallback that treated a `gh api` error
 # as "no review found yet, therefore pass," and a red PR merged the same day on that
-# fallback. Every branch below that cannot prove BOTH conditions -- a named
-# `Reviewed-by:` line and a `REVIEW:` comment or formal review from a login other
-# than the author -- exits 1. `set -euo pipefail` means a `gh api` error, a bad
-# token, or a rate limit ends the job non-zero; there is no code path here that reads
-# an error or an empty result as a pass.
+# fallback. Every branch below that cannot prove BOTH conditions exits 1.
+# `set -euo pipefail` means a `gh api` error, a bad token, or a rate limit ends the
+# job non-zero; there is no code path here that reads an error or an empty result as
+# a pass.
 #
 ## How this gate can fail
 #
-# 1. The PR body has no line matching `^Reviewed-by: (?!.*author)\S.*$` -- either the
-#    line is missing, or the name after the colon still contains the literal word
-#    "author" (the unfilled placeholder), or there is no name at all.
+# 1. The PR body is missing an `Author-session: <name>` line, is missing a
+#    `Reviewed-by: <name>` line, either line is empty or still the unfilled
+#    `<...>` template placeholder, either name is literally "author", or the two
+#    names are the same (case-insensitive) -- no self-review by typing two labels
+#    for one session.
 # 2. No comment on the issue thread and no formal review on the PR contains the
-#    literal string "REVIEW:" posted by a login that differs from the PR author's own
-#    login. A comment from the author, however long, does not count.
+#    literal string "REVIEW:" together with the word "session" followed by the
+#    same name that appears on the `Reviewed-by:` line, case-insensitive
+#    (`REVIEW: <findings> — session <name>` is the documented shape).
 # 3. `gh api` itself fails for any reason -- network, auth, rate limit, a renamed
 #    endpoint. `set -euo pipefail` turns that failure into job failure; there is no
 #    try/fallback that lets an unreadable API answer through as a pass.
@@ -55,30 +75,62 @@ jobs:
   review-gate:
     runs-on: ubuntu-latest
     steps:
-      - name: "Reviewed-by line and a REVIEW: mark from someone other than the author"
+      - name: "Two named sessions in the PR body, plus a REVIEW: comment naming the reviewer"
         run: |
           set -euo pipefail
 
-          author=$(gh pr view "$PR" --repo "$REPO" --json author -q '.author.login')
           body=$(gh pr view "$PR" --repo "$REPO" --json body -q '.body // ""')
 
-          if ! printf '%s\n' "$body" | grep -Pq '^Reviewed-by: (?!.*author)\S.*$'; then
-            echo "FAIL: no 'Reviewed-by: <name>' line in the PR body (missing, empty, or still the 'author' placeholder)." >&2
+          # Pull the value after the colon on the first matching line. `|| true`
+          # absorbs grep's own exit 1 on no-match under `pipefail` -- an empty
+          # variable is what "no line" looks like, and that is checked below
+          # explicitly rather than by letting the script die on grep's exit code.
+          author_session=$(printf '%s\n' "$body" | grep -Po '^Author-session:\s*\K\S.*$' | head -1 | sed -E 's/[[:space:]]+$//' || true)
+          reviewed_by=$(printf '%s\n' "$body" | grep -Po '^Reviewed-by:\s*\K\S.*$' | head -1 | sed -E 's/[[:space:]]+$//' || true)
+
+          bad_name() {
+            # empty, the unfilled "<...>" template placeholder, or the literal
+            # word "author" (case-insensitive) -- none of those name a session.
+            [ -z "$1" ] && return 0
+            printf '%s' "$1" | grep -Pq '^<.*>$' && return 0
+            printf '%s' "$1" | grep -Piq '^author$' && return 0
+            return 1
+          }
+
+          if bad_name "$author_session"; then
+            echo "FAIL: no usable 'Author-session: <name>' line in the PR body (missing, empty, still the '<...>' placeholder, or literally 'author')." >&2
+            exit 1
+          fi
+          if bad_name "$reviewed_by"; then
+            echo "FAIL: no usable 'Reviewed-by: <name>' line in the PR body (missing, empty, still the '<...>' placeholder, or literally 'author')." >&2
+            exit 1
+          fi
+
+          author_lc=$(printf '%s' "$author_session" | tr '[:upper:]' '[:lower:]')
+          reviewer_lc=$(printf '%s' "$reviewed_by" | tr '[:upper:]' '[:lower:]')
+          if [ "$author_lc" = "$reviewer_lc" ]; then
+            echo "FAIL: Author-session and Reviewed-by name the same session ('$reviewed_by'). No self-review." >&2
             exit 1
           fi
 
           comments=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --slurp | jq 'add // []')
           reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate --slurp | jq 'add // []')
 
-          hit=$(jq -n --arg author "$author" --argjson c "$comments" --argjson r "$reviews" '
+          # Regex-escape the reviewer's name so it can sit inside a PCRE pattern
+          # literally -- a name with a "." or "(" in it must not be read as regex
+          # syntax.
+          name_re=$(printf '%s' "$reviewed_by" | sed -E 's/[][\.^$*+?(){}|\\]/\\&/g')
+
+          hit=$(jq -n --argjson c "$comments" --argjson r "$reviews" --arg namere "$name_re" '
             ($c + $r)
-            | map(select((.body // "") | contains("REVIEW:")))
-            | map(select((.user.login // "") != $author))
+            | map(.body // "")
+            | map(select(contains("REVIEW:")))
+            | map(select(test("session[^A-Za-z0-9]{0,12}" + $namere; "i")))
             | length')
 
           if [ "$hit" -lt 1 ]; then
-            echo "FAIL: no issue comment or review contains 'REVIEW:' from a login other than $author." >&2
+            echo "FAIL: no issue comment or review contains 'REVIEW:' together with 'session $reviewed_by' (e.g. 'REVIEW: <findings> — session $reviewed_by')." >&2
             exit 1
           fi
 
-          echo "PASS: Reviewed-by line present; $hit REVIEW: comment(s)/review(s) from a login other than $author."
+          echo "PASS: Author-session '$author_session' != Reviewed-by '$reviewed_by'; $hit REVIEW: comment(s)/review(s) naming session '$reviewed_by'."

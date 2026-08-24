@@ -63,13 +63,18 @@ exit 0
 CONTROL = CANARY.replace('in *.py)', 'in (*.py)')
 
 
-def _old_bash() -> str | None:
-    """The oldest bash on this machine, or None.
+def _old_bash() -> str:
+    """Path to bash 3.x on this machine, or "" if there is none.
 
     The incident is specific to bash 3.2. On a box that has no bash 3.x -- every Linux
     runner, including this repo's CI -- there is nothing to reproduce, so these tests skip
     rather than pass. A skip says "not checked here"; a pass would say "checked, fine",
     which is the lie that let this ship.
+
+    Returns "" rather than None so callers need no narrowing to pass the result straight to
+    subprocess. `pytest.skip` is a NoReturn in principle, but pyright did not narrow through
+    it here and produced five errors that only CI saw, so the type carries the guarantee
+    instead of the control flow.
     """
     for candidate in ("/bin/bash",):
         if not shutil.which(candidate):
@@ -79,7 +84,7 @@ def _old_bash() -> str | None:
         ).stdout
         if "version 3." in out:
             return candidate
-    return None
+    return ""
 
 
 @pytest.fixture()
@@ -111,7 +116,7 @@ def _run(root: Path, body: str, bash: str) -> subprocess.CompletedProcess[str]:
 
 def test_a_gate_that_cannot_parse_itself_does_not_report_pass(gate_dir: Path) -> None:
     bash = _old_bash()
-    if bash is None:
+    if not bash:
         pytest.skip("no bash 3.x here, so the parse failure cannot be reproduced")
 
     got = _run(gate_dir, CANARY, bash)
@@ -131,7 +136,7 @@ def test_the_gate_still_exits_zero_by_itself(gate_dir: Path) -> None:
     of superstition.
     """
     bash = _old_bash()
-    if bash is None:
+    if not bash:
         pytest.skip("no bash 3.x here, so the parse failure cannot be reproduced")
 
     gate = gate_dir / "scripts" / "verify.d" / "99-canary.sh"
@@ -145,7 +150,7 @@ def test_the_gate_still_exits_zero_by_itself(gate_dir: Path) -> None:
 def test_a_gate_that_parses_is_still_allowed_to_pass(gate_dir: Path) -> None:
     """The must-permit half, in the same file as the must-refuse half."""
     bash = _old_bash()
-    if bash is None:
+    if not bash:
         pytest.skip("no bash 3.x here, so the parse failure cannot be reproduced")
 
     got = _run(gate_dir, CONTROL, bash)
@@ -164,7 +169,7 @@ def test_a_gate_reporting_another_files_syntax_error_is_not_caught_by_it(gate_di
     in the same output is ignored.
     """
     bash = _old_bash()
-    if bash is None:
+    if not bash:
         pytest.skip("no bash 3.x here, so the parse failure cannot be reproduced")
 
     broken = gate_dir / "someone-elses-file.sh"

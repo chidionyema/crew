@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-24 04:02 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-24 06:28 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -11,17 +11,16 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | The Architect | RED | `bin/verify`: 16 passed, 2 failed |
 | &nbsp;&nbsp;failing | | FAIL  README describes what ships        docs/demo/claim-gate.md is in the repo, and the README never says why |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         5b4e0af927 (want 252efcbc2e) |
-| maestro | GREEN | last cycle 5 min ago (`INTENT-20260824-035258-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 0 min ago (`INTENT-20260824-052940-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
-| Fly | 2 deployed, 12 suspended | `flyctl apps list` |
-| estate spend | RED | $819/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
-| delivery | RED | 15 commits on no remote (oldest 3.6d), 43 dirty files, 8 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 295 merged | non-bot PRs merged across the estate in 7d, ~$19 of estate spend per shipped change (`gh search prs`) |
-| &nbsp;&nbsp;stranded | crew | 11 commits no remote holds, oldest 1.8d, 9 dirty |
-| &nbsp;&nbsp;stranded | prospector-main | 2 commits no remote holds, oldest 3.6d, 2 dirty |
-| &nbsp;&nbsp;stranded | scripts | 2 commits no remote holds, oldest 0.2d, 4 dirty |
-| founder cost | GREEN | 4261 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
-| collectors | RED | 2 of the estate's data stores stopped being written: job_timelines silent 62h; would_have_fired silent 54h |
+| Fly | 3 deployed, 11 suspended | `flyctl apps list` |
+| estate spend | RED | $824/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
+| delivery | RED | 13 commits on no remote (oldest 1.9d), 50 dirty files, 8 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 298 merged | non-bot PRs merged across the estate in 7d, ~$19 of estate spend per shipped change (`gh search prs`) |
+| &nbsp;&nbsp;stranded | crew | 11 commits no remote holds, oldest 1.9d, 3 dirty |
+| &nbsp;&nbsp;stranded | scripts | 2 commits no remote holds, oldest 0.3d, 4 dirty |
+| founder cost | GREEN | 4269 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
+| collectors | RED | 2 of the estate's data stores stopped being written: job_timelines silent 64h; would_have_fired silent 57h |
 | crew P1 | 10 open | the fires nobody has put out |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |
 | &nbsp;&nbsp;#78 Decommission Fly, move to Kubernetes — architecture decision, scope not yet defined | | |

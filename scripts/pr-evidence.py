@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -43,9 +42,10 @@ class Fail(Exception):
 
 def run(args, timeout: int = 90, **kw):
     try:
-        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout, **kw)
-    except subprocess.TimeoutExpired:
-        raise Fail(f"{args[0]} did not finish inside {timeout}s")
+        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
+                           check=False, **kw)
+    except subprocess.TimeoutExpired as e:
+        raise Fail(f"{args[0]} did not finish inside {timeout}s") from e
     if p.returncode != 0:
         raise Fail(f"{args[0]} failed ({p.returncode}): {(p.stderr or p.stdout).strip()[:400]}")
     return p.stdout
@@ -176,7 +176,7 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
             shutil.copyfile(src, dest / name)
         links.append(f"docs/evidence/pr-{n}/{name}")
 
-    run(["git", "add", *[str(dest / Path(l).name) for l in links]], cwd=root)
+    run(["git", "add", *[str(dest / Path(rel).name) for rel in links]], cwd=root)
     # Nothing staged means an earlier run already committed these exact bytes and only
     # its push failed. That is the ordinary retry, not an error, and `git commit` with
     # an empty index exits 1 and would abort the retry before it reached the push.
@@ -195,8 +195,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
         return f"https://github.com/{slug}/blob/{branch}/{rel}?raw=1"
     # The image inlines on a public repo. On a private one GitHub cannot fetch it
     # without the viewer's token, so the link beside it is what actually works.
-    rows = "\n".join(f"| {caption} | ![{Path(l).name}]({url_for(l)}) | [open]({url_for(l)}) |"
-                     for l in links)
+    rows = "\n".join(f"| {caption} | ![{Path(rel).name}]({url_for(rel)}) | [open]({url_for(rel)}) |"
+                     for rel in links)
     block = (f"{MARKER}\n{SECTION}\n\n"
              f"| what it proves | image | link |\n|---|---|---|\n{rows}\n{END}\n")
     if MARKER in body:
@@ -249,13 +249,13 @@ def options_considered(body: str) -> tuple:
             if len(re.sub(r"[^A-Za-z0-9 ]", "", s)) >= OPTION_MIN_CHARS:
                 bullets.append(s)
     if len(bullets) < 2:
-        return False, ("'Options considered' lists %d real option(s), needs 2. A bullet under %d "
-                       "characters does not count as an option that was weighed"
-                       % (len(bullets), OPTION_MIN_CHARS))
+        return False, (f"'Options considered' lists {len(bullets)} real option(s), needs 2. "
+                       f"A bullet under {OPTION_MIN_CHARS} characters does not count as an "
+                       "option that was weighed")
     if not OPTIONS_CHOSEN.search("\n".join(block)):
         return False, ("'Options considered' has no 'Chosen:' line. Two options and no verdict is "
                        "a list, not a decision")
-    return True, "%d options weighed, with a stated choice" % len(bullets)
+    return True, f"{len(bullets)} options weighed, with a stated choice"
 
 
 #: What day-0 lock-in actually looks like in a diff. Each of these names one vendor and cannot be
@@ -330,24 +330,25 @@ def provider_coupling(body: str, diff: str) -> tuple:
     hits = coupling_markers(diff)
     if not hits:
         return True, "adds no new provider coupling"
-    what = ", ".join(sorted({"%s in %s" % (k, f) for k, f, _ in hits}))
-    if not COUPLING_HEAD.search(body or ""):
-        return False, ("adds provider coupling (%s) with no '## Provider coupling' section. "
+    what = ", ".join(sorted({f"{k} in {f}" for k, f, _ in hits}))
+    head = COUPLING_HEAD.search(body or "")
+    if not head:
+        return False, (f"adds provider coupling ({what}) with no '## Provider coupling' section. "
                        "LAW 34: name what is coupled and add a 'Swap:' line saying what replaces "
-                       "it and how long that takes" % what)
+                       "it and how long that takes")
     block = []
-    for line in body[COUPLING_HEAD.search(body).end():].splitlines():
+    for line in body[head.end():].splitlines():
         if line.strip().startswith("#"):
             break
         block.append(line)
     joined = "\n".join(block)
     if len(re.sub(r"[^A-Za-z0-9 ]", "", joined).strip()) < OPTION_MIN_CHARS:
         return False, ("'Provider coupling' is a heading with nothing under it. Say what is "
-                       "coupled (%s) and what replaces it" % what)
+                       f"coupled ({what}) and what replaces it")
     if not COUPLING_SWAP.search(joined):
         return False, ("'Provider coupling' has no 'Swap:' line. Naming a dependency without "
                        "naming its replacement is a description, not an exit")
-    return True, "%d coupling(s) declared with a swap" % len(hits)
+    return True, f"{len(hits)} coupling(s) declared with a swap"
 
 
 #: Where a change is infra work and must name its standard. Exactly the paths crew#135 names,
@@ -402,12 +403,11 @@ def standards_line(body: str, diff: str) -> tuple:
         return True, "touches no infra path"
     for m in STANDARDS_MARK.finditer(body or ""):
         if len(re.sub(r"[^A-Za-z0-9 ]", "", m.group(2)).strip()) >= 3:
-            return True, "%s line covers %d infra file(s)" % (m.group(1).capitalize(), len(touched))
+            return True, f"{m.group(1).capitalize()} line covers {len(touched)} infra file(s)"
     what = ", ".join(sorted(touched)[:5])
-    return False, ("touches infra (%s) with no 'Standard:' or 'Deviation:' line. R7/LAW 44: add "
+    return False, (f"touches infra ({what}) with no 'Standard:' or 'Deviation:' line. R7/LAW 44: add "
                    "'Standard: <the docs/STANDARDS.md row this uses>' or 'Deviation: <what and "
-                   "why>' to the body. A deviation is allowed — stating it is the whole ask"
-                   % what)
+                   "why>' to the body. A deviation is allowed — stating it is the whole ask")
 
 
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
@@ -423,23 +423,24 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
         return False, f"#{info['number']} has an evidence section with no image in it"
     ok_opts, why_opts = options_considered(body)
     if not ok_opts:
-        return False, "#%s %s" % (info["number"], why_opts)
+        return False, "#{} {}".format(info["number"], why_opts)
     args = ["pr", "diff", pr] + (["--repo", repo] if repo else [])
     try:
         diff = gh(args)
-    except Exception:
-        # A diff we cannot fetch is not a pass. Say which check did not run, because a gate
-        # that goes quiet on its own failure is the shape LAW 28 forbids.
-        return False, "#%s: could not fetch the diff, so LAW 34 coupling was not checked" % info["number"]
+    except Exception:  # noqa: BLE001
+        # Blind on purpose, fail-closed: ANY fetch error must become a FAIL verdict, not a
+        # crash. A diff we cannot fetch is not a pass. Say which check did not run, because
+        # a gate that goes quiet on its own failure is the shape LAW 28 forbids.
+        return False, "#{}: could not fetch the diff, so LAW 34 coupling was not checked".format(info["number"])
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
-        return False, "#%s %s" % (info["number"], why_cpl)
+        return False, "#{} {}".format(info["number"], why_cpl)
     # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
-    return True, "#%s carries %d evidence image(s), %s, %s; standards (report-only): %s" % (
-        info["number"], len(imgs), why_opts, why_cpl, std)
+    return True, (f"#{info['number']} carries {len(imgs)} evidence image(s), {why_opts}, "
+                  f"{why_cpl}; standards (report-only): {std}")
 
 
 def selftest_options() -> int:
@@ -449,9 +450,9 @@ def selftest_options() -> int:
     def check_one(name, got, want):
         ran.append(name)
         if got == want:
-            print("  ok   %s" % name)
+            print(f"  ok   {name}")
         else:
-            print("  FAIL %s: got %r, want %r" % (name, got, want))
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
             fails.append(name)
 
     good = ("## Options considered\n"
@@ -516,7 +517,7 @@ def selftest_options() -> int:
                         ("underscore bold", "__Swap:__ any chat model behind providers.chat, an hour"),
                         ("bare", "Swap: any chat model behind providers.chat, an hour"),
                         ("plain bullet", "- Swap: any chat model behind providers.chat, an hour")):
-        check_one("a %s Swap line is accepted" % label,
+        check_one(f"a {label} Swap line is accepted",
                   provider_coupling("## Provider coupling\nThe tick names claude-opus-5 "
                                     "directly when it summarises the day.\n" + line + "\n",
                                     d_model)[0], True)
@@ -568,7 +569,7 @@ def selftest_options() -> int:
     check_one("deleting a docs prose file passes with nothing written",
               standards_line("no line at all", "--- a/docs/onboarding/old.md\n+++ /dev/null\n")[0],
               True)
-    print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
+    print(f"selftest-options: {len(ran) - len(fails)}/{len(ran)} passed")
     return 1 if fails else 0
 
 

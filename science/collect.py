@@ -246,7 +246,14 @@ def main() -> int:
                     help="exit 1 if any source is absent, unreadable or stale")
     args = ap.parse_args()
 
-    conn = sqlite3.connect(WAREHOUSE)
+    # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
+    # agent runs the same script by hand. Without a busy timeout the second one dies on
+    # "database is locked" mid-DELETE, which reads as a broken collector rather than as
+    # two collectors queueing. Measured 2026-08-24: exactly that, on collect.py:221.
+    # WAL additionally lets estate-snapshot read the views while a collection is writing.
+    conn = sqlite3.connect(WAREHOUSE, timeout=60)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=60000")
     conn.executescript(SCHEMA)
     report = collect(conn)
     conn.executescript(SPEND_VIEW)

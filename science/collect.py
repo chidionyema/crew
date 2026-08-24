@@ -55,13 +55,16 @@ SOURCES: dict[str, tuple[Path, str, str | None]] = {
     # did to itself. Everything above is telemetry; these are the denominator.
     "ships":          (Path(__file__).parent / "ships.jsonl",                "jsonl", "at"),
     "predictions":    (Path(__file__).parent / "predictions.jsonl",          "jsonl", "at"),
+    # The founder himself. His messages and complaints per day, derived from the
+    # directives ledger, which had 6,917 rows and no reader (LAW 28).
+    "attention":      (Path(__file__).parent / "attention.jsonl",            "jsonl", "at"),
 }
 
 # A source that has not been written inside this many hours is reported STALE.
 # The number is the source's own cadence times three, not a guess: reflect runs
 # every 4 hours, the spend collector every 10 minutes, the rest are event-driven
 # and only report stale after a full day of silence.
-STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26}
+STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26, "attention": 26}
 DEFAULT_STALE_HOURS = 48
 
 SCHEMA = """
@@ -127,6 +130,33 @@ LEFT JOIN (
     GROUP BY day
 ) p ON p.day = s.day
 ORDER BY s.day;
+
+-- What it cost HIM. The estate measured its own money and its own output and never
+-- once measured the founder, who is one of the platform's two customers (LAW 36).
+-- His messages are the effort the estate asked of him; his complaints are the
+-- platform telling on itself. Joined to spend and commits so the three move together
+-- on one row: a day that shipped more, cost less and needed fewer of his words is the
+-- only shape of "better" that means anything here.
+DROP VIEW IF EXISTS attention_daily;
+CREATE VIEW attention_daily AS
+SELECT
+    a.day,
+    a.messages,
+    a.complaints,
+    a.complaint_rate,
+    v.usd,
+    v.commits,
+    ROUND(v.commits * 1.0 / NULLIF(a.messages, 0), 2) AS commits_per_message
+FROM (
+    SELECT json_extract(payload, '$.day')            AS day,
+           MAX(json_extract(payload, '$.messages'))  AS messages,
+           MAX(json_extract(payload, '$.complaints')) AS complaints,
+           MAX(json_extract(payload, '$.complaint_rate')) AS complaint_rate
+    FROM facts WHERE source = 'attention'
+    GROUP BY day
+) a
+LEFT JOIN value_daily v ON v.day = a.day
+ORDER BY a.day;
 """
 
 

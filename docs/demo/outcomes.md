@@ -79,3 +79,45 @@ the result after the fact:
 
 n = 0 is the honest reading and it is the same one `method_metrics.json` has given
 for weeks. It changes the first time a repair predicts its cause before making it.
+
+## What it cost the founder
+
+Added 2026-08-24. The estate measured its own money and its own output and had never once
+measured the person it is for. `friction-relay.py` surfaced his complaints in a six hour
+window and kept nothing, so nobody could ask whether last week was better than this one.
+
+```
+$ python3 science/outcomes.py attention --days 6
+/Users/chidionyema/dev/code/crew/science/attention.jsonl
+day           his messages  complaints   rate
+---------------------------------------------
+2026-08-17             767         100    13%
+2026-08-18             786          69     9%
+2026-08-19             622          26     4%
+2026-08-20             735          29     4%
+2026-08-21             951          53     6%
+2026-08-23             306          19     6%
+---------------------------------------------
+TOTAL                 6917         530     8%
+
+23 days, 2026-07-28 to 2026-08-23, lexicon 43 words
+```
+
+Joined to spend and delivery, the series says something no other row on the estate could:
+
+```
+$ sqlite3 -header -column science/warehouse.db "select * from attention_daily order by day desc limit 4;"
+day         messages  complaints  complaint_rate  usd        commits  commits_per_message
+----------  --------  ----------  --------------  ---------  -------  -------------------
+2026-08-23  307       19          6.2             676.8261   159      0.52
+2026-08-21  951       53          5.6             1201.0313  325      0.34
+2026-08-18  786       69          8.8             870.0964   43       0.05
+2026-08-17  767       100         13.0            785.7976   56       0.07
+```
+
+On 17 August his complaint rate was 13% and each message he sent bought 0.07 commits. On
+23 August the rate was 6.2% and each message bought 0.52. That is a sevenfold change in
+what his words are worth, and until this view existed neither number had ever been taken.
+
+He reads it on `STATE.md` as the `founder cost` row, this week against last. He never runs
+the command.

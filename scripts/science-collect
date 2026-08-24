@@ -11,7 +11,8 @@
 # against yesterday's commit count with nothing saying so.
 #
 #   1. outcomes.py ship   collect what the estate produced (git + gh)
-#   2. collect.py --check rebuild the warehouse, exit 1 if a source is stale
+#   2. outcomes.py attention  collect what it cost the founder (his own words)
+#   3. collect.py --check rebuild the warehouse, exit 1 if a source is stale
 #
 # A non-zero exit is the point, not a failure of this script: it means a source
 # stopped being written and somebody needs to look. It lands in the .err.log and
@@ -30,8 +31,14 @@ if [ "$ship_rc" -ne 0 ]; then
   echo "                 telemetry half is not lost with the outcome half."
 fi
 
+python3 science/outcomes.py attention --days 7
+att_rc=$?
+if [ "$att_rc" -ne 0 ]; then
+  echo "science-collect: outcomes.py attention exited $att_rc"
+fi
+
 python3 science/collect.py --check
 collect_rc=$?
 
-echo "science-collect: ship=$ship_rc collect=$collect_rc"
+echo "science-collect: ship=$ship_rc attention=$att_rc collect=$collect_rc"
 exit "$collect_rc"

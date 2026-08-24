@@ -1,0 +1,84 @@
+# Review gate: LAW 44 protocol (crew#105). A pull request does not land on a green
+# QA run alone -- crew-qa.yml proves the code works, this proves a second person or
+# session looked at it. DoD item 3 in crew#105: "peer review recorded ... The
+# reviewing lane is named in the PR body."
+#
+# WHY A SIBLING FILE, NOT A JOB ADDED TO crew-qa.yml. crew-qa.yml is the QA lane a
+# green run already depends on. Editing its jobs to bolt on an unrelated check risks
+# breaking that lane; crew#105 itself orders this as a sibling file so a mistake here
+# cannot take crew-qa.yml down with it. This file adds a new workflow only -- no line
+# of crew-qa.yml is touched.
+#
+# FAIL-CLOSED, NOT FAIL-OPEN. PR #99 shipped a fallback that treated a `gh api` error
+# as "no review found yet, therefore pass," and a red PR merged the same day on that
+# fallback. Every branch below that cannot prove BOTH conditions -- a named
+# `Reviewed-by:` line and a `REVIEW:` comment or formal review from a login other
+# than the author -- exits 1. `set -euo pipefail` means a `gh api` error, a bad
+# token, or a rate limit ends the job non-zero; there is no code path here that reads
+# an error or an empty result as a pass.
+#
+## How this gate can fail
+#
+# 1. The PR body has no line matching `^Reviewed-by: (?!.*author)\S.*$` -- either the
+#    line is missing, or the name after the colon still contains the literal word
+#    "author" (the unfilled placeholder), or there is no name at all.
+# 2. No comment on the issue thread and no formal review on the PR contains the
+#    literal string "REVIEW:" posted by a login that differs from the PR author's own
+#    login. A comment from the author, however long, does not count.
+# 3. `gh api` itself fails for any reason -- network, auth, rate limit, a renamed
+#    endpoint. `set -euo pipefail` turns that failure into job failure; there is no
+#    try/fallback that lets an unreadable API answer through as a pass.
+#
+# Testing rung: none of the seven rungs in ~/AGENTS.md How-to-test fit a declarative
+# GitHub Actions workflow -- there is no unit to run offline against a fake `gh api`
+# without rebuilding gh itself as a mock, which tests the mock, not the gate. This
+# file's own first live pull request is the oracle, the same as crew-qa.yml before
+# it: this PR opens red against this gate (no reviewer exists for it yet) and that
+# red run is the proof the fail-closed branch fires, not a passing self-test.
+name: review-gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  REPO: ${{ github.repository }}
+  PR: ${{ github.event.pull_request.number }}
+
+jobs:
+  review-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Reviewed-by line and a REVIEW: mark from someone other than the author"
+        run: |
+          set -euo pipefail
+
+          author=$(gh pr view "$PR" --repo "$REPO" --json author -q '.author.login')
+          body=$(gh pr view "$PR" --repo "$REPO" --json body -q '.body // ""')
+
+          if ! printf '%s\n' "$body" | grep -Pq '^Reviewed-by: (?!.*author)\S.*$'; then
+            echo "FAIL: no 'Reviewed-by: <name>' line in the PR body (missing, empty, or still the 'author' placeholder)." >&2
+            exit 1
+          fi
+
+          comments=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --slurp | jq 'add // []')
+          reviews=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate --slurp | jq 'add // []')
+
+          hit=$(jq -n --arg author "$author" --argjson c "$comments" --argjson r "$reviews" '
+            ($c + $r)
+            | map(select((.body // "") | contains("REVIEW:")))
+            | map(select((.user.login // "") != $author))
+            | length')
+
+          if [ "$hit" -lt 1 ]; then
+            echo "FAIL: no issue comment or review contains 'REVIEW:' from a login other than $author." >&2
+            exit 1
+          fi
+
+          echo "PASS: Reviewed-by line present; $hit REVIEW: comment(s)/review(s) from a login other than $author."

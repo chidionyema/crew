@@ -114,32 +114,22 @@ def test_incident_a_python_program_without_a_py_extension_is_checked(repo):
     assert "UP031" in out, f"it opened the file and did not report its finding:\n{out}"
 
 
-@needs_tools
-def test_the_gate_on_main_was_blind_to_the_same_file(repo):
-    """The differential oracle: the same input, the version of the gate this PR replaces.
-
-    Without this, the test above proves only that the gate says something -- it could pass
-    against a gate that names every file in the repo. Run the old gate on the same input
-    and it must be silent about it. `git show` is enough; no worktree needed.
-    """
-    (repo / "estate-thing").write_text(DIRTY_PY)
-
-    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=ROOT,
-                          check=False, capture_output=True, text=True)
-    if base.returncode != 0:
-        pytest.skip("no merge base with origin/main; nothing to diff the gate against")
-    old_src = subprocess.run(
-        ["git", "show", f"{base.stdout.strip()}:scripts/verify.d/15-code-standard.sh"],
-        cwd=ROOT, check=False, capture_output=True, text=True)
-    if old_src.returncode != 0:
-        pytest.skip("the gate did not exist at the merge base")
-
-    old = repo / "old-gate.sh"
-    old.write_text(old_src.stdout)
-    out = _run(repo, gate=old).stdout
-    assert "estate-thing" not in out, (
-        "the gate at the merge base already saw this file, so this PR is not the fix it "
-        f"says it is:\n{out}")
+# `test_the_gate_on_main_was_blind_to_the_same_file` stood here and is deleted.
+#
+# It was the differential oracle for the widening: fetch the gate at
+# `git merge-base HEAD origin/main`, run it on the same input, assert it does NOT name the
+# file. That is what proved the test above was measuring the change rather than a gate that
+# names every file it sees. It did its job -- the run is on PR #149, and the committed
+# evidence image `docs/evidence/the-standard-can-see-a-script-without-py.png` keeps it.
+#
+# #149 merged as 7f1ae02, so the merge base now IS the widened gate. The oracle compares
+# the gate against itself and fails, correctly and permanently. Rung 3 in AGENTS.md says
+# it in one line: "A differential test is a migration tool, not a permanent test: delete it
+# when the old implementation goes." The old implementation is gone.
+#
+# Pinning the oracle to 2249494 instead would keep it green forever, which is the argument
+# against it: a test that cannot fail for any reason a reader would act on is a `git show`
+# on every run and an assertion about a commit nobody will edit.
 
 
 @needs_tools

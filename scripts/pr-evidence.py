@@ -213,7 +213,12 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
 
 
 OPTIONS_HEAD = re.compile(r"^\s*#{1,4}\s*options considered\s*$", re.I | re.M)
-OPTIONS_CHOSEN = re.compile(r"^\s*[-*]?\s*chosen\s*:", re.I | re.M)
+#: The verdict line. A bullet marker is optional, and so is markdown emphasis around the word,
+#: because "**Chosen:** the tick" is the way anybody writing a PR body actually types it. The
+#: old pattern was ``[-*]?\s*chosen`` which ate the first asterisk of ``**`` and then failed on
+#: the second, so a correct body was refused (measured on PR #77, 2026-08-24). LAW 38: a guard
+#: that refuses correct work is an outage, not a rough edge.
+OPTIONS_CHOSEN = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*chosen\s*:", re.I | re.M)
 
 #: A bullet has to say something. Measured on the LAW 32 gate, which had to add the same floor:
 #: a heading with nothing under it satisfies a word search and satisfies nobody reading it.
@@ -398,6 +403,16 @@ def selftest_options() -> int:
               options_considered("## Options considered\n- a\n- b\n- Chosen: a\n")[0], False)
     check_one("the section ends at the next heading",
               options_considered(good.replace("- Chosen:", "## Notes\n- Chosen:"))[0], False)
+    # A body written by a person uses markdown emphasis. Each of these is a correct decision and
+    # the gate must let it through; the refusal above proves it still says no to a missing verdict.
+    check_one("bold chosen line passes",
+              options_considered(good.replace("- Chosen:", "**Chosen:**"))[0], True)
+    check_one("bulleted bold chosen line passes",
+              options_considered(good.replace("- Chosen:", "- **Chosen:**"))[0], True)
+    check_one("underscore emphasis passes",
+              options_considered(good.replace("- Chosen:", "__Chosen:__"))[0], True)
+    check_one("bare chosen line passes",
+              options_considered(good.replace("- Chosen:", "Chosen:"))[0], True)
     # ---- LAW 34, on literal diffs. Paired controls: every refusal has a pass beside it.
     d_clean = "+++ b/scripts/tick.py\n+    total = count_rows(db)\n"
     d_model = "+++ b/scripts/tick.py\n+    MODEL = \"claude-opus-5\"\n"

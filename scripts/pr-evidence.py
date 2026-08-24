@@ -322,7 +322,19 @@ def added_evidence(diff: str, number=None) -> set:
 
 
 EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
-NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
+#: The end of the Verification evidence section is the next heading AT THE SAME OR A
+#: SHALLOWER LEVEL. It used to be the next heading of any level, which meant a body that
+#: organised its evidence under sub-headings -- `## Verification evidence` followed by
+#: `### The fix works`, `### The guard works` -- had a section zero fences long, and the
+#: gate reported "no verification evidence" over a body carrying four command transcripts.
+#: That is a guard refusing correct work, which is the outage (LAW 38). Measured on
+#: chidionyema/idp#17 on 2026-08-24: 4 transcripts in the body, gate said 0.
+def section_end(tail: str, level: int):
+    """Index where a section opened at `level` ends, or None if it runs to the end."""
+    for m in re.finditer(r"^(#{1,6})\s+\S", tail, re.M):
+        if len(m.group(1)) <= level:
+            return m.start()
+    return None
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
 #: A fence has to contain something. Set on its own terms, NOT inherited from OPTION_MIN_CHARS:
 #: an option is prose a human writes and can always make longer, while a receipt is whatever the
@@ -365,13 +377,16 @@ def transcript_evidence(body: str) -> int:
     m = EVIDENCE_SECTION.search(body or "")
     if not m:
         return 0
+    level = len(m.group(0).strip()) - len(m.group(0).strip().lstrip("#"))
     tail = body[m.end():]
     # crew#519, 2026-08-27: a transcript line `# minus /estate/mcp: ...` inside the fence read as
     # the next heading, the section ended before the closing fence, and a body with a full
     # transcript was refused. Headings are searched with the fences masked; indices are kept.
+    # idp#17, 2026-08-24 (crew#187): a sub-heading under the section does not end it; only a
+    # heading at the section's own level or shallower does.
     masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
-    nxt = NEXT_HEADING.search(masked)
-    section = tail[:nxt.start()] if nxt else tail
+    end = section_end(masked, level)
+    section = tail[:end] if end is not None else tail
     return sum(1 for block in FENCE.findall(section)
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
 
@@ -983,6 +998,52 @@ def selftest_dod() -> int:
     return 1 if fails else 0
 
 
+def selftest_evidence_section() -> int:
+    """Where the Verification evidence section ends, proved on literal bodies.
+
+    INCIDENT, chidionyema/idp#17, 2026-08-24. The section used to end at the next heading of
+    ANY level, so a body that organised its evidence under sub-headings had a section zero
+    fences long. The gate reported "no verification evidence" over four pasted command
+    transcripts, and the author's fix was to flatten correct markdown to satisfy the grader.
+    A guard that refuses correct work is the outage (LAW 38).
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    fence = "```\n" + "x" * (TRANSCRIPT_MIN_CHARS + 5) + "\n```\n"
+    flat = "## Verification evidence\n\n" + fence
+    nested = ("## Verification evidence\n\n"
+              "### The fix works\n\n" + fence +
+              "### The guard works\n\n" + fence)
+    after = "## Verification evidence\n\n" + fence + "## Options considered\n\n" + fence
+
+    check_one("a flat section counts its fence", transcript_evidence(flat), 1)
+    check_one("sub-headings do not hide the fences under them",
+              transcript_evidence(nested), 2)
+    check_one("a same-level heading still ends the section",
+              transcript_evidence(after), 1)
+    check_one("a shallower heading ends a ### evidence section",
+              transcript_evidence("### Verification evidence\n\n" + fence
+                                  + "## Next\n\n" + fence), 1)
+    check_one("no section is still zero", transcript_evidence("Some prose.\n" + fence), 0)
+    check_one("an empty section is still zero",
+              transcript_evidence("## Verification evidence\n\nnothing here\n"), 0)
+    check_one("a heading-shaped line inside the fence does not end the section (crew#519)",
+              transcript_evidence("## Verification evidence\n\n```\n$ run\n# minus /estate/mcp: "
+                                  + "x" * TRANSCRIPT_MIN_CHARS + "\n```\n"), 1)
+    check_one("a fence shorter than the floor does not count",
+              transcript_evidence("## Verification evidence\n\n```\nok\n```\n"), 0)
+    print(f"selftest-evidence-section: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 # -------------------------------------------------------------------- main
 
 def main() -> int:
@@ -1018,6 +1079,8 @@ def main() -> int:
                    help="prove the evidence commit takes only its own files, in a temp repo")
     sub.add_parser("selftest-dod",
                    help="prove the definition-of-done row gate on literal bodies, no network")
+    sub.add_parser("selftest-evidence-section",
+                   help="prove where the Verification evidence section ends, no network")
 
     # estate-selftest.py runs every script under ~/.claude/scripts that accepts
     # `--selftest`, once an hour, and this file is symlinked in there. It was
@@ -1026,9 +1089,17 @@ def main() -> int:
     # A control nobody runs is not a control, so the estate's spelling is accepted
     # as an alias for the subcommand rather than the cases being moved.
     if "--selftest" in sys.argv[1:]:
-        # Every suite in this file, not the first one that was written. A second
-        # suite added beside a hardcoded call is a suite the hourly run never sees.
-        return max(selftest_options(), selftest_commit_scope(), selftest_dod())
+        # Every suite in this file, found by name, not a hardcoded list. The list was
+        # the bug it warned about: selftest_evidence_section was added on 2026-08-24 and
+        # a hardcoded call would have left the hourly run blind to it. A suite is any
+        # module-level `selftest_*` function taking no arguments.
+        suites = sorted((n, f) for n, f in list(globals().items())
+                        if n.startswith("selftest_") and callable(f)
+                        and f.__code__.co_argcount == 0)
+        if not suites:
+            print("BLIND: no selftest suites found in this file", file=sys.stderr)
+            return 2
+        return max(f() for _, f in suites)
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
@@ -1037,6 +1108,8 @@ def main() -> int:
         return selftest_commit_scope()
     if ns.cmd == "selftest-dod":
         return selftest_dod()
+    if ns.cmd == "selftest-evidence-section":
+        return selftest_evidence_section()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

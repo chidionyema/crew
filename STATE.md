@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-24 09:38 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-24 10:41 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -9,7 +9,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | what | state | measured by |
 |---|---|---|
 | The Architect | GREEN | `bin/verify`: 18 passed, 0 failed |
-| maestro | GREEN | last cycle 6 min ago (`INTENT-20260824-092744-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 5 min ago (`INTENT-20260824-103112-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | 2 deployed, 12 suspended | `flyctl apps list` |
 | &nbsp;&nbsp;hermes-ci | suspended, last release Aug 19 2026 13:03 | R1: it does not come back on Fly |
@@ -19,14 +19,12 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;tie-api | suspended, last release Jun 13 2026 12:22 | R1: it does not come back on Fly |
 | &nbsp;&nbsp;tie-smoke | suspended, last release Jun 13 2026 03:36 | R1: it does not come back on Fly |
 | &nbsp;&nbsp;tie-web | suspended, last release Jun 13 2026 18:27 | R1: it does not come back on Fly |
-| estate spend | RED | $847/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
-| delivery | RED | 80 commits on no remote (oldest 2.0d), 62 dirty files, 8 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 330 merged | non-bot PRs merged across the estate in 7d, ~$18 of estate spend per shipped change (`gh search prs`) |
-| &nbsp;&nbsp;stranded | crew | 61 commits no remote holds, oldest 2.0d, 4 dirty |
-| &nbsp;&nbsp;stranded | scripts | 18 commits no remote holds, oldest 0.8d, 21 dirty |
-| &nbsp;&nbsp;stranded | idp | 1 commits no remote holds, oldest 0.1d, 2 dirty |
-| founder cost | GREEN | 4378 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
-| collectors | RED | 1 of the estate's data stores stopped being written: would_have_fired silent 60h |
+| estate spend | RED | $875/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
+| delivery | STALE | 1 commits on no remote (oldest 0.2d), 62 dirty files, 8 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 336 merged | non-bot PRs merged across the estate in 7d, ~$18 of estate spend per shipped change (`gh search prs`) |
+| &nbsp;&nbsp;stranded | idp | 1 commits no remote holds, oldest 0.2d, 2 dirty |
+| founder cost | GREEN | 4419 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
+| collectors | RED | 1 of the estate's data stores stopped being written: would_have_fired silent 61h |
 | crew P1 | 12 open | the fires nobody has put out |
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
 | &nbsp;&nbsp;#114 Fully operational today — the day board, 2026-08-24 | | |

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Copy the live law files into this repository, or report that they have drifted.
+#
+# The laws live at ~/AGENTS.md and ~/AGENTS-FULL.md because every agent tool on this
+# machine reads them through a symlink into its own directory. Those two paths were
+# measured on 2026-08-24 to be in no git repository at all: `git -C ~ rev-parse
+# --show-toplevel` returns "fatal: not a git repository". LAW 24 says a load-bearing
+# file is in git, and the constitution is the most load-bearing file there is.
+#
+# The live files are NOT replaced by symlinks into this checkout. That would put every
+# agent session's laws behind a branch checkout, which is a change no single session
+# should make alone (LAW 11). The copy here is a backup and a history, and this script
+# plus scripts/verify.d/15-laws-are-in-git.sh keep it honest.
+#
+#   bin/laws-sync            copy live -> repo, then show what changed
+#   bin/laws-sync --check    report drift and exit 1, change nothing
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEST="$REPO/laws"
+FILES=(AGENTS.md AGENTS-FULL.md)
+CHECK=0
+[ "${1:-}" = "--check" ] && CHECK=1
+
+drift=0
+missing=0
+for f in "${FILES[@]}"; do
+  live="$HOME/$f"
+  if [ ! -f "$live" ]; then
+    echo "no live file at $live"
+    missing=$((missing + 1))
+    continue
+  fi
+  if [ -f "$DEST/$f" ] && cmp -s "$live" "$DEST/$f"; then
+    echo "$f: in sync ($(wc -c <"$live" | tr -d ' ') bytes)"
+    continue
+  fi
+  drift=$((drift + 1))
+  if [ "$CHECK" = 1 ]; then
+    echo "$f: DRIFTED — live differs from laws/$f"
+    diff -u "$DEST/$f" "$live" | head -40 || true
+  else
+    cp "$live" "$DEST/$f"
+    echo "$f: copied $(wc -c <"$live" | tr -d ' ') bytes into laws/$f"
+  fi
+done
+
+if [ "$missing" = "${#FILES[@]}" ]; then
+  echo "no law files on this machine — nothing to sync"
+  exit 0
+fi
+
+if [ "$CHECK" = 1 ] && [ "$drift" -gt 0 ]; then
+  echo
+  echo "$drift law file(s) changed and are backed up nowhere. Run: bin/laws-sync && git add laws && git commit"
+  exit 1
+fi
+
+exit 0

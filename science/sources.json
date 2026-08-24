@@ -43,13 +43,6 @@
       "time_field": "at"
     },
     {
-      "name": "would_have_fired",
-      "root": "home",
-      "path": ".claude/state/one-branch/would-have-fired.jsonl",
-      "kind": "jsonl",
-      "time_field": "at"
-    },
-    {
       "name": "drills",
       "root": "home",
       "path": ".claude/state/drills.jsonl",
@@ -262,6 +255,10 @@
     {
       "id": ".estate/knowledge/maestro/experience_graph.db",
       "reason": "The other half of that duplicate. Declined for the same reason and named separately so neither disappears from the registry while the question is open."
+    },
+    {
+      "id": ".claude/state/one-branch/would-have-fired.jsonl",
+      "reason": "Producer (~/.claude/quarantine/2026-08-21-pipeline-workarounds/one-branch-fence.py) was quarantined 2026-08-21 22:42 -- not in ~/.claude/settings.json hooks, mode file ~/.claude/one-branch-fence.mode still reads 'refuse' but nothing calls it. Last write to would-have-fired.jsonl is 2026-08-21 22:38, the same window. This is a decommissioned guard, not a live source going quiet: it will never write again unless someone restores the hook. Declined 2026-08-24 by the on-call attribution (LAW 29) rather than left as a stale-source alert that can never clear itself. If the fence is restored, move this back to sources."
     }
   ]
 }

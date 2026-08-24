@@ -1,2 +1,8 @@
 hypothesis>=6
 pytest>=8
+
+# The warehouse loader crew#74 replaces read_rows()/row_time() with. dbt-duckdb pulls
+# dbt-core; both were absent from this machine until 2026-08-24, so anyone reproducing
+# science/duckdb_differential.py needs them named here rather than in a shell history.
+duckdb>=1.5
+dbt-duckdb>=1.11

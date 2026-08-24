@@ -363,6 +363,26 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
                      (name, now, len(rows), bad, mtime, "OK"))
         report.append({"source": name, "status": "OK", "rows": len(rows),
                        "bad": bad, "mtime": mtime})
+
+    #: A source that moves from collected to declined leaves its old rows behind, because
+    #: nothing in this loop visits a name the registry no longer mentions. Found 2026-08-24
+    #: by the DuckDB differential: `would_have_fired` was declined with a reason and still
+    #: had 162 rows in `facts`, which the freshness check then reported STALE. An alarm
+    #: about a store the estate deliberately stopped collecting is an alarm that trains
+    #: people to ignore alarms (LAW 28).
+    #:
+    #: Dropping them is safe in the way rebuilding a derived table is safe: `facts` is
+    #: built entirely from the JSONL on disk, this loop already DELETEs and rewrites every
+    #: declared source on every run, and a registry that will not parse exits before
+    #: reaching here. The registry is the truth about what is collected; the warehouse is
+    #: made to match it rather than accumulating whatever it was told years ago.
+    orphans = [r[0] for r in conn.execute(
+        "SELECT DISTINCT source FROM facts").fetchall() if r[0] not in SOURCES]
+    for name in sorted(orphans):
+        n = conn.execute("SELECT count(*) FROM facts WHERE source = ?", (name,)).fetchone()[0]
+        conn.execute("DELETE FROM facts WHERE source = ?", (name,))
+        report.append({"source": name, "status": "DROPPED", "rows": n, "bad": 0,
+                       "mtime": None})
     return report
 
 

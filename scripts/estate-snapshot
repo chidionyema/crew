@@ -89,8 +89,23 @@ def fly() -> list[str]:
     dep = sum(1 for l in out.splitlines() if "deployed" in l)
     sus = sum(1 for l in out.splitlines() if "suspended" in l)
     rows = ["| Fly | %d deployed, %d suspended | `flyctl apps list` |" % (dep, sus)]
-    rc, out = sh("flyctl machine update --help >/dev/null 2>&1; "
-                 "flyctl apps list 2>&1 | grep -c overdue", timeout=20)
+
+    # Names and dates, not just a count. A count is a pointer to the data and
+    # sessions fill the rest in from memory: on 2026-08-24 three of them were
+    # passing round "tie suspended since 18 Aug" when tie-api's last release was
+    # 13 June, and 18 Aug belonged to prospector-searxng. Naming each dead app
+    # and the day it last shipped is what stops that (crew#118).
+    dead = []
+    for line in out.splitlines():
+        cells = [c.strip() for c in line.split("│")]
+        if len(cells) < 4 or "suspended" not in cells[2]:
+            continue
+        name, when = cells[0], cells[3]
+        if when:                       # no date means it never shipped at all
+            dead.append((name, when))
+    for name, when in sorted(dead, key=lambda p: p[0]):
+        rows.append("| &nbsp;&nbsp;%s | suspended, last release %s | R1: it does not come "
+                    "back on Fly |" % (name, when))
     return rows
 
 

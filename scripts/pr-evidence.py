@@ -495,6 +495,15 @@ def main() -> int:
     sub.add_parser("selftest-options",
                    help="prove the options gate on literal bodies, no network")
 
+    # estate-selftest.py runs every script under ~/.claude/scripts that accepts
+    # `--selftest`, once an hour, and this file is symlinked in there. It was
+    # reported as NO SELFTEST because the cases live behind a subcommand with a
+    # different name, so 24 paired-control cases sat on disk and nothing ran them.
+    # A control nobody runs is not a control, so the estate's spelling is accepted
+    # as an alias for the subcommand rather than the cases being moved.
+    if "--selftest" in sys.argv[1:]:
+        return selftest_options()
+
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()

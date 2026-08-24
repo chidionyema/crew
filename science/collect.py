@@ -302,6 +302,15 @@ TIME_KEYS = ("at", "ts", "t", "timestamp", "generated_at")
 #: silently recorded as a date in 1970.
 EPOCH_LO, EPOCH_HI = 1_000_000_000, 2_000_000_000
 
+#: The same window three orders of magnitude up. Producers on this estate disagree about
+#: the unit as well as the key name: `history` writes milliseconds, and its 13,142 rows --
+#: the largest store here -- landed with at=NULL for as long as this file has existed,
+#: because a millisecond epoch is a thousand times too big to be a second one and was
+#: therefore dropped as "not a timestamp". Found 2026-08-24 by the DuckDB differential,
+#: which reported the store as untimed on both sides and made it obvious that both sides
+#: were wrong in the same way. The two windows do not overlap, so nothing is ambiguous.
+EPOCH_MS_LO, EPOCH_MS_HI = EPOCH_LO * 1000, EPOCH_HI * 1000
+
 
 def row_time(obj: dict, field: str | None) -> str | None:
     """The row's own timestamp as ISO-8601, or None when it genuinely carries none.
@@ -321,6 +330,8 @@ def row_time(obj: dict, field: str | None) -> str | None:
             return v
         if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
             return iso(float(v))
+        if isinstance(v, (int, float)) and EPOCH_MS_LO <= v <= EPOCH_MS_HI:
+            return iso(float(v) / 1000)
     return None
 
 

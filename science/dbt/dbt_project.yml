@@ -1,0 +1,17 @@
+name: science
+version: "1.0.0"
+config-version: 2
+
+# One profile, kept inside the project rather than in ~/.dbt, because the estate's rule is
+# that a load-bearing file lives in a repository (LAW 24). Anything under ~/.dbt is a file
+# nobody would find after this laptop.
+profile: science
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  science:
+    staging:
+      +materialized: table

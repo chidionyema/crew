@@ -1,0 +1,13 @@
+# No credentials here and none possible: DuckDB is a file on this disk, so the whole
+# profile is a path. If this ever points at something that needs a secret, the secret is
+# read from a file by the process, never written here and never put in an environment
+# variable (LAW 21).
+science:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      # Beside the SQLite warehouse it replaces, so both can be queried during the
+      # migration and the differential has something to be differential against.
+      path: "{{ env_var('SCIENCE_DUCKDB', env_var('DBT_PROJECT_DIR', '.') ~ '/warehouse.duckdb') }}"
+      threads: 4

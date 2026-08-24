@@ -197,7 +197,8 @@
       "root": "home",
       "path": ".claude/state/founder-actions.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "note": "Declared time_field 'at' until 2026-08-24, and this store has no key called 'at'. It records the date under 'opened'. Every row was landing untimed, in the one store that holds what the founder personally asked for. Found by the DuckDB differential reporting it as having no time column at all.",
+      "time_field": "opened"
     },
     {
       "name": "worktree_cleanup",

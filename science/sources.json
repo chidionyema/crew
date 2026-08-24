@@ -269,7 +269,7 @@
     },
     {
       "id": ".estate/REQUIREMENTS.jsonl",
-      "reason": "hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file."
+      "reason": "The id is relative to the 'home' root, so the file is /Users/chidionyema/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file."
     }
   ]
 }

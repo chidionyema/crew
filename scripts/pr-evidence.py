@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -154,6 +155,56 @@ def evidence_name(dest: Path, src: Path, stamp: str, i: int) -> tuple[str, bool]
     return f"{stamp}-{i}{src.suffix or '.png'}", True
 
 
+def commit_evidence(root: Path, rels: list[str], caption: str) -> list[str]:
+    """Commit exactly these paths, and return what actually went into the commit.
+
+    This used to be `git add <images>` then a bare `git commit`, which commits the
+    whole index. On 2026-08-24 that turned one screenshot into crew 097eccd: the
+    commit also deleted two merged evidence images, reverted the --selftest alias
+    below, and re-applied a stale copy of two verify.d gates, because the checkout
+    it ran in had those changes sitting staged from earlier work.
+
+    The class is not "that worktree was dirty". It is that a tool which is handed
+    a list of files must commit that list and nothing else. A pathspec commit does
+    exactly that: it takes the working-tree content of the named paths, ignores the
+    rest of the index, and leaves other staged work staged for whoever staged it.
+
+    An empty result is the ordinary retry, not an error: an earlier run already
+    committed these exact bytes and only its push failed. `git commit` on an empty
+    change exits 1, which would abort the retry before it reached the push.
+    """
+    abs_paths = [str(root / r) for r in rels]
+    run(["git", "add", "--", *abs_paths], cwd=root)
+    staged = [p for p in run(["git", "diff", "--cached", "--name-only", "--",
+                              *abs_paths], cwd=root).split("\n") if p.strip()]
+    if staged:
+        run(["git", "commit", "-m", f"evidence: {caption}", "--", *abs_paths], cwd=root)
+    return staged
+
+
+def warn_if_behind_main(root: Path) -> bool:
+    """Say so, loudly, when this branch is behind the default branch.
+
+    The other half of 097eccd. This does not refuse: refusing to record evidence
+    because a branch is stale would be LAW 38, a guard that blocks correct work,
+    and the evidence is usually the last thing standing between a fix and a merge.
+    It prints the count and the command, at the moment a session is about to push.
+    """
+    try:
+        base = run(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+                   cwd=root).strip() or "origin/main"
+    except Fail:
+        base = "origin/main"
+    try:
+        behind = int(run(["git", "rev-list", "--count", f"HEAD..{base}"], cwd=root).strip())
+    except (Fail, ValueError):
+        return False        # no such ref here; nothing to compare against
+    if behind:
+        print(f"WARNING: this branch is {behind} commit(s) behind {base}. LAW 7: "
+              f"refresh before review, `git merge {base}`. The evidence still attaches.")
+    return bool(behind)
+
+
 def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bool) -> str:
     info = pr_info(pr, repo)
     n, branch = info["number"], info["headRefName"]
@@ -176,12 +227,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
             shutil.copyfile(src, dest / name)
         links.append(f"docs/evidence/pr-{n}/{name}")
 
-    run(["git", "add", *[str(dest / Path(rel).name) for rel in links]], cwd=root)
-    # Nothing staged means an earlier run already committed these exact bytes and only
-    # its push failed. That is the ordinary retry, not an error, and `git commit` with
-    # an empty index exits 1 and would abort the retry before it reached the push.
-    if run(["git", "diff", "--cached", "--name-only"], cwd=root).strip():
-        run(["git", "commit", "-m", f"evidence: {caption}"], cwd=root)
+    warn_if_behind_main(root)
+    commit_evidence(root, links, caption)
     if push:
         run(["git", "push", "origin", branch], cwd=root)
 
@@ -223,6 +270,120 @@ OPTIONS_CHOSEN = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*chosen\s*:", 
 #: A bullet has to say something. Measured on the LAW 32 gate, which had to add the same floor:
 #: a heading with nothing under it satisfies a word search and satisfies nobody reading it.
 OPTION_MIN_CHARS = 40
+
+#: Every file in a diff opens with this header, and for a BINARY file it is the only place the
+#: path appears in full. git prints no `---`/`+++` lines and no hunks for a binary; it prints
+#: one line, `Binary files /dev/null and b/<path> differ`. Evidence is screenshots, so a pattern
+#: written for text hunks matches nothing at all -- measured against #137's own diff on
+#: 2026-08-24, where `+++ b/` found 0 paths while the image sat committed in the branch.
+DIFF_SECTION = re.compile(r"^diff --git a/\S+ b/(\S+)$", re.M)
+#: What a section says when it REMOVES the file instead of adding it. Any one of these and the
+#: post-image is /dev/null whatever the header said. Without this a pull request could satisfy
+#: the gate by deleting somebody else's screenshot.
+DELETED_SECTION = re.compile(
+    r"^(?:deleted file mode|\+\+\+ /dev/null|Binary files a/.* and /dev/null differ)", re.M)
+def evidence_dir(number=None) -> str:
+    """The directory fragment that counts as evidence, for one pull request or for any.
+
+    `attach` always writes under the pull request's OWN number, so scoping to it is what
+    the tool already produces. It also closes a hole: #137 restores two screenshots deleted
+    from #120 and #128, and without the scope those restorations read as #137's own
+    verification. A pull request could then pass the gate by restoring somebody else's
+    evidence, which is the mirror of passing it by deleting somebody else's.
+
+    Measured before narrowing it, 2026-08-24: of the 10 open pull requests, 6 have evidence
+    in their diff and all 6 have it under their own number, so this refuses none of them
+    (LAW 38).
+    """
+    n = re.escape(str(number)) if number is not None else r"\d+"
+    return f"docs/evidence/pr-{n}/"
+
+
+def added_evidence(diff: str, number=None) -> set:
+    """Every evidence file a diff ADDS or MODIFIES, by path, ignoring the ones it deletes.
+
+    Reads the diff a file at a time rather than pattern-matching the whole blob, because the
+    only fact that decides an evidence path is whether ITS OWN section is a deletion. A regex
+    over the whole text cannot tell which section a `deleted file mode` line belongs to.
+    """
+    diff = diff or ""
+    wanted = re.compile("^" + evidence_dir(number) + ".")
+    marks = list(DIFF_SECTION.finditer(diff))
+    out = set()
+    for i, m in enumerate(marks):
+        path = m.group(1)
+        if not wanted.match(path):
+            continue
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(diff)
+        if DELETED_SECTION.search(diff[m.end():end]):
+            continue
+        out.add(path)
+    return out
+
+
+EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
+NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
+FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
+#: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+#:
+#: State the limit rather than let a reader assume more. This measures the LENGTH of what is
+#: inside the fence. It cannot tell pasted command output from forty characters of prose, so a
+#: transcript is the weaker source and a committed file is preferred wherever one can exist:
+#: `evidence_paths` returns the diff's files first and only falls back to the body. What the
+#: floor does buy is the case it was written for -- a heading with nothing under it, which the
+#: old marker gate passed. Tightening it further would refuse output that has no `$` prompt in
+#: it, which is most machine output, and refusing correct work is the outage (LAW 38).
+TRANSCRIPT_MIN_CHARS = 40
+
+
+def transcript_evidence(body: str) -> int:
+    """How many command transcripts the Verification evidence section actually contains.
+
+    Not every pull request can produce a screenshot. #139 changes one markdown file and one
+    ledger, and its evidence is pasted `git status` and secret-scan output -- which is the
+    form this estate asks for everywhere else ("show the green run, do not describe it").
+    Requiring an image would refuse correct work, and a guard that refuses correct work is
+    an outage (LAW 38).
+
+    This still is not grading a proxy. The proxy was the marker comment, which asserted that
+    a section existed; an empty section satisfied it. What is counted here is the transcript
+    itself, which is the evidence a text change can offer.
+    """
+    m = EVIDENCE_SECTION.search(body or "")
+    if not m:
+        return 0
+    tail = body[m.end():]
+    nxt = NEXT_HEADING.search(tail)
+    section = tail[:nxt.start()] if nxt else tail
+    return sum(1 for block in FENCE.findall(section)
+               if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
+
+
+def evidence_paths(body: str, diff: str, number=None) -> tuple:
+    """(paths, where) for a pull request's evidence: ask the diff first, the body second.
+
+    INCIDENT, 2026-08-24. `check` decided a pull request had no evidence by looking for one
+    marker comment in the body. A body is prose. `gh pr edit --body-file` replaces it whole
+    and takes the marker with it, which is the ordinary way a body gets rewritten, and the
+    image it pointed at is untouched in the commit the whole time. It red-lit #156 and #159
+    that day, and left #137 red while `docs/evidence/pr-137/20260824T080641Z-1.png` sat
+    committed in #137's own diff.
+
+    The class is grading a proxy. A marker in editable prose is a CLAIM that evidence exists;
+    the file the diff adds IS the evidence, and no body edit can take it away. crew#161 is the
+    same class seen from the other end -- an evidence link written as `blob/<branch>/...` dies
+    when the branch is pruned -- and a SHA permalink does not fix it, because the grader would
+    still be reading prose.
+
+    The body stays as the fallback for the one case the diff is not available, so a pull
+    request that links evidence it did not commit is still read the way it always was.
+    """
+    added = added_evidence(diff, number)
+    if added:
+        return added, "committed in the diff"
+    #: The same files as the body links them, inline and as a link, hence the set.
+    linked = re.compile("/" + evidence_dir(number) + r"[^)\s?]+")
+    return set(linked.findall(body or "")), "linked from the body"
 
 
 def options_considered(body: str) -> tuple:
@@ -413,17 +574,9 @@ def standards_line(body: str, diff: str) -> tuple:
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
-    if MARKER not in body:
-        return False, (f"#{info['number']} has no verification evidence. "
-                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`")
-    # Each image appears twice in a row, inline and as a link. Count the file,
-    # not the mention, or the gate reports double what is there.
-    imgs = set(re.findall(r"/docs/evidence/pr-\d+/[^)\s?]+", body))
-    if not imgs:
-        return False, f"#{info['number']} has an evidence section with no image in it"
-    ok_opts, why_opts = options_considered(body)
-    if not ok_opts:
-        return False, "#{} {}".format(info["number"], why_opts)
+    # The diff is fetched before anything is graded, because the evidence lives in it. See
+    # evidence_paths: reading the body's marker first is what made a body edit look like
+    # missing evidence.
     args = ["pr", "diff", pr] + (["--repo", repo] if repo else [])
     try:
         diff = gh(args)
@@ -431,7 +584,19 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
         # Blind on purpose, fail-closed: ANY fetch error must become a FAIL verdict, not a
         # crash. A diff we cannot fetch is not a pass. Say which check did not run, because
         # a gate that goes quiet on its own failure is the shape LAW 28 forbids.
-        return False, "#{}: could not fetch the diff, so LAW 34 coupling was not checked".format(info["number"])
+        return False, ("#{}: could not fetch the diff, so neither the evidence nor LAW 34 "
+                       "coupling was checked".format(info["number"]))
+    imgs, where = evidence_paths(body, diff, info["number"])
+    transcripts = transcript_evidence(body)
+    if not imgs and not transcripts:
+        return False, (f"#{info['number']} has no verification evidence. "
+                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`, "
+                       f"or paste the command output under `## Verification evidence`")
+    if not imgs:
+        where = f"{transcripts} command transcript(s) in the body"
+    ok_opts, why_opts = options_considered(body)
+    if not ok_opts:
+        return False, "#{} {}".format(info["number"], why_opts)
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
         return False, "#{} {}".format(info["number"], why_cpl)
@@ -439,8 +604,78 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
-    return True, (f"#{info['number']} carries {len(imgs)} evidence image(s), {why_opts}, "
+    carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
+    return True, (f"#{info['number']} carries {carries}, {why_opts}, "
                   f"{why_cpl}; standards (report-only): {std}")
+
+
+def selftest_commit_scope() -> int:
+    """commit_evidence commits what it was handed, in a throwaway repository.
+
+    Four controls, and two of them are the tool saying yes. The incident (crew
+    097eccd) is control B: unrelated work was staged, and the evidence commit
+    swallowed it. Control A is the paired half, because a guard only ever seen
+    refusing has never been shown to permit.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    work = Path(tempfile.mkdtemp(prefix="pr-evidence-scope-"))
+    try:
+        # os.environ goes FIRST so these four win. The other order let an ambient
+        # GIT_AUTHOR_NAME silently replace the selftest's identity.
+        env = {**os.environ,
+               "GIT_AUTHOR_NAME": "selftest", "GIT_AUTHOR_EMAIL": "selftest@localhost",
+               "GIT_COMMITTER_NAME": "selftest", "GIT_COMMITTER_EMAIL": "selftest@localhost"}
+        run(["git", "init", "-q", "-b", "main", str(work)], env=env)
+        # The identity has to live in the repository, not just in this env dict, because
+        # the subject of the test -- commit_evidence -- runs git without it. On any
+        # machine with a global user.name that difference is invisible. A CI runner has
+        # none, so the selftest died with `fatal: empty ident name` on ubuntu-latest
+        # while passing here. Reproduce that locally with GIT_CONFIG_GLOBAL=/dev/null.
+        run(["git", "config", "user.email", "selftest@localhost"], cwd=work, env=env)
+        run(["git", "config", "user.name", "selftest"], cwd=work, env=env)
+        (work / "keep.txt").write_text("as merged\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+        run(["git", "commit", "-q", "-m", "base"], cwd=work, env=env)
+
+        # The dirty index that caused the incident: an unrelated file rewritten and
+        # staged, exactly as a stale checkout leaves it.
+        (work / "keep.txt").write_text("a rider from another branch\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+
+        ev = work / "docs" / "evidence" / "pr-1"
+        ev.mkdir(parents=True)
+        (ev / "shot.png").write_bytes(b"\x89PNG evidence")
+        rel = "docs/evidence/pr-1/shot.png"
+
+        staged = commit_evidence(work, [rel], "a screenshot")
+        in_commit = sorted(p for p in run(["git", "show", "--pretty=", "--name-only", "HEAD"],
+                                          cwd=work, env=env).split("\n") if p.strip())
+
+        check_one("A the evidence image is in the commit", in_commit, [rel])
+        check_one("B the unrelated staged file is NOT in the commit",
+                  "keep.txt" in in_commit, False)
+        check_one("C the unrelated change is still staged, for whoever staged it",
+                  run(["git", "diff", "--cached", "--name-only"], cwd=work,
+                      env=env).strip(), "keep.txt")
+        # The retry path: same bytes, nothing to commit, and no exception. This is
+        # what a refused push leaves behind, and it has to stay free.
+        check_one("D re-attaching the same bytes commits nothing and does not raise",
+                  commit_evidence(work, [rel], "a screenshot"), [])
+        check_one("E the first call did report what it committed", staged, [rel])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    print(f"selftest-commit-scope: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
 
 
 def selftest_options() -> int:
@@ -604,10 +839,25 @@ def main() -> int:
 
     sub.add_parser("selftest-options",
                    help="prove the options gate on literal bodies, no network")
+    sub.add_parser("selftest-commit-scope",
+                   help="prove the evidence commit takes only its own files, in a temp repo")
+
+    # estate-selftest.py runs every script under ~/.claude/scripts that accepts
+    # `--selftest`, once an hour, and this file is symlinked in there. It was
+    # reported as NO SELFTEST because the cases live behind a subcommand with a
+    # different name, so 24 paired-control cases sat on disk and nothing ran them.
+    # A control nobody runs is not a control, so the estate's spelling is accepted
+    # as an alias for the subcommand rather than the cases being moved.
+    if "--selftest" in sys.argv[1:]:
+        # Every suite in this file, not the first one that was written. A second
+        # suite added beside a hardcoded call is a suite the hourly run never sees.
+        return max(selftest_options(), selftest_commit_scope())
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()
+    if ns.cmd == "selftest-commit-scope":
+        return selftest_commit_scope()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

@@ -102,9 +102,21 @@ is_python() {
 PY_FILES="$(printf '%s\n' "$ALL" | grep '\.py$' || true)"
 SH_FILES="$(printf '%s\n' "$ALL" | while read -r f; do [ -n "$f" ] && is_shell "$f" && echo "$f"; done)"
 # Newly visible, and reported rather than enforced for now -- see REPORT-ONLY below.
+#
+# Two things about the loop below, and both comments are up HERE on purpose.
+#
+# 1. The leading paren on the case pattern is load-bearing. bash 3.2 -- which is /bin/bash on
+#    every Mac in this estate -- cannot parse a case pattern's closing paren inside a command
+#    substitution, so the whole gate died and then ran on with the loop variable unbound.
+# 2. A comment INSIDE the substitution is a trap. bash 3.2 lexes quotes inside a command
+#    substitution even in a comment, so a single apostrophe there opens a string that never
+#    closes and the file stops parsing. The word "pattern's" in this very comment did it.
+#
+# bash 5 on ubuntu-latest accepts both, which is why CI was green while the gate was dead on
+# every Mac. R14 makes the laptop the substrate, so green on the runner is not the question.
 PY_NEW="$(printf '%s\n' "$ALL" | while read -r f; do
   [ -n "$f" ] || continue
-  case "$f" in *.py) continue;; esac
+  case "$f" in (*.py) continue;; esac
   is_python "$f" && echo "$f"
 done)"
 WF_FILES="$(printf '%s\n' "$ALL" | grep -E '^\.github/workflows/.*\.ya?ml$' || true)"
@@ -200,6 +212,48 @@ if [ -n "$SH_FILES" ]; then
     note 1
   fi
   echo
+
+  # Does it parse under the OLDEST bash this estate runs on?
+  #
+  # A linter is not bash. ShellCheck implements its own parser, so it reads a script that
+  # bash 3.2 cannot parse at all and reports it clean. Twice on 2026-08-24 this file itself
+  # carried a construct bash 5 accepts and bash 3.2 refuses: a case pattern closing paren
+  # inside a command substitution, and an apostrophe in a comment inside a command
+  # substitution. Both were invisible. CI runs bash 5 on ubuntu-latest and went green while
+  # the gate was dead on every Mac, and R14 makes the laptop the substrate.
+  #
+  # BLIND, never a pass, where no old bash exists -- which is the case on the runner. This
+  # is live exactly where the failure occurs.
+  echo "--- bash 3.2 parse, on the same file(s) ---"
+  OLDBASH=""
+  OLDBASH_V=""
+  if [ -x /bin/bash ] && /bin/bash --version 2>/dev/null | head -1 | grep -q 'version 3\.'; then
+    OLDBASH=/bin/bash
+    OLDBASH_V="bash $(/bin/bash --version | head -1 | sed 's/.*version \([0-9.]*\).*/\1/')"
+  fi
+  if [ -z "$OLDBASH" ]; then
+    echo "BLIND: no bash 3.x here, so a Mac-only parse failure would not be seen."
+    note 2
+  else
+    bad_parse=0
+    while IFS= read -r f; do
+      [ -n "$f" ] && [ -f "$f" ] || continue
+      if ! err=$("$OLDBASH" -n "$f" 2>&1); then
+        bad_parse=$((bad_parse + 1))
+        echo "$f:"
+        printf '%s\n' "$err" | head -2 | sed 's/^/    /'
+      fi
+    done <<EOF
+$SH_FILES
+EOF
+    if [ "$bad_parse" -eq 0 ]; then
+      echo "all $(count "$SH_FILES") parse under $OLDBASH_V."
+    else
+      echo "$bad_parse file(s) bash 3.2 cannot parse. bash 5 accepting it is not the test."
+      note 1
+    fi
+  fi
+  echo
 fi
 
 if [ -n "$WF_FILES" ]; then
@@ -252,5 +306,12 @@ elif [ "$rc" -eq 2 ]; then
 else
   echo "FAIL: this branch adds or edits code that breaks the standard."
 fi
-[ -n "$WOULD" ] && echo "  ($WOULD on $(count "$PY_NEW") shebang-python file(s), reported above and not yet enforced)"
+if [ -n "$WOULD" ]; then
+  # The count is hoisted out of the echo on purpose. bash 3.2 -- /bin/bash on every Mac
+  # in this estate -- cannot parse a nested double quote inside `$( )` inside a double
+  # quoted string when it sits in an `&&` list, and refused to parse this whole FILE for
+  # it. bash 5 accepts it, so CI never saw it. Same class as the case-pattern paren above.
+  n_new=$(count "$PY_NEW")
+  echo "  ($WOULD on $n_new shebang-python file(s), reported above and not yet enforced)"
+fi
 exit "$rc"

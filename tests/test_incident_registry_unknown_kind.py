@@ -57,8 +57,11 @@ def load(tmp_path: Path, kind: str) -> subprocess.CompletedProcess:
     because collect.py is imported at module scope by two other tools -- catching SystemExit
     in-process would leave a half-imported module behind for whatever runs next.
     """
+    #: check=False: a non-zero exit is the thing under test, so raising on it would turn
+    #: the assertion below into a crash that says less than the assertion does.
     return subprocess.run(
-        [sys.executable, "-c", "import sys; sys.path.insert(0, %r); import collect" % str(SCIENCE)],
+        [sys.executable, "-c", f"import sys; sys.path.insert(0, {str(SCIENCE)!r}); import collect"],
+        check=False,
         env={"SCIENCE_REGISTRY": str(write_registry(tmp_path, kind)),
              "ESTATE_HOME": str(tmp_path),
              "SCIENCE_WAREHOUSE": str(tmp_path / "w.db"),
@@ -102,7 +105,8 @@ def test_read_rows_refuses_an_unknown_kind_when_called_directly(tmp_path):
     callers and this function has more than one.
     """
     sys.path.insert(0, str(SCIENCE))
-    import collect  # noqa: E402  imported here so a registry failure cannot break collection
+    #: Imported here, not at module scope, so a registry failure cannot break collection.
+    import collect
 
     store = tmp_path / "store.jsonl"
     store.write_text('{"at":"2026-08-24T00:00:00","x":1}\n')
@@ -117,7 +121,7 @@ def test_the_estates_own_registry_only_uses_known_kinds():
     costs one import.
     """
     sys.path.insert(0, str(SCIENCE))
-    import collect  # noqa: E402
+    import collect
 
-    declared = {kind for _path, kind, _tf in collect.SOURCES.values()}
+    declared ={kind for _path, kind, _tf in collect.SOURCES.values()}
     assert declared <= set(collect.KINDS), f"sources.json uses {declared - set(collect.KINDS)}"

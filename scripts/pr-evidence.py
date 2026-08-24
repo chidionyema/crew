@@ -621,10 +621,19 @@ def selftest_commit_scope() -> int:
 
     work = Path(tempfile.mkdtemp(prefix="pr-evidence-scope-"))
     try:
-        env = {"GIT_AUTHOR_NAME": "selftest", "GIT_AUTHOR_EMAIL": "selftest@localhost",
-               "GIT_COMMITTER_NAME": "selftest", "GIT_COMMITTER_EMAIL": "selftest@localhost",
-               **os.environ}
+        # os.environ goes FIRST so these four win. The other order let an ambient
+        # GIT_AUTHOR_NAME silently replace the selftest's identity.
+        env = {**os.environ,
+               "GIT_AUTHOR_NAME": "selftest", "GIT_AUTHOR_EMAIL": "selftest@localhost",
+               "GIT_COMMITTER_NAME": "selftest", "GIT_COMMITTER_EMAIL": "selftest@localhost"}
         run(["git", "init", "-q", "-b", "main", str(work)], env=env)
+        # The identity has to live in the repository, not just in this env dict, because
+        # the subject of the test -- commit_evidence -- runs git without it. On any
+        # machine with a global user.name that difference is invisible. A CI runner has
+        # none, so the selftest died with `fatal: empty ident name` on ubuntu-latest
+        # while passing here. Reproduce that locally with GIT_CONFIG_GLOBAL=/dev/null.
+        run(["git", "config", "user.email", "selftest@localhost"], cwd=work, env=env)
+        run(["git", "config", "user.name", "selftest"], cwd=work, env=env)
         (work / "keep.txt").write_text("as merged\n")
         run(["git", "add", "keep.txt"], cwd=work, env=env)
         run(["git", "commit", "-q", "-m", "base"], cwd=work, env=env)

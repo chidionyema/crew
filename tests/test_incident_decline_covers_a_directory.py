@@ -20,6 +20,7 @@ covers everything beneath that directory however the files are named, and it is 
 the directory is gone rather than when a given crawl happens to find nothing in it.
 """
 import json
+import os
 import pathlib
 import sys
 
@@ -63,7 +64,7 @@ def test_a_decline_naming_a_directory_covers_every_file_under_it(registry, tmp_p
              {"dagster": tmp_path / "dagster"},
              _crawl(tmp_path, files))
 
-    undeclared, stale, note = collect.reconcile()
+    undeclared, stale, _blind, note = collect.reconcile()
     assert note == ""
     assert undeclared == [], f"a covered file was still reported undeclared: {undeclared}"
     assert stale == []
@@ -79,7 +80,7 @@ def test_the_same_files_are_undeclared_without_the_directory_decline(registry, t
 
     registry({}, {}, _crawl(tmp_path, files))
 
-    undeclared, _stale, _note = collect.reconcile()
+    undeclared, _stale, _blind, _note = collect.reconcile()
     assert len(undeclared) == len(files)
 
 
@@ -99,7 +100,7 @@ def test_a_sibling_directory_with_a_shared_prefix_is_not_swallowed(registry, tmp
              {"dagster": tmp_path / "dagster"},
              _crawl(tmp_path, [stray]))
 
-    undeclared, _stale, _note = collect.reconcile()
+    undeclared, _stale, _blind, _note = collect.reconcile()
     assert [u["path"] for u in undeclared] == [str(stray)]
 
 
@@ -111,7 +112,7 @@ def test_a_directory_decline_is_not_stale_on_a_night_the_tool_did_not_run(regist
              {"dagster": tmp_path / "dagster"},
              _crawl(tmp_path, []))
 
-    _undeclared, stale, _note = collect.reconcile()
+    _undeclared, stale, _blind, _note = collect.reconcile()
     assert stale == []
 
 
@@ -121,7 +122,7 @@ def test_a_directory_decline_is_stale_once_the_directory_is_gone(registry, tmp_p
              {"dagster": tmp_path / "never-existed"},
              _crawl(tmp_path, []))
 
-    _undeclared, stale, _note = collect.reconcile()
+    _undeclared, stale, _blind, _note = collect.reconcile()
     assert stale == ["dagster"]
 
 
@@ -132,7 +133,7 @@ def test_an_id_decline_still_behaves_exactly_as_before(registry, tmp_path):
 
     registry({str(store): "the vendor's own failed uploads"}, {}, _crawl(tmp_path, [store]))
 
-    undeclared, stale, _note = collect.reconcile()
+    undeclared, stale, _blind, _note = collect.reconcile()
     assert undeclared == []
     assert stale == []
 
@@ -169,3 +170,62 @@ def test_the_live_registry_declines_the_dagster_run_store_by_directory(registry)
     assert "dagster-run-store" in collect.DECLINED
     assert "dagster-run-store" in collect.DECLINED_DIRS
     assert collect.DECLINED_DIRS["dagster-run-store"].name == "dagster"
+
+
+#: Second incident, in the same function, found in review by session chidionyema-7e before
+#: this merged: the staleness rule above answered "gone" for a directory it could not read.
+#: `Path.exists()` returns False for a permission error, an unmounted volume and a network
+#: filesystem that timed out, exactly as it does for a directory that is not there -- so an
+#: exclusion whose directory was merely unreachable reported as a ghost, and a ghost is dead
+#: wood somebody deletes. Deleting it makes the registry go red on the next run, which is
+#: the failure the directory exclusion was added to stop.
+#:
+#: Three checks on this estate collapsed the same two facts on 2026-08-24: an escrow check
+#: printed NOT PRESENT for a permission error, a database drill printed corruption for
+#: SQLITE_CANTOPEN on a locked file, and a research pass called a file unmerged after
+#: looking at one branch. The rule these assert is that a checker never reports the verdict
+#: it could not reach.
+
+
+@pytest.fixture
+def unreadable(tmp_path):
+    """A directory whose parent denies traversal, restored however the test ends."""
+    parent = tmp_path / "locked"
+    target = parent / "dagster"
+    target.mkdir(parents=True)
+    parent.chmod(0o000)
+    try:
+        yield target
+    finally:
+        parent.chmod(0o755)
+
+
+@pytest.mark.skipif(os.geteuid() == 0,
+                    reason="root traverses a 0o000 directory, so the error cannot be staged")
+def test_incident_a_decline_we_cannot_read_is_not_reported_as_a_ghost(
+        registry, tmp_path, unreadable):
+    registry({"dagster": "the orchestrator's own bookkeeping"},
+             {"dagster": unreadable},
+             _crawl(tmp_path, []))
+
+    _undeclared, stale, blind, _note = collect.reconcile()
+    assert stale == [], ("an exclusion this run could not read was called a ghost; "
+                         "the next person deletes it and the gate goes red")
+    assert blind == ["dagster"], "a blind spot has to be said out loud, not swallowed"
+
+
+@pytest.mark.skipif(os.geteuid() == 0,
+                    reason="root traverses a 0o000 directory, so the error cannot be staged")
+def test_incident_unreadable_and_gone_do_not_produce_the_same_verdict(
+        registry, tmp_path, unreadable):
+    """The oracle for the test above: the two cases must not be indistinguishable."""
+    registry({"dagster": "the orchestrator's own bookkeeping"},
+             {"dagster": unreadable}, _crawl(tmp_path, []))
+    _u, stale_blind, blind_blind, _n = collect.reconcile()
+
+    registry({"dagster": "the orchestrator's own bookkeeping"},
+             {"dagster": tmp_path / "never-existed"}, _crawl(tmp_path, []))
+    _u, stale_gone, blind_gone, _n = collect.reconcile()
+
+    assert (stale_blind, blind_blind) == ([], ["dagster"])
+    assert (stale_gone, blind_gone) == (["dagster"], [])

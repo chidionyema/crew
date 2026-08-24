@@ -55,13 +55,16 @@ SOURCES: dict[str, tuple[Path, str, str | None]] = {
     # did to itself. Everything above is telemetry; these are the denominator.
     "ships":          (Path(__file__).parent / "ships.jsonl",                "jsonl", "at"),
     "predictions":    (Path(__file__).parent / "predictions.jsonl",          "jsonl", "at"),
+    # The founder himself. His messages and complaints per day, derived from the
+    # directives ledger, which had 6,917 rows and no reader (LAW 28).
+    "attention":      (Path(__file__).parent / "attention.jsonl",            "jsonl", "at"),
 }
 
 # A source that has not been written inside this many hours is reported STALE.
 # The number is the source's own cadence times three, not a guess: reflect runs
 # every 4 hours, the spend collector every 10 minutes, the rest are event-driven
 # and only report stale after a full day of silence.
-STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26}
+STALE_HOURS = {"spend": 6, "method_metrics": 12, "ships": 26, "attention": 26}
 DEFAULT_STALE_HOURS = 48
 
 SCHEMA = """
@@ -127,6 +130,33 @@ LEFT JOIN (
     GROUP BY day
 ) p ON p.day = s.day
 ORDER BY s.day;
+
+-- What it cost HIM. The estate measured its own money and its own output and never
+-- once measured the founder, who is one of the platform's two customers (LAW 36).
+-- His messages are the effort the estate asked of him; his complaints are the
+-- platform telling on itself. Joined to spend and commits so the three move together
+-- on one row: a day that shipped more, cost less and needed fewer of his words is the
+-- only shape of "better" that means anything here.
+DROP VIEW IF EXISTS attention_daily;
+CREATE VIEW attention_daily AS
+SELECT
+    a.day,
+    a.messages,
+    a.complaints,
+    a.complaint_rate,
+    v.usd,
+    v.commits,
+    ROUND(v.commits * 1.0 / NULLIF(a.messages, 0), 2) AS commits_per_message
+FROM (
+    SELECT json_extract(payload, '$.day')            AS day,
+           MAX(json_extract(payload, '$.messages'))  AS messages,
+           MAX(json_extract(payload, '$.complaints')) AS complaints,
+           MAX(json_extract(payload, '$.complaint_rate')) AS complaint_rate
+    FROM facts WHERE source = 'attention'
+    GROUP BY day
+) a
+LEFT JOIN value_daily v ON v.day = a.day
+ORDER BY a.day;
 """
 
 
@@ -159,11 +189,38 @@ def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
     return rows, bad
 
 
+#: Producers on this estate name the row's own timestamp three different ways and
+#: encode it two different ways. Measured 2026-08-24: 4,261 of 5,548 rows landed with
+#: at=NULL because this function looked only for a field literally called "at" and
+#: only accepted strings. Eight of nineteen sources had every row untimestamped,
+#: including the two largest, which makes any time series over them impossible.
+TIME_KEYS = ("at", "ts", "t", "timestamp", "generated_at")
+
+#: 2001-09-09 to 2033-05-18. A number outside this range is not a unix timestamp, so a
+#: field that happens to be called "t" and holds something else is dropped rather than
+#: silently recorded as a date in 1970.
+EPOCH_LO, EPOCH_HI = 1_000_000_000, 2_000_000_000
+
+
 def row_time(obj: dict, field: str | None) -> str | None:
-    if not field:
-        return None
-    v = obj.get(field)
-    return v if isinstance(v, str) else None
+    """The row's own timestamp as ISO-8601, or None when it genuinely carries none.
+
+    The configured field wins; the rest of TIME_KEYS are tried after it so a new source
+    is timestamped without anyone remembering to declare which key it uses. Anything
+    that will not validate as a time returns None, because a wrong date is worse than a
+    missing one: a missing one shows up as a gap and a wrong one shows up as a trend.
+    """
+    for key in ((field,) if field else ()) + TIME_KEYS:
+        v = obj.get(key)
+        if isinstance(v, str) and v.strip():
+            try:
+                datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            return v
+        if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
+            return iso(float(v))
+    return None
 
 
 def collect(conn: sqlite3.Connection) -> list[dict]:
@@ -216,7 +273,14 @@ def main() -> int:
                     help="exit 1 if any source is absent, unreadable or stale")
     args = ap.parse_args()
 
-    conn = sqlite3.connect(WAREHOUSE)
+    # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
+    # agent runs the same script by hand. Without a busy timeout the second one dies on
+    # "database is locked" mid-DELETE, which reads as a broken collector rather than as
+    # two collectors queueing. Measured 2026-08-24: exactly that, on collect.py:221.
+    # WAL additionally lets estate-snapshot read the views while a collection is writing.
+    conn = sqlite3.connect(WAREHOUSE, timeout=60)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=60000")
     conn.executescript(SCHEMA)
     report = collect(conn)
     conn.executescript(SPEND_VIEW)

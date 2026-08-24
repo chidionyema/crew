@@ -90,3 +90,38 @@ being misused.
 **Nobody ever scores a prediction.** Then the hit rate stays unmeasurable, which is
 exactly the state the estate was already in, and the ledger should be deleted
 rather than kept as decoration.
+
+## The founder cost series
+
+**What it is for.** LAW 36 says the founder is one of the platform's two customers and that
+his complaint is a measurement, not a mood. Nothing kept the measurement. This collects it:
+how many messages the estate needed from him each day, and what share of them were
+complaints, since 28 July 2026.
+
+**What it costs.** Nothing new is written by anybody. It reads `~/.claude/directives`, which
+`directive-capture.py` has been filling since July, and derives one row per day. It runs
+inside the hourly `com.founder.sciencecollect` job that was already running.
+
+**Where it lives.** `science/attention.jsonl`, ingested into `warehouse.db` as the
+`attention` source and joined to money and delivery by the `attention_daily` view. He sees
+it as the `founder cost` row on `STATE.md`.
+
+**How to turn it off.** `launchctl bootout gui/$(id -u)/com.founder.sciencecollect` stops the
+whole collector. To stop only this part, delete the `attention` line from `SOURCES` in
+`science/collect.py`; the rest of the warehouse is unaffected.
+
+**What goes wrong.**
+
+**The complaint count is a proxy and a crude one.** It matches 43 words borrowed from
+`founder_board.py`. It counts an angry word, not an unmet need, so a calm sentence saying
+the same thing scores zero and a joke containing a swear word scores one. It is published
+as a rate over his own volume because the trend is the part worth reading; a single day's
+number means very little.
+
+**The lexicon can fail to load.** `founder_board.py` is imported at runtime rather than
+copied, so two lists of his own words cannot drift apart. If that import fails, every
+complaint count is zero, which would read as a calm week. The command prints a warning
+saying the zeros mean "not measured" for that reason, and the count is never silently clean.
+
+**Nobody looks at the row.** Then it is not an instrument (LAW 28) and it should be deleted
+rather than left on the page implying somebody is watching.

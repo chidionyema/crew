@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-23 23:11 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-24 00:44 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -9,14 +9,18 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | what | state | measured by |
 |---|---|---|
 | The Architect | RED | `bin/verify`: 15 passed, 2 failed |
-| &nbsp;&nbsp;failing | | FAIL  README describes what ships        gateway/ is in the repo, and the README never says why |
-| &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         8f67ab8cb8 (want 1220c4ad24) |
-| maestro | GREEN | last cycle 0 min ago (`INTENT-20260823-230929-0d20f3e7.json`) |
+| &nbsp;&nbsp;failing | | FAIL  README describes what ships        docs/demo/claim-gate.md is in the repo, and the README never says why |
+| &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         b3ec1c9bc3 (want 1220c4ad24) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260824-004155-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | 2 deployed, 12 suspended | `flyctl apps list` |
-| estate spend | RED | $866/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
-| collectors | RED | 2 of the estate's data stores stopped being written: decisions silent 54h; would_have_fired silent 50h |
-| crew P1 | 5 open | the fires nobody has put out |
+| estate spend | RED | $773/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
+| founder cost | GREEN | 4180 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
+| collectors | RED | 2 of the estate's data stores stopped being written: decisions silent 55h; would_have_fired silent 51h |
+| crew P1 | 8 open | the fires nobody has put out |
+| &nbsp;&nbsp;#74 Build the real data pipeline: DuckDB + DuckLake + fastjsonschema, and drop the four tools that fail the re | | |
+| &nbsp;&nbsp;#71 1,064 field paths, 0 declared: the warehouse has no schema, no owner, no retention and no sensitivity on a | | |
+| &nbsp;&nbsp;#69 32 of 59 scripts are wired into nothing, and one of them is the LAW 22 evidence tool | | |
 | &nbsp;&nbsp;#38 The exit from Fly has never once been drilled: the escape hatch cannot pass as written | | |
 | &nbsp;&nbsp;#35 Fly.io refuses to build: the account has overdue invoices, and production is 10 commits behind | | |
 | &nbsp;&nbsp;#26 Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it | | |

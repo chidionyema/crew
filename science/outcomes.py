@@ -39,6 +39,17 @@ from pathlib import Path
 SCIENCE = Path(__file__).resolve().parent
 SHIPS = SCIENCE / "ships.jsonl"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
+ATTENTION = SCIENCE / "attention.jsonl"
+
+#: Where his own words are captured. `directive-capture.py` writes one file per project on
+#: UserPromptSubmit, so this directory is the estate's complete record of what he asked for.
+#: Nothing had ever read it as a series.
+DIRECTIVES = Path.home() / ".claude/directives"
+
+#: The friction lexicon lives in founder_board.py and is borrowed, never copied. Two lists of
+#: his own words drift apart and the one nobody edits is the one that silently stops matching.
+#: `friction-relay.py` borrows it the same way, for the same reason.
+FOUNDER_BOARD = Path.home() / ".claude/scripts/founder_board.py"
 
 # The repositories that actually ship something. Measured, not guessed: these are
 # the trees with a commit in the last 7 days as of 2026-08-23.
@@ -145,6 +156,90 @@ def cmd_ship(args) -> int:
     return 0
 
 
+def friction_words() -> tuple:
+    """Borrow the lexicon rather than keeping a second copy of his own words."""
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("_fb", FOUNDER_BOARD)
+        fb = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fb)
+        words = tuple(getattr(fb, "FRICTION", ()))
+        if words:
+            return words
+    except Exception:                                               # noqa: BLE001
+        pass
+    # A degraded vocabulary under-reports friction. It must never report a clean estate, so
+    # the caller is told the lexicon was not the real one.
+    return ()
+
+
+def collect_attention() -> tuple[list[dict], int]:
+    """His messages and his complaints, per day. The measurement LAW 36 asks for.
+
+    The founder is one of the platform's two customers and the only instrument pointed at him
+    was `friction-relay.py`, which holds a six hour window and is rebuilt at every session start.
+    Nothing kept a series, so "is he complaining more or less than last week" could not be asked,
+    let alone answered — and LAW 36 says the complaint is the measurement, not a mood.
+
+    Derived from `~/.claude/directives`, which has captured every prompt since 2026-07-28. This
+    is a read of a store that already exists, not a new ledger (LAW 30).
+
+    A complaint is a message matching the founder_board lexicon. That is a proxy and it is a
+    crude one: it counts an angry word, not an unmet need, and a calm sentence saying the same
+    thing does not count. It is reported as a rate over his own volume for that reason — the
+    number to watch is the trend, and a proxy that moves with the thing is worth more than a
+    perfect measure nobody has.
+    """
+    words = friction_words()
+    per: dict[str, dict] = {}
+    if not DIRECTIVES.is_dir():
+        return [], 0
+    for f in sorted(DIRECTIVES.glob("*.jsonl")):
+        for line in f.read_text(errors="ignore").split("\n"):
+            if not line.strip():
+                continue
+            try:
+                r = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            day = str(r.get("at") or r.get("ts") or "")[:10]
+            text = str(r.get("text") or r.get("prompt") or r.get("request") or "")
+            if not day or not text:
+                continue
+            d = per.setdefault(day, {"messages": 0, "complaints": 0})
+            d["messages"] += 1
+            if words and any(w in text.lower() for w in words):
+                d["complaints"] += 1
+    now = dt.datetime.now().isoformat(timespec="seconds")
+    rows = [{"at": now, "day": day, "messages": d["messages"], "complaints": d["complaints"],
+             "complaint_rate": round(100 * d["complaints"] / d["messages"], 1),
+             "lexicon_size": len(words)}
+            for day, d in sorted(per.items())]
+    return rows, len(words)
+
+
+def cmd_attention(args) -> int:
+    rows, lex = collect_attention()
+    if not rows:
+        print(f"no directive rows under {DIRECTIVES}", file=sys.stderr)
+        return 1
+    write_rows(ATTENTION, rows)
+    if not lex:
+        print("WARNING: the friction lexicon did not load, so every complaint count below is 0")
+        print(f"         and means 'not measured', not 'no complaints'. Check {FOUNDER_BOARD}.")
+    print(f"{ATTENTION}")
+    print(f"{'day':12} {'his messages':>13} {'complaints':>11} {'rate':>6}")
+    print("-" * 45)
+    for r in rows[-args.days:]:
+        print(f"{r['day']:12} {r['messages']:>13} {r['complaints']:>11} {r['complaint_rate']:>5.0f}%")
+    print("-" * 45)
+    m = sum(r["messages"] for r in rows)
+    c = sum(r["complaints"] for r in rows)
+    print(f"{'TOTAL':12} {m:>13} {c:>11} {100*c/max(m,1):>5.0f}%")
+    print(f"\n{len(rows)} days, {rows[0]['day']} to {rows[-1]['day']}, lexicon {lex} words")
+    return 0
+
+
 def load_predictions() -> list[dict]:
     if not PREDICTIONS.exists():
         return []
@@ -231,6 +326,10 @@ def main() -> int:
     s = sub.add_parser("ship", help="collect delivery outcomes from git and gh")
     s.add_argument("--days", type=int, default=30)
     s.set_defaults(fn=cmd_ship)
+
+    a = sub.add_parser("attention", help="his messages and complaints, per day")
+    a.add_argument("--days", type=int, default=21, help="how many days to print, not to collect")
+    a.set_defaults(fn=cmd_attention)
 
     p = sub.add_parser("predict", help="record a causal prediction BEFORE the repair")
     p.add_argument("--issue", required=True, help="the issue or PR this is about")

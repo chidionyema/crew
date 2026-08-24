@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-24 02:26 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-24 02:48 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,12 +8,14 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | NOT RUN | bin/verify produced no verdict line |
-| maestro | GREEN | last cycle 1 min ago (`INTENT-20260824-022139-0d20f3e7.json`) |
+| The Architect | RED | `bin/verify`: 16 passed, 2 failed |
+| &nbsp;&nbsp;failing | | FAIL  README describes what ships        docs/demo/claim-gate.md is in the repo, and the README never says why |
+| &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         5b4e0af927 (want 252efcbc2e) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260824-024245-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
-| Fly | 2 deployed, 12 suspended | `flyctl apps list` |
-| estate spend | RED | $803/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
-| founder cost | GREEN | 4219 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
+| Fly | 3 deployed, 11 suspended | `flyctl apps list` |
+| estate spend | RED | $806/day 7-day mean against a $120 cap (`spend_daily`, warehouse.db) |
+| founder cost | GREEN | 4225 msgs / 7% complaints this week against 1698 / 8% last (`attention_daily`) |
 | collectors | RED | 2 of the estate's data stores stopped being written: decisions silent 57h; would_have_fired silent 53h |
 | crew P1 | 10 open | the fires nobody has put out |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |

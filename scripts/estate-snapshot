@@ -11,7 +11,14 @@ A row that could not be measured says NOT RUN, never PASS, because a dead checke
 healthy estate must never look the same (LAW 31).
 
     scripts/estate-snapshot            write STATE.md, print it, exit 0
-    scripts/estate-snapshot --commit   write, commit and push it
+    scripts/estate-snapshot --commit   write, commit and push it to main
+
+`--commit` refuses, loudly and non-zero, unless this checkout is on main with no merge in
+progress. It ran hourly from the shared checkout for months without asking where it was,
+and on 2026-08-24 it wrote the estate's state onto a feature branch somebody had left
+checked out. Everything looked green: it committed, exited 0, and printed "committed:".
+STATE.md on main went two and a half hours stale while every session read it and could not
+tell. See tests/test_incident_snapshot_committed_to_a_stranded_branch.py.
 """
 from __future__ import annotations
 
@@ -426,8 +433,99 @@ def runtime() -> list[str]:
     return rows
 
 
+#: The one branch this file is read from. STATE.md written anywhere else is written
+#: where nobody looks, which is indistinguishable from not writing it at all.
+BRANCH = "main"
+
+
+def ready_to_commit() -> str:
+    """"" when this checkout may be committed to, otherwise the reason it may not.
+
+    INCIDENT, 2026-08-24. This job runs hourly from the shared checkout
+    `~/dev/code/crew`, and it committed to whatever branch that checkout happened to be
+    standing on. A session left it on `research-gateway-api-edge` mid-merge, so the 08:34
+    UTC snapshot was committed onto a feature branch and STATE.md on main went 2.5 hours
+    stale. STATE.md is the file every session is told to read before measuring anything or
+    asking the founder anything -- it exists so that six sessions which cannot see each
+    other stop re-measuring the same estate. While it is stale, every session reading it
+    is reading a stale estate and none of them can tell.
+
+    The job reported nothing wrong throughout. It committed successfully and exited 0,
+    because it never asked where it was. An instrument that cannot tell "I wrote the
+    estate's state" from "I wrote onto a branch nobody reads" is blind in the same way a
+    checker that cannot tell "the directory is gone" from "I could not read it" is blind
+    (science/collect.py, same day, four other instances). This is the two-line version.
+
+    Refusing is the whole point. A snapshot not written is visible in the timestamp; a
+    snapshot written somewhere else looks exactly like success.
+    """
+    rc, branch = sh(f"git -C '{ROOT}' rev-parse --abbrev-ref HEAD")
+    if rc:
+        return f"cannot read the current branch: {branch}"
+    if branch != BRANCH:
+        return (f"this checkout is on '{branch}', not {BRANCH}. The snapshot would be "
+                f"committed where nobody reads it. Move the work to a worktree and return "
+                f"the checkout to {BRANCH}.")
+    rc, _ = sh(f"git -C '{ROOT}' rev-parse -q --verify MERGE_HEAD")
+    if rc == 0:
+        return ("a merge is in progress in this checkout. Committing into it would add "
+                "the snapshot to somebody's half-finished merge.")
+    rc, out = sh(f"git -C '{ROOT}' status --porcelain -- STATE.md")
+    if rc:
+        return f"cannot read the status of STATE.md: {out}"
+    return ""
+
+
+def commit(now: str) -> int:
+    """Put STATE.md on main, or say exactly which step failed. Never both.
+
+    The previous version was one `&&` chain whose result was thrown away, followed by a
+    separate `git log -1` printed as "committed:". A failed push and a successful one
+    printed the same line. Worse, the chain ended with a bare `git merge origin/main`,
+    which is what authored the conflicted merge that stranded the checkout in the first
+    place -- the job's own recovery step was the thing that broke it.
+
+    So: fast-forward BEFORE writing anything, never merge after; run each step on its own
+    and stop at the first failure; and name the step that failed. A push that loses a race
+    with another writer fails loudly here and the next hourly run carries the state -- an
+    hour of staleness that is visible beats a merge nobody asked for.
+    """
+    steps = [
+        ("fetch main", f"git fetch -q origin {BRANCH}"),
+        (f"fast-forward onto origin/{BRANCH}",
+         f"git merge --ff-only -q origin/{BRANCH}"),
+        ("stage STATE.md", "git add STATE.md"),
+        ("commit", f"git commit -q -m 'chore(state): estate snapshot {now}'"),
+        ("push", f"git push -q origin {BRANCH}"),
+    ]
+    for label, cmd in steps:
+        rc, out = sh(f"cd '{ROOT}' && {cmd}", timeout=120)
+        if rc != 0:
+            #: "nothing to commit" is not a failure. The estate can be unchanged between
+            #: two hourly runs, and a job that goes red on a quiet hour gets ignored on
+            #: the hour it means it.
+            if label == "commit" and "nothing to commit" in out:
+                print("no change since the last snapshot; nothing to commit.")
+                return 0
+            print(f"SNAPSHOT NOT COMMITTED. Failed at: {label}\n  {cmd}\n"
+                  f"  {out or '(no output)'}")
+            return 1
+    rc, out = sh(f"cd '{ROOT}' && git log --oneline -1")
+    print(f"committed and pushed to {BRANCH}: {out}")
+    return 0
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    #: Asked before the estate is measured, not after. Measuring takes half a minute and
+    #: the answer cannot change the verdict, so a refusal should cost nothing.
+    if "--commit" in sys.argv:
+        why = ready_to_commit()
+        if why:
+            print(f"SNAPSHOT NOT COMMITTED: {why}")
+            return 1
+
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1,
                runtime):
@@ -456,11 +554,7 @@ def main() -> int:
     print(body)
 
     if "--commit" in sys.argv:
-        sh("cd %s && git add STATE.md && git commit -q -m "
-           "'chore(state): estate snapshot %s' && git fetch origin main -q && "
-           "git merge origin/main --no-edit -q && git push -q" % (ROOT, now))
-        rc, o = sh("cd %s && git log --oneline -1" % ROOT)
-        print("committed:", o)
+        return commit(now)
     return 0
 
 

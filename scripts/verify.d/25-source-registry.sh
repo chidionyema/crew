@@ -102,8 +102,17 @@ good_registry; rm -f "$WORK/inventory.json"
 run --check; expect 1 "a missing crawl refuses to return a verdict"
 
 echo "== G. the real registry against the real crawl =="
-echo "\$ collect.py --reconcile"
-"$PY" "$COLLECT" --reconcile 2>&1 | sed 's/^/    /'
-(exit "${PIPESTATUS[0]}"); expect 0 "the estate's own registry reconciles clean"
+# A guard that loses its evidence reports BLIND, never a verdict. The crawl is written
+# hourly by com.estate.inventory ON THE LAPTOP; a CI runner has no estate to crawl, and
+# grading the real reconcile there fails on absence, not on a defect. Controls A-F above
+# are hermetic and still decide this gate everywhere. Same default path as collect.py.
+REAL_INVENTORY="${ESTATE_INVENTORY:-$HOME/.estate/state/inventory.json}"
+if [ ! -f "$REAL_INVENTORY" ]; then
+  echo "  BLIND  no crawl on this host ($REAL_INVENTORY absent); the laptop grades this control"
+else
+  echo "\$ collect.py --reconcile"
+  "$PY" "$COLLECT" --reconcile 2>&1 | sed 's/^/    /'
+  (exit "${PIPESTATUS[0]}"); expect 0 "the estate's own registry reconciles clean"
+fi
 
 exit $fail

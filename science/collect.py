@@ -132,8 +132,10 @@ def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
         if not line.startswith((" ", "\t")):
             inside = line == "receivers:"
             continue
-        if inside and len(line) - len(line.lstrip()) == 2 and line.strip().endswith(":"):
-            keys.add(line.strip()[:-1])
+        if inside and len(line) - len(line.lstrip()) == 2 and ":" in line:
+            key = line.strip().split(":", 1)[0].strip()
+            if key and " " not in key:
+                keys.add(key)
     return keys
 
 

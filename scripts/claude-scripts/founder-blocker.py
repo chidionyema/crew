@@ -10,9 +10,17 @@ Usage: founder-blocker.py "<what he must do, one sentence>" [<url or word>] [--s
 Exit 0 with a message_id on screen, or 1 BLIND with the reason. Never raises.
 """
 from __future__ import annotations
-import json, os, sys, urllib.parse, urllib.request
+
+import json
+import os
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from estate import estate_alert as ea, telegram_ledger  # noqa: E402
+from estate import estate_alert as ea
+from estate import telegram_ledger
 
 SOURCE = "founder-blocker"
 
@@ -38,14 +46,14 @@ def send(action: str, target: str = "", session: str = "") -> int:
     try:
         mid = int(_api(tok, "sendMessage", chat_id=chat, text=text[:4000],
                        disable_web_page_preview="true")["result"]["message_id"])
-    except Exception as e:  # noqa: BLE001
+    except (OSError, ValueError, urllib.error.URLError, KeyError) as e:
         telegram_ledger.record(SOURCE, "error", text, key=str(e)[:80])
         print(f"BLIND: telegram send failed: {e}", file=sys.stderr)
         return 0
     try:
         _api(tok, "pinChatMessage", chat_id=chat, message_id=mid, disable_notification="false")
         pinned = "pinned"
-    except Exception as e:  # noqa: BLE001
+    except (OSError, ValueError, urllib.error.URLError, KeyError) as e:
         pinned = f"not pinned ({e})"
     telegram_ledger.record(SOURCE, "sent", text, key=action[:60], msg_id=mid)
     print(f"telegram message_id={mid} {pinned}")

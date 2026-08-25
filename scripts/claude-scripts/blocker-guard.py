@@ -8,8 +8,13 @@ can tell whether a pinned message exists, and that is the receipt it demands.
 Exit 2 blocks the reply; exit 0 permits. BLIND (ledger unreadable) permits and says so.
 """
 from __future__ import annotations
-import json, os, sys, time
+
+import json
+import os
+import sys
+import time
 from pathlib import Path
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 WINDOW_S = 3600.0
@@ -58,7 +63,7 @@ def main() -> int:
     try:
         from estate import telegram_ledger
         rows = telegram_ledger.read(since_s=time.time() - WINDOW_S)
-    except Exception:  # noqa: BLE001
+    except (ImportError, OSError, ValueError):
         rows = None
     code, msg = verdict(reply, rows, time.time())
     if msg:

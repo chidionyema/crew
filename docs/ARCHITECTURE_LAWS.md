@@ -99,6 +99,6 @@ the law for THIS change, or `n/a:` with the reason. A line that is a sentence fa
 ```
 
 Enforcement, in order of landing: idp `bin/cloud-agnostic-gate` (LAW 1, live); the estate
-merge gate refusing a PR body without the four lines (all repos, crew#253); a per-law gate for
+merge gate refusing a PR body without the four lines (all repos, crew#254); a per-law gate for
 each mechanical check as the layer lands (LAW 3 when the collector is on the cluster, LAW 4
 when the prediction ledger is).

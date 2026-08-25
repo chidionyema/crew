@@ -145,13 +145,13 @@ skipped silently. `DONE:` on a reply with a missing row is the incident.
 |---|---|---|---|
 | 1 | Tracked item | crew issue, `security`/lane label, owner named | `gh issue view N` shows owner and `Closes #N` on the PR |
 | 2 | Code or config | a merged PR, squash, branch deleted | `git log --oneline -1 main` names the PR |
-| 3 | Gate proved both ways | `bin/<name>-gate` + `tests/fixtures/<name>/{good,bad}` + a row in the repo's CI script | CI script prints `ok <name>` and the bad fixture exits non-zero |
-| 4 | Reference doc | `docs/reference/` or an ADR, one page, Diátaxis quadrant named | page in `mkdocs.yml` nav; docs build green |
+| 3 | Gate proved both ways | `bin/<name>-gate` + `tests/fixtures/<name>/{good,bad}` + a row in the repo's CI script | CI script prints `ok <name>`; in one run the good fixture exits 0 and the bad fixture exits non-zero |
+| 4 | Reference doc | `docs/reference/` or an ADR, one page, Diátaxis quadrant named | page in `idp/mkdocs.yml` nav; docs build green |
 | 5 | How-to and demo (LAW 32) | `docs/how-to/<verb>-<thing>.md` with a `Demo:` line naming one command | the demo command runs on main and prints its receipt |
-| 6 | Catalog entity | Backstage entity or annotation generated from the source file, never typed twice | `bin/catalog-refcheck` ok; entity visible in the portal |
+| 6 | Catalog entity | Backstage entity or annotation generated from the source file, never typed twice | `idp/bin/catalog-refcheck` ok; entity visible in the portal |
 | 7 | Operational proof (R9) | the thing running: scheduled job green, service serving, or gate deciding on a real PR | `Operational:` line in the REVIEW comment quoting command and output |
 | 8 | Scheduled re-grade (LAW 28) | a Dagster job or CI schedule that re-runs the gate and notifies on red | job listed by `idp/bin/scheduler-status`; last run green |
-| 9 | Standard row | this page names the tool, or the PR carries `Deviation:` | `pr-evidence check` sees `Standard:` or `Deviation:` |
+| 9 | Standard row | `crew/docs/STANDARDS.md` names the tool, or the PR carries `Deviation:` | `crew/scripts/pr-evidence.py check --pr N` sees `Standard:` or `Deviation:` |
 | 10 | Evidence block | `## Verification evidence` in the PR body with the exact commands and output | present; every number in the reply traces to a line in it |
 
 Ten rows is the whole list. A feature that produced assets 1, 2 and 10 only is a merged

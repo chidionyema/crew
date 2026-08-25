@@ -111,14 +111,30 @@ COLLECTOR_CONFIG = _env_path("OTEL_COLLECTOR_CONFIG", _default_collector_config(
 
 
 def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
-    """Receiver keys the collector declares, or None when the file cannot be read."""
+    """Receiver keys the collector declares, or None when the file cannot be read.
+
+    Standard library only. The first cut imported PyYAML and treated ImportError as
+    BLIND; the CI runner has no PyYAML, so control G (an undeclared receiver must be
+    refused) passed there with rc=0. A dependency the gate cannot see must not read
+    as missing evidence. The keys are the lines indented exactly one level under a
+    top-level `receivers:` line, which is the shape the collector itself requires.
+    """
     try:
-        import yaml
-        doc = yaml.safe_load(path.read_text()) or {}
-    except (OSError, ImportError, ValueError):
+        lines = path.read_text().splitlines()
+    except OSError:
         return None
-    rec = doc.get("receivers") or {}
-    return set(rec) if isinstance(rec, dict) else set()
+    keys: set[str] = set()
+    inside = False
+    for raw in lines:
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if not line.startswith((" ", "\t")):
+            inside = line == "receivers:"
+            continue
+        if inside and len(line) - len(line.lstrip()) == 2 and line.strip().endswith(":"):
+            keys.add(line.strip()[:-1])
+    return keys
 
 
 def receiver_verdict() -> tuple[list[str], str]:

@@ -385,7 +385,7 @@ def main() -> int:
         print()
         print(f"NEVER EMITTED  {len(NEVER_EMITTED)} things the estate does and does not record")
         print("-" * 78)
-        for name, what, why in NEVER_EMITTED:
+        for name, what, _why in NEVER_EMITTED:
             print(f"  {name:<16} {what}")
 
         if changes:

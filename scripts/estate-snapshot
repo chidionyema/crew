@@ -406,7 +406,7 @@ def runtime() -> list[str]:
 
     kube = f"KUBECONFIG={pathlib.Path.home() / '.kube' / 'oke-estate'} kubectl --request-timeout=20s"
     rc, out = sh(f"{kube} get nodes --no-headers", timeout=30)
-    nodes = [l.split() for l in out.strip().splitlines() if l.strip()]
+    nodes = [line.split() for line in out.strip().splitlines() if line.strip()]
     if rc or not nodes:
         rows.append(f"| OKE nodes | NOT RUN | `kubectl get nodes` rc={rc} {out.strip()[:80]!r} |")
     else:
@@ -415,7 +415,7 @@ def runtime() -> list[str]:
         rows.append(f"| OKE nodes | {state} | `kubectl get nodes` -> {ready}/{len(nodes)} Ready ({nodes[0][4] if len(nodes[0]) > 4 else '?'}) |")
 
     rc, out = sh(f"{kube} get kustomizations -A --no-headers", timeout=30)
-    ks = [l.split() for l in out.strip().splitlines() if l.strip()]
+    ks = [line.split() for line in out.strip().splitlines() if line.strip()]
     if rc or not ks:
         rows.append(f"| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc={rc} {out.strip()[:80]!r} |")
     else:

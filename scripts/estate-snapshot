@@ -406,7 +406,7 @@ def runtime() -> list[str]:
 
     kube = f"KUBECONFIG={pathlib.Path.home() / '.kube' / 'oke-estate'} kubectl --request-timeout=20s"
     rc, out = sh(f"{kube} get nodes --no-headers", timeout=30)
-    nodes = [l.split() for l in out.strip().splitlines() if l.strip()]
+    nodes = [line.split() for line in out.strip().splitlines() if line.strip()]
     if rc or not nodes:
         rows.append(f"| OKE nodes | NOT RUN | `kubectl get nodes` rc={rc} {out.strip()[:80]!r} |")
     else:
@@ -415,7 +415,7 @@ def runtime() -> list[str]:
         rows.append(f"| OKE nodes | {state} | `kubectl get nodes` -> {ready}/{len(nodes)} Ready ({nodes[0][4] if len(nodes[0]) > 4 else '?'}) |")
 
     rc, out = sh(f"{kube} get kustomizations -A --no-headers", timeout=30)
-    ks = [l.split() for l in out.strip().splitlines() if l.strip()]
+    ks = [line.split() for line in out.strip().splitlines() if line.strip()]
     if rc or not ks:
         rows.append(f"| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc={rc} {out.strip()[:80]!r} |")
     else:
@@ -481,6 +481,48 @@ def commit(now: str) -> int:
     return 0
 
 
+def science_plane() -> list[str]:
+    """What the research, data-science and ML crew has to stand on, as rows.
+
+    Founder, 2026-08-25: "the fact that you need to check means our process is
+    broken." He asked whether a data pipeline exists and the only way to answer
+    was to measure the estate by hand. LAW 39: the inventory answers that before
+    anyone asks. Every row here is a command; ABSENT is a verdict, not a gap.
+    """
+    rows: list[str] = []
+    sci = ROOT / "science"
+    wh = sci / "warehouse.db"
+    age = age_hours(wh)
+    models = len(list((sci / "dbt" / "models").rglob("*.sql"))) if (sci / "dbt" / "models").exists() else 0
+    if age is None:
+        rows.append("| science plane: warehouse | ABSENT | no `science/warehouse.db` |")
+    else:
+        rows.append(f"| science plane: warehouse | {'GREEN' if age < 3 else 'RED'} | DuckDB+dbt, "
+                    f"{models} dbt model(s), rebuilt {age:.0f}h ago (`science/warehouse.db`) |")
+    _rc, out = sh("pgrep -fl 'dagster' | grep -v pgrep | wc -l", timeout=10)
+    n = out.strip() or "0"
+    rows.append(f"| science plane: scheduler | {'GREEN' if n.strip() != '0' else 'RED'} | "
+                f"Dagster, {n.strip()} process(es) (`pgrep -f dagster`; `idp/scheduler/`) |")
+    _rc, out = sh("command -v mlflow || python3 -c 'import mlflow' 2>/dev/null && echo mlflow", timeout=10)
+    rows.append("| science plane: experiment tracker | "
+                + ("GREEN | mlflow on PATH (`command -v mlflow`) |" if out.strip()
+                   else "ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |"))
+    pred = sci / "predictions.jsonl"
+    if pred.exists():
+        lines = [ln for ln in pred.read_text().splitlines() if ln.strip()]
+        scored = sum(1 for ln in lines if '"outcome"' in ln or '"actual"' in ln or '"scored"' in ln)
+        rows.append(f"| science plane: forecast ledger | {'GREEN' if scored else 'RED'} | "
+                    f"{len(lines)} forecast(s), {scored} scored against reality "
+                    "(`science/predictions.jsonl`); Brier needs both |")
+    else:
+        rows.append("| science plane: forecast ledger | ABSENT | no `science/predictions.jsonl` |")
+    src = sci / "sources.json"
+    if src.exists():
+        declared = len(json.loads(src.read_text()).get("sources", []))
+        rows.append(f"| science plane: declared stores | {declared} | `science/sources.json` |")
+    return rows
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -493,7 +535,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1,
+    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, science_plane, crew_p1,
                runtime):
         try:
             rows += fn()

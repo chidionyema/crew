@@ -1,4 +1,4 @@
-# R36: research is a crew that looks outward; science/ML is an embedded layer that looks inward
+# R37: research is a crew that looks outward; science/ML is an embedded layer that looks inward
 
 Founder, 2026-08-25, framing: "so that the expectations are clear, ignore the actual implementation,
 you don't need to follow exactly unless I say so but the principle and architecture is key."
@@ -132,7 +132,7 @@ THE ONE SENTENCE
 Research discovers what to build. Science predicts when it will be ready, if it will break, and
 whether the founder can be interrupted. Both are mandatory. Neither can wait.
 
-## Second message, same day, verbatim — the implementation is cloud-native, not a Mac script
+## Second message, same day, verbatim — the implementation is cloud-native (R36, crew#250), not a Mac script
 
 "this is crucial. The conceptual split you just defined is brilliant. It perfectly categorizes the
 chaos. Research is the scout (Outward). Science is the central nervous system (Inward). However,
@@ -188,7 +188,7 @@ OpenTelemetry collector instead of a local script."
 
 ## What the second message changes in the requirements
 
-- Requirement 3 (Phase 0) is replaced. There is no local ingest script and no SQLite file on the
+- Requirement 3 (Phase 0) is replaced. The "cloud-agnostic standard we just established" is R36 (crew#250, idp#124). There is no local ingest script and no SQLite file on the
   Mac. The nerve endings are an OpenTelemetry Collector on the OKE cluster (`idp`); sources push
   (agent traces via OTel GenAI semconv, GitHub Actions webhook, guards emitting OTel metrics); the
   store is ClickHouse (TimescaleDB is the named alternative); the oracle is an inference pod with

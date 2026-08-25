@@ -385,53 +385,45 @@ def collectors() -> list[str]:
 
 
 def runtime() -> list[str]:
-    """One container runtime -- colima -- and the CLI pointing at it, and it answering.
+    """The platform is OKE on Oracle; the laptop runs no VM. Both are measured, never asserted.
 
-    Incident 2026-08-24: Docker Desktop ran beside colima for hours holding zero
-    containers, the default docker context pointed at Desktop's dead daemon, and
-    `docker ps` hung for minutes in every session that tried. No instrument said so;
-    the founder found it by asking. The class is a second runtime nobody chose and a
-    context nobody checked, so this row measures three things and is GREEN only when
-    all three hold: context is colima, no second runtime process, colima's dockerd
-    actually answers. The socket probe uses curl with a hard timeout because the
-    docker CLI blocks unboundedly against a wedged daemon -- that hang WAS the
-    incident, and an instrument that hangs the same way measures nothing.
+    Incident 2026-08-25: a session answered "Oracle: nothing provisioned" from a doc while
+    the OKE cluster had been serving prospector for 13 hours, because this file had no
+    Oracle row and the colima rows below it rewarded a VM the founder had just banned
+    (R26). The laptop VM row runs the R26 guard; the OKE rows run kubectl against the
+    cluster's own kubeconfig with hard timeouts, so a wedged API reports NOT RUN, never
+    a verdict.
     """
     rows = []
-    rc, ctx = sh("docker context show", timeout=15)
-    ctx = ctx.strip()
-    if rc:
-        rows.append(f"| docker context | NOT RUN | `docker context show` rc={rc} |")
-    elif ctx == "colima":
-        rows.append("| docker context | GREEN | `docker context show` -> colima |")
+    guard = pathlib.Path.home() / ".claude" / "scripts" / "no-local-vm-guard.sh"
+    rc, out = sh(f"sh {guard}", timeout=15)
+    if not guard.exists():
+        rows.append("| laptop VM (R26) | NOT RUN | guard missing at ~/.claude/scripts/no-local-vm-guard.sh |")
+    elif rc == 0:
+        rows.append("| laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |")
     else:
-        rows.append(f"| docker context | RED | `docker context show` -> {ctx}; sessions'"
-                    " docker commands are landing off the standard runtime |")
+        rows.append(f"| laptop VM (R26) | RED | {out.strip().splitlines()[1][:90] if len(out.splitlines()) > 1 else out.strip()[:90]}; stop it, do not restart it |")
 
-    # macOS pgrep has no -c; count with wc. A non-numeric answer is NOT RUN, never a
-    # verdict -- the first draft of this row read pgrep's usage error as a count.
-    rc, n = sh("pgrep -f 'Docker.app/Contents/MacOS' | wc -l", timeout=10)
-    n = n.strip()
-    if not n.isdigit():
-        rows.append(f"| second container runtime | NOT RUN | pgrep gave {n[:60]!r} |")
-    elif n != "0":
-        rows.append("| second container runtime | RED | Docker Desktop is running "
-                    f"beside colima ({n} processes); one of them is paying for a VM "
-                    "nothing uses |")
+    kube = f"KUBECONFIG={pathlib.Path.home() / '.kube' / 'oke-estate'} kubectl --request-timeout=20s"
+    rc, out = sh(f"{kube} get nodes --no-headers", timeout=30)
+    nodes = [l.split() for l in out.strip().splitlines() if l.strip()]
+    if rc or not nodes:
+        rows.append(f"| OKE nodes | NOT RUN | `kubectl get nodes` rc={rc} {out.strip()[:80]!r} |")
     else:
-        rows.append("| second container runtime | GREEN | `pgrep -f "
-                    "'Docker.app/Contents/MacOS' | wc -l` -> 0 |")
+        ready = sum(1 for n in nodes if n[1] == "Ready")
+        state = "GREEN" if ready == len(nodes) else "RED"
+        rows.append(f"| OKE nodes | {state} | `kubectl get nodes` -> {ready}/{len(nodes)} Ready ({nodes[0][4] if len(nodes[0]) > 4 else '?'}) |")
 
-    sock = pathlib.Path.home() / ".colima" / "default" / "docker.sock"
-    rc, out = sh(f"curl -s --max-time 8 --unix-socket {sock} "
-                 "http://localhost/v1.43/containers/json", timeout=15)
-    if rc == 0 and out.startswith("["):
-        rows.append("| colima dockerd | GREEN | socket answered containers/json |")
+    rc, out = sh(f"{kube} get kustomizations -A --no-headers", timeout=30)
+    ks = [l.split() for l in out.strip().splitlines() if l.strip()]
+    if rc or not ks:
+        rows.append(f"| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc={rc} {out.strip()[:80]!r} |")
     else:
-        gave = "nothing" if not out else f"rc={rc}"
-        rows.append(f"| colima dockerd | RED | socket gave {gave} in 8s -- every estate "
-                    "container is unserved; do NOT restart colima, route to the "
-                    "firefighter |")
+        bad = [k[1] for k in ks if k[3] != "True"]
+        if bad:
+            rows.append(f"| OKE flux | RED | {len(bad)} of {len(ks)} Kustomizations not ready: {', '.join(bad)} |")
+        else:
+            rows.append(f"| OKE flux | GREEN | `kubectl get kustomizations -A` -> {len(ks)}/{len(ks)} ready |")
     return rows
 
 

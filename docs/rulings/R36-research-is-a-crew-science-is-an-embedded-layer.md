@@ -132,6 +132,81 @@ THE ONE SENTENCE
 Research discovers what to build. Science predicts when it will be ready, if it will break, and
 whether the founder can be interrupted. Both are mandatory. Neither can wait.
 
+## Second message, same day, verbatim — the implementation is cloud-native, not a Mac script
+
+"this is crucial. The conceptual split you just defined is brilliant. It perfectly categorizes the
+chaos. Research is the scout (Outward). Science is the central nervous system (Inward). However,
+the implementation plan in that pasted text — a Python 'tapeworm' script writing to a local SQLite
+database on your Mac — is completely incompatible with the elite, cloud-agnostic standard we just
+established. If we build a local SQLite script, we violate the 'Disposable Compute' rule. If your
+Mac goes to sleep or gets stolen, the Oracle dies. Here is how we take your exact conceptual split
+and build it natively into the idp platform so it is bulletproof, scalable, and truly embedded.
+
+The 'Living Oracle' Architecture (Cloud-Native). To make predictions like 'When will the
+infrastructure be ready?' based on transcripts and PRs, the Science layer cannot be a script that
+polls for data. It must be an event-driven nervous system built directly into the Kubernetes cluster.
+
+1. The Nerve Endings: OpenTelemetry (OTel). Instead of a script scraping your laptop, we deploy an
+OpenTelemetry Collector as a DaemonSet in your cluster. Every time an agent writes a transcript, it
+pushes a trace to OTel. Every time a CI run starts, GitHub Actions pushes a webhook to OTel. Every
+time a budget guard is triggered, it emits an OTel metric. Why this is elite: OTel is the industry
+standard. It is cloud-agnostic. No matter where the platform runs, the telemetry flows instantly
+without polling.
+
+2. The Universal Memory: ClickHouse (or TimescaleDB). Time-series data (metrics, logs, traces)
+destroys standard Postgres databases at scale. OTel streams all this raw data into a columnar
+analytical database like ClickHouse (which is open-source and cloud-agnostic). Why this is elite:
+ClickHouse can run aggregations on 100 million rows in milliseconds. When your Oracle needs to
+calculate the average CI duration over the last 90 days to predict today's build, it happens instantly.
+
+3. The Oracle Engine: MLflow + Langfuse. This is where the 'Science' layer actually lives. We deploy
+a lightweight ML inference pod that subscribes to the OTel data. The Readiness Predictor: It looks
+at the current agent transcript (e.g., 'Agent is stuck on step 4'), compares it to the ClickHouse
+history of similar tasks, and outputs: 'Prediction: idp#121 will merge in 45 minutes (80%
+confidence).' The Auto-Grader (Brier Scores): Langfuse logs the Oracle's prediction. When the PR
+actually merges 52 minutes later, Langfuse calculates the Brier score and feeds it back to MLflow to
+tune the model for next time.
+
+How It Changes the Platform Experience. When Science is truly embedded, you don't look at dashboards
+to find out what went wrong. The platform tells you what is about to go wrong.
+
+| Capability | What it does today (Amateur) | What the Oracle does (Elite) |
+|---|---|---|
+| Infra readiness | You wait for a Telegram ping from the crew. | Oracle analyzes agent transcript velocity + CI queue and pushes to Telegram: 'idp#110 deploy is 80% complete. Estimated live in 12 mins.' |
+| Agent health | Agent spins in a loop until it hits a hard timeout. | Oracle detects token-burn vs state-change anomalies and halts the agent early: 'Agent X halted. 95% probability of hallucination loop.' |
+| Budgeting | You check the Stripe/OpenAI dashboard at the end of the month. | Oracle forecasts burn continuously: 'Current PR rework rate is up 40%. Predicting budget exhaustion 3 days early. Pre-auth required.' |
+
+The Founder's Role in the Loop. You do not need to write the ML models. Your job in this
+architecture is the Calibration Authority: Set the Thresholds: tell the Oracle when to bother you
+(e.g., 'Only alert me if predicted CI time deviates by >2x the baseline, or budget burn spikes by
+15%'). Define the Brier Targets: determine what constitutes a 'good' prediction. The Final Call:
+Research proposes a new capability. Science predicts it will cost $400 and take 3 days to integrate.
+You look at those numbers and say 'Yes' or 'Kill it.'
+
+We already have MLflow and Langfuse approved for the cluster. We just need to wire them to an
+OpenTelemetry collector instead of a local script."
+
+## What the second message changes in the requirements
+
+- Requirement 3 (Phase 0) is replaced. There is no local ingest script and no SQLite file on the
+  Mac. The nerve endings are an OpenTelemetry Collector on the OKE cluster (`idp`); sources push
+  (agent traces via OTel GenAI semconv, GitHub Actions webhook, guards emitting OTel metrics); the
+  store is ClickHouse (TimescaleDB is the named alternative); the oracle is an inference pod with
+  MLflow for runs and models and Langfuse for prediction logging and Brier grading.
+- The seven tables of the first message are the schema the OTel data must be able to answer, not a
+  SQLite DDL. They become ClickHouse tables or views fed by the collector.
+- Requirement 7 (this week: ingest, three forecasts, a dashboard) stands, delivered on the cluster.
+- The friction point "the tapeworm extends crew/science/" is withdrawn as the Phase 0 path.
+  `crew/science/` (DuckDB + dbt on the laptop) is the interim baseline and the backfill source for
+  history the cluster has never seen; it is not the live nervous system, and it is retired once the
+  ClickHouse store carries the same rows. That matches R-infra-never-Mac-bound (2026-08-25).
+- "MLflow approved for the cluster": approved is the word on this page; on disk today MLflow is
+  `absent` (STANDARDS.md Experiments row, crew#251) and Langfuse is `partially live` (Agent traces
+  row). The Oracle's first PR deploys both to OKE; until then the calibration column is empty.
+- What stays exactly as held: the split, the six predictions with actions, Brier scoring, the loop
+  with the founder's last call, and the founder as calibration authority (thresholds, Brier
+  targets, sensitive data).
+
 ## Requirements, as held (founder to confirm or correct each line)
 
 1. Two functions split by direction. Research looks outward and is a crew. Science/ML looks inward

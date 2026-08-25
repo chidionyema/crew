@@ -22,6 +22,12 @@ Verifies: #<issue> CP<n> CP<n>
 Author-session: <name of the session opening this PR>
 Reviewed-by: <name of the session reviewing it, not "author", not the same as Author-session>
 
+## Architecture laws — docs/ARCHITECTURE_LAWS.md, each line a command or `n/a:` with the reason
+- LAW 1 zero-gravity:
+- LAW 2 fractal:
+- LAW 3 nervous system:
+- LAW 4 calibration:
+
 ## Definition of done — crew#105, each line a command run against THIS pr
 
 - [ ] `crew qa` is green on this PR's head commit (the `crew qa` check below)

@@ -132,3 +132,27 @@ to strict when its owner has annotated it; that is a per-lane ratchet, not a pag
    tiers, GitHub-hosted runners, and local k3d/k3s; "self-hosted on a small rented box" is
    not one of them. However mature the tool, a paid requirement parks it until the local
    proof is done and the founder reopens the spend question.
+
+## Definition of done (every tracked item, every lane)
+
+Founder, 2026-08-25: "what does done mean? what are the deliverables, what assets did it
+produce? we need more standard." LAW 33 says define done in commands; this section says
+which assets those commands must find. An item is DONE when every row below exists and its
+check passes. A row that does not apply is stated as `n/a: <why>` in the PR body, never
+skipped silently. `DONE:` on a reply with a missing row is the incident.
+
+| # | Asset | Where it lives | Check |
+|---|---|---|---|
+| 1 | Tracked item | crew issue, `security`/lane label, owner named | `gh issue view N` shows owner and `Closes #N` on the PR |
+| 2 | Code or config | a merged PR, squash, branch deleted | `git log --oneline -1 main` names the PR |
+| 3 | Gate proved both ways | `bin/<name>-gate` + `tests/fixtures/<name>/{good,bad}` + a row in the repo's CI script | CI script prints `ok <name>`; in one run the good fixture exits 0 and the bad fixture exits non-zero |
+| 4 | Reference doc | `docs/reference/` or an ADR, one page, Diátaxis quadrant named | page in `idp/mkdocs.yml` nav; docs build green |
+| 5 | How-to and demo (LAW 32) | `docs/how-to/<verb>-<thing>.md` with a `Demo:` line naming one command | the demo command runs on main and prints its receipt |
+| 6 | Catalog entity | Backstage entity or annotation generated from the source file, never typed twice | `idp/bin/catalog-refcheck` ok; entity visible in the portal |
+| 7 | Operational proof (R9) | the thing running: scheduled job green, service serving, or gate deciding on a real PR | `Operational:` line in the REVIEW comment quoting command and output |
+| 8 | Scheduled re-grade (LAW 28) | a Dagster job or CI schedule that re-runs the gate and notifies on red | job listed by `idp/bin/scheduler-status`; last run green |
+| 9 | Standard row | `crew/docs/STANDARDS.md` names the tool, or the PR carries `Deviation:` | `crew/scripts/pr-evidence.py check --pr N` sees `Standard:` or `Deviation:` |
+| 10 | Evidence block | `## Verification evidence` in the PR body with the exact commands and output | present; every number in the reply traces to a line in it |
+
+Ten rows is the whole list. A feature that produced assets 1, 2 and 10 only is a merged
+patch, not a deliverable; say `WORKING:` and name the rows still missing.

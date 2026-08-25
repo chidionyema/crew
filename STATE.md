@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-24 18:52 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-25 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,23 +8,17 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | NOT RUN | bin/verify produced no verdict line |
-| maestro | GREEN | last cycle 5 min ago (`INTENT-20260824-184416-0d20f3e7.json`) |
+| The Architect | RED | `bin/verify`: 17 passed, 1 failed |
+| &nbsp;&nbsp;failing | | FAIL  every service is as ordered |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260825-025515-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
-| Fly | 2 deployed, 12 suspended | `flyctl apps list` |
-| &nbsp;&nbsp;hermes-ci | suspended, last release Aug 19 2026 13:03 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;prospector-hermes | suspended, last release Aug 21 2026 22:34 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;prospector-hermes-v2 | suspended, last release Aug 22 2026 13:54 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;prospector-searxng | suspended, last release Aug 18 2026 08:42 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;tie-api | suspended, last release Jun 13 2026 12:22 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;tie-smoke | suspended, last release Jun 13 2026 03:36 | R1: it does not come back on Fly |
-| &nbsp;&nbsp;tie-web | suspended, last release Jun 13 2026 18:27 | R1: it does not come back on Fly |
+| Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| delivery | STALE | 6 commits on no remote (oldest 0.3d), 14 dirty files, 7 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 357 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | scripts | 4 commits no remote holds, oldest 0.0d, 3 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 0.3d, 0 dirty |
-| &nbsp;&nbsp;stranded | idp | 1 commits no remote holds, oldest 0.0d, 2 dirty |
+| delivery | STALE | 65 commits on no remote (oldest 0.7d), 18 dirty files, 6 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 388 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
+| &nbsp;&nbsp;stranded | scripts | 62 commits no remote holds, oldest 0.6d, 7 dirty |
+| &nbsp;&nbsp;stranded | .wt-backstage-proof | 2 commits no remote holds, oldest 0.3d, 3 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 0.7d, 0 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | crew P1 | 12 open | the fires nobody has put out |

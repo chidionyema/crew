@@ -222,6 +222,17 @@ OpenTelemetry collector instead of a local script."
    which data is sensitive.
 7. This week's deliverable: ingest, three forecasts (CI duration, budget exhaustion, guard-trigger
    anomaly), one dashboard page.
+8. Every data point is mapped, and no data point — including one that does not exist yet — can be
+   missed. Founder, 2026-08-25, verbatim: "save docs, we need to map all data points and ensure
+   nothing even new data points can be ingested seamlessly it must be impossible for any potential
+   data point to be missed." Held as: (a) a single registry of every emitter on the estate (today
+   `crew/science/sources.json`, 28 stores; the estate-inventory run of 2026-08-25T20:59Z reports
+   `uncollected=37`, so the map is already behind); (b) a new file, job, hook, guard, service or
+   log that writes anything is registered or it fails to land — a CI/pre-commit gate refuses an
+   unregistered writer (LAW 45, guarded at estate width, proved both ways); (c) the OTel Collector
+   is the one ingestion path, so a registered emitter is collected by construction with no
+   per-source wiring; (d) the snapshot prints the count of unregistered and uncollected emitters
+   every hour and any number above zero is an open P1.
 
 ## Friction points (resolved unless the founder says otherwise)
 

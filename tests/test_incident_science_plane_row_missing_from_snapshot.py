@@ -16,6 +16,7 @@ SNAPSHOT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "estate-sna
 def _load():
     spec = importlib.util.spec_from_file_location(
         "estate_snapshot_sp", SNAPSHOT, loader=SourceFileLoader("estate_snapshot_sp", str(SNAPSHOT)))
+    assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

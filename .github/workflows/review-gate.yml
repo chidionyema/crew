@@ -42,7 +42,9 @@
 #    names are the same (case-insensitive) -- no self-review by typing two labels
 #    for one session.
 # 2. No comment on the issue thread and no formal review on the PR contains the
-#    literal string "REVIEW:" together with the word "session" followed by the
+#    literal string "REVIEW:" together with the reviewer's name as a whole word
+#    (crew#193: requiring the English word "session" next to it refused 3 of 4
+#    correct reviews; the name is the evidence, the word was a proxy). Was: the word "session" followed by the
 #    same name that appears on the `Reviewed-by:` line, case-insensitive
 #    (`REVIEW: <findings> — session <name>` is the documented shape).
 # 3. `gh api` itself fails for any reason -- network, auth, rate limit, a renamed
@@ -168,11 +170,11 @@ jobs:
             ($c + $r)
             | map(.body // "")
             | map(select(contains("REVIEW:")))
-            | map(select(test("session[^A-Za-z0-9]{0,12}" + $namere; "i")))
+            | map(select(test("(^|[^A-Za-z0-9_-])" + $namere + "($|[^A-Za-z0-9_-])"; "i")))
             | length')
 
           if [ "$hit" -lt 1 ]; then
-            echo "FAIL: no issue comment or review contains 'REVIEW:' together with 'session $reviewed_by' (e.g. 'REVIEW: <findings> — session $reviewed_by')." >&2
+            echo "FAIL: no issue comment or review contains 'REVIEW:' together with the reviewer's name '$reviewed_by' as a whole word (e.g. 'REVIEW: <findings> — session $reviewed_by', or a 'Reviewed-by: $reviewed_by' trailer)." >&2
             exit 1
           fi
 

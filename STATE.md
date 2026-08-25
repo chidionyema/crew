@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-25 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-25 17:09 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,20 +8,21 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | RED | `bin/verify`: 17 passed, 1 failed |
-| &nbsp;&nbsp;failing | | FAIL  every service is as ordered |
-| maestro | GREEN | last cycle 2 min ago (`INTENT-20260825-025515-0d20f3e7.json`) |
+| The Architect | NOT RUN | bin/verify produced no verdict line |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260825-170402-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| delivery | STALE | 65 commits on no remote (oldest 0.7d), 18 dirty files, 6 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 388 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | scripts | 62 commits no remote holds, oldest 0.6d, 7 dirty |
-| &nbsp;&nbsp;stranded | .wt-backstage-proof | 2 commits no remote holds, oldest 0.3d, 3 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 0.7d, 0 dirty |
+| delivery | RED | 20 commits on no remote (oldest 1.3d), 15 dirty files, 6 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 418 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
+| &nbsp;&nbsp;stranded | scripts | 18 commits no remote holds, oldest 1.2d, 0 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 1.3d, 0 dirty |
+| &nbsp;&nbsp;stranded | .wt-backstage-proof | 1 commits no remote holds, oldest 0.5d, 3 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| crew P1 | 12 open | the fires nobody has put out |
+| crew P1 | 14 open | the fires nobody has put out |
+| &nbsp;&nbsp;#220 Daily teardown-and-rebuild drill of the OKE stack: one-shot rebuild, zero hand steps, every failure mode  | | |
+| &nbsp;&nbsp;#219 KINI spec: all 42 requirements met, acceptance executable (founder 2026-08-25) | | |
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
 | &nbsp;&nbsp;#114 Fully operational today — the day board, 2026-08-24 | | |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |
@@ -36,4 +37,4 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#13 Retire the Hermes estate — unconditional, Hermes is discontinued | | |
 | docker context | GREEN | `docker context show` -> colima |
 | second container runtime | GREEN | `pgrep -f 'Docker.app/Contents/MacOS' | wc -l` -> 0 |
-| colima dockerd | GREEN | socket answered containers/json |
+| colima dockerd | RED | socket gave nothing in 8s -- every estate container is unserved; do NOT restart colima, route to the firefighter |

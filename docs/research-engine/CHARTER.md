@@ -4,7 +4,7 @@ Founder, 2026-08-25: "how is this capability going to improve our platform, lane
 (data), machine learning, research. we have data pipeline set up or not? so we need to be clear
 about the charge and expectations for this crew, get up to speed and bootstrap."
 
-Rulings that bind this file: R31, R32, R33, R34. Role file: `roles/science.md`. Method:
+Rulings that bind this file: R31, R32, R34, R35. Role file: `roles/science.md`. Method:
 `EXPERIMENTS.md`. Goals ledger: `science/PLAN.md`.
 
 ## The charge, one sentence
@@ -69,6 +69,7 @@ Scheduling and Experiments are updated with this in #246.
 4. Source lock: every fetched URL is written once to an object-locked R2 bucket with its hash;
    a claim carries the object key. Snapshot row `source lock` goes GREEN.
 5. Second model over the same 3 targets; Brier per model in MLflow. LAW 34 proof.
-6. Golden Corpus: founder names who researches the first 10 and by when (open question in R34).
+6. Golden Corpus: the crew researches the first 10 online from the 10 most recent dossier titles
+   (topics only), two models per item, locked sources, agreement required. No founder hand.
 
 Each step is a crew issue with the snapshot row as its done-probe.

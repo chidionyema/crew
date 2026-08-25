@@ -50,13 +50,18 @@ Founder, 2026-08-25, verbatim, as posted to the crew:
 
 ## Friction points named, not resolved here
 
-- Requirement 6 versus R32 and R33 behaviour 1. R32 says the engine should generate ideas that
+- Requirement 6 versus R32 and R35 behaviour 1. R32 says the engine should generate ideas that
   beat what any human on the old process produced; "how closely do we replicate the human expert"
   measures agreement with humans, which caps the engine at the expert. Held resolution, pending
   founder confirmation: the Golden Corpus grades the *checks* (facts, sources, claims) against
   expert consensus; the *hypotheses* are graded only by reality (Brier). Two yardsticks, two
   jobs, and the second cannot be capped by the first.
-- Requirement 6 cost: 50-100 hand-researched dossiers is human hours nobody has scheduled. Who
-  researches them, and by when, is a founder decision (LAW 11).
+- Requirement 6 cost. Founder, 2026-08-25, second message: "no founder friction, research
+  online for existing dossiers, you should be recommending." Resolved: the crew builds the
+  Golden Corpus itself, by online research with locked sources. The target list is the titles of
+  existing dossiers (topics only; their content is never read, R32). Recommendation, adopted:
+  first 10 are the 10 most recent dossier titles, each researched from primary public sources,
+  every claim carrying its R2 object key; a dossier enters the corpus only when two independent
+  runs (different models) agree on every fact, and a disagreement is a finding, not a tie-break.
 - Requirement 4 versus the STANDARDS.md rows for scheduling and traces: they must name Argo and
   MLflow as the one answer, or the rows are wrong. To be reconciled in the standard.

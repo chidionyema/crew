@@ -253,6 +253,35 @@ def collected() -> dict:
     return out
 
 
+def registry_decision(ident: str, path: str) -> tuple[str | None, str]:
+    """The registry's verdict on a crawl row, or (None, "") when it has none.
+
+    crew#253: this map and science/sources.json were two registers of the same
+    decision. collect.py --reconcile read the registry and reported 11 undeclared
+    stores; this file read only WHY_UNCOLLECTED and reported 28 UNEXPLAINED, and the
+    snapshot printed the larger, wrong number. The registry is the one register: a
+    store it declines, by id or by covering directory, is DECLINED here with the
+    registry's own reason, and a store it collects is never listed as uncollected.
+    """
+    try:
+        import collect  # sibling module; loads the registry once
+    except SystemExit:
+        return None, ""
+    if ident in collect.DECLINED:
+        return "DECLINED", collect.DECLINED[ident]
+    try:
+        rp = pathlib.Path(path).resolve()
+    except OSError:
+        rp = pathlib.Path(path)
+    for did, d in collect.DECLINED_DIRS.items():
+        if d == rp or d in rp.parents:
+            return "DECLINED", collect.DECLINED[did]
+    for name, (src, _kind, _tf) in collect.SOURCES.items():
+        if src == rp:
+            return "REGISTERED", f"registered as source {name}; not ingested since the crawl ran"
+    return None, ""
+
+
 def uncollected() -> list[dict]:
     if not INVENTORY.exists():
         return []
@@ -262,11 +291,13 @@ def uncollected() -> list[dict]:
         if r.get("collected") is not False or r.get("member_of"):
             continue
         path = r.get("path") or r.get("name") or ""
-        reason, why = "UNEXPLAINED", "No decision has been recorded about this store."
-        for frag, (rsn, txt) in WHY_UNCOLLECTED.items():
-            if frag in path:
-                reason, why = rsn, txt
-                break
+        reason, why = registry_decision(r.get("id") or "", path)
+        if reason is None:
+            reason, why = "UNEXPLAINED", "No decision has been recorded about this store."
+            for frag, (rsn, txt) in WHY_UNCOLLECTED.items():
+                if frag in path:
+                    reason, why = rsn, txt
+                    break
         out.append({
             "path": path,
             "kind": r.get("kind"),

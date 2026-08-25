@@ -206,6 +206,35 @@
       "path": ".claude/state/estate-worktree-cleanup.jsonl",
       "kind": "jsonl",
       "time_field": "at"
+    },
+    {
+      "name": "alerts_inbox",
+      "root": "home",
+      "path": ".estate/alerts/inbox.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 6
+    },
+    {
+      "name": "sovereign_receipts",
+      "root": "home",
+      "path": ".estate/sovereign/receipts.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts"
+    },
+    {
+      "name": "board_deadletter",
+      "root": "home",
+      "path": ".claude/state/board-deadletter.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts"
+    },
+    {
+      "name": "estate_registry",
+      "root": "home",
+      "path": ".estate/registry.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts"
     }
   ],
   "declined": [
@@ -270,6 +299,20 @@
     {
       "id": ".estate/REQUIREMENTS.jsonl",
       "reason": "The id is relative to the 'home' root, so the file is /Users/chidionyema/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file."
+    },
+    {
+      "id": "crew-snapshot-worktree",
+      "root": "home",
+      "path": ".claude/state/crew-snapshot-worktree",
+      "reason": "A git worktree of this repo kept by com.founder.estatesnapshot so the hourly STATE.md rebuild reads a clean checkout. Every jsonl under it (science/ships, science/attention, science/RESEARCH-LEDGER, risk/REGISTER, science/predictions) is a copy of a file tracked in crew and already collected from the science root. Collecting the copies would double-count every row. Declined as a directory because the worktree is re-created whenever the snapshot job resets it."
+    },
+    {
+      "id": ".estate/temporal/dev.db",
+      "reason": "The Temporal dev server's own persistence (SQLite), written by temporal CLI, schema owned upstream and rewritten on upgrade. It holds workflow history for the orchestrator, not a fact about the estate; what the workflows produce is collected from their outputs. Owner: the scheduler row of STANDARDS. When Temporal moves to the cluster (crew#78) this file goes with it."
+    },
+    {
+      "id": ".estate/sovereign/budget.db",
+      "reason": "The sovereign runner's budget counter, a SQLite file it locks and rewrites in place; it carries no rows with a time. The fact stream beside it, .estate/sovereign/receipts.jsonl, is collected as source sovereign_receipts and holds budget_remaining on every receipt, so the counter's history is already in the warehouse."
     }
   ]
 }

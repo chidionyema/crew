@@ -24,7 +24,7 @@ ledger that any buyer can read.
 One ledger. `roles/science.md` refuses a second one; MLflow is where the ledger's scores are
 tracked, not a replacement for it.
 
-## How it improves each product (R33: a target is a catalog entity)
+## How it improves each product (R35: a target is a catalog entity)
 
 - prospector: every check in a dossier becomes a forecast with a source locked in R2 and a
   Brier score when reality resolves it. The buyer gets a calibration curve (R34).

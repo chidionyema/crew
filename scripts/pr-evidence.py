@@ -524,6 +524,19 @@ INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
 STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|deviation)\s*:"
                             r"(?:\*\*|__|\*|_)?\s*(.*)$", re.I | re.M)
 
+#: The ten rows of docs/STANDARDS.md "## Definition of done" (crew#205) -- this is the machine
+#: check that section's own row 3 asks for (crew#207). Exact row names from that table; rename
+#: here only if that table is renamed too.
+DOD_ROWS = (
+    "Tracked item", "Code or config", "Gate proved both ways", "Reference doc",
+    "How-to and demo", "Catalog entity", "Operational proof", "Scheduled re-grade",
+    "Standard row", "Evidence block",
+)
+
+#: A bare "n/a" -- no reason after it -- is a row typed to look addressed with nothing behind
+#: it: the silently-missing row the section's own last line names, wearing a costume.
+DOD_NA = re.compile(r"^n/?a\b\s*[:.]?\s*(.*)$", re.I)
+
 
 def infra_paths(diff: str) -> list:
     """The infra files this diff touches — [] when it touches none.
@@ -571,6 +584,53 @@ def standards_line(body: str, diff: str) -> tuple:
                    "why>' to the body. A deviation is allowed — stating it is the whole ask")
 
 
+def dod_row_pattern(name: str) -> re.Pattern:
+    """A line naming this definition-of-done row -- numbering, bullets and markdown emphasis
+    all tolerated, same shape as STANDARDS_MARK and OPTIONS_CHOSEN above and for the same
+    reason: a pattern that only accepts one way of writing a numbered list refuses a body that
+    named every row and wrote the list differently (LAW 38).
+    """
+    return re.compile(
+        r"^\s*(?:[-*+]\s+|\d+[.)]\s+)?(?:\*\*|__|\*|_)?\s*" + re.escape(name) +
+        r"\s*(?:\*\*|__|\*|_)?\s*[:\u2014\u2013-]\s*(.+)$", re.I | re.M)
+
+
+def dod_rows(body: str) -> tuple:
+    """(ok, message) for docs/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
+    body names all ten rows, or `n/a: <why>` for the ones that do not apply.
+
+    "DONE: on a reply with a missing row is the incident" is that section's own last line. A
+    row this function cannot find in the body at all is exactly that -- silently dropped -- so
+    it fails. So does a row typed as bare `n/a` with no reason after it: that is the same row
+    dropped wearing a costume instead of standing out where the review can see it.
+
+    A row that is present and not marked n/a passes on being named; how much is written next
+    to it is graded by the human review (LAW 38: a length floor here would refuse the founder's
+    own short pointers -- "this one.", "below." -- that a real PR body uses when the detail
+    lives in another section of the same body).
+    """
+    body = body or ""
+    missing, bare = [], []
+    for name in DOD_ROWS:
+        m = dod_row_pattern(name).search(body)
+        if not m:
+            missing.append(name)
+            continue
+        content = m.group(1).strip()
+        na = DOD_NA.match(content)
+        if na and len(re.sub(r"[^A-Za-z0-9 ]", "", na.group(1)).strip()) < 8:
+            bare.append(name)
+    if missing or bare:
+        parts = []
+        if missing:
+            parts.append(f"{len(missing)} row(s) not named at all: {', '.join(missing)}")
+        if bare:
+            parts.append(f"{len(bare)} row(s) marked bare 'n/a' with no reason: {', '.join(bare)}")
+        return False, ("; ".join(parts) + ". docs/STANDARDS.md 'Definition of done': every row "
+                       "needs its line, real content, or 'n/a: <why>' -- never dropped silently")
+    return True, "all 10 definition-of-done rows present"
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -600,13 +660,19 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
         return False, "#{} {}".format(info["number"], why_cpl)
+    # Blocking, unlike standards_line below: crew#207 was filed as a merge-blocker, and the
+    # section it enforces already ships ("## Definition of done", crew#205) -- there is no
+    # estate-wide debt to measure in report mode first the way crew#135 needed for LAW 45.
+    ok_dod, why_dod = dod_rows(body)
+    if not ok_dod:
+        return False, "#{} {}".format(info["number"], why_dod)
     # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
     carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
     return True, (f"#{info['number']} carries {carries}, {why_opts}, "
-                  f"{why_cpl}; standards (report-only): {std}")
+                  f"{why_cpl}, {why_dod}; standards (report-only): {std}")
 
 
 def selftest_commit_scope() -> int:
@@ -808,6 +874,63 @@ def selftest_options() -> int:
     return 1 if fails else 0
 
 
+def selftest_dod() -> int:
+    """The definition-of-done gate (crew#207), proved on literal bodies. Paired controls, and
+    the bad fixture is the one the issue names: a body where the Operational proof row is not
+    typed at all, present nowhere in the text -- a silently missing row, not a stated n/a.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    # Same shape crew#205's own PR body used: a number, the row name, an em dash, and either
+    # real content or a stated n/a with a reason.
+    good = (
+        "1. Tracked item — crew#207, owner named\n"
+        "2. Code or config — this PR\n"
+        "3. Gate proved both ways — selftest-dod covers it, both fixtures in one run\n"
+        "4. Reference doc — n/a: a gate function needs no new reference page\n"
+        "5. How-to and demo — n/a: a check flag has no user-facing how-to\n"
+        "6. Catalog entity — n/a: a check flag is not an entity\n"
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n"
+        "8. Scheduled re-grade — n/a: pr-evidence already runs on every PR\n"
+        "9. Standard row — Standard: docs/STANDARDS.md, review acceptance criteria\n"
+        "10. Evidence block — below\n"
+    )
+    check_one("all ten rows present passes", dod_rows(good)[0], True)
+    check_one("empty body fails naming all ten", dod_rows("")[0], False)
+    check_one("empty body names every missing row",
+              "Operational proof" in dod_rows("")[1] and "Tracked item" in dod_rows("")[1], True)
+    # The issue's own bad fixture: the Operational proof row typed nowhere in the body, not
+    # even as n/a -- the exact silently-missing-row incident LAW 44 exists to name.
+    dropped = good.replace(
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n",
+        "")
+    ok_drop, why_drop = dod_rows(dropped)
+    check_one("dropping the Operational proof row fails", ok_drop, False)
+    check_one("the failure names the dropped row", "Operational proof" in why_drop, True)
+    # A row present but marked bare n/a with no reason is the same incident wearing a costume.
+    bare = good.replace("7. Operational proof — Operational: `pr-evidence.py check --pr 205` "
+                        "ran, verdict below\n", "7. Operational proof — n/a\n")
+    check_one("a bare n/a with no reason fails", dod_rows(bare)[0], False)
+    check_one("a bare n/a still names the row", "Operational proof" in dod_rows(bare)[1], True)
+    # The pass beside every refusal (LAW 38): the same body, correctly written with bold and
+    # bullet markdown, still passes -- the gate is reading the row names, not one exact layout.
+    bold = good.replace("**", "").replace(
+        "9. Standard row — Standard:", "9. **Standard row** — **Standard:**")
+    check_one("bold row name and bold field still passes", dod_rows(bold)[0], True)
+    bulleted = "- Tracked item: crew#207\n" + "\n".join(good.splitlines()[1:])
+    check_one("a bulleted colon-separated row still passes", dod_rows(bulleted)[0], True)
+    print(f"selftest-dod: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 # -------------------------------------------------------------------- main
 
 def main() -> int:
@@ -841,6 +964,8 @@ def main() -> int:
                    help="prove the options gate on literal bodies, no network")
     sub.add_parser("selftest-commit-scope",
                    help="prove the evidence commit takes only its own files, in a temp repo")
+    sub.add_parser("selftest-dod",
+                   help="prove the definition-of-done row gate on literal bodies, no network")
 
     # estate-selftest.py runs every script under ~/.claude/scripts that accepts
     # `--selftest`, once an hour, and this file is symlinked in there. It was
@@ -851,13 +976,15 @@ def main() -> int:
     if "--selftest" in sys.argv[1:]:
         # Every suite in this file, not the first one that was written. A second
         # suite added beside a hardcoded call is a suite the hourly run never sees.
-        return max(selftest_options(), selftest_commit_scope())
+        return max(selftest_options(), selftest_commit_scope(), selftest_dod())
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()
     if ns.cmd == "selftest-commit-scope":
         return selftest_commit_scope()
+    if ns.cmd == "selftest-dod":
+        return selftest_dod()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

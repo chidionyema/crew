@@ -211,7 +211,7 @@ def send_operator_alert(text: str, *, debounce_key: str | None = None,
                   f"  python3 ~/.hermes/scripts/telegram_noise.py --since 2h")
         try:
             ok = _post(token, chat, notice)
-        except Exception as exc:
+        except (OSError, ValueError, urllib.error.URLError) as exc:
             print(f"[estate_alert] cap notice failed: {exc!r}", file=sys.stderr)
             return False
         telegram_ledger.record(source, "sent" if ok else "failed", notice,

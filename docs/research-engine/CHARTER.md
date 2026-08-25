@@ -49,25 +49,36 @@ tracked, not a replacement for it.
 So: a data pipeline exists (DuckDB + dbt + hourly collectors). A science plane does not: no
 experiment tracker, no scored forecasts, no locked sources, no running scheduler.
 
-## R34 tooling against what runs, reconciled
+## R34 tooling against what runs, reconciled (amended by R37, 2026-08-25)
 
-R34 names Argo Workflows + MLflow + Kubernetes. The estate runs Dagster on launchd, and the
-Kubernetes move is open (#78). The one answer: MLflow now (nothing else does the job); Dagster
-stays the workflow engine until #78 lands, then Argo Workflows replaces it in the same PR that
-brings the cluster, because Argo without a cluster is a second scheduler on a laptop. Risk: if
-#78 slips, the science plane runs on Dagster for longer than R34 wants. STANDARDS.md rows
-Scheduling and Experiments are updated with this in #246.
+R34 names Argo Workflows + MLflow + Kubernetes. R37 fixes where they run: the Oracle is
+cloud-native. Founder, 2026-08-25, verbatim: "a Python 'tapeworm' script writing to a local
+SQLite database on your Mac is completely incompatible with the elite, cloud-agnostic standard".
+So the data path is one pipeline and it lives in `idp`: every emitter → the OpenTelemetry
+Collector on the cluster → ClickHouse → the MLflow + Langfuse inference pod. The Mac holds
+nothing load-bearing. `crew/science/` is the backfill and the baseline until the pipeline
+receives its first row, then it is read-only history. Dagster on launchd stays the scheduler
+only until #78 lands; Argo Workflows replaces it in the PR that brings the cluster. Risk: while
+#78 is open the pipeline has no cluster to run on, so steps 1 to 3 below wait on it; steps 4 to
+6 do not. Standards rows Scheduling, Experiments and Agent traces (docs/STANDARDS.md) are the
+single source for what is live.
 
 ## Bootstrap, in commands, in order
 
-1. `mlflow server --backend-store-uri sqlite:///science/mlflow.db` under launchd; snapshot row
-   goes ABSENT → GREEN.
-2. `science/outcomes.py predict` gains `resolve <id> <outcome>`; the 30 step-1 priors are
-   written as forecasts; row `forecast ledger` shows 30, 0 scored.
-3. Run the cheapest test per scale unattended (estate H1 is already measured; company H1 needs
-   a CDR sample; market H5 is a Google Trends pull, £0, 1 hour). Row shows 3 scored.
-4. Source lock: every fetched URL is written once to an object-locked R2 bucket with its hash;
-   a claim carries the object key. Snapshot row `source lock` goes GREEN.
+1. Emitter registry and gate (#253): one entry per source in the Collector pipeline config in
+   `idp`; a writer with no entry cannot land; `scripts/estate-snapshot` prints
+   `unregistered emitters` and `uncollected` and either above 0 is a P1. Measured today:
+   uncollected=37.
+2. MLflow and Langfuse on OKE (blocked by #78): OTel Collector → ClickHouse → MLflow + Langfuse
+   pod, deployed from `idp` manifests, backed by the cluster's object store, never a local
+   SQLite file. Snapshot row `experiment tracker` goes ABSENT → GREEN.
+3. Forecast ledger in the pipeline: `science/outcomes.py predict` gains `resolve <id>
+   <outcome>` and writes to the Collector, not to a file; the 30 step-1 priors are backfilled
+   from `science/predictions.jsonl`; row `forecast ledger` shows 30, 0 scored. Then run the
+   cheapest test per scale unattended (estate H1 is measured; company H1 needs a CDR sample;
+   market H5 is a Google Trends pull, £0, 1 hour). Row shows 3 scored, Brier per source.
+4. Source lock: every fetched URL is written once to an object-locked bucket in the cluster's
+   object store with its hash; a claim carries the object key. Row `source lock` goes GREEN.
 5. Second model over the same 3 targets; Brier per model in MLflow. LAW 34 proof.
 6. Golden Corpus: the crew researches the first 10 online from the 10 most recent dossier titles
    (topics only), two models per item, locked sources, agreement required. No founder hand.

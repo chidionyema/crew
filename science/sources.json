@@ -40,14 +40,6 @@
       "receiver": "otlp"
     },
     {
-      "name": "toolguard",
-      "root": "home",
-      "path": ".claude/state/toolguard/events.jsonl",
-      "kind": "jsonl",
-      "time_field": "at",
-      "receiver": "otlp"
-    },
-    {
       "name": "drills",
       "root": "home",
       "path": ".claude/state/drills.jsonl",
@@ -99,14 +91,6 @@
       "name": "decisions",
       "root": "home",
       "path": ".claude/DECISIONS.jsonl",
-      "kind": "jsonl",
-      "time_field": "at",
-      "receiver": "otlp"
-    },
-    {
-      "name": "consult",
-      "root": "home",
-      "path": ".claude/logs/consult.jsonl",
       "kind": "jsonl",
       "time_field": "at",
       "receiver": "otlp"
@@ -214,23 +198,6 @@
       "name": "drills_scripts",
       "root": "home",
       "path": ".claude/scripts/state/drills.jsonl",
-      "kind": "jsonl",
-      "time_field": "at",
-      "receiver": "otlp"
-    },
-    {
-      "name": "founder_actions",
-      "root": "home",
-      "path": ".claude/state/founder-actions.jsonl",
-      "kind": "jsonl",
-      "note": "Declared time_field 'at' until 2026-08-24, and this store has no key called 'at'. It records the date under 'opened'. Every row was landing untimed, in the one store that holds what the founder personally asked for. Found by the DuckDB differential reporting it as having no time column at all.",
-      "time_field": "opened",
-      "receiver": "otlp"
-    },
-    {
-      "name": "worktree_cleanup",
-      "root": "home",
-      "path": ".claude/state/estate-worktree-cleanup.jsonl",
       "kind": "jsonl",
       "time_field": "at",
       "receiver": "otlp"
@@ -345,6 +312,30 @@
     {
       "id": ".estate/sovereign/budget.db",
       "reason": "The sovereign runner's budget counter, a SQLite file it locks and rewrites in place; it carries no rows with a time. The fact stream beside it, .estate/sovereign/receipts.jsonl, is collected as source sovereign_receipts and holds budget_remaining on every receipt, so the counter's history is already in the warehouse."
+    },
+    {
+      "id": "toolguard",
+      "root": "home",
+      "path": ".claude/state/toolguard/events.jsonl",
+      "reason": "emitter tool-drip-guard.py is wired to no hook and no launchd job since 2026-08-23; decommissioned by omission (crew#265)"
+    },
+    {
+      "id": "consult",
+      "root": "home",
+      "path": ".claude/logs/consult.jsonl",
+      "reason": "ai.estate.consultd runs with no backend configured, every consult returns 503, nothing written since 2026-08-23 (crew#265)"
+    },
+    {
+      "id": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "reason": "written only by estate_audit.py, which stopped reaching that write on 2026-08-23; no owner job (crew#265)"
+    },
+    {
+      "id": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "reason": "estate_worktree_cleanup.sh is scheduled by nothing since 2026-08-23 (crew#265)"
     }
   ]
 }

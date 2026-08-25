@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COLLECT = ROOT / "science" / "collect.py"
 
 
-def _run(tmp_path, receiver, collector="receivers:\n  otlp: {}\n"):
+def _run(tmp_path, receiver: str | None, collector: str | None = "receivers:\n  otlp: {}\n"):
     tmp_path.mkdir(exist_ok=True)
     (tmp_path / "store").mkdir()
     (tmp_path / "store" / "new.jsonl").write_text('{"at":"2026-08-24T00:00:00+00:00"}\n')

@@ -92,6 +92,49 @@ WAREHOUSE = _env_path("SCIENCE_WAREHOUSE", Path(__file__).parent / "warehouse.db
 REGISTRY = _env_path("SCIENCE_REGISTRY", Path(__file__).parent / "sources.json")
 
 
+def _default_collector_config() -> Path:
+    """idp's collector config, found beside this repo's main checkout, never under a
+    typed home path (LAW 46). A worktree resolves through its git common dir."""
+    import subprocess
+    try:
+        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=Path(__file__).parent,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        main_checkout = Path(common).resolve().parent
+    except (subprocess.CalledProcessError, OSError):
+        main_checkout = Path(__file__).resolve().parents[1]
+    return main_checkout.parent / "idp" / "observability" / "otel-collector.yaml"
+
+
+#: The one pipeline every source lands in (crew#258, idp#128). Each source names the
+#: receiver key it arrives through; a name the collector does not declare is refused.
+COLLECTOR_CONFIG = _env_path("OTEL_COLLECTOR_CONFIG", _default_collector_config())
+
+
+def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
+    """Receiver keys the collector declares, or None when the file cannot be read."""
+    try:
+        import yaml
+        doc = yaml.safe_load(path.read_text()) or {}
+    except (OSError, ImportError, ValueError):
+        return None
+    rec = doc.get("receivers") or {}
+    return set(rec) if isinstance(rec, dict) else set()
+
+
+def receiver_verdict() -> tuple[list[str], str]:
+    """Sources naming a receiver the collector lacks, and a one-line note.
+
+    BLIND when the collector config is unreadable: no verdict, never a pass."""
+    keys = collector_receivers()
+    if keys is None:
+        return [], f"receivers: BLIND (no collector config at {COLLECTOR_CONFIG})"
+    bad = sorted(f"{n} -> {r}" for n, r in RECEIVERS.items() if r not in keys)
+    if bad:
+        return bad, (f"receivers: {len(bad)} source(s) name a receiver the collector does not "
+                     f"declare ({', '.join(sorted(keys))}): {', '.join(bad)}")
+    return [], f"receivers: every source lands in a declared receiver ({', '.join(sorted(keys))})"
+
+
 def load_registry(path: Path = REGISTRY) -> dict:
     """Read the registry, or fail loudly. There is no built-in default on purpose.
 
@@ -113,10 +156,16 @@ def load_registry(path: Path = REGISTRY) -> dict:
 
     sources: dict[str, tuple[Path, str, str | None]] = {}
     stale: dict[str, int] = {}
+    receivers: dict[str, str] = {}
     for s in reg.get("sources", []):
         root = roots.get(s.get("root", "home"))
         if root is None:
             sys.exit(f"registry names an unknown root {s.get('root')!r} for {s.get('name')!r}")
+        #: A source with no receiver has no way into the one pipeline (R37 req 8).
+        if not (s.get("receiver") or "").strip():
+            sys.exit(f"registry source {s.get('name')!r} names no receiver. Every source "
+                     f"says which collector receiver it arrives through.")
+        receivers[s["name"]] = s["receiver"]
         sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
         if s.get("stale_after_hours"):
             stale[s["name"]] = int(s["stale_after_hours"])
@@ -146,13 +195,14 @@ def load_registry(path: Path = REGISTRY) -> dict:
             declined_dirs[d["id"]] = root / d["path"]
 
     return {"sources": sources, "declined": declined, "declined_dirs": declined_dirs,
-            "stale": stale,
+            "stale": stale, "receivers": receivers,
             "default_stale": int(reg.get("default_stale_after_hours", 48))}
 
 
 _REG = load_registry()
 SOURCES: dict[str, tuple[Path, str, str | None]] = _REG["sources"]
 DECLINED: dict[str, str] = _REG["declined"]
+RECEIVERS: dict[str, str] = _REG["receivers"]
 #: The subset of DECLINED that excludes a whole directory rather than one crawl id.
 DECLINED_DIRS: dict[str, Path] = _REG["declined_dirs"]
 
@@ -586,6 +636,10 @@ def main() -> int:
         undeclared, stale, blind, note = reconcile()
         print(f"registry : {len(SOURCES)} collected, {len(DECLINED)} declined with a reason")
         print(f"crawl    : {INVENTORY}")
+        bad_receivers, rnote = receiver_verdict()
+        print(rnote)
+        if bad_receivers:
+            return 1
         if note:
             print(note)
             return 1
@@ -665,6 +719,13 @@ def main() -> int:
     if blind_declines:
         print(f"declined for a directory this run could not read, so no verdict on it: "
               f"{', '.join(blind_declines)}")
+    #: Every source names the collector receiver it lands in; a receiver the collector
+    #: does not declare is a source with no way into the pipeline. BLIND when the
+    #: collector config is not on this host: printed, never a pass, never a failure.
+    bad_receivers, rnote = receiver_verdict()
+    print(rnote)
+    if bad_receivers:
+        failures.append(f"{len(bad_receivers)} source(s) name an undeclared receiver")
 
     if failures:
         print("\nneeds attention:")

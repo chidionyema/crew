@@ -12,91 +12,104 @@
       "path": ".claude/estate-spend-history.jsonl",
       "kind": "jsonl",
       "time_field": "at",
-      "stale_after_hours": 6
+      "stale_after_hours": 6,
+      "receiver": "otlp"
     },
     {
       "name": "board",
       "root": "home",
       "path": ".claude/ESTATE_BOARD.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "ledger",
       "root": "home",
       "path": ".claude/state/ledger.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "close_guard",
       "root": "home",
       "path": ".claude/state/close-guard-observe.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "toolguard",
       "root": "home",
       "path": ".claude/state/toolguard/events.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "drills",
       "root": "home",
       "path": ".claude/state/drills.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "ci_reach",
       "root": "home",
       "path": ".claude/state/ci-reach.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "aiden_ticks",
       "root": "home",
       "path": ".claude/state/aiden-ticks.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "stuck_detector",
       "root": "home",
       "path": ".claude/state/logs/stuck-detector.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "bundle_push",
       "root": "home",
       "path": ".claude/state/estate-bundle-push.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "agent_cert",
       "root": "home",
       "path": ".claude/agent-cert/history.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "decisions",
       "root": "home",
       "path": ".claude/DECISIONS.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "consult",
       "root": "home",
       "path": ".claude/logs/consult.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "method_metrics",
@@ -104,14 +117,16 @@
       "path": "Documents/code/prospector/store/ops/method_metrics.json",
       "kind": "json",
       "time_field": "generated_at",
-      "stale_after_hours": 12
+      "stale_after_hours": 12,
+      "receiver": "otlp"
     },
     {
       "name": "enforcement_map",
       "root": "science",
       "path": "enforcement-map.json",
       "kind": "json",
-      "time_field": null
+      "time_field": null,
+      "receiver": "otlp"
     },
     {
       "name": "ships",
@@ -119,14 +134,16 @@
       "path": "ships.jsonl",
       "kind": "jsonl",
       "time_field": "at",
-      "stale_after_hours": 26
+      "stale_after_hours": 26,
+      "receiver": "otlp"
     },
     {
       "name": "predictions",
       "root": "science",
       "path": "predictions.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "attention",
@@ -134,63 +151,72 @@
       "path": "attention.jsonl",
       "kind": "jsonl",
       "time_field": "at",
-      "stale_after_hours": 26
+      "stale_after_hours": 26,
+      "receiver": "otlp"
     },
     {
       "name": "directives",
       "root": "home",
       "path": ".claude/directives",
       "kind": "jsonl-dir",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "prompt_ledger",
       "root": "home",
       "path": ".claude/state/prompt-ledger",
       "kind": "jsonl-dir",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "tickets",
       "root": "home",
       "path": ".claude/state/tickets",
       "kind": "jsonl-dir",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "job_timelines",
       "root": "home",
       "path": ".claude/jobs",
       "kind": "jsonl-dir",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "history",
       "root": "home",
       "path": ".claude/history.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "goal_net",
       "root": "home",
       "path": ".claude/state/goal-net.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "estate_push",
       "root": "home",
       "path": ".claude/state/estate-push.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "drills_scripts",
       "root": "home",
       "path": ".claude/scripts/state/drills.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "founder_actions",
@@ -198,14 +224,16 @@
       "path": ".claude/state/founder-actions.jsonl",
       "kind": "jsonl",
       "note": "Declared time_field 'at' until 2026-08-24, and this store has no key called 'at'. It records the date under 'opened'. Every row was landing untimed, in the one store that holds what the founder personally asked for. Found by the DuckDB differential reporting it as having no time column at all.",
-      "time_field": "opened"
+      "time_field": "opened",
+      "receiver": "otlp"
     },
     {
       "name": "worktree_cleanup",
       "root": "home",
       "path": ".claude/state/estate-worktree-cleanup.jsonl",
       "kind": "jsonl",
-      "time_field": "at"
+      "time_field": "at",
+      "receiver": "otlp"
     },
     {
       "name": "alerts_inbox",
@@ -213,28 +241,32 @@
       "path": ".estate/alerts/inbox.jsonl",
       "kind": "jsonl",
       "time_field": "ts",
-      "stale_after_hours": 6
+      "stale_after_hours": 6,
+      "receiver": "otlp"
     },
     {
       "name": "sovereign_receipts",
       "root": "home",
       "path": ".estate/sovereign/receipts.jsonl",
       "kind": "jsonl",
-      "time_field": "ts"
+      "time_field": "ts",
+      "receiver": "otlp"
     },
     {
       "name": "board_deadletter",
       "root": "home",
       "path": ".claude/state/board-deadletter.jsonl",
       "kind": "jsonl",
-      "time_field": "ts"
+      "time_field": "ts",
+      "receiver": "otlp"
     },
     {
       "name": "estate_registry",
       "root": "home",
       "path": ".estate/registry.jsonl",
       "kind": "jsonl",
-      "time_field": "ts"
+      "time_field": "ts",
+      "receiver": "otlp"
     }
   ],
   "declined": [

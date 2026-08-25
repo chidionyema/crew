@@ -54,8 +54,17 @@ def send(action: str, target: str = "", session: str = "") -> int:
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--session")]
-    sess = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--session=")), "")
+    argv, sess, args = sys.argv[1:], "", []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a.startswith("--session="):
+            sess = a.split("=", 1)[1]
+        elif a == "--session" and i + 1 < len(argv):
+            sess = argv[i + 1]; i += 1
+        else:
+            args.append(a)
+        i += 1
     if not args:
         print(__doc__); sys.exit(2)
     sys.exit(0 if send(args[0], args[1] if len(args) > 1 else "", sess) else 1)

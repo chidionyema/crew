@@ -93,6 +93,6 @@ def test_the_shipped_register_is_well_formed():
 
 def test_the_cli_grades_the_act_domain_offline():
     r = subprocess.run([sys.executable, str(SCIENCE / "datamap.py"), "--domains", "act"],
-                       capture_output=True, text=True, timeout=120)
+                       capture_output=True, text=True, timeout=120, check=False)
     assert r.returncode == 0, r.stderr[-800:]
     assert "DATA MAP" in r.stdout and "act " in r.stdout

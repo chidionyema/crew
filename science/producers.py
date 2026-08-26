@@ -267,7 +267,7 @@ def cluster_live() -> list[Producer]:
         raise FileNotFoundError(f"no kubeconfig at {OKE_KUBECONFIG}")
     r = subprocess.run(["kubectl", "--kubeconfig", str(OKE_KUBECONFIG), "--request-timeout=15s",
                         "get", "deploy,sts,ds,cronjob,svc,pvc,helmrelease", "-A", "-o", "json"],
-                       capture_output=True, text=True, timeout=40)
+                       capture_output=True, text=True, timeout=40, check=False)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1][:200])
     out = []
@@ -330,7 +330,7 @@ def mcp() -> list[Producer]:
 def github() -> list[Producer]:
     """Every repo the account owns, and every workflow in the local checkouts."""
     r = subprocess.run(["gh", "repo", "list", "chidionyema", "--limit", "300", "--no-archived",
-                        "--json", "name,isPrivate,pushedAt"], capture_output=True, text=True, timeout=60)
+                        "--json", "name,isPrivate,pushedAt"], capture_output=True, text=True, timeout=60, check=False)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip()[:200])
     out = []

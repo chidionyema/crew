@@ -166,7 +166,7 @@ def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
                 f"or EXCLUDED with a reason, and `datamap.py --check` is green.")
         title = f"datamap {e['verdict']}: {e['key']}" + (f" [{e['kind']}]" if e.get("kind") else "")
         r = subprocess.run(["gh", "issue", "create", "-R", repo, "--title", title[:200], "--body", body,
-                            "--label", "datamap"], capture_output=True, text=True, timeout=60)
+                            "--label", "datamap"], capture_output=True, text=True, timeout=60, check=False)
         if r.returncode != 0:
             print(f"  could not file for {e['key']}: {r.stderr.strip()[:160]}", file=sys.stderr)
             continue

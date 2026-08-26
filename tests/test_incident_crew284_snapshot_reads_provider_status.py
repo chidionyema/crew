@@ -46,3 +46,4 @@ def test_operational_is_green(monkeypatch) -> None:
 def test_unreadable_page_is_not_run_never_green(monkeypatch) -> None:
     assert "NOT RUN" in _row(monkeypatch, 7, "")
     assert "NOT RUN" in _row(monkeypatch, 0, "<html>")
+    assert "NOT RUN" in _row(monkeypatch, 0, '{"components": [{"name": "Pages", "status": "operational"}]}')

@@ -131,7 +131,9 @@ def github_actions() -> list[str]:
         comps = {c["name"]: c["status"] for c in json.loads(out)["components"]}
     except (ValueError, KeyError, TypeError) as exc:
         return [f"| GitHub Actions | NOT RUN | {type(exc).__name__} parsing githubstatus.com |"]
-    st = comps.get("Actions", "unknown")
+    st = comps.get("Actions")
+    if st is None:
+        return ["| GitHub Actions | NOT RUN | githubstatus.com lists no Actions component |"]
     colour = "GREEN" if st == "operational" else "RED"
     return [f"| GitHub Actions | {colour} {st} | githubstatus.com; a red row means pending CI is theirs, not yours |"]
 

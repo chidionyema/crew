@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -28,7 +28,7 @@ def _load():
 
 
 def _runs(n: int, conclusions: list[str] | None = None, hours_ago_start: float = 0.5):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     out = []
     for i in range(n):
         out.append({

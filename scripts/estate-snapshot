@@ -116,6 +116,28 @@ def fly() -> list[str]:
     return rows
 
 
+def github_actions() -> list[str]:
+    """The provider's own word on whether CI can run at all (crew#284, 2026-08-26).
+
+    Three PRs sat 25 minutes on `pending` and one session read that as slow runners.
+    githubstatus.com said Actions=major_outage the whole time, and every cancelled job
+    carried 'The job was not acquired by Runner of type hosted'. A RED row here is read
+    before any PR is, so nobody attributes a provider outage to their own branch again.
+    """
+    rc, out = sh("curl -s -m 10 https://www.githubstatus.com/api/v2/components.json", timeout=20)
+    if rc or not out:
+        return ["| GitHub Actions | NOT RUN | githubstatus.com unreachable |"]
+    try:
+        comps = {c["name"]: c["status"] for c in json.loads(out)["components"]}
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| GitHub Actions | NOT RUN | {type(exc).__name__} parsing githubstatus.com |"]
+    st = comps.get("Actions")
+    if st is None:
+        return ["| GitHub Actions | NOT RUN | githubstatus.com lists no Actions component |"]
+    colour = "GREEN" if st == "operational" else "RED"
+    return [f"| GitHub Actions | {colour} {st} | githubstatus.com; a red row means pending CI is theirs, not yours |"]
+
+
 def crew_p1() -> list[str]:
     rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
                  "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
@@ -535,7 +557,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, science_plane, crew_p1,
+    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, science_plane, github_actions, crew_p1,
                runtime):
         try:
             rows += fn()

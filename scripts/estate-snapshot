@@ -406,6 +406,33 @@ def collectors() -> list[str]:
             f"(`ingest_log`, checked {since_h:.0f}h ago) |"]
 
 
+
+def datamap() -> list[str]:
+    """LAW 50: every producer of data carries a verdict, every gap a ticket. The gate runs
+    here because this is the one scheduled job that can see the Mac, git and `gh` at once;
+    a row that says NOT RUN is the gate being blind, never the gate being green."""
+    rc, out = sh(f"python3 {ROOT / 'science' / 'datamap.py'} --check --json", timeout=240)
+    try:
+        doc = json.loads(out[out.index("{"):])
+    except (ValueError, json.JSONDecodeError):
+        return ["| data map | NOT RUN | `science/datamap.py --check --json` did not answer |"]
+    prods = doc.get("producers", [])
+    n = len(prods)
+    unexplained = sum(1 for g in prods if g.get("verdict") == "UNEXPLAINED")
+    gaps = sum(1 for g in prods if g.get("verdict") in ("WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED"))
+    measurables = sum(len(g.get("measures", [])) for g in prods)
+    blind = doc.get("blind", {})
+    bad = doc.get("violations", [])
+    grade = "GREEN" if not bad else "RED"
+    detail = (f"{n} producers, {measurables} measurables, {gaps} in gaps with a ticket, "
+              f"{unexplained} unexplained, blind: {', '.join(blind) or 'none'}")
+    rows = [f"| data map | {grade} | {detail} (`science/datamap.py --check`) |"]
+    for b in bad[:3]:
+        rows.append(f"| &nbsp;&nbsp;violation | | {b[:110]} |")
+    return rows
+
+
+
 def runtime() -> list[str]:
     """The platform is OKE on Oracle; the laptop runs no VM. Both are measured, never asserted.
 
@@ -557,7 +584,8 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, science_plane, github_actions, crew_p1,
+    for fn in (architect, maestro, fly, spend, delivery, founder, collectors,
+        datamap, science_plane, github_actions, crew_p1,
                runtime):
         try:
             rows += fn()

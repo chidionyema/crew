@@ -16,10 +16,11 @@ SNAP = Path(__file__).resolve().parents[1] / "scripts" / "estate-snapshot"
 
 
 def _load():
-    spec = importlib.util.spec_from_file_location(
-        "estate_snapshot_284", SNAP, loader=SourceFileLoader("estate_snapshot_284", str(SNAP)))
+    loader = SourceFileLoader("estate_snapshot_284", str(SNAP))
+    spec = importlib.util.spec_from_file_location("estate_snapshot_284", SNAP, loader=loader)
+    assert spec is not None, SNAP
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    loader.exec_module(mod)
     return mod
 
 

@@ -41,13 +41,13 @@ Each producer is a record:
 from __future__ import annotations
 
 import json
-import sys
 import os
 import pathlib
 import plistlib
 import re
 import sqlite3
 import subprocess
+import sys
 from collections.abc import Callable, Iterator
 
 HOME = pathlib.Path.home()
@@ -103,7 +103,8 @@ def _monitored(plist: str | None) -> bool:
     if not plist or not pathlib.Path(plist).exists():
         return False
     try:
-        x = plistlib.load(open(plist, "rb"))
+        with open(plist, "rb") as fh:
+            x = plistlib.load(fh)
     except Exception:  # noqa: BLE001
         return False
     return any("hc-wrap" in str(a) for a in (x.get("ProgramArguments") or [x.get("Program") or ""]))
@@ -112,10 +113,10 @@ def _monitored(plist: str | None) -> bool:
 def _sources_decision(row: dict) -> dict | None:
     """The verdict science/sources.json already holds for an inventory row, or None."""
     try:
-        import collect  # noqa: PLC0415  (sys.path carries science/ when this runs)
+        import collect
     except ImportError:
         sys.path.insert(0, str(SCIENCE))
-        import collect  # noqa: PLC0415
+        import collect
     rid = row.get("id")
     path = pathlib.Path(row.get("path") or "")
     if rid in collect.DECLINED:

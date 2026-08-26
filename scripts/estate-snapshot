@@ -411,7 +411,7 @@ def datamap() -> list[str]:
     """LAW 50: every producer of data carries a verdict, every gap a ticket. The gate runs
     here because this is the one scheduled job that can see the Mac, git and `gh` at once;
     a row that says NOT RUN is the gate being blind, never the gate being green."""
-    rc, out = sh(f"python3 {ROOT / 'science' / 'datamap.py'} --check --json", timeout=240)
+    _rc, out = sh(f"python3 {ROOT / 'science' / 'datamap.py'} --check --json", timeout=240)
     try:
         doc = json.loads(out[out.index("{"):])
     except (ValueError, json.JSONDecodeError):

@@ -80,7 +80,7 @@ def test_every_domain_raises_rather_than_answering_partially_when_its_world_is_m
     monkeypatch.setattr(producers, "CLAUDE_HOME", tmp_path / "no-claude")
     monkeypatch.setattr(producers, "HOME", tmp_path)
     for name in ("mac", "warehouse", "cluster", "cluster_live", "endpoint", "hook", "transcript"):
-        with pytest.raises(Exception):
+        with pytest.raises((OSError, RuntimeError, KeyError, ValueError, StopIteration)):
             producers.DOMAINS[name]()
 
 

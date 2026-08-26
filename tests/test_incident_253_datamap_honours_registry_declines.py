@@ -12,13 +12,17 @@ sys.path.insert(0, str(ROOT / "science"))
 
 import collect  # noqa: E402
 import datamap  # noqa: E402
+import producers  # noqa: E402
 
 
 def _rows(tmp_path, monkeypatch, rows):
+    """Verdict per store path after the register (crew#320) grades a mac inventory."""
     inv = tmp_path / "inventory.json"
     inv.write_text(json.dumps({"rows": rows}))
-    monkeypatch.setattr(datamap, "INVENTORY", inv)
-    return {r["path"]: r["reason"] for r in datamap.uncollected()}
+    monkeypatch.setattr(producers, "INVENTORY", inv)
+    graded = datamap.grade(producers.mac(), datamap.register())
+    paths = {r["path"] for r in rows}
+    return {g["evidence"]: g["verdict"] for g in graded if g["evidence"] in paths}
 
 
 def test_incident_253_registry_decline_is_not_unexplained(tmp_path, monkeypatch):

@@ -41,6 +41,7 @@ Each producer is a record:
 from __future__ import annotations
 
 import json
+import sys
 import os
 import pathlib
 import plistlib
@@ -108,6 +109,26 @@ def _monitored(plist: str | None) -> bool:
     return any("hc-wrap" in str(a) for a in (x.get("ProgramArguments") or [x.get("Program") or ""]))
 
 
+def _sources_decision(row: dict) -> dict | None:
+    """The verdict science/sources.json already holds for an inventory row, or None."""
+    try:
+        import collect  # noqa: PLC0415  (sys.path carries science/ when this runs)
+    except ImportError:
+        sys.path.insert(0, str(SCIENCE))
+        import collect  # noqa: PLC0415
+    rid = row.get("id")
+    path = pathlib.Path(row.get("path") or "")
+    if rid in collect.DECLINED:
+        return {"verdict": "DECLINED", "why": collect.DECLINED[rid], "entry": f"sources.json declined {rid}"}
+    for did, d in collect.DECLINED_DIRS.items():
+        if path and str(path).startswith(str(d) + "/"):
+            return {"verdict": "DECLINED", "why": collect.DECLINED[did], "entry": f"sources.json declined {did}"}
+    for name, (src, _k, _t) in collect.SOURCES.items():
+        if path and path == src:
+            return {"verdict": "COLLECTED", "reader": f"science/collect.py source {name}", "entry": f"sources.json source {name}"}
+    return None
+
+
 def mac() -> list[Producer]:
     """Every row the Mac inventory found: ledgers, stores, jobs, guards, listeners, repos, drills."""
     doc = json.load(INVENTORY.open())
@@ -134,6 +155,12 @@ def mac() -> list[Producer]:
         if r.get("collected") is True or r.get("member_of"):
             prod["auto"] = {"verdict": "COLLECTED",
                             "reader": f"science/collect.py source {r.get('member_of') or r.get('source') or r.get('id')}"}
+        # science/sources.json is the one register of stores collect.py reads or declines
+        # (crew#253). A decline recorded there is a verdict, and it outranks verdicts.json so
+        # the same store is never decided in two files.
+        decided = _sources_decision(r)
+        if decided:
+            prod["decided"] = decided
         out.append(prod)
         # A store that is a database is many producers: one per table.
         path = r.get("path") or ""

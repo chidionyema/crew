@@ -48,10 +48,11 @@ CENSUS = SCIENCE / "census.json"
 sys.path.insert(0, str(SCIENCE))
 import producers  # noqa: E402
 
-#: Five verdicts, and only five. UNEXPLAINED is not a verdict: it is the absence of one,
+#: Six verdicts, and only six. DECLINED comes from science/sources.json (crew#253), never
+#: from verdicts.json, so a store is decided in one file. UNEXPLAINED is not a verdict: it is the absence of one,
 #: and the gate fails on it. BLIND is not a verdict either: it is a domain that could not
 #: see its world this run, and it fails the gate unless the register allows it by name.
-VERDICTS = ("COLLECTED", "WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED", "EXCLUDED")
+VERDICTS = ("COLLECTED", "WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED", "EXCLUDED", "DECLINED")
 GAPS = ("WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED")
 CENSUS_FLOOR = 0.5   # a domain reporting under half of last run's members, without BLIND, is broken
 
@@ -59,6 +60,8 @@ CENSUS_FLOOR = 0.5   # a domain reporting under half of last run's members, with
 def register() -> dict:
     reg = json.load(REGISTER.open())
     for e in reg["entries"]:
+        if e["verdict"] == "DECLINED":
+            raise ValueError(f"{e['key']}: DECLINED is decided in science/sources.json, not here")
         if e["verdict"] not in VERDICTS:
             raise ValueError(f"{e['key']}: verdict {e['verdict']!r} is not one of {VERDICTS}")
         if e["verdict"] == "COLLECTED" and not e.get("reader"):
@@ -84,11 +87,14 @@ def grade(prods: list[dict], reg: dict) -> list[dict]:
     entries = reg["entries"]
     out = []
     for p in prods:
-        e = _match(entries, p)
+        e = p.get("decided") or _match(entries, p)
         if e is None and p["kind"] == "table":
             # mac/table/<store>/<t> -> the store's own row
             store = p["key"].rsplit("/", 1)[0].replace("mac/table/", "mac/data/", 1)
             e = _match(entries, {"key": store, "kind": "data"})
+            if e is None:
+                owner = next((q for q in prods if q["key"] == store and q.get("decided")), None)
+                e = owner["decided"] if owner else None
         if e is None and p.get("auto"):
             e = p["auto"]
         g = dict(p)

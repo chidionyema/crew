@@ -1,6 +1,7 @@
 {
  "domains": {
   "mac": 548,
+  "warehouse": 32,
   "cluster": 99,
   "endpoint": 5,
   "hook": 34,
@@ -10,7 +11,6 @@
   "act": 8
  },
  "blind": {
-  "warehouse": "FileNotFoundError: no warehouse at /private/tmp/claude-501/-Users-chidionyema-dev-code/09cd04a6-12cd-4d9b-84af-10b1620739d1/scratchpad/crew-datamap/science/warehouse.db",
   "cluster_live": "RuntimeError: Unable to connect to the server: getting credentials: exec: executable oci failed with exit code 1"
  }
 }

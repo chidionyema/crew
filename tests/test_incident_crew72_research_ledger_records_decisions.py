@@ -29,3 +29,31 @@ def test_incident_crew72_ledger_is_a_declared_warehouse_source():
     src = {s["name"]: s for s in reg["sources"]}
     s = src["research_ledger"]
     assert s["path"] == "RESEARCH-LEDGER.jsonl" and s["time_field"] == "date" and s.get("receiver")
+
+
+def _snap():
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader("snap", str(ROOT / "scripts" / "estate-snapshot"))
+    spec = importlib.util.spec_from_loader("snap", loader)
+    assert spec is not None
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
+
+def test_state_md_carries_a_research_row_that_is_never_green_for_a_silent_week(tmp_path):
+    # crew#72 row 5: a reader that reaches him. NOT RUN without a ledger, RED for a silent week,
+    # GREEN only when an entry landed inside the window.
+    import datetime as dt
+    snap = _snap()
+    now = dt.datetime(2026, 8, 27, 2, 0, tzinfo=dt.UTC)
+    missing = tmp_path / "RESEARCH-LEDGER.jsonl"
+    assert "NOT RUN" in snap.research_row(missing, now)[0]
+    missing.write_text(json.dumps({"date": "2026-08-10", "question": "q"}) + "\n")
+    assert snap.research_row(missing, now)[0].startswith("| research | RED |")
+    missing.write_text(json.dumps({"date": "2026-08-25", "question": "q", "decision_fed": "crew#72"}) + "\n")
+    row = snap.research_row(missing, now)[0]
+    assert row.startswith("| research | GREEN |") and "1 with a decision fed" in row, row
+    live = snap.research_row(LEDGER, now)[0]
+    assert live.startswith("| research | ") and "NOT RUN" not in live, live

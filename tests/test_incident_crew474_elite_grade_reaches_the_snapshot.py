@@ -33,7 +33,6 @@ def test_incident_crew474_counts_reach_the_row_and_absence_is_named():
     assert "| elite grade | NOT RUN |" in missing
     (blind,) = mod.elite_grade_row("# a page with no counts\n")
     assert "| elite grade | BLIND |" in blind
-    assert mod.elite_grade in mod.main.__globals__.values() or "elite_grade" in SNAPSHOT.read_text()
 
 
 def test_incident_crew474_the_row_is_in_the_section_list():

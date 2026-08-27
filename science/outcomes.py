@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import subprocess
@@ -254,6 +255,11 @@ def cmd_attention(args) -> int:
     return 0
 
 
+def payer_id(email: str) -> str:
+    """A stable 12-hex identifier for a customer that cannot be turned back into the address."""
+    return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:12]
+
+
 def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     """One row: has this estate ever been paid, by whom, how much, when.
 
@@ -285,7 +291,9 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     row["paid_orders"] = int(body.get("count", len(orders)))
     row["total"] = round(sum(float(o.get("total") or 0) for o in orders), 2)
     row["currency"] = next((o.get("currency_code") for o in orders if o.get("currency_code")), None)
-    row["payers"] = sorted({o.get("email") for o in orders if o.get("email")})
+    # crew#70: the repo is public, so a payer is a salted-free sha256 prefix of the email, never
+    # the address (a0d64ea4 review of crew#409). Counting distinct payers needs nothing more.
+    row["payers"] = sorted({payer_id(o["email"]) for o in orders if o.get("email")})
     whens = sorted(o.get("created_at") for o in orders if o.get("created_at"))
     row["first_paid_at"], row["last_paid_at"] = (whens[0], whens[-1]) if whens else (None, None)
     return row

@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "science"))
-import docsmap  # noqa: E402
+import docsmap
 
 
 def _repo(tmp_path, codeowners):

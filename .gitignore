@@ -33,3 +33,4 @@ science/foresight-state.json
 science/transcripts.db
 science/transcripts.db-shm
 science/transcripts.db-wal
+.dependencies.json

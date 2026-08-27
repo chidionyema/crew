@@ -29,7 +29,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 MARKER = "<!-- pr-evidence -->"
@@ -322,18 +324,73 @@ def added_evidence(diff: str, number=None) -> set:
 
 
 EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
-NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
+#: The end of the Verification evidence section is the next heading AT THE SAME OR A
+#: SHALLOWER LEVEL. It used to be the next heading of any level, which meant a body that
+#: organised its evidence under sub-headings -- `## Verification evidence` followed by
+#: `### The fix works`, `### The guard works` -- had a section zero fences long, and the
+#: gate reported "no verification evidence" over a body carrying four command transcripts.
+#: That is a guard refusing correct work, which is the outage (LAW 38). Measured on
+#: chidionyema/idp#17 on 2026-08-24: 4 transcripts in the body, gate said 0.
+def mask_fences(text: str) -> str:
+    """`text` with the inside of every fenced block replaced by blanks of the same length.
+
+    Offsets are preserved, so an index found in the masked copy indexes the original.
+
+    Why. `section_end` scans raw markdown for a heading, and a heading is any line starting
+    with a hash. A shell comment at column 0 inside a fence -- `# prove it fails`, which is
+    how every both-ways proof in this estate is written -- is a level-1 heading to that scan,
+    shallower than any evidence heading, so it ends the section from inside the evidence.
+    Found by session chidionyema-b0 reviewing crew#187 on 2026-08-24, measured: a fence
+    opening with `# prove it fails` counted 0 transcripts where 1 was correct, and two fences
+    whose second opened `# must fail` counted 1 where 2 was correct. It predates that PR.
+
+    The fence markers themselves are left in place so FENCE still finds the blocks.
+    """
+    out, inside = [], False
+    for line in text.splitlines(keepends=True):
+        if line.lstrip().startswith("```"):
+            inside = not inside
+            out.append(line)
+            continue
+        out.append(" " * (len(line) - 1) + "\n" if inside and line.endswith("\n")
+                   else " " * len(line) if inside else line)
+    return "".join(out)
+
+
+def section_end(tail: str, level: int):
+    """Index where a section opened at `level` ends, or None if it runs to the end.
+
+    Headings are looked for in a fence-masked copy so that code, command output and shell
+    comments cannot close the section they are the evidence for.
+    """
+    for m in re.finditer(r"^(#{1,6})\s+\S", mask_fences(tail), re.M):
+        if len(m.group(1)) <= level:
+            return m.start()
+    return None
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
-#: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+#: A fence has to contain something. Set on its own terms, NOT inherited from OPTION_MIN_CHARS:
+#: an option is prose a human writes and can always make longer, while a receipt is whatever the
+#: tool printed, and the tools here print short.
+#:
+#: The number is the shortest real verdict line this estate emits, rounded down. Measured:
+#:
+#:     All checks passed!                     18
+#:     91 passed in 13.66s                    19
+#:     0 errors, 0 warnings, 0 informations   36
+#:     PASS=5  FAIL=3  CANNOT RUN=6  of 14    36
+#:
+#: At 40 this refused `91 passed in 13.66s\nAll checks passed!` -- 38 characters, a complete
+#: pytest receipt in the form this estate prefers -- and told the author to go and find better
+#: evidence than the evidence. That is the outage LAW 38 names, and it was found by review
+#: rather than by anything here, which is why the floor now carries its measurement.
 #:
 #: State the limit rather than let a reader assume more. This measures the LENGTH of what is
-#: inside the fence. It cannot tell pasted command output from forty characters of prose, so a
+#: inside the fence. It cannot tell pasted command output from sixteen characters of prose, so a
 #: transcript is the weaker source and a committed file is preferred wherever one can exist:
 #: `evidence_paths` returns the diff's files first and only falls back to the body. What the
-#: floor does buy is the case it was written for -- a heading with nothing under it, which the
-#: old marker gate passed. Tightening it further would refuse output that has no `$` prompt in
-#: it, which is most machine output, and refusing correct work is the outage (LAW 38).
-TRANSCRIPT_MIN_CHARS = 40
+#: floor buys is the case it was written for -- a heading with nothing under it, which the old
+#: marker gate passed -- and it still refuses that, and a bare `$ ls` with no output.
+TRANSCRIPT_MIN_CHARS = 16
 
 
 def transcript_evidence(body: str) -> int:
@@ -352,13 +409,15 @@ def transcript_evidence(body: str) -> int:
     m = EVIDENCE_SECTION.search(body or "")
     if not m:
         return 0
+    level = len(m.group(0).strip()) - len(m.group(0).strip().lstrip("#"))
     tail = body[m.end():]
     # crew#519, 2026-08-27: a transcript line `# minus /estate/mcp: ...` inside the fence read as
     # the next heading, the section ended before the closing fence, and a body with a full
     # transcript was refused. Headings are searched with the fences masked; indices are kept.
-    masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
-    nxt = NEXT_HEADING.search(masked)
-    section = tail[:nxt.start()] if nxt else tail
+    # idp#17, 2026-08-24 (crew#187): a sub-heading under the section does not end it; only a
+    # heading at the section's own level or shallower does.
+    end = section_end(tail, level)  # section_end masks the fences itself (mask_fences)
+    section = tail[:end] if end is not None else tail
     return sum(1 for block in FENCE.findall(section)
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
 
@@ -970,6 +1029,69 @@ def selftest_dod() -> int:
     return 1 if fails else 0
 
 
+def selftest_evidence_section() -> int:
+    """Where the Verification evidence section ends, proved on literal bodies.
+
+    INCIDENT, chidionyema/idp#17, 2026-08-24. The section used to end at the next heading of
+    ANY level, so a body that organised its evidence under sub-headings had a section zero
+    fences long. The gate reported "no verification evidence" over four pasted command
+    transcripts, and the author's fix was to flatten correct markdown to satisfy the grader.
+    A guard that refuses correct work is the outage (LAW 38).
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    fence = "```\n" + "x" * (TRANSCRIPT_MIN_CHARS + 5) + "\n```\n"
+    flat = "## Verification evidence\n\n" + fence
+    nested = ("## Verification evidence\n\n"
+              "### The fix works\n\n" + fence +
+              "### The guard works\n\n" + fence)
+    after = "## Verification evidence\n\n" + fence + "## Options considered\n\n" + fence
+
+    check_one("a flat section counts its fence", transcript_evidence(flat), 1)
+    check_one("sub-headings do not hide the fences under them",
+              transcript_evidence(nested), 2)
+    check_one("a same-level heading still ends the section",
+              transcript_evidence(after), 1)
+    check_one("a shallower heading ends a ### evidence section",
+              transcript_evidence("### Verification evidence\n\n" + fence
+                                  + "## Next\n\n" + fence), 1)
+    check_one("no section is still zero", transcript_evidence("Some prose.\n" + fence), 0)
+    check_one("an empty section is still zero",
+              transcript_evidence("## Verification evidence\n\nnothing here\n"), 0)
+    check_one("a heading-shaped line inside the fence does not end the section (crew#519)",
+              transcript_evidence("## Verification evidence\n\n```\n$ run\n# minus /estate/mcp: "
+                                  + "x" * TRANSCRIPT_MIN_CHARS + "\n```\n"), 1)
+    check_one("a fence shorter than the floor does not count",
+              transcript_evidence("## Verification evidence\n\n```\nok\n```\n"), 0)
+    # crew#187 review, session chidionyema-b0. A heading-shaped line INSIDE a fence is
+    # evidence, not a heading. Every both-ways proof in this estate opens a fence with a
+    # shell comment, and at column 0 that is a level-1 heading to a raw scan.
+    body_pad = "y" * (TRANSCRIPT_MIN_CHARS + 5)
+    check_one("a shell comment opening a fence does not end the section",
+              transcript_evidence("## Verification evidence\n\n```\n# prove it fails\n"
+                                  + body_pad + "\n```\n"), 1)
+    check_one("a second fence opening with a comment still counts",
+              transcript_evidence("## Verification evidence\n\n```\n" + body_pad + "\n```\n"
+                                  "```\n# must fail\n" + body_pad + "\n```\n"), 2)
+    check_one("a markdown heading inside command output does not end the section",
+              transcript_evidence("## Verification evidence\n\n```\n$ cat README.md\n"
+                                  "## Install\n" + body_pad + "\n```\n"), 1)
+    check_one("a real heading after a fence still ends the section",
+              transcript_evidence("## Verification evidence\n\n```\n# a comment\n"
+                                  + body_pad + "\n```\n## Options considered\n\n```\n"
+                                  + body_pad + "\n```\n"), 1)
+    print(f"selftest-evidence-section: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 # -------------------------------------------------------------------- main
 
 def main() -> int:
@@ -1005,6 +1127,8 @@ def main() -> int:
                    help="prove the evidence commit takes only its own files, in a temp repo")
     sub.add_parser("selftest-dod",
                    help="prove the definition-of-done row gate on literal bodies, no network")
+    sub.add_parser("selftest-evidence-section",
+                   help="prove where the Verification evidence section ends, no network")
 
     # estate-selftest.py runs every script under ~/.claude/scripts that accepts
     # `--selftest`, once an hour, and this file is symlinked in there. It was
@@ -1013,9 +1137,18 @@ def main() -> int:
     # A control nobody runs is not a control, so the estate's spelling is accepted
     # as an alias for the subcommand rather than the cases being moved.
     if "--selftest" in sys.argv[1:]:
-        # Every suite in this file, not the first one that was written. A second
-        # suite added beside a hardcoded call is a suite the hourly run never sees.
-        return max(selftest_options(), selftest_commit_scope(), selftest_dod())
+        # Every suite in this file, found by name, not a hardcoded list. The list was
+        # the bug it warned about: selftest_evidence_section was added on 2026-08-24 and
+        # a hardcoded call would have left the hourly run blind to it. A suite is any
+        # module-level `selftest_*` function taking no arguments.
+        suites: list[tuple[str, Callable[[], int]]] = []
+        for n, f in sorted(globals().items(), key=lambda nf: nf[0]):
+            if n.startswith("selftest_") and callable(f) and f.__code__.co_argcount == 0:
+                suites.append((n, cast(Callable[[], int], f)))
+        if not suites:
+            print("BLIND: no selftest suites found in this file", file=sys.stderr)
+            return 2
+        return max(f() for _, f in suites)
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
@@ -1024,6 +1157,8 @@ def main() -> int:
         return selftest_commit_scope()
     if ns.cmd == "selftest-dod":
         return selftest_dod()
+    if ns.cmd == "selftest-evidence-section":
+        return selftest_evidence_section()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

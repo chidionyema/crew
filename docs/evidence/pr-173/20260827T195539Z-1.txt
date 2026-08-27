@@ -1,0 +1,8 @@
+  ok    a declared script passes
+  ok    an undeclared script is refused
+  ok    an empty marker does not satisfy it
+  ok    a marker below the header does not count
+  ok    Standard: is accepted as well as Rejected:
+  selftest: 5 arms, 0 failures
+scripts added on this branch: 1   (repo total, not graded: 150)
+pass: every script added on this branch names what it replaces.

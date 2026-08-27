@@ -27,7 +27,7 @@ def _snap():
     return m
 
 
-def _run(path, created, started, updated, conclusion="success", status="completed"):
+def _run(path, created, started, updated, conclusion: str | None = "success", status="completed"):
     return {"path": f".github/workflows/{path}", "created_at": created, "run_started_at": started,
             "updated_at": updated, "status": status, "conclusion": conclusion}
 

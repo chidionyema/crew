@@ -664,7 +664,7 @@ def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: 
     by_hook: dict[str, int] = {}
     for r in refused:
         by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
-    top = max(by_hook, key=by_hook.get) if by_hook else "none"
+    top = max(by_hook, key=lambda h: by_hook[h]) if by_hook else "none"
     slow = max((int(r.get("ms") or 0) for r in recent), default=0)
     return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
             f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]

@@ -601,17 +601,18 @@ def ready_to_commit() -> str:
         return (f"no deploy key at {SNAP_KEY}: {BRANCH}'s ruleset requires checks and refuses a "
                 f"session-token push ({TICKET}); mint one with ssh-keygen, register it on the repo "
                 f"with write, list DeployKey as a bypass actor")
-    rc, out = sh(f"cd '{SNAP_WT}' && git remote get-url origin")
-    if rc:
-        return f"origin has no url: {out.strip()[:200]}"
-    m = re.match(r"https://([^/]+)/(.+?)(?:\.git)?$", out.strip())
-    ssh_url = f"git@{m.group(1)}:{m.group(2)}.git" if m else out.strip()
-    for cmd in (f"git config remote.origin.pushurl '{ssh_url}'",
-                f"git config core.sshCommand 'ssh -i {SNAP_KEY} -o IdentitiesOnly=yes'"):
-        rc, out = sh(f"cd '{SNAP_WT}' && {cmd}")
-        if rc:
-            return f"could not point the push at the deploy key: {out.strip()[:200]}"
     return ""
+
+
+def push_url() -> str:
+    """origin's url as ssh, the form a deploy key can authenticate. Read, never written: the
+    snapshot worktree shares `.git/config` with the live checkout and every other worktree, so a
+    `remote.origin.pushurl` or `core.sshCommand` set here would put every session's `git push`
+    on the bypass key and past main's required checks (78caaa17, crew#452 review)."""
+    rc, out = sh(f"cd '{SNAP_WT}' && git remote get-url origin")
+    url = out.strip()
+    m = re.match(r"https://([^/]+)/(.+?)(?:\.git)?$", url)
+    return f"git@{m.group(1)}:{m.group(2)}.git" if (rc == 0 and m) else url
 
 
 def commit(now: str) -> int:
@@ -625,7 +626,8 @@ def commit(now: str) -> int:
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
         ("stage STATE.md", "git add STATE.md"),
         ("commit", f"git commit -q -m 'chore(state): estate snapshot {now} ({TICKET})'"),
-        ("push", f"git push -q origin HEAD:{BRANCH}"),
+        ("push", f"GIT_SSH_COMMAND='ssh -i {SNAP_KEY} -o IdentitiesOnly=yes' "
+                 f"git push -q {push_url()} HEAD:{BRANCH}"),
     ]
     for label, cmd in steps:
         rc, out = sh(f"cd '{SNAP_WT}' && {cmd}", timeout=120)

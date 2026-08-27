@@ -110,7 +110,7 @@ def test_commit_runs_in_the_worktree_and_pushes_head_to_main(snap, capsys):
     git = _Git(); snap.sh = git
     assert snap.commit("2026-08-25 18:00 UTC") == 0
     assert all(str(snap.SNAP_WT) in c for c in git.ran), git.ran
-    assert any(f"git push -q origin HEAD:{snap.BRANCH}" in c for c in git.ran)
+    assert any(f"git push -q git@github.com:chidionyema/crew.git HEAD:{snap.BRANCH}" in c for c in git.ran), git.ran
     assert "committed and pushed to main" in capsys.readouterr().out
 
 
@@ -131,10 +131,13 @@ def test_the_branch_it_writes_to_is_named_once(snap):
 def test_incident_crew391_the_push_travels_on_the_deploy_key_not_the_session_token(snap):
     git = _Git(); snap.sh = git
     assert snap.ready_to_commit() == ""
-    cfg = [c for c in git.ran if "git config" in c]
-    assert any("remote.origin.pushurl 'git@github.com:chidionyema/crew.git'" in c for c in cfg), git.ran
-    assert any(f"core.sshCommand 'ssh -i {snap.SNAP_KEY} -o IdentitiesOnly=yes'" in c for c in cfg), git.ran
-    assert all(str(snap.SNAP_WT) in c for c in cfg)
+    assert snap.commit("2026-08-27 08:00 UTC") == 0
+    push = [c for c in git.ran if "git push" in c]
+    assert len(push) == 1 and str(snap.SNAP_WT) in push[0], git.ran
+    assert f"GIT_SSH_COMMAND='ssh -i {snap.SNAP_KEY} -o IdentitiesOnly=yes' git push -q git@github.com:chidionyema/crew.git HEAD:main" in push[0], push
+    # The worktree shares .git/config with the live checkout: the key is never written to config,
+    # or every session's push would travel on the ruleset's bypass actor (crew#452 review).
+    assert not any("git config" in c for c in git.ran), git.ran
 
 
 def test_incident_crew391_no_deploy_key_is_a_stated_refusal_not_a_refused_push(snap, monkeypatch):

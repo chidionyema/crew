@@ -337,12 +337,13 @@
    "law_title": "SECURE BY DEFAULT, AND PROVE IT",
    "verdict": "mechanical",
    "where": "scheduled",
-   "check": "a load-bearing file differs from its tracked copy or is untracked",
+   "check": "a load-bearing file differs from its tracked copy or is untracked; tracked.py --sync commits the live copy to claude-guards main (0d9da69) and reinstalls a copy older than HEAD instead of pushing it (behind_git, #133); residual: that push meets no required check, the ruleset holds deletion and non_fast_forward only",
    "state": "live",
    "guards": [
     "estate/in-git.py",
     "laws-link-guard.py",
-    "hooks/pre-commit"
+    "hooks/pre-commit",
+   "tracked.py"
    ]
   },
   {

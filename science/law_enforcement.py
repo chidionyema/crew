@@ -242,14 +242,37 @@ def githooks():
         out.append((path.split("/")[-1], ls))
     return out
 
+# crew#80: the tracked streams used to be a hardcoded path list, and one of
+# them (state/one-branch/would-have-fired.jsonl) outlived its writer by five
+# days, so the lawenforcement check was red with nothing to fix. The names now
+# resolve through science/sources.json, the closed-world registry the datamap
+# gate keeps honest: a stream nobody registered cannot be tracked here, and a
+# stream the registry drops leaves this list in the same commit. toolguard
+# (state/toolguard/events.jsonl) went the same way: 77h silent on 2026-08-27,
+# tool-drip-guard.py wired into no hook, not in the registry, so not tracked.
+TRACKED_STREAMS = ("close_guard", "ledger", "board", "spend")
+SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.json")
+
+def stream_paths(sources=SOURCES, home=H):
+    """(display name, absolute path) for each tracked stream, from the registry.
+    A tracked name missing from the registry is an error, not a skip: silently
+    dropping it is how crew#80 happened in the other direction."""
+    with open(sources) as fh:
+        reg = {s["name"]: s for s in json.load(fh)["sources"]}
+    out = []
+    for name in TRACKED_STREAMS:
+        if name not in reg:
+            raise KeyError(f"tracked stream {name!r} is not in {sources}")
+        s = reg[name]
+        if s["root"] != "home":
+            raise ValueError(f"tracked stream {name!r} has root {s['root']!r}, expected 'home'")
+        out.append((s["path"], os.path.join(home, s["path"])))
+    return out
+
 def streams():
     """Tracking streams and how long since each last moved."""
-    cands = ["state/toolguard/events.jsonl","state/close-guard-observe.jsonl",
-             "state/one-branch/would-have-fired.jsonl","state/ledger.jsonl",
-             "ESTATE_BOARD.jsonl","estate-spend-history.jsonl"]
     now=time.time(); out=[]
-    for c in cands:
-        p=f"{H}/.claude/{c}"
+    for c,p in stream_paths():
         if not os.path.exists(p): continue
         age=(now-os.path.getmtime(p))/3600
         try: n=sum(1 for _ in open(p,errors="ignore"))

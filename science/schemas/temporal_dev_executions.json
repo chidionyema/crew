@@ -1,0 +1,90 @@
+{
+ "description": "Temporal dev-server visibility rows, one per workflow execution: start (at), close, status, duration, task queue.",
+ "field_docs": {
+  "at": {
+   "description": "start_time of the execution, ISO with offset (time_field)",
+   "pii": false
+  },
+  "close_time": {
+   "description": "close_time, null while running",
+   "pii": false
+  },
+  "execution_duration": {
+   "description": "duration in nanoseconds, null while running",
+   "pii": false
+  },
+  "execution_time": {
+   "description": "execution_time: when the run became eligible to execute; execution_duration = close_time - execution_time (not start_time)",
+   "pii": false
+  },
+  "history_length": {
+   "description": "history event count",
+   "pii": false
+  },
+  "run_id": {
+   "description": "run id",
+   "pii": false
+  },
+  "state_transition_count": {
+   "description": "state transitions",
+   "pii": false
+  },
+  "status": {
+   "description": "Temporal execution status enum (1 running, 2 completed, 3 failed, 4 canceled, 5 terminated, 6 continued-as-new, 7 timed out)",
+   "pii": false
+  },
+  "task_queue": {
+   "description": "task queue name",
+   "pii": false
+  },
+  "workflow_id": {
+   "description": "workflow id",
+   "pii": false
+  },
+  "workflow_type_name": {
+   "description": "workflow type",
+   "pii": false
+  }
+ },
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "close_time": [
+   "NoneType",
+   "str"
+  ],
+  "execution_duration": [
+   "NoneType",
+   "int"
+  ],
+  "execution_time": [
+   "str"
+  ],
+  "history_length": [
+   "NoneType",
+   "int"
+  ],
+  "run_id": [
+   "str"
+  ],
+  "state_transition_count": [
+   "NoneType",
+   "int"
+  ],
+  "status": [
+   "int"
+  ],
+  "task_queue": [
+   "str"
+  ],
+  "workflow_id": [
+   "str"
+  ],
+  "workflow_type_name": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 0
+}

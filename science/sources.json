@@ -320,6 +320,16 @@
       "stale_after_hours": 168,
       "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
       "receiver": "otlp"
+    },
+    {
+      "name": "temporal_dev_executions",
+      "root": "home",
+      "path": ".estate/temporal/dev.db",
+      "kind": "sqlite",
+      "query": "SELECT start_time AS at, execution_time, close_time, workflow_id, run_id, workflow_type_name, status, task_queue, execution_duration, history_length, state_transition_count FROM executions_visibility",
+      "time_field": "at",
+      "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
+      "receiver": "otlp"
     }
   ],
   "declined": [

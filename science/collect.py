@@ -97,9 +97,13 @@ def _default_collector_config() -> Path:
     typed home path (LAW 46). A worktree resolves through its git common dir."""
     import subprocess
     try:
-        common = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=Path(__file__).parent,
+        # crew#455: without --path-format=absolute git answers `../.git` relative to the cwd it
+        # was asked in, and Path.resolve() then resolves that against the process cwd, so the
+        # verdict was BLIND from every cwd. Same form as scripts/verify.d/15-code-standard.sh.
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                cwd=Path(__file__).resolve().parent,
                                 capture_output=True, text=True, check=True).stdout.strip()
-        main_checkout = Path(common).resolve().parent
+        main_checkout = Path(common).parent
     except (subprocess.CalledProcessError, OSError):
         main_checkout = Path(__file__).resolve().parents[1]
     return main_checkout.parent / "idp" / "observability" / "otel-collector.yaml"

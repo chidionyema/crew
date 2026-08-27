@@ -37,7 +37,7 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_response(sink.status)
         self.end_headers()
 
-    def log_message(self, *a):
+    def log_message(self, format: str, *args: object) -> None:
         pass
 
 

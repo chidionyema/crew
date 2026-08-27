@@ -612,7 +612,8 @@ def emit_new_rows(conn: sqlite3.Connection, name: str, rows: list[dict],
     row = conn.execute("SELECT last_at FROM emit_watermark WHERE source = ?", (name,)).fetchone()
     last_at = row[0] if row else ""
     timed = [(row_time(r, tfield), r) for r in rows]
-    fresh = [(at or now, r) for at, r in timed if at is None or at > last_at]
+    fresh: list[tuple[str | None, dict]] = [(at or now, r) for at, r in timed
+                                            if at is None or at > last_at]
     verdict = otlp.emit(name, fresh)
     if verdict.startswith("ok"):
         newest = max((at for at, _ in timed if at), default=None)

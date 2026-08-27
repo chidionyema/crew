@@ -26,9 +26,10 @@ def _arm(monkeypatch, tmp_path, comment_body):
                                                         [0, 1] * (foresight.MIN_ROWS // 2), None))
 
     class _M:  # a model that would say RED if anyone asked it after the fact
-        named_steps = {"logisticregression": type("c", (), {"coef_": [[0.0] * len(foresight.FEATURES)]})(),
-                       "standardscaler": type("s", (), {"mean_": [0.0] * len(foresight.FEATURES),
-                                                        "scale_": [1.0] * len(foresight.FEATURES)})()}
+        def __init__(self):
+            n = len(foresight.FEATURES)
+            self.named_steps = {"logisticregression": type("c", (), {"coef_": [[0.0] * n]})(),
+                                "standardscaler": type("s", (), {"mean_": [0.0] * n, "scale_": [1.0] * n})()}
 
         def predict_proba(self, _x):
             return [[0.1, 0.9]]

@@ -599,6 +599,38 @@ def dod_row_pattern(name: str) -> re.Pattern:
         r"\s*(?:\*\*|__|\*|_)?\s*[:\u2014\u2013-]\s*(.+)$", re.I | re.M)
 
 
+#: crew#522 (2026-08-27): the idp operating-model gate (policy/operating_model.rego,
+#: architecture_laws) refused two PRs from one session in one afternoon, both for the same
+#: thing: a `- LAW n <slug>:` line written as a sentence. The gate wants the shape of a proof
+#: -- a path or a backtick, an `->`, or `n/a: <reason>` -- and this check ran clean on both
+#: bodies because it never looked. Same regex as the gate, graded here before the PR exists.
+LAWS = {"1": "zero-gravity", "2": "fractal", "3": "nervous system", "4": "calibration"}
+LAWS_HEAD = re.compile(r"(?m)^## Architecture laws\s*$")
+
+
+def law_line_ok(body: str, n: str) -> bool:
+    slug = LAWS[n]
+    pat = rf"(?m)^- LAW {n} {slug}: (n/a: \S.*|[^\n]*[/`][^\n]*|[^\n]*->[^\n]*)$"
+    return re.search(pat, body) is not None
+
+
+def architecture_laws(body: str) -> tuple:
+    """(ok, message): the four law lines carry a command, a path or `n/a: <reason>`.
+
+    The idp gate grades exactly this shape; a sentence there is refused after the PR is
+    open, the evidence commit and the review ask already made (crew#522, twice).
+    """
+    if not LAWS_HEAD.search(body or ""):
+        return False, ("no '## Architecture laws' section; the idp gate refuses it and this "
+                       "check would have said nothing")
+    bad = [f"LAW {n} {LAWS[n]}" for n in LAWS if not law_line_ok(body, n)]
+    if bad:
+        return False, (f"{', '.join(bad)}: the line is missing or is a sentence. Make it the "
+                       "command or path that proves the law (a `/`, a backtick or `->`), or "
+                       "`n/a: <reason>` -- the idp operating-model gate refuses it otherwise")
+    return True, "four law lines carry a proof or an n/a reason"
+
+
 def dod_rows(body: str) -> tuple:
     """(ok, message) for docs/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
     body names all ten rows, or `n/a: <why>` for the ones that do not apply.
@@ -670,13 +702,16 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_dod, why_dod = dod_rows(body)
     if not ok_dod:
         return False, "#{} {}".format(info["number"], why_dod)
+    ok_laws, why_laws = architecture_laws(body)
+    if not ok_laws:
+        return False, "#{} {}".format(info["number"], why_laws)
     # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
     carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
     return True, (f"#{info['number']} carries {carries}, {why_opts}, "
-                  f"{why_cpl}, {why_dod}; standards (report-only): {std}")
+                  f"{why_cpl}, {why_dod}, {why_laws}; standards (report-only): {std}")
 
 
 def selftest_commit_scope() -> int:

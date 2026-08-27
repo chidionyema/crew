@@ -23,6 +23,7 @@ import datetime as dt
 import json
 import math
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -35,6 +36,7 @@ OWNER = "chidionyema"
 # Gates that grade the PR body or the review, not the code. A red one says nothing about the diff.
 BODY_GATES = ("review-gate", "operating-model-gate", "spec-gate", "merge when green", "dupe", "evidence")
 MODEL = "foresight"
+MARK = "<!-- foresight "        # a PR comment posted by crew-qa before the first run finished
 MIN_ROWS = 40
 
 
@@ -175,7 +177,32 @@ def _predictions() -> list[dict]:
     return list(latest.values())
 
 
-def cmd_predict(_args) -> int:
+def _comment_prediction(repo: str, number: int) -> dict | None:
+    """The prediction crew-qa posted on the PR before its first run finished, or None.
+
+    crew#405 step 2: the durable row must predate the outcome. A collect that runs after CI answered
+    may not predict (hindsight), but it may copy the comment that did, with the comment's own time.
+    """
+    try:
+        out = _gh(["api", f"repos/{OWNER}/{repo}/issues/{number}/comments", "--paginate",
+                   "-q", '.[] | select(.body | startswith("<!-- foresight ")) | {body, at: .created_at}'])
+    except subprocess.CalledProcessError:
+        return None
+    for line in out.splitlines():
+        c = json.loads(line)
+        m = re.match(r"<!-- foresight (\{.*?\}) -->", c["body"], re.S)
+        if m:
+            return dict(json.loads(m.group(1)), at=c["at"])
+    return None
+
+
+def _record(rec: dict) -> None:
+    with PREDICTIONS.open("a") as fh:
+        fh.write(json.dumps(rec, separators=(",", ":")) + "\n")
+
+
+def cmd_predict(args) -> int:
+    only = getattr(args, "pr", None)                 # "repo#N": predict this PR, nothing else
     runs, prs = _history()
     X, y, _ = dataset()
     if len(y) < MIN_ROWS:
@@ -187,11 +214,30 @@ def cmd_predict(_args) -> int:
     scaler = model.named_steps["standardscaler"]
     rows = _predictions(); pid = max([r["id"] for r in rows], default=0)
     n = 0
+    if only:
+        repo, num = only.split("#"); prs = [p for p in prs if p["repo"] == repo and p["number"] == int(num)]
+        if not prs:
+            print(f"BLIND: {only} is not in the pulled history; run pull first", file=sys.stderr)
+            return 2
     for pr in prs:
-        if pr.get("closedAt") or pr.get("mergedAt") or (pr["repo"], pr["number"]) in done:
+        key = (pr["repo"], pr["number"])
+        if pr.get("closedAt") or pr.get("mergedAt") or key in done:
             continue
         if label(pr, runs) is not None:
-            continue                              # CI already answered; a prediction now is hindsight
+            # CI already answered; a prediction now is hindsight. The PR comment crew-qa posted
+            # before the run finished is the only admissible record, and it keeps its own time.
+            c = _comment_prediction(*key) if not only else None
+            if c:
+                pid += 1
+                _record({"id": pid, "at": c["at"], "issue": f"{pr['repo']}#{pr['number']}",
+                         "step": c["step"], "because": c["because"], "scored_at": None, "correct": None,
+                         "model": MODEL, "repo": pr["repo"], "pr": pr["number"], "p_red": c["p_red"],
+                         "predicted_red": c["predicted_red"], "source": "pr-comment"})
+                n += 1
+                print(f"#{pid} {pr['repo']}#{pr['number']}: {c['step']}  (from the PR comment at {c['at']})")
+            elif only:
+                print(f"{only}: CI already answered; no prediction recorded (hindsight)")
+            continue
         x = features(pr)
         p = float(model.predict_proba([x])[0][1])
         z = (x - scaler.mean_) / scaler.scale_
@@ -203,10 +249,11 @@ def cmd_predict(_args) -> int:
                "because": "; ".join(f"{k} {'+' if v > 0 else '-'}{abs(v):.2f}" for k, v in why),
                "scored_at": None, "correct": None, "model": MODEL, "repo": pr["repo"], "pr": pr["number"],
                "p_red": round(p, 3), "predicted_red": p >= 0.5}
-        with PREDICTIONS.open("a") as fh:
-            fh.write(json.dumps(rec, separators=(",", ":")) + "\n")
+        _record(rec)
         n += 1
         print(f"#{pid} {rec['issue']}: {rec['step']}  because {rec['because']}")
+        if only:
+            print("FORESIGHT " + json.dumps({k: rec[k] for k in ("step", "because", "p_red", "predicted_red")}))
     print(f"{n} prediction(s) recorded, unscored")
     return 0
 
@@ -260,7 +307,9 @@ def main() -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name, fn in (("pull", cmd_pull), ("train", cmd_train), ("predict", cmd_predict),
                      ("score", cmd_score), ("report", cmd_report)):
-        sub.add_parser(name).set_defaults(fn=fn)
+        sp = sub.add_parser(name); sp.set_defaults(fn=fn)
+        if name == "predict":
+            sp.add_argument("--pr", help="repo#N: predict this one PR (crew-qa, before its first run finishes)")
     args = ap.parse_args()
     return args.fn(args)
 

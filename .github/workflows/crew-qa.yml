@@ -126,3 +126,35 @@ jobs:
             crew verify "$cp" --issue "$issue"
             echo "::endgroup::"
           done
+
+  # crew#405 step 2: the prediction is on the PR before the first qa run finishes. This job runs
+  # beside qa, never after it, and the comment's created_at is the proof the call was made blind.
+  # science-collect copies the comment into science/predictions.jsonl with that timestamp.
+  foresight:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Predict this PR's first run before qa answers
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          python -m pip install -q -r requirements-dev.txt
+          python3 science/foresight.py pull
+          python3 science/foresight.py predict --pr "$REPO#$PR" | tee foresight.txt
+          line=$(grep '^FORESIGHT ' foresight.txt | head -1 | cut -c11-)
+          if [ -z "$line" ]; then echo "no fresh prediction (hindsight or BLIND); nothing posted"; exit 0; fi
+          step=$(printf '%s' "$line" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["step"], "because", d["because"])')
+          printf '<!-- foresight %s -->\n**foresight** predicts the %s\n\nPosted before the first qa run finished; science-collect scores it against the real verdict (crew#405).\n' "$line" "$step" > comment.md
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate -q '.[] | select(.body | startswith("<!-- foresight ")) | .id' | head -1)
+          if [ -n "$existing" ]; then echo "prediction already on the PR (comment $existing); not reposting"; exit 0; fi
+          gh pr comment "$PR" --repo "${{ github.repository }}" --body-file comment.md

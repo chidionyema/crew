@@ -643,11 +643,15 @@ TICKET = "crew#391"
 #: are published, so a ledger not yet written never breaks the STATE.md commit.
 SCIENCE_LEDGERS = ("science/ships.jsonl", "science/attention.jsonl", "science/revenue.jsonl",
                    "science/shapes.json", "science/census.json")
+#: crew#495 CP2: the hazard page is regenerated from risk/REGISTER.jsonl and the open P1s on
+#: every snapshot and committed with STATE.md, so "which fire realises which hazard" is never
+#: older than an hour.
+HAZARD_PAGE = "docs/HAZARDS.md"
 
 
 def published_ledgers(root: pathlib.Path | None = None) -> list[str]:
     root = root or ROOT
-    return [rel for rel in SCIENCE_LEDGERS if (root / rel).is_file()]
+    return [rel for rel in (*SCIENCE_LEDGERS, HAZARD_PAGE) if (root / rel).is_file()]
 ELITE_RE = re.compile(r"\*\*(\d+) ELITE\*\*, \*\*(\d+) GAP\*\*, \*\*(\d+) BLIND\*\* of (\d+)")
 
 
@@ -711,6 +715,7 @@ def commit(now: str) -> int:
     that loses a race with another writer fails loudly here and the next hourly run carries it.
     """
     steps = [
+        ("regenerate the hazard page", f"cd '{ROOT}' && python3 scripts/hazard-register >/dev/null; true"),
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
         ("copy the science ledgers into the worktree",
          " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers())),

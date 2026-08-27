@@ -20,6 +20,7 @@ import json
 import os
 import re
 import statistics
+import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
@@ -30,6 +31,10 @@ from dora import _gh, _ts  # the one GitHub reader, pages followed to the end
 
 REPO = os.environ.get("BOARD_REPO", "chidionyema/crew")
 OUT = Path(os.environ.get("VELOCITY_JSONL") or Path(__file__).resolve().parent / "velocity.jsonl")
+BOARD = Path(os.environ.get("VELOCITY_BOARD_MD") or OUT.parent / "BOARD.md")
+# the one picker (claude-guards estate_board.py); the path is the scripts dir, never a machine
+ESTATE_BOARD = Path(os.environ.get("ESTATE_BOARD") or Path.home() / ".claude" / "scripts" / "estate_board.py")
+BOARD_TOP = 60
 UNSORTED = "lane:unsorted"
 RED_DAYS = 3
 
@@ -106,6 +111,27 @@ def append_rows(path: Path, day: str, per_lane: dict[str, dict], at: str) -> int
     return n
 
 
+def write_board(path: Path, picker: Path, at: str, top: int = BOARD_TOP) -> bool:
+    """Regenerate science/BOARD.md from the one picker's finish-first rank (crew#527 CP2).
+
+    Returns False, and writes a BLIND page, when the picker is missing or cannot read the board;
+    the page is never left stale-but-green."""
+    head = ["# Board rank, finish-first", "",
+            f"Regenerated {at} by science/velocity.py from `estate_board.py rank --top {top}`.",
+            "Order: fraction of checklist boxes ticked, then P0 before P1, then founder-request, then age;",
+            "an issue whose `Blocked-on: #N` names an open issue ranks below every unblocked one.",
+            "The top row is what a session with nothing assigned works on next.", ""]
+    if not picker.is_file():
+        path.write_text("\n".join([*head, f"BLIND: picker {picker} is missing", ""]))
+        return False
+    r = subprocess.run([sys.executable, str(picker), "rank", "--top", str(top)], capture_output=True, text=True, check=False)
+    if r.returncode != 0 or not r.stdout.strip():
+        path.write_text("\n".join([*head, f"BLIND: `{picker.name} rank` exit {r.returncode}: {(r.stderr or r.stdout).strip()[:300]}", ""]))
+        return False
+    path.write_text("\n".join([*head, "```", r.stdout.rstrip(), "```", ""]))
+    return True
+
+
 def fetch(repo: str, since: datetime) -> list[dict]:
     rows = []
     for i in _gh(f"repos/{repo}/issues", state="all", since=since.strftime("%Y-%m-%dT%H:%M:%SZ"), per_page="100"):
@@ -136,10 +162,11 @@ def main(argv: list[str] | None = None) -> int:
     day = now.strftime("%Y-%m-%d")
     written = 0 if a.no_write else append_rows(OUT, day, per_lane, now.strftime("%Y-%m-%dT%H:%M:%SZ"))
     red = red_lanes(read_rows(OUT)) if not a.no_write else []
+    board_ok = write_board(BOARD, ESTATE_BOARD, now.strftime("%Y-%m-%dT%H:%M:%SZ")) if not a.no_write else None
     if a.json:
         print(json.dumps({"measured_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "days": a.days, "lanes": per_lane, "red": red}, indent=1))
     else:
-        print(f"velocity, last {a.days} day(s) to {now:%Y-%m-%dT%H:%MZ}, {a.repo}; {written} row(s) appended to {OUT.name}")
+        print(f"velocity, last {a.days} day(s) to {now:%Y-%m-%dT%H:%MZ}, {a.repo}; {written} row(s) appended to {OUT.name}; {BOARD.name} {'regenerated' if board_ok else ('BLIND' if board_ok is False else 'skipped')}")
         for lane, r in per_lane.items():
             flag = " RED" if lane in red else ""
             print(f"  {lane:<20} open={r['open']:<3} opened={r['opened']:<3} closed={r['closed']:<3} half-done={r['half_done']:<3} "

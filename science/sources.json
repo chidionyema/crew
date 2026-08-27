@@ -14,7 +14,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 6,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/estate_cost_sentinel.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "board",
@@ -22,7 +26,11 @@
    "path": ".claude/ESTATE_BOARD.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/board-deliver.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "ledger",
@@ -30,7 +38,11 @@
    "path": ".claude/state/ledger.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/goal-guard.py",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "close_guard",
@@ -38,7 +50,11 @@
    "path": ".claude/state/close-guard-observe.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/close-guard.py",
+   "method": "push",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "drills",
@@ -46,7 +62,11 @@
    "path": ".claude/state/drills.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/drills/run.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "ci_reach",
@@ -54,7 +74,11 @@
    "path": ".claude/state/ci-reach.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/estate_audit.py",
+   "method": "poll",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "aiden_ticks",
@@ -62,7 +86,11 @@
    "path": ".claude/state/aiden-ticks.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/aiden/tick.py",
+   "method": "poll",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "stuck_detector",
@@ -70,7 +98,12 @@
    "path": ".claude/state/logs/stuck-detector.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/stuck_detector_tick.sh",
+   "method": "poll",
+   "retention_days": 30,
+   "sensitivity": "internal",
+   "note": "Two record kinds share this store (crew#71 smell 3): an observation row (class, cwd, evidence, idle_s, session, slug, streak, would_page; 84% of rows) and a run-summary row (findings, rc, ts; 16%). Nothing in the row says which; the writer is stuck_detector_tick.sh."
   },
   {
    "name": "bundle_push",
@@ -78,7 +111,11 @@
    "path": ".claude/state/estate-bundle-push.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/estate_bundle_push.sh",
+   "method": "poll",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "agent_cert",
@@ -86,7 +123,11 @@
    "path": ".claude/agent-cert/history.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/statusline-context.py",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "decisions",
@@ -94,7 +135,11 @@
    "path": ".claude/DECISIONS.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/decision-log.py",
+   "method": "hand",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "method_metrics",
@@ -103,7 +148,11 @@
    "kind": "json",
    "time_field": "generated_at",
    "stale_after_hours": 12,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/reflect.py",
+   "method": "poll",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "enforcement_map",
@@ -111,7 +160,11 @@
    "path": "enforcement-map.json",
    "kind": "json",
    "time_field": null,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/law_enforcement.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "ships",
@@ -120,7 +173,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 26,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "scripts/science-collect",
+   "method": "poll",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "predictions",
@@ -128,7 +185,11 @@
    "path": "predictions.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/outcomes.py",
+   "method": "hand",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "attention",
@@ -137,7 +198,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 26,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/outcomes.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "restricted"
   },
   {
    "name": "directives",
@@ -145,7 +210,11 @@
    "path": ".claude/directives",
    "kind": "jsonl-dir",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/directives.py",
+   "method": "push",
+   "retention_days": 3650,
+   "sensitivity": "restricted"
   },
   {
    "name": "prompt_ledger",
@@ -153,7 +222,11 @@
    "path": ".claude/state/prompt-ledger",
    "kind": "jsonl-dir",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/prompt-ledger.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "restricted"
   },
   {
    "name": "tickets",
@@ -161,7 +234,11 @@
    "path": ".claude/state/tickets",
    "kind": "jsonl-dir",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/aiden/aiden.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "job_timelines",
@@ -169,7 +246,11 @@
    "path": ".claude/jobs",
    "kind": "jsonl-dir",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "scripts/admit",
+   "method": "push",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "history",
@@ -177,7 +258,11 @@
    "path": ".claude/history.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/secret-scrub.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "restricted"
   },
   {
    "name": "goal_net",
@@ -185,7 +270,11 @@
    "path": ".claude/state/goal-net.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/goal_graph.py",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "estate_push",
@@ -193,7 +282,11 @@
    "path": ".claude/state/estate-push.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/estate_push.sh",
+   "method": "poll",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "drills_scripts",
@@ -201,7 +294,11 @@
    "path": ".claude/scripts/state/drills.jsonl",
    "kind": "jsonl",
    "time_field": "at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/drills/run.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "alerts_inbox",
@@ -210,7 +307,11 @@
    "kind": "jsonl",
    "time_field": "ts",
    "stale_after_hours": 6,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/founder-deliver.py",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "sovereign_receipts",
@@ -218,7 +319,11 @@
    "path": ".estate/sovereign/receipts.jsonl",
    "kind": "jsonl",
    "time_field": "ts",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/launchd_receipt.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "board_deadletter",
@@ -226,7 +331,11 @@
    "path": ".claude/state/board-deadletter.jsonl",
    "kind": "jsonl",
    "time_field": "ts",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate-broadcast.py",
+   "method": "push",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "estate_registry",
@@ -234,7 +343,11 @@
    "path": ".estate/registry.jsonl",
    "kind": "jsonl",
    "time_field": "ts",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.estate/registry.jsonl",
+   "method": "hand",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "research_ledger",
@@ -243,7 +356,11 @@
    "kind": "jsonl",
    "time_field": "date",
    "receiver": "otlp",
-   "stale_after_hours": 168
+   "stale_after_hours": 168,
+   "owner": "science/ledger.py",
+   "method": "hand",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "revenue",
@@ -252,7 +369,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 24,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/outcomes.py",
+   "method": "hand",
+   "retention_days": 3650,
+   "sensitivity": "restricted"
   },
   {
    "name": "hook_outcomes",
@@ -261,7 +382,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 24,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/hook-run.py",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "ci_runs",
@@ -270,7 +395,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 30,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/outcomes.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "lane.code.pr-hygiene",
@@ -279,7 +408,11 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 30,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "science/outcomes.py",
+   "method": "poll",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "dagster-ticks",
@@ -290,7 +423,11 @@
    "stale_after_hours": 2,
    "query": "SELECT id, job_origin_id AS job, status, type, timestamp||'+00:00' AS at, json_extract(tick_body,'$.skip_reason') AS skip_reason, json_extract(tick_body,'$.error.message') AS error FROM job_ticks WHERE timestamp > datetime('now','-30 days')",
    "why": "crew#376 / crew#85: every schedule skipped for 16 hours on a flat load ceiling and nothing outside Dagster's UI could say so. One row per tick: RUN, SKIPPED (with the reason) or FAILURE.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/dev/code/idp/bin/scheduler-up",
+   "method": "poll",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "dagster-runs",
@@ -301,7 +438,11 @@
    "stale_after_hours": 24,
    "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
    "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/dev/code/idp/bin/scheduler-up",
+   "method": "poll",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "capability_receipts",
@@ -309,7 +450,11 @@
    "path": ".estate/state/capability_receipts.jsonl",
    "kind": "jsonl",
    "time_field": "ended_at",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/launchd_receipt.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "internal"
   },
   {
    "name": "sovereign_budget",
@@ -318,7 +463,11 @@
    "kind": "sqlite",
    "query": "SELECT session_id, total, remaining, version FROM budget",
    "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/dev/code/idp/sovereign/engine/budget.py",
+   "method": "push",
+   "retention_days": 30,
+   "sensitivity": "internal"
   },
   {
    "name": "runaway-reaper",
@@ -328,7 +477,11 @@
    "time_field": "ts",
    "stale_after_hours": 168,
    "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/runaway-reaper.sh",
+   "method": "poll",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "temporal_dev_executions",
@@ -338,7 +491,11 @@
    "query": "SELECT start_time AS at, execution_time, close_time, workflow_id, run_id, workflow_type_name, status, task_queue, execution_duration, history_length, state_transition_count FROM executions_visibility",
    "time_field": "at",
    "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/launchagents/ai.estate.temporal.plist",
+   "method": "poll",
+   "retention_days": 90,
+   "sensitivity": "internal"
   },
   {
    "name": "worktree_cleanup",
@@ -348,7 +505,11 @@
    "time_field": "iso",
    "stale_after_hours": 720,
    "why": "crew#361: one row per estate_audit.py worktree salvage (salvaged, kept, kb, applied); 2 rows, last 2026-08-23. Runs only when a sweep salvages, so stale after 30 days, not 24 h.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/estate/estate_worktree_cleanup.sh",
+   "method": "poll",
+   "retention_days": 180,
+   "sensitivity": "internal"
   },
   {
    "name": "founder_actions",
@@ -358,7 +519,11 @@
    "time_field": "opened",
    "stale_after_hours": 720,
    "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/scripts/founder_actions.py",
+   "method": "push",
+   "retention_days": 3650,
+   "sensitivity": "internal"
   },
   {
    "name": "hindsight_recall",
@@ -367,7 +532,12 @@
    "kind": "jsonl",
    "time_field": "at",
    "stale_after_hours": 24,
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/settings.json",
+   "method": "push",
+   "retention_days": 180,
+   "sensitivity": "internal",
+   "owner_note": "written by the Claude Code harness itself; settings.json is the file that turns the feature on"
   },
   {
    "name": "pi_bridge_runs",
@@ -375,7 +545,11 @@
    "path": ".claude/state/pi-bridge-runs.jsonl",
    "kind": "jsonl",
    "time_field": "ts",
-   "receiver": "otlp"
+   "receiver": "otlp",
+   "owner": "~/.claude/mcp/pi_bridge.py",
+   "method": "push",
+   "retention_days": 365,
+   "sensitivity": "internal"
   }
  ],
  "declined": [
@@ -489,5 +663,20 @@
    "path": "crew/science/transcripts.db",
    "reason": "science/transcripts.py's own index of the declined transcripts (every byte read once by offset). A derived store of a declined source, rebuilt four times a day by scripts/science-collect (crew#432); its tool-call and error rows already reach the warehouse through that reader, so collecting the index again would count them twice. crew#90."
   }
- ]
+ ],
+ "contract": {
+  "owner": "the file that appends to the store; a path under ~ or this repo, and it must exist",
+  "method": [
+   "push",
+   "poll",
+   "hand"
+  ],
+  "retention_days": "how long a row is kept; a number, and a source with none is a source nothing may ever delete from",
+  "sensitivity": [
+   "public",
+   "internal",
+   "restricted"
+  ],
+  "stale_after_hours": "freshness SLA; default_stale_after_hours when absent"
+ }
 }

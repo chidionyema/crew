@@ -24,10 +24,10 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: the auditor
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: chidionyema/claude-guards
           # Full sha, never short and never floating: crew#274 (test_incident_crew274_checkout_ref_is_a_full_sha.py)

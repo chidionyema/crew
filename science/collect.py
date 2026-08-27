@@ -61,6 +61,10 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+if str(Path(__file__).parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent))
+import emit as otlp
+
 
 #: Every path this program uses is overridable from the environment, and none of the
 #: three defaults is baked into the registry file. code-84, on the estate's kubernetes
@@ -283,6 +287,14 @@ CREATE TABLE IF NOT EXISTS ingest_log (
     bad_rows    INTEGER NOT NULL,
     source_mtime TEXT,
     status      TEXT NOT NULL   -- OK | ABSENT | UNREADABLE
+);
+-- LAW 50 (crew#516 CP5): the newest row time this source has put on the wire. A tick
+-- emits only rows newer than it, so the collector sees each row once, not the whole
+-- table every hour (rows without a time are snapshots and go every tick, said so).
+CREATE TABLE IF NOT EXISTS emit_watermark (
+    source     TEXT PRIMARY KEY,
+    last_at    TEXT NOT NULL,
+    emitted_at TEXT NOT NULL
 );
 """
 
@@ -588,6 +600,30 @@ def schema_verdict(name: str, rows: list[dict]) -> list[str]:
     return bad
 
 
+def emit_new_rows(conn: sqlite3.Connection, name: str, rows: list[dict],
+                  tfield: str | None, now: str) -> str:
+    """Put this source's rows on the wire once each (crew#522 review, d5ae1960).
+
+    Rows with a time go when newer than the source's watermark; rows without one carry
+    the collection time as their timestamp (a 1970 stamp would sit outside every 24h
+    window forever) and go every tick, because a timeless source is a rewritten
+    snapshot, not a log. The watermark moves only after the collector said 2xx.
+    """
+    row = conn.execute("SELECT last_at FROM emit_watermark WHERE source = ?", (name,)).fetchone()
+    last_at = row[0] if row else ""
+    timed = [(row_time(r, tfield), r) for r in rows]
+    fresh: list[tuple[str | None, dict]] = [(at or now, r) for at, r in timed
+                                            if at is None or at > last_at]
+    verdict = otlp.emit(name, fresh)
+    if verdict.startswith("ok"):
+        newest = max((at for at, _ in timed if at), default=None)
+        if newest:
+            conn.execute("INSERT OR REPLACE INTO emit_watermark VALUES (?,?,?)",
+                         (name, newest, now))
+        verdict += f" of {len(rows)}"
+    return verdict
+
+
 def collect(conn: sqlite3.Connection) -> list[dict]:
     now = iso(time.time())
     report = []
@@ -625,8 +661,13 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         )
         conn.execute("INSERT INTO ingest_log VALUES (?,?,?,?,?,?)",
                      (name, now, len(rows), bad, mtime, "OK"))
+        #: LAW 50 (crew#516 CP5): the same rows go to the estate collector, tagged
+        #: `science.source`, so `bin/idp-science-facts` can count them from ClickHouse.
+        #: With no endpoint configured this is one word in the report and no network.
+        emitted = emit_new_rows(conn, name, rows, tfield, now)
         report.append({"source": name, "status": "OK", "rows": len(rows),
-                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows)})
+                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows),
+                       "emit": emitted})
 
     #: A source that moves from collected to declined leaves its old rows behind, because
     #: nothing in this loop visits a name the registry no longer mentions. Found 2026-08-24
@@ -1074,6 +1115,21 @@ def main() -> int:
     q_failures, qnote = quality_checks(conn)
     print(qnote)
     failures.extend(q_failures)
+
+    #: LAW 50 (crew#516 CP5): the collector's verdict per source, and a refused or
+    #: unreachable collector fails the run. No endpoint is one word, never a failure:
+    #: the machine has not been told where the collector is, and that is the
+    #: `bin/idp-science-facts` receipt's job to say (FAIL sources=0).
+    emits = [e for e in report if "emit" in e]
+    sent = [e for e in emits if e["emit"].startswith("ok")]
+    emit_failures = [f"{e['source']}: collector {e['emit']}" for e in emits
+                     if e["emit"].startswith("FAIL")]
+    if emits and all(e["emit"].startswith("skipped") for e in emits):
+        print(f"emit: {emits[0]['emit']}")
+    else:
+        print(f"emit: {len(sent)} of {len(emits)} source(s) reached the collector"
+              f" at {otlp.endpoint()}")
+    failures.extend(emit_failures)
 
     if failures:
         print("\nneeds attention:")

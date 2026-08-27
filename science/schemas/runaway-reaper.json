@@ -1,0 +1,51 @@
+{
+ "description": "One row per process the runaway reaper killed (claude-guards#136): ts is the time field; rule names the reaper rule that matched, argv the command line.",
+ "field_docs": {
+  "age_s": {
+   "description": "seconds the process had been running when signalled",
+   "pii": false
+  },
+  "argv": {
+   "description": "full command line of the signalled process; may name repo paths",
+   "pii": true
+  },
+  "pid": {
+   "description": "pid of the process signalled",
+   "pii": false
+  },
+  "rule": {
+   "description": "reaper rule that matched (recursive-grep, orphan-headless-claude, ...)",
+   "pii": false
+  },
+  "signal": {
+   "description": "signal sent (SIGTERM or SIGKILL)",
+   "pii": false
+  },
+  "ts": {
+   "description": "ISO-8601 UTC time the process was signalled (time_field)",
+   "pii": false
+  }
+ },
+ "fields": {
+  "age_s": [
+   "int"
+  ],
+  "argv": [
+   "str"
+  ],
+  "pid": [
+   "int"
+  ],
+  "rule": [
+   "str"
+  ],
+  "signal": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards/scripts/runaway-reaper.py",
+ "undescribed_baseline": 0
+}

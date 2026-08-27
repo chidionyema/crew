@@ -212,6 +212,9 @@ def collect_attention() -> tuple[list[dict], int]:
             except json.JSONDecodeError:
                 continue
             day = str(r.get("at") or r.get("ts") or "")[:10]
+            if day < "2000":
+                # an epoch-zero stamp is a writer defect, not a day he wrote on
+                continue
             text = str(r.get("text") or r.get("prompt") or r.get("request") or "")
             if not day or not text:
                 continue

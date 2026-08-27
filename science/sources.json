@@ -261,6 +261,15 @@
       "time_field": "at",
       "stale_after_hours": 24,
       "receiver": "otlp"
+    },
+    {
+      "name": "ci_runs",
+      "root": "science",
+      "path": "ci-runs.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 30,
+      "receiver": "otlp"
     }
   ],
   "declined": [

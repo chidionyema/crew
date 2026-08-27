@@ -351,9 +351,17 @@
     },
     {
       "key": "github/workflow/*",
-      "verdict": "NEVER_EMITTED",
-      "why": "Workflow runs have durations, queue waits and pass rates in the Actions API; nothing pulls them, so 'is CI getting slower' is unanswerable. Same act as act/run_duration.",
-      "ticket": "crew#393"
+      "verdict": "COLLECTED",
+      "why": "collected since crew#393 (2026-08-27): .github/workflows/ci-runs.yml runs `outcomes.py ci` daily and commits one row per (repo, workflow) to science/ci-runs.jsonl: runs, pass rate, median duration, median queue wait, minutes",
+      "ticket": "crew#393",
+      "measures": [
+        "runs_per_day",
+        "run_duration_s",
+        "pass_rate",
+        "queue_wait_s",
+        "cost_minutes"
+      ],
+      "reader": "science/ci-runs.jsonl is source `ci_runs` in sources.json; scripts/estate-snapshot ci() prints workflows, runs, pass count and the slowest median as the STATE.md `ci runs` row"
     },
     {
       "key": "transcript/*",

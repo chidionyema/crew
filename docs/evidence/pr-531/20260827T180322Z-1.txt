@@ -1,0 +1,4 @@
+6 passed in 1.87s
+All checks passed!
+datamap --row no.such.entry: BLIND: no such entry
+exit 3

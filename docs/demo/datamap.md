@@ -1,95 +1,98 @@
 # Demo — `science/datamap.py`
 
-The founder asked, 2026-08-24: "so i need you to nnap alldatapoints we collect, all
-data dapints we dont collect and why". This is the answer, generated rather than
-written, so it cannot go stale while reading as current.
+The founder asked, 2026-08-26: "map all the data points in the estate, anything that
+produces data and anything that can be measured ... find a creative way to automate this so
+this is the first and last time we ever need to do this ... this needs to be encapsulated in
+law." This is LAW 50. The map is discovered, never typed.
 
 ```
-$ python3 science/datamap.py
+$ python3 science/datamap.py --check
 ```
 
-Real output, captured 2026-08-24. Nothing below was typed by hand.
+Real output, captured 2026-08-26 from the command above. The COLLECTED block (warehouse
+tables, row and field counts) is unchanged from the previous demo and omitted here; the
+DATA MAP, GAPS and GATE blocks are the new part.
 
 ```
-COLLECTED  19 sources, 5682 rows, 1064 distinct field paths
+DATA MAP  8292 producers in 10 domains, 78306 measurables
 ------------------------------------------------------------------------------
-  agent_cert             12 rows   810 fields  (800 field(s) not in every row)
-  aiden_ticks            73 rows    11 fields  (6 field(s) not in every row)
-  attention              24 rows     6 fields
-  board                 110 rows    31 fields  (29 field(s) not in every row)
-  bundle_push           120 rows    15 fields  (14 field(s) not in every row)
-  ci_reach               66 rows     5 fields
-  close_guard           902 rows     7 fields
-  consult                78 rows    11 fields  (2 field(s) not in every row)
-  decisions             118 rows    22 fields  (16 field(s) not in every row)
-  drills                 44 rows     8 fields  (1 field(s) not in every row)
-  enforcement_map         1 rows     9 fields
-  ledger                612 rows    10 fields  (7 field(s) not in every row)
-  method_metrics          1 rows    34 fields
-  predictions             2 rows     8 fields  (1 field(s) not in every row)
-  ships                  57 rows     9 fields  (6 field(s) not in every row)
-  spend                 932 rows    42 fields  (38 field(s) not in every row)
-  stuck_detector       1933 rows    11 fields  (11 field(s) not in every row)
-  toolguard             435 rows     7 fields  (4 field(s) not in every row)
-  would_have_fired      162 rows     8 fields  (5 field(s) not in every row)
+  domain         total  COLLECTED  WIRED_NEV  WRITER_DE  NEVER_EMI   EXCLUDED  UNEXPL
+  act                8          0          0          0          8          0       0
+  cluster           99          5         80          0          0         14       0
+  cluster_live   BLIND   RuntimeError: Unable to connect to the server: getting crede
+  endpoint           5          0          5          0          0          0       0
+  github            79         46          0          0         33          0       0
+  hook              34          0          0          0         34          0       0
+  mac              548         93        252          0         64        139       0
+  mcp                3          0          0          0          3          0       0
+  transcript      7484          0       7484          0          0          0       0
+  warehouse         32         32          0          0          0          0       0
 
-UNCOLLECTED  23 stores that exist and nothing reads
+GAPS  7963 producers under 47 register entries; each entry carries a ticket
 ------------------------------------------------------------------------------
-  EXCLUDED       ~/.claude/telemetry                           1179.3 MB
-  WIRED_NEVER    ~/.claude/projects                            6538.7 MB
-  WIRED_NEVER    trees/agent-aaecfffaa54620133/store/dossiers   130.9 MB
-  WIRED_NEVER    ~/.claude/state/toolguard                       28.5 MB
-  WIRED_NEVER    ~/.maestro/intents                               0.8 MB
-  WIRED_NEVER    ~/.claude/directives                          6932 rows
-  WIRED_NEVER    ~/.claude/state/prompt-ledger                 7046 rows
-  WIRED_NEVER    ~/.claude/history.jsonl                      12928 rows
-  ... 15 more, each with a recorded reason
+  WIRED_NEVER   transcript/*                              7484  crew#319
+  WIRED_NEVER   mac/*.claude/directives*                    73  crew#354
+  WIRED_NEVER   mac/data/*temporal/dev.db                   49  crew#377
+  NEVER_EMITTED mac/guard/*                                 43  crew#374
+  WIRED_NEVER   mac/scheduled_job/*                         39  crew#373
+  WIRED_NEVER   cluster/*                                   38  crew#388
+  NEVER_EMITTED hook/*                                      34  crew#391
+  NEVER_EMITTED github/workflow/*                           33  crew#393
+  NEVER_EMITTED mac/listener/*                              21  crew#375
+  WIRED_NEVER   mac/*experience_graph.db*                   20  crew#352
+  WIRED_NEVER   mac/data/*dagster*                          18  crew#376
+  WIRED_NEVER   cluster/*/Kustomization/*                   18  crew#344
+  WIRED_NEVER   mac/*state/prompt-ledger*                   17  crew#355
+  WIRED_NEVER   mac/*jobs/*                                 12  crew#358
+  WIRED_NEVER   cluster/*/ExternalSecret/*                  11  crew#387
+  WIRED_NEVER   cluster/*/HelmRelease/*                      9  crew#344
+  WIRED_NEVER   endpoint/*                                   5  crew#390
+  WIRED_NEVER   cluster/*/GitRepository/*                    4  crew#344
+  WIRED_NEVER   mac/*state/coord/jobs.sqlite*                3  crew#353
+  NEVER_EMITTED mcp/*                                        3  crew#392
+  WIRED_NEVER   mac/*.claude/state/toolguard*                2  crew#350
+  WIRED_NEVER   mac/data/*sovereign/budget.db                2  crew#378
+  WIRED_NEVER   mac/*state/tickets*                          1  crew#357
+  WIRED_NEVER   mac/*.claude/history.jsonl*                  1  crew#356
+  WIRED_NEVER   mac/*estate-push.j*                          1  crew#360
+  WIRED_NEVER   mac/*estate-worktr*                          1  crew#361
+  WIRED_NEVER   mac/ledger/*board-deadletter*                1  crew#379
+  WIRED_NEVER   mac/*founder-actio*                          1  crew#362
+  WIRED_NEVER   mac/ledger/*would-have-fired*                1  crew#380
+  WIRED_NEVER   mac/ledger/*.estate/registry.jsonl           1  crew#381
+  WIRED_NEVER   mac/ledger/*.estate/REQUIREMENTS.jsonl       1  crew#382
+  WIRED_NEVER   mac/ledger/*capability_receipts.jsonl        1  crew#383
+  WIRED_NEVER   mac/ledger/*alerts/inbox.jsonl               1  crew#384
+  WIRED_NEVER   mac/*estate-board.jsonl*                     1  crew#359
+  WIRED_NEVER   mac/ledger/*sovereign/receipts.jsonl         1  crew#385
+  WIRED_NEVER   mac/*.claude/projects*                       1  crew#319
+  WIRED_NEVER   mac/*.maestro/intents*                       1  crew#351
+  WIRED_NEVER   mac/*prospector/store*                       1  crew#363
+  WIRED_NEVER   mac/*prospector/.claude/worktrees*           1  crew#349
+  NEVER_EMITTED act/revenue                                  1  crew#365
+  NEVER_EMITTED act/agent_decisions                          1  crew#366
+  NEVER_EMITTED act/research                                 1  crew#367
+  NEVER_EMITTED act/task_outcome                             1  crew#368
+  NEVER_EMITTED act/run_duration                             1  crew#369
+  NEVER_EMITTED act/guard_outcome                            1  crew#370
+  NEVER_EMITTED act/model_routing                            1  crew#371
+  NEVER_EMITTED act/context_waste                            1  crew#372
 
-NEVER EMITTED  8 things the estate does and does not record
-------------------------------------------------------------------------------
-  revenue          money coming in
-  agent_decisions  what an agent chose, and what it rejected
-  research         what was researched, and what changed because of it
-  task_outcome     did the thing an agent built actually work
-  run_duration     how long each scheduled job takes
-  guard_outcome    what a guard refused, and whether the refusal was correct
-  model_routing    which model served each call, and what it cost
-  context_waste    tokens spent re-reading context that did not change
+GATE  GREEN  every producer has a verdict, every gap has a ticket, no domain silently blind
 ```
 
-## What the run just told you
+How to read it:
 
-Three lists, and the second two are the ones that did not exist before.
-
-**COLLECTED** walks every row in the warehouse and counts the field paths inside the
-JSON payloads. 1,064 of them, and not one is declared anywhere. The bracket after each
-source is the coverage warning: a field present in some rows and not others. `agent_cert`
-reporting 810 fields for 12 rows is a source using record ids as object keys, so its
-schema grows every time a row is added. `stuck_detector` reporting all 11 fields as
-partial is two different record shapes sharing one source name, which the run below
-confirmed: 1,526 of its 1,933 rows carry no timestamp field at all and 407 carry one.
-
-**UNCOLLECTED** is the register the estate did not have. Every store the inventory can
-see that nothing reads, with one of four recorded reasons: `WIRED_NEVER` (it is being
-written and no collector reads it), `WRITER_DEAD` (a collector reads it and the writer
-stopped), `NEVER_EMITTED` (the act happens and nothing records it), `EXCLUDED` (a
-decision, with the reason). A store that appears here with no recorded reason prints
-`UNEXPLAINED`, and that is the row worth the most, because it is a store nobody has
-decided about.
-
-**NEVER EMITTED** is the honest half. Eight things this estate does every day and keeps
-no record of, `revenue` first among them, which is why every efficiency number here is a
-cost divided by nothing.
-
-## The drift check
-
-```
-$ python3 science/datamap.py --check ; echo rc=$?
-rc=0
-```
-
-The first run writes `science/shapes.json`. Every run after it compares the live field
-set to that file and reports `+N field(s)`, `-N field(s)`, `new source` or
-`source disappeared`. `--check` exits 1 when anything moved. A producer changing shape is
-not an error and never reaches a log, so without this it surfaces weeks later as a view
-that quietly returns NULL.
+- **DATA MAP**: one row per domain in `science/producers.py`. A domain enumerates every
+  producer of its kind from the world (inventory rows and sqlite tables on the Mac, warehouse
+  tables, Kubernetes manifests, the live cluster, public hostnames, hooks, MCP servers, repos
+  and workflows, transcript directories, the act register). `UNEXPL` is the number of producers
+  no register entry matches; one is a red gate.
+- **BLIND**: the domain could not read its world. `cluster_live` is blind while the laptop has
+  no OKE credential (crew#345) and is allowed by name in `science/verdicts.json`
+  `blind_allowed`; any other blind domain is red.
+- **GAPS**: every gap verdict (WIRED_NEVER, WRITER_DEAD, NEVER_EMITTED) grouped by the register
+  entry that explains it, with the crew ticket that owns closing it. An entry with no ticket is
+  red; `--file-tickets` opens the ticket and writes the number back.
+- **GATE**: the line CI (`scripts/verify.d/26-datamap-register.sh`) and `STATE.md`
+  (`scripts/estate-snapshot`, row `data map`) both print.

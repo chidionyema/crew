@@ -24,10 +24,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
+import time
 
 #: bin/verify colours its rows. Colour codes in a markdown table render as literal
 #: escape bytes on GitHub, which makes the snapshot look broken to the one reader
@@ -116,6 +118,28 @@ def fly() -> list[str]:
     return rows
 
 
+def github_actions() -> list[str]:
+    """The provider's own word on whether CI can run at all (crew#284, 2026-08-26).
+
+    Three PRs sat 25 minutes on `pending` and one session read that as slow runners.
+    githubstatus.com said Actions=major_outage the whole time, and every cancelled job
+    carried 'The job was not acquired by Runner of type hosted'. A RED row here is read
+    before any PR is, so nobody attributes a provider outage to their own branch again.
+    """
+    rc, out = sh("curl -s -m 10 https://www.githubstatus.com/api/v2/components.json", timeout=20)
+    if rc or not out:
+        return ["| GitHub Actions | NOT RUN | githubstatus.com unreachable |"]
+    try:
+        comps = {c["name"]: c["status"] for c in json.loads(out)["components"]}
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| GitHub Actions | NOT RUN | {type(exc).__name__} parsing githubstatus.com |"]
+    st = comps.get("Actions")
+    if st is None:
+        return ["| GitHub Actions | NOT RUN | githubstatus.com lists no Actions component |"]
+    colour = "GREEN" if st == "operational" else "RED"
+    return [f"| GitHub Actions | {colour} {st} | githubstatus.com; a red row means pending CI is theirs, not yours |"]
+
+
 def crew_p1() -> list[str]:
     rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
                  "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
@@ -152,6 +176,90 @@ def spend() -> list[str]:
     state = "GREEN" if rate <= cap else "RED"
     return [f"| estate spend | {state} | ${rate:.0f}/day 7-day mean against a ${cap:.0f} cap "
             f"(`spend_daily`, {db.name}) |"]
+
+
+def revenue() -> list[str]:
+    """The other side of every efficiency number (crew#70).
+
+    Read from `science/revenue.jsonl`, the series `outcomes.py revenue` appends to. GREEN
+    only when the store answered inside the staleness bar; a row the store did not answer
+    is NOT RUN, never a zero, because an unmeasured zero and a measured zero look the same
+    on a page and only one of them is true.
+    """
+    path = pathlib.Path(__file__).resolve().parent.parent / "science" / "revenue.jsonl"
+    return revenue_row(path)
+
+
+def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 24) -> list[str]:
+    if not path.exists():
+        return ["| revenue | NOT RUN | no `science/revenue.jsonl`: run `science/outcomes.py revenue` |"]
+    last = None
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line:
+            try:
+                last = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+    if not last:
+        return ["| revenue | NOT RUN | `science/revenue.jsonl` holds no row |"]
+    at = last.get("at", "")
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| revenue | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| revenue | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    if not last.get("measured"):
+        return [f"| revenue | NOT RUN | store not measured at {at}: {str(last.get('reason', ''))[:90]} |"]
+    n = int(last.get("paid_orders", 0))
+    cur = last.get("currency") or ""
+    if n == 0:
+        return [f"| revenue | GREEN | 0 paid orders, measured {at} from the store (`outcomes.py revenue`) |"]
+    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {len(last.get('payers', []))} payer(s), "
+            f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
+
+
+def ci() -> list[str]:
+    """Is CI getting slower (crew#393). Read from `science/ci-runs.jsonl`, appended daily by
+    `.github/workflows/ci-runs.yml` running `outcomes.py ci`."""
+    return ci_row(pathlib.Path(__file__).resolve().parent.parent / "science" / "ci-runs.jsonl")
+
+
+def ci_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 30) -> list[str]:
+    if not path.exists():
+        return ["| ci runs | NOT RUN | no `science/ci-runs.jsonl`: run `science/outcomes.py ci` |"]
+    rows = []
+    for line in path.read_text().splitlines():
+        try:
+            rows.append(json.loads(line)) if line.strip() else None
+        except json.JSONDecodeError:
+            continue
+    if not rows:
+        return ["| ci runs | NOT RUN | `science/ci-runs.jsonl` holds no row |"]
+    at = max(str(r.get("at", "")) for r in rows)
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| ci runs | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| ci runs | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    last = [r for r in rows if r.get("at") == at]
+    good = [r for r in last if r.get("measured")]
+    if not good:
+        why = "; ".join(str(r.get("reason", ""))[:60] for r in last[:2])
+        return [f"| ci runs | NOT RUN | nothing measured at {at}: {why} |"]
+    runs = sum(int(r.get("runs", 0)) for r in good)
+    done = sum(int(r.get("completed", 0)) for r in good)
+    passed = sum(int(r.get("passed", 0)) for r in good)
+    slow = max(good, key=lambda r: float(r.get("median_duration_s") or 0))
+    unmeasured = len(last) - len(good)
+    tail = f", {unmeasured} repo(s) refused" if unmeasured else ""
+    return [f"| ci runs | GREEN | {len(good)} workflows, {runs} runs/{good[0].get('window_h', 24)}h, "
+            f"{passed}/{done} passed, slowest median {slow.get('median_duration_s')}s "
+            f"({slow.get('repo')}/{slow.get('workflow')}), measured {at}{tail} (`outcomes.py ci`) |"]
 
 
 def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
@@ -277,6 +385,57 @@ def delivery() -> list[str]:
     return rows
 
 
+def live_checkout() -> list[str]:
+    """The shared checkout the scheduled jobs run from (crew#437). The snapshot commits from
+    its own worktree, so this row is the only thing that moves `~/dev/code/crew` itself."""
+    return live_checkout_row(ROOT)
+
+
+def live_checkout_row(root: pathlib.Path, branch: str = "main") -> list[str]:
+    """One row: where the live checkout stands against origin/<branch>, and a fast-forward when
+    it is safe. 2026-08-27 (crew#437): the checkout sat on feat/research-engine-step1 at a
+    2026-08-25 commit for two days with 50 dirty rows, and every scheduled job ran that. The move
+    is `git merge --ff-only origin/<branch>`: a local edit to a file the update does not touch
+    survives, and a file already holding the target bytes (a published ledger) is staged first
+    so the checkout passes. It is refused when a locally edited file is also changed by the
+    update to different bytes, and when the branch has diverged."""
+    g = f"git -C '{root}'"
+    rc, head = sh(f"{g} symbolic-ref --short -q HEAD")
+    head = head.strip()
+    rc2, behind = sh(f"{g} rev-list --count HEAD..origin/{branch}")
+    behind_n = int(behind.strip()) if rc2 == 0 and behind.strip().isdigit() else None
+    if behind_n is None:
+        return [f"| live checkout | NOT RUN | `git rev-list HEAD..origin/{branch}` failed: {behind.strip()[:80]} |"]
+    if rc or head != branch:
+        return [f"| live checkout | RED | on `{head or 'detached HEAD'}`, {behind_n} commit(s) behind origin/{branch}; "
+                f"the scheduled jobs run that. Path back: `git -C {root} switch {branch}` |"]
+    rc, _ = sh(f"{g} merge-base --is-ancestor HEAD origin/{branch}")
+    if rc:
+        return [f"| live checkout | RED | `{branch}` has diverged from origin/{branch}; not moved |"]
+    _, edited = sh(f"{g} diff-index --name-only HEAD --")
+    dirty = [ln.strip() for ln in edited.splitlines() if ln.strip()]
+    _, changed = sh(f"{g} diff-tree -r --name-only HEAD origin/{branch}")
+    changed_set = set(changed.split())
+    blocked = [f for f in dirty if f in changed_set and sh(f"{g} diff --quiet origin/{branch} -- '{f}'")[0] != 0]
+    if blocked:
+        return [f"| live checkout | RED | {behind_n} commit(s) behind origin/{branch}; not moved: "
+                f"{len(blocked)} edited file(s) the update also changes ({', '.join(blocked[:3])}) |"]
+    if behind_n == 0:
+        return [f"| live checkout | GREEN | at origin/{branch}, {len(dirty)} local edit(s) |"]
+    #: A ledger the collector appended and the last snapshot already published is edited here
+    #: and changed by the update, to the same bytes. Staging the target blob lets the checkout
+    #: through; the file on disk is not touched.
+    for f in dirty:
+        if f in changed_set and f not in blocked:
+            sh(f"{g} restore --source=origin/{branch} --staged -- '{f}'")
+    rc, out = sh(f"{g} merge -q --ff-only origin/{branch}")
+    if rc:
+        return [f"| live checkout | RED | fast-forward failed: {out.strip()[:100]} |"]
+    _, sha = sh(f"{g} rev-parse --short HEAD")
+    return [f"| live checkout | GREEN | fast-forwarded {behind_n} commit(s) to origin/{branch} {sha.strip()}, "
+            f"{len(dirty)} local edit(s) kept |"]
+
+
 def founder() -> list[str]:
     """What the estate cost HIM this week, against last week.
 
@@ -384,54 +543,73 @@ def collectors() -> list[str]:
             f"(`ingest_log`, checked {since_h:.0f}h ago) |"]
 
 
-def runtime() -> list[str]:
-    """One container runtime -- colima -- and the CLI pointing at it, and it answering.
 
-    Incident 2026-08-24: Docker Desktop ran beside colima for hours holding zero
-    containers, the default docker context pointed at Desktop's dead daemon, and
-    `docker ps` hung for minutes in every session that tried. No instrument said so;
-    the founder found it by asking. The class is a second runtime nobody chose and a
-    context nobody checked, so this row measures three things and is GREEN only when
-    all three hold: context is colima, no second runtime process, colima's dockerd
-    actually answers. The socket probe uses curl with a hard timeout because the
-    docker CLI blocks unboundedly against a wedged daemon -- that hang WAS the
-    incident, and an instrument that hangs the same way measures nothing.
+def datamap() -> list[str]:
+    """LAW 50: every producer of data carries a verdict, every gap a ticket. The gate runs
+    here because this is the one scheduled job that can see the Mac, git and `gh` at once;
+    a row that says NOT RUN is the gate being blind, never the gate being green."""
+    _rc, out = sh(f"python3 {ROOT / 'science' / 'datamap.py'} --check --json", timeout=240)
+    try:
+        doc = json.loads(out[out.index("{"):])
+    except (ValueError, json.JSONDecodeError):
+        return ["| data map | NOT RUN | `science/datamap.py --check --json` did not answer |"]
+    prods = doc.get("producers", [])
+    n = len(prods)
+    unexplained = sum(1 for g in prods if g.get("verdict") == "UNEXPLAINED")
+    gaps = sum(1 for g in prods if g.get("verdict") in ("WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED"))
+    measurables = sum(len(g.get("measures", [])) for g in prods)
+    blind = doc.get("blind", {})
+    bad = doc.get("violations", [])
+    grade = "GREEN" if not bad else "RED"
+    detail = (f"{n} producers, {measurables} measurables, {gaps} in gaps with a ticket, "
+              f"{unexplained} unexplained, blind: {', '.join(blind) or 'none'}")
+    rows = [f"| data map | {grade} | {detail} (`science/datamap.py --check`) |"]
+    for b in bad[:3]:
+        rows.append(f"| &nbsp;&nbsp;violation | | {b[:110]} |")
+    return rows
+
+
+
+def runtime() -> list[str]:
+    """The platform is OKE on Oracle; the laptop runs no VM. Both are measured, never asserted.
+
+    Incident 2026-08-25: a session answered "Oracle: nothing provisioned" from a doc while
+    the OKE cluster had been serving prospector for 13 hours, because this file had no
+    Oracle row and the colima rows below it rewarded a VM the founder had just banned
+    (R26). The laptop VM row runs the R26 guard; the OKE rows run kubectl against the
+    cluster's own kubeconfig with hard timeouts, so a wedged API reports NOT RUN, never
+    a verdict.
     """
     rows = []
-    rc, ctx = sh("docker context show", timeout=15)
-    ctx = ctx.strip()
-    if rc:
-        rows.append(f"| docker context | NOT RUN | `docker context show` rc={rc} |")
-    elif ctx == "colima":
-        rows.append("| docker context | GREEN | `docker context show` -> colima |")
+    guard = pathlib.Path.home() / ".claude" / "scripts" / "no-local-vm-guard.sh"
+    rc, out = sh(f"sh {guard}", timeout=15)
+    if not guard.exists():
+        rows.append("| laptop VM (R26) | NOT RUN | guard missing at ~/.claude/scripts/no-local-vm-guard.sh |")
+    elif rc == 0:
+        rows.append("| laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |")
     else:
-        rows.append(f"| docker context | RED | `docker context show` -> {ctx}; sessions'"
-                    " docker commands are landing off the standard runtime |")
+        rows.append(f"| laptop VM (R26) | RED | {out.strip().splitlines()[1][:90] if len(out.splitlines()) > 1 else out.strip()[:90]}; stop it, do not restart it |")
 
-    # macOS pgrep has no -c; count with wc. A non-numeric answer is NOT RUN, never a
-    # verdict -- the first draft of this row read pgrep's usage error as a count.
-    rc, n = sh("pgrep -f 'Docker.app/Contents/MacOS' | wc -l", timeout=10)
-    n = n.strip()
-    if not n.isdigit():
-        rows.append(f"| second container runtime | NOT RUN | pgrep gave {n[:60]!r} |")
-    elif n != "0":
-        rows.append("| second container runtime | RED | Docker Desktop is running "
-                    f"beside colima ({n} processes); one of them is paying for a VM "
-                    "nothing uses |")
+    kube = f"KUBECONFIG={pathlib.Path.home() / '.kube' / 'oke-estate'} kubectl --request-timeout=20s"
+    rc, out = sh(f"{kube} get nodes --no-headers", timeout=30)
+    nodes = [line.split() for line in out.strip().splitlines() if line.strip()]
+    if rc or not nodes:
+        rows.append(f"| OKE nodes | NOT RUN | `kubectl get nodes` rc={rc} {out.strip()[:80]!r} |")
     else:
-        rows.append("| second container runtime | GREEN | `pgrep -f "
-                    "'Docker.app/Contents/MacOS' | wc -l` -> 0 |")
+        ready = sum(1 for n in nodes if n[1] == "Ready")
+        state = "GREEN" if ready == len(nodes) else "RED"
+        rows.append(f"| OKE nodes | {state} | `kubectl get nodes` -> {ready}/{len(nodes)} Ready ({nodes[0][4] if len(nodes[0]) > 4 else '?'}) |")
 
-    sock = pathlib.Path.home() / ".colima" / "default" / "docker.sock"
-    rc, out = sh(f"curl -s --max-time 8 --unix-socket {sock} "
-                 "http://localhost/v1.43/containers/json", timeout=15)
-    if rc == 0 and out.startswith("["):
-        rows.append("| colima dockerd | GREEN | socket answered containers/json |")
+    rc, out = sh(f"{kube} get kustomizations -A --no-headers", timeout=30)
+    ks = [line.split() for line in out.strip().splitlines() if line.strip()]
+    if rc or not ks:
+        rows.append(f"| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc={rc} {out.strip()[:80]!r} |")
     else:
-        gave = "nothing" if not out else f"rc={rc}"
-        rows.append(f"| colima dockerd | RED | socket gave {gave} in 8s -- every estate "
-                    "container is unserved; do NOT restart colima, route to the "
-                    "firefighter |")
+        bad = [k[1] for k in ks if k[3] != "True"]
+        if bad:
+            rows.append(f"| OKE flux | RED | {len(bad)} of {len(ks)} Kustomizations not ready: {', '.join(bad)} |")
+        else:
+            rows.append(f"| OKE flux | GREEN | `kubectl get kustomizations -A` -> {len(ks)}/{len(ks)} ready |")
     return rows
 
 
@@ -440,81 +618,235 @@ def runtime() -> list[str]:
 BRANCH = "main"
 
 
-def ready_to_commit() -> str:
-    """"" when this checkout may be committed to, otherwise the reason it may not.
+#: The snapshot commits from its own detached worktree, never from the shared checkout.
+#: 2026-08-25: the shared checkout sat on feat/mature-platform-gate for 14 hours and every hourly
+#: run refused to commit, so STATE.md on main was 14 hours stale while every session was told to
+#: read it first. A worktree pinned to origin/main has no branch for a session to leave it on.
+SNAP_WT = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-worktree"
 
-    INCIDENT, 2026-08-24. This job runs hourly from the shared checkout
-    `~/dev/code/crew`, and it committed to whatever branch that checkout happened to be
-    standing on. A session left it on `research-gateway-api-edge` mid-merge, so the 08:34
-    UTC snapshot was committed onto a feature branch and STATE.md on main went 2.5 hours
-    stale. STATE.md is the file every session is told to read before measuring anything or
-    asking the founder anything -- it exists so that six sessions which cannot see each
-    other stop re-measuring the same estate. While it is stale, every session reading it
-    is reading a stale estate and none of them can tell.
+#: The identity the push travels on. 2026-08-27 (crew#391): main took required checks (ruleset
+#: estate-security-scan) and every hourly push from the session token was refused with GH013, so
+#: STATE.md on main stood 36 hours stale while every session was told to read it first. A deploy
+#: key registered on the repo with write and listed as a bypass actor on that ruleset is the one
+#: writer allowed past the checks; a session's own token is not. No key file, no push, said so.
+SNAP_KEY = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-deploy-key"
 
-    The job reported nothing wrong throughout. It committed successfully and exited 0,
-    because it never asked where it was. An instrument that cannot tell "I wrote the
-    estate's state" from "I wrote onto a branch nobody reads" is blind in the same way a
-    checker that cannot tell "the directory is gone" from "I could not read it" is blind
-    (science/collect.py, same day, four other instances). This is the two-line version.
+#: Every commit names the ticket it serves; `tracked.py` (crew#53) refuses one that does not.
+#: 2026-08-27 07:28Z: the subject had no ticket and the commit step failed after the push fix.
+TICKET = "crew#391"
 
-    Refusing is the whole point. A snapshot not written is visible in the timestamp; a
-    snapshot written somewhere else looks exactly like success.
+
+#: crew#479: science/outcomes.py and science/datamap.py write these five tracked files into
+#: the shared checkout four times a day and nothing committed them, so the checkout sat
+#: 4,079 lines dirty and the showcase graded it GAP. They ride the hourly snapshot commit,
+#: from the same detached worktree, with the same deploy key. Only files that exist on disk
+#: are published, so a ledger not yet written never breaks the STATE.md commit.
+SCIENCE_LEDGERS = ("science/ships.jsonl", "science/attention.jsonl", "science/revenue.jsonl",
+                   "science/shapes.json", "science/census.json")
+#: crew#495 CP2: the hazard page is regenerated from risk/REGISTER.jsonl and the open P1s on
+#: every snapshot and committed with STATE.md, so "which fire realises which hazard" is never
+#: older than an hour.
+HAZARD_PAGE = "docs/HAZARDS.md"
+#: crew#403: the science page is regenerated from the live checkout's own stores on every
+#: snapshot. A copy generated anywhere else names stores that checkout does not hold and reads
+#: BLIND; copying such a page forward kept it BLIND on main for 4.6 hours on 2026-08-27.
+SCIENCE_PAGE = "docs/science/SHOWCASE.md"
+#: crew#508 CP6: the research grade (Outward/Inward, R37) is regenerated and published beside it.
+RESEARCH_PAGE = "docs/science/RESEARCH-GRADE.md"
+
+
+def published_ledgers(root: pathlib.Path | None = None) -> list[str]:
+    root = root or ROOT
+    return [rel for rel in (*SCIENCE_LEDGERS, HAZARD_PAGE, SCIENCE_PAGE, RESEARCH_PAGE) if (root / rel).is_file()]
+ELITE_RE = re.compile(r"\*\*(\d+) ELITE\*\*, \*\*(\d+) GAP\*\*, \*\*(\d+) BLIND\*\* of (\d+)")
+
+
+def elite_grade_row(page: str | None) -> list[str]:
+    """Founder, 2026-08-27: "what happened to the elite grading? needs to be a continuous
+    process, not just a one off ... visible to founder." The grade is idp docs/SHOWCASE.md,
+    rendered by Dagster com.estate.catalog-render four times a day and checked on every idp
+    PR (crew#474). This row puts its counts on the hourly board so he never opens the page
+    to learn whether the estate got better or worse. GREEN only with zero GAP and zero BLIND.
     """
-    rc, branch = sh(f"git -C '{ROOT}' rev-parse --abbrev-ref HEAD")
+    if page is None:
+        return ["| elite grade | NOT RUN | idp docs/SHOWCASE.md is not on main (idp#361 not merged, or fetch failed) |"]
+    m = ELITE_RE.search(page)
+    if not m:
+        return ["| elite grade | BLIND | idp docs/SHOWCASE.md has no `The bar` counts; bin/estate-showcase changed shape |"]
+    elite, gap, blind, total = (int(x) for x in m.groups())
+    state = "GREEN" if gap == 0 and blind == 0 else f"{gap} GAP, {blind} BLIND"
+    return [f"| elite grade | {state} | {elite} ELITE of {total} entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |"]
+
+
+def elite_grade() -> list[str]:
+    rc, out = sh("gh api -H 'Accept: application/vnd.github.raw' repos/chidionyema/idp/contents/docs/SHOWCASE.md", timeout=30)
+    return elite_grade_row(out if rc == 0 else None)
+
+
+def ready_to_commit() -> str:
+    """"" when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
+    rc, out = sh(f"cd '{ROOT}' && git fetch -q origin {BRANCH}", timeout=60)
     if rc:
-        return f"cannot read the current branch: {branch}"
-    if branch != BRANCH:
-        return (f"this checkout is on '{branch}', not {BRANCH}. The snapshot would be "
-                f"committed where nobody reads it. Move the work to a worktree and return "
-                f"the checkout to {BRANCH}.")
-    rc, _ = sh(f"git -C '{ROOT}' rev-parse -q --verify MERGE_HEAD")
-    if rc == 0:
-        return ("a merge is in progress in this checkout. Committing into it would add "
-                "the snapshot to somebody's half-finished merge.")
-    rc, out = sh(f"git -C '{ROOT}' status --porcelain -- STATE.md")
+        return f"git fetch origin {BRANCH} failed: {out.strip()[:200]}"
+    if not (SNAP_WT / ".git").exists():
+        rc, out = sh(f"cd '{ROOT}' && git worktree prune && git worktree add --detach -q '{SNAP_WT}' origin/{BRANCH}", timeout=60)
+        if rc:
+            return f"could not create the snapshot worktree at {SNAP_WT}: {out.strip()[:200]}"
+    rc, out = sh(f"cd '{SNAP_WT}' && git checkout -q --detach origin/{BRANCH}", timeout=60)
     if rc:
-        return f"cannot read the status of STATE.md: {out}"
+        return f"snapshot worktree could not move to origin/{BRANCH}: {out.strip()[:200]}"
+    if not SNAP_KEY.exists():
+        return (f"no deploy key at {SNAP_KEY}: {BRANCH}'s ruleset requires checks and refuses a "
+                f"session-token push ({TICKET}); mint one with ssh-keygen, register it on the repo "
+                f"with write, list DeployKey as a bypass actor")
     return ""
 
 
+def push_url() -> str:
+    """origin's url as ssh, the form a deploy key can authenticate. Read, never written: the
+    snapshot worktree shares `.git/config` with the live checkout and every other worktree, so a
+    `remote.origin.pushurl` or `core.sshCommand` set here would put every session's `git push`
+    on the bypass key and past main's required checks (78caaa17, crew#452 review)."""
+    rc, out = sh(f"cd '{SNAP_WT}' && git remote get-url origin")
+    url = out.strip()
+    m = re.match(r"https://([^/]+)/(.+?)(?:\.git)?$", url)
+    return f"git@{m.group(1)}:{m.group(2)}.git" if (rc == 0 and m) else url
+
+
 def commit(now: str) -> int:
-    """Put STATE.md on main, or say exactly which step failed. Never both.
+    """Put STATE.md on main from the snapshot worktree, or say exactly which step failed.
 
-    The previous version was one `&&` chain whose result was thrown away, followed by a
-    separate `git log -1` printed as "committed:". A failed push and a successful one
-    printed the same line. Worse, the chain ended with a bare `git merge origin/main`,
-    which is what authored the conflicted merge that stranded the checkout in the first
-    place -- the job's own recovery step was the thing that broke it.
-
-    So: fast-forward BEFORE writing anything, never merge after; run each step on its own
-    and stop at the first failure; and name the step that failed. A push that loses a race
-    with another writer fails loudly here and the next hourly run carries the state -- an
-    hour of staleness that is visible beats a merge nobody asked for.
+    Each step runs on its own and the first failure is named. The worktree is detached at
+    origin/main (ready_to_commit), so there is no merge and no branch to be stranded on; a push
+    that loses a race with another writer fails loudly here and the next hourly run carries it.
     """
     steps = [
-        ("fetch main", f"git fetch -q origin {BRANCH}"),
-        (f"fast-forward onto origin/{BRANCH}",
-         f"git merge --ff-only -q origin/{BRANCH}"),
-        ("stage STATE.md", "git add STATE.md"),
-        ("commit", f"git commit -q -m 'chore(state): estate snapshot {now}'"),
-        ("push", f"git push -q origin {BRANCH}"),
+        ("regenerate the hazard page", f"cd '{ROOT}' && python3 scripts/hazard-register >/dev/null; true"),
+        ("regenerate the science page", f"cd '{ROOT}' && python3 science/showcase.py >/dev/null; true"),
+        ("regenerate the research grade", f"cd '{ROOT}' && python3 science/research_grade.py >/dev/null; true"),
+        ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
+        ("copy the science ledgers into the worktree",
+         " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers())),
+        ("stage STATE.md and the ledgers", "git add STATE.md " + " ".join(published_ledgers())),
+        ("commit", f"git commit -q -m 'chore(state): estate snapshot {now} ({TICKET})'"),
+        ("push", f"GIT_SSH_COMMAND='ssh -i {SNAP_KEY} -o IdentitiesOnly=yes' "
+                 f"git push -q {push_url()} HEAD:{BRANCH}"),
     ]
     for label, cmd in steps:
-        rc, out = sh(f"cd '{ROOT}' && {cmd}", timeout=120)
+        rc, out = sh(f"cd '{SNAP_WT}' && {cmd}", timeout=120)
         if rc != 0:
-            #: "nothing to commit" is not a failure. The estate can be unchanged between
-            #: two hourly runs, and a job that goes red on a quiet hour gets ignored on
-            #: the hour it means it.
             if label == "commit" and "nothing to commit" in out:
                 print("no change since the last snapshot; nothing to commit.")
                 return 0
             print(f"SNAPSHOT NOT COMMITTED. Failed at: {label}\n  {cmd}\n"
                   f"  {out or '(no output)'}")
             return 1
-    rc, out = sh(f"cd '{ROOT}' && git log --oneline -1")
+    rc, out = sh(f"cd '{SNAP_WT}' && git log --oneline -1")
     print(f"committed and pushed to {BRANCH}: {out}")
     return 0
+
+
+def science_plane() -> list[str]:
+    """What the research, data-science and ML crew has to stand on, as rows.
+
+    Founder, 2026-08-25: "the fact that you need to check means our process is
+    broken." He asked whether a data pipeline exists and the only way to answer
+    was to measure the estate by hand. LAW 39: the inventory answers that before
+    anyone asks. Every row here is a command; ABSENT is a verdict, not a gap.
+    """
+    rows: list[str] = []
+    sci = ROOT / "science"
+    wh = sci / "warehouse.db"
+    age = age_hours(wh)
+    models = len(list((sci / "dbt" / "models").rglob("*.sql"))) if (sci / "dbt" / "models").exists() else 0
+    if age is None:
+        rows.append("| science plane: warehouse | ABSENT | no `science/warehouse.db` |")
+    else:
+        rows.append(f"| science plane: warehouse | {'GREEN' if age < 3 else 'RED'} | DuckDB+dbt, "
+                    f"{models} dbt model(s), rebuilt {age:.0f}h ago (`science/warehouse.db`) |")
+    _rc, out = sh("pgrep -fl 'dagster' | grep -v pgrep | wc -l", timeout=10)
+    n = out.strip() or "0"
+    rows.append(f"| science plane: scheduler | {'GREEN' if n.strip() != '0' else 'RED'} | "
+                f"Dagster, {n.strip()} process(es) (`pgrep -f dagster`; `idp/scheduler/`) |")
+    _rc, out = sh("command -v mlflow || python3 -c 'import mlflow' 2>/dev/null && echo mlflow", timeout=10)
+    rows.append("| science plane: experiment tracker | "
+                + ("GREEN | mlflow on PATH (`command -v mlflow`) |" if out.strip()
+                   else "ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |"))
+    pred = sci / "predictions.jsonl"
+    if pred.exists():
+        lines = [ln for ln in pred.read_text().splitlines() if ln.strip()]
+        scored = sum(1 for ln in lines if '"outcome"' in ln or '"actual"' in ln or '"scored"' in ln)
+        rows.append(f"| science plane: forecast ledger | {'GREEN' if scored else 'RED'} | "
+                    f"{len(lines)} forecast(s), {scored} scored against reality "
+                    "(`science/predictions.jsonl`); Brier needs both |")
+    else:
+        rows.append("| science plane: forecast ledger | ABSENT | no `science/predictions.jsonl` |")
+    src = sci / "sources.json"
+    if src.exists():
+        declared = len(json.loads(src.read_text()).get("sources", []))
+        rows.append(f"| science plane: declared stores | {declared} | `science/sources.json` |")
+    return rows
+
+
+def research_row(path: pathlib.Path, now: dt.datetime | None = None, window_days: int = 7) -> list[str]:
+    """crew#72 row 5: the research ledger reaches him as one row, never as a file he must open.
+
+    GREEN when an entry landed inside the window; RED when the ledger exists but the week is
+    empty (LAW 35 grades the loop weekly, so a silent week is the finding); NOT RUN when there is
+    no ledger or a row cannot be read. The decision count is printed beside it because crew#72
+    row 2 found 0 of 23 entries record what the research changed.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| research | NOT RUN | no ledger at `{path.name}` |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        dates = [dt.datetime.fromisoformat(str(r["date"])[:10]).replace(tzinfo=dt.UTC) for r in rows]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| research | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not dates:
+        return [f"| research | RED | ledger is empty (`{path.name}`) |"]
+    last = max(dates)
+    recent = sum(1 for d in dates if (now - d).days < window_days)
+    decided = sum(1 for r in rows if r.get("decision_fed"))
+    verdict = "GREEN" if recent else "RED"
+    return [f"| research | {verdict} | {recent} entr{'y' if recent == 1 else 'ies'} in {window_days}d, "
+            f"{len(rows)} total, {decided} with a decision fed, last {last:%Y-%m-%d} (`{path.name}`) |"]
+
+
+def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: int = 24) -> list[str]:
+    """crew#391: every hook run is a row in ~/.claude/state/hook-outcomes.jsonl (hook-run.py in
+    claude-guards). GREEN when hooks ran inside the window, and the row says how many refused and
+    which hook refused most, because LAW 38 grades a guard by what it refuses. RED when the ledger
+    exists and the window is silent: 36 hooks fire on every event, so a silent day means the
+    wrapper is unwired. NOT RUN when there is no ledger or a row cannot be read.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| hooks | NOT RUN | no ledger at `{path.name}` (claude-guards hook-run.py not wired) |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        recent = [r for r in rows if (now - dt.datetime.fromisoformat(str(r["at"]).replace("Z", "+00:00"))).total_seconds() < window_hours * 3600]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| hooks | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not recent:
+        return [f"| hooks | RED | no hook run in {window_hours}h, {len(rows)} rows total (`{path.name}`) |"]
+    refused = [r for r in recent if r.get("refused")]
+    by_hook: dict[str, int] = {}
+    for r in refused:
+        by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
+    top = max(by_hook, key=lambda h: by_hook[h]) if by_hook else "none"
+    slow = max((int(r.get("ms") or 0) for r in recent), default=0)
+    return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
+            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]
+
+
+def hooks() -> list[str]:
+    return hooks_row(pathlib.Path(os.path.expanduser("~/.claude/state/hook-outcomes.jsonl")))
+
+
+def research() -> list[str]:
+    return research_row(ROOT / "science" / "RESEARCH-LEDGER.jsonl")
 
 
 def main() -> int:
@@ -529,8 +861,9 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors, crew_p1,
-               runtime):
+    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
+        datamap, science_plane, research, hooks, github_actions, crew_p1,
+               runtime, elite_grade):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

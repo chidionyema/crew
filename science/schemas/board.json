@@ -1,0 +1,57 @@
+{
+ "description": "ESTATE_BOARD ledger: one row per board event (claim, release, note) across sessions.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "detail": [
+   "dict"
+  ],
+  "error": [
+   "str"
+  ],
+  "founder_priority_alignment": [
+   "dict"
+  ],
+  "frame": [
+   "NoneType",
+   "list"
+  ],
+  "from": [
+   "str"
+  ],
+  "guard": [
+   "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "lane": [
+   "str"
+  ],
+  "message": [
+   "str"
+  ],
+  "msg": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "priority": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "to": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 16
+}

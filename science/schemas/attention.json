@@ -1,0 +1,26 @@
+{
+ "description": "Attention ledger: what the estate asked the founder to look at and when.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "complaint_rate": [
+   "float"
+  ],
+  "complaints": [
+   "int"
+  ],
+  "day": [
+   "str"
+  ],
+  "lexicon_size": [
+   "int"
+  ],
+  "messages": [
+   "int"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 6
+}

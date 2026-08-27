@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# crew#403 CP-C: the founder demo of the science lane, top to bottom, every number live.
+# Refuses first (a capability that cannot self-describe stops the demo), regenerates the page,
+# prints it, and ends with the elapsed time so the recording carries its own receipt.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+PY="${PYTHON:-python3}"
+[ -x .venv/bin/python ] && PY=.venv/bin/python
+start=$(date +%s)
+echo "== 1/3 every capability can describe and demo itself"
+$PY science/showcase.py --check
+echo "== 2/3 the page, regenerated now"
+$PY science/showcase.py
+echo "== 3/3 the page"
+cat docs/science/SHOWCASE.md
+echo "founder-demo: $(( $(date +%s) - start ))s, page docs/science/SHOWCASE.md, portal surface founder-showcase"

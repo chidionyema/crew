@@ -1,33 +1,30 @@
 """Incident: the hourly snapshot committed the estate's state onto a feature branch.
 
-Measured 2026-08-24. `scripts/estate-snapshot --commit` runs hourly from the shared
-checkout `~/dev/code/crew` and committed to whatever branch that checkout was standing
-on. A session left it on `research-gateway-api-edge`, mid-merge and conflicted, so this
-is where the 08:34 UTC snapshot went:
+Measured 2026-08-24. `scripts/estate-snapshot --commit` ran from the shared checkout
+`~/dev/code/crew` and committed to whatever branch that checkout was standing on. A session
+left it on `research-gateway-api-edge`, mid-merge, and the 08:34 UTC snapshot went there:
 
     $ git log --format='%h %ci %d %s' -2 -- STATE.md
     7b476e7 2026-08-24 09:37 +0100 (research-gateway-api-edge) chore(state): snapshot 08:34 UTC
     3b42adb 2026-08-24 07:29 +0100                             chore(state): snapshot 06:28 UTC
 
-STATE.md on main was two and a half hours stale. It is the file every session is told to
-read before measuring anything or asking the founder anything -- it exists so that six
-sessions which cannot see each other stop re-measuring the same estate. While it was
-stale, every session reading it was reading a stale estate and none of them could tell.
+The first fix (2026-08-24) made the job refuse unless the shared checkout was on main.
+Measured 2026-08-25: the shared checkout sat on `feat/mature-platform-gate` for 14 hours,
+every hourly run refused, and STATE.md on main was 14 hours stale. Refusing was correct and
+useless. The class is "a scheduled job whose output depends on where a human left a shared
+checkout". The fix that removes the class: the job commits from its own worktree, detached
+at origin/main, and the shared checkout's branch is never consulted.
 
-The job reported nothing wrong. It committed, exited 0, and printed "committed:" -- from
-a separate `git log -1` that runs whatever the commit chain did, so a failed push and a
-successful one printed the same line. It never asked where it was.
+Rules asserted here:
 
-Two rules, asserted here rather than described:
+  1. `ready_to_commit` never asks the shared checkout which branch it is on. Every git
+     command it runs is a fetch, a worktree add, or runs inside the snapshot worktree.
+  2. It refuses, loudly and for a stated reason, when it cannot fetch main or cannot stand
+     the worktree on origin/main.
+  3. `commit` runs every step inside the snapshot worktree and pushes HEAD to main. A failed
+     step is named and non-zero; a failed push never prints "committed".
 
-  1. It refuses to commit unless the checkout is on main with no merge in progress. A
-     snapshot not written is visible in the timestamp; a snapshot written somewhere else
-     looks exactly like success.
-  2. A refusal is loud and non-zero. The failure that hid for two and a half hours was a
-     silent success, so silence is the thing being removed.
-
-Rung 4. The tests drive `ready_to_commit()` through a fake `sh`, because the real one
-answers about whichever checkout the suite happens to run in -- which is the bug.
+Rung 4. The tests drive the functions through a fake `sh`.
 """
 import importlib.util
 import pathlib
@@ -40,11 +37,6 @@ SNAPSHOT = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "estate-sna
 
 
 def _load():
-    """Import the script by path. It has no .py extension, so it needs an explicit loader.
-
-    That missing extension is not incidental: it is why `scripts/verify.d/15-code-standard.sh`
-    could not see this file at all, which is tracked separately.
-    """
     spec = importlib.util.spec_from_file_location(
         "estate_snapshot", SNAPSHOT, loader=SourceFileLoader("estate_snapshot", str(SNAPSHOT)))
     assert spec and spec.loader
@@ -55,60 +47,110 @@ def _load():
 
 
 @pytest.fixture
-def snap():
-    return _load()
+def snap(tmp_path, monkeypatch):
+    mod = _load()
+    monkeypatch.setattr(mod, "SNAP_WT", tmp_path / "wt")
+    key = tmp_path / "deploy-key"
+    key.write_text("fake")
+    monkeypatch.setattr(mod, "SNAP_KEY", key, raising=False)
+    return mod
 
 
-def _fake_sh(branch: str, merging: bool = False, status: str = ""):
-    """Answer the three questions `ready_to_commit` asks, and fail loudly on any other."""
-    def sh(cmd: str, timeout: int = 30):
+class _Git:
+    """A fake shell. Records every command; fails the ones named in `fail`."""
+    def __init__(self, fail=()):
+        self.fail, self.ran = set(fail), []
+
+    def __call__(self, cmd: str, timeout: int = 30):
+        self.ran.append(cmd)
         if "rev-parse --abbrev-ref HEAD" in cmd:
-            return 0, branch
-        if "MERGE_HEAD" in cmd:
-            return (0, "abc123") if merging else (1, "")
-        if "status --porcelain" in cmd:
-            return 0, status
-        raise AssertionError(f"ready_to_commit ran an unexpected command: {cmd}")
-    return sh
+            raise AssertionError(f"the shared checkout's branch was consulted: {cmd}")
+        for key in self.fail:
+            if key in cmd:
+                return 1, f"fake failure at {key}"
+        if "worktree add" in cmd:
+            wt = cmd.split("worktree add --detach -q '")[1].split("'")[0]
+            (pathlib.Path(wt) / ".git").parent.mkdir(parents=True, exist_ok=True)
+            (pathlib.Path(wt) / ".git").write_text("gitdir: fake")
+        if "remote get-url origin" in cmd:
+            return 0, "https://github.com/chidionyema/crew.git\n"
+        if "git log --oneline -1" in cmd:
+            return 0, "deadbee chore(state): estate snapshot"
+        return 0, ""
 
 
-def test_incident_it_refuses_to_commit_the_snapshot_to_a_feature_branch(snap, monkeypatch):
-    monkeypatch.setattr(snap, "sh", _fake_sh("research-gateway-api-edge"))
-    why = snap.ready_to_commit()
-    assert why, "the exact branch from the incident was accepted"
-    assert "research-gateway-api-edge" in why, "a refusal that does not name the branch"
-    assert "main" in why
-
-
-def test_incident_it_refuses_while_a_merge_is_in_progress(snap, monkeypatch):
-    """The checkout was also mid-merge. A snapshot inside someone's half-finished merge
-    is worse than a stale one: it is a stale one that also has to be untangled."""
-    monkeypatch.setattr(snap, "sh", _fake_sh("main", merging=True))
-    assert "merge" in snap.ready_to_commit()
-
-
-def test_on_main_with_no_merge_it_permits(snap, monkeypatch):
-    """The control. A guard only ever seen refusing has not been shown to permit, and a
-    guard that refuses correct work is an outage (LAW 38) -- this is the case where the
-    hourly job must go through."""
-    monkeypatch.setattr(snap, "sh", _fake_sh("main"))
+def test_incident_the_shared_checkouts_branch_is_never_consulted(snap):
+    """The incident branch, and the 14-hour stall, both came from asking the shared
+    checkout where it stood. With the fake raising on that question, a clean run proves
+    the question is no longer asked."""
+    git = _Git(); snap.sh = git
     assert snap.ready_to_commit() == ""
+    inside = [c for c in git.ran if "worktree add" not in c and "git fetch" not in c]
+    assert inside and all(str(snap.SNAP_WT) in c for c in inside), git.ran
 
 
-def test_it_refuses_when_it_cannot_read_the_branch_at_all(snap, monkeypatch):
-    """Not-on-main and cannot-tell must both refuse, and for stated reasons.
+def test_it_creates_the_worktree_once_and_then_reuses_it(snap):
+    git = _Git(); snap.sh = git
+    assert snap.ready_to_commit() == ""
+    assert sum("worktree add" in c for c in git.ran) == 1
+    git.ran.clear()
+    assert snap.ready_to_commit() == ""
+    assert not any("worktree add" in c for c in git.ran)
 
-    The same collapse as science/collect.py's Path.exists(): a checker that cannot reach
-    a verdict must not report the convenient one. Here the convenient one is "carry on".
-    """
-    def sh(cmd: str, timeout: int = 30):
-        return 128, "fatal: not a git repository"
-    monkeypatch.setattr(snap, "sh", sh)
+
+@pytest.mark.parametrize("step,word", [("git fetch", "fetch"), ("worktree add", "worktree"),
+                                       ("checkout -q --detach", "origin/main")])
+def test_it_refuses_for_a_stated_reason_when_it_cannot_stand_on_main(snap, step, word):
+    snap.sh = _Git(fail=[step])
     why = snap.ready_to_commit()
-    assert why and "cannot read" in why
+    assert why and word in why, why
+
+
+def test_commit_runs_in_the_worktree_and_pushes_head_to_main(snap, capsys):
+    git = _Git(); snap.sh = git
+    assert snap.commit("2026-08-25 18:00 UTC") == 0
+    assert all(str(snap.SNAP_WT) in c for c in git.ran), git.ran
+    assert any(f"git push -q git@github.com:chidionyema/crew.git HEAD:{snap.BRANCH}" in c for c in git.ran), git.ran
+    assert "committed and pushed to main" in capsys.readouterr().out
+
+
+def test_a_failed_push_is_named_and_non_zero(snap, capsys):
+    """The silent success from the incident: a failed push must never print committed."""
+    snap.sh = _Git(fail=["git push"])
+    assert snap.commit("2026-08-25 18:00 UTC") == 1
+    out = capsys.readouterr().out
+    assert "SNAPSHOT NOT COMMITTED. Failed at: push" in out and "committed and pushed" not in out
 
 
 def test_the_branch_it_writes_to_is_named_once(snap):
-    """Three commands in `commit()` name the branch. If they ever disagree the job pushes
-    somewhere other than where it fast-forwarded from, which is this incident again."""
     assert snap.BRANCH == "main"
+
+
+# crew#391, 2026-08-27: main took required checks and the session-token push was refused (GH013);
+# the commit subject named no ticket and tracked.py refused it. Rung 4, both ways.
+def test_incident_crew391_the_push_travels_on_the_deploy_key_not_the_session_token(snap):
+    git = _Git(); snap.sh = git
+    assert snap.ready_to_commit() == ""
+    assert snap.commit("2026-08-27 08:00 UTC") == 0
+    push = [c for c in git.ran if "git push" in c]
+    assert len(push) == 1 and str(snap.SNAP_WT) in push[0], git.ran
+    assert f"GIT_SSH_COMMAND='ssh -i {snap.SNAP_KEY} -o IdentitiesOnly=yes' git push -q git@github.com:chidionyema/crew.git HEAD:main" in push[0], push
+    # The worktree shares .git/config with the live checkout: the key is never written to config,
+    # or every session's push would travel on the ruleset's bypass actor (crew#452 review).
+    assert not any("git config" in c for c in git.ran), git.ran
+
+
+def test_incident_crew391_no_deploy_key_is_a_stated_refusal_not_a_refused_push(snap, monkeypatch):
+    git = _Git(); snap.sh = git
+    monkeypatch.setattr(snap, "SNAP_KEY", snap.SNAP_KEY.with_name("absent"))
+    why = snap.ready_to_commit()
+    assert "no deploy key" in why and "crew#391" in why
+    assert not any("git config" in c for c in git.ran)
+
+
+def test_incident_crew391_the_commit_subject_names_its_ticket(snap):
+    import re
+    git = _Git(); snap.sh = git
+    assert snap.commit("2026-08-27 07:28 UTC") == 0
+    subject = next(c for c in git.ran if "git commit" in c)
+    assert re.search(r"crew#\d+", subject), subject

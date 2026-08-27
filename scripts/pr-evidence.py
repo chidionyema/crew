@@ -324,16 +324,29 @@ def added_evidence(diff: str, number=None) -> set:
 EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
 NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
-#: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+#: A fence has to contain something. Set on its own terms, NOT inherited from OPTION_MIN_CHARS:
+#: an option is prose a human writes and can always make longer, while a receipt is whatever the
+#: tool printed, and the tools here print short.
+#:
+#: The number is the shortest real verdict line this estate emits, rounded down. Measured:
+#:
+#:     All checks passed!                     18
+#:     91 passed in 13.66s                    19
+#:     0 errors, 0 warnings, 0 informations   36
+#:     PASS=5  FAIL=3  CANNOT RUN=6  of 14    36
+#:
+#: At 40 this refused `91 passed in 13.66s\nAll checks passed!` -- 38 characters, a complete
+#: pytest receipt in the form this estate prefers -- and told the author to go and find better
+#: evidence than the evidence. That is the outage LAW 38 names, and it was found by review
+#: rather than by anything here, which is why the floor now carries its measurement.
 #:
 #: State the limit rather than let a reader assume more. This measures the LENGTH of what is
-#: inside the fence. It cannot tell pasted command output from forty characters of prose, so a
+#: inside the fence. It cannot tell pasted command output from sixteen characters of prose, so a
 #: transcript is the weaker source and a committed file is preferred wherever one can exist:
 #: `evidence_paths` returns the diff's files first and only falls back to the body. What the
-#: floor does buy is the case it was written for -- a heading with nothing under it, which the
-#: old marker gate passed. Tightening it further would refuse output that has no `$` prompt in
-#: it, which is most machine output, and refusing correct work is the outage (LAW 38).
-TRANSCRIPT_MIN_CHARS = 40
+#: floor buys is the case it was written for -- a heading with nothing under it, which the old
+#: marker gate passed -- and it still refuses that, and a bare `$ ls` with no output.
+TRANSCRIPT_MIN_CHARS = 16
 
 
 def transcript_evidence(body: str) -> int:
@@ -353,7 +366,11 @@ def transcript_evidence(body: str) -> int:
     if not m:
         return 0
     tail = body[m.end():]
-    nxt = NEXT_HEADING.search(tail)
+    # crew#519, 2026-08-27: a transcript line `# minus /estate/mcp: ...` inside the fence read as
+    # the next heading, the section ended before the closing fence, and a body with a full
+    # transcript was refused. Headings are searched with the fences masked; indices are kept.
+    masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
+    nxt = NEXT_HEADING.search(masked)
     section = tail[:nxt.start()] if nxt else tail
     return sum(1 for block in FENCE.findall(section)
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
@@ -524,6 +541,19 @@ INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
 STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|deviation)\s*:"
                             r"(?:\*\*|__|\*|_)?\s*(.*)$", re.I | re.M)
 
+#: The ten rows of docs/STANDARDS.md "## Definition of done" (crew#205) -- this is the machine
+#: check that section's own row 3 asks for (crew#207). Exact row names from that table; rename
+#: here only if that table is renamed too.
+DOD_ROWS = (
+    "Tracked item", "Code or config", "Gate proved both ways", "Reference doc",
+    "How-to and demo", "Catalog entity", "Operational proof", "Scheduled re-grade",
+    "Standard row", "Evidence block",
+)
+
+#: A bare "n/a" -- no reason after it -- is a row typed to look addressed with nothing behind
+#: it: the silently-missing row the section's own last line names, wearing a costume.
+DOD_NA = re.compile(r"^n/?a\b\s*[:.]?\s*(.*)$", re.I)
+
 
 def infra_paths(diff: str) -> list:
     """The infra files this diff touches — [] when it touches none.
@@ -571,6 +601,85 @@ def standards_line(body: str, diff: str) -> tuple:
                    "why>' to the body. A deviation is allowed — stating it is the whole ask")
 
 
+def dod_row_pattern(name: str) -> re.Pattern:
+    """A line naming this definition-of-done row -- numbering, bullets and markdown emphasis
+    all tolerated, same shape as STANDARDS_MARK and OPTIONS_CHOSEN above and for the same
+    reason: a pattern that only accepts one way of writing a numbered list refuses a body that
+    named every row and wrote the list differently (LAW 38).
+    """
+    return re.compile(
+        r"^\s*(?:[-*+]\s+|\d+[.)]\s+)?(?:\*\*|__|\*|_)?\s*" + re.escape(name) +
+        r"\s*(?:\*\*|__|\*|_)?\s*[:\u2014\u2013-]\s*(.+)$", re.I | re.M)
+
+
+#: crew#522 (2026-08-27): the idp operating-model gate (policy/operating_model.rego,
+#: architecture_laws) refused two PRs from one session in one afternoon, both for the same
+#: thing: a `- LAW n <slug>:` line written as a sentence. The gate wants the shape of a proof
+#: -- a path or a backtick, an `->`, or `n/a: <reason>` -- and this check ran clean on both
+#: bodies because it never looked. Same regex as the gate, graded here before the PR exists.
+LAWS = {"1": "zero-gravity", "2": "fractal", "3": "nervous system", "4": "calibration"}
+LAWS_HEAD = re.compile(r"(?m)^## Architecture laws\s*$")
+
+
+def law_line_ok(body: str, n: str) -> bool:
+    slug = LAWS[n]
+    pat = rf"(?m)^- LAW {n} {slug}: (n/a: \S.*|[^\n]*[/`][^\n]*|[^\n]*->[^\n]*)$"
+    return re.search(pat, body) is not None
+
+
+def architecture_laws(body: str) -> tuple:
+    """(ok, message): the four law lines carry a command, a path or `n/a: <reason>`.
+
+    The idp gate grades exactly this shape; a sentence there is refused after the PR is
+    open, the evidence commit and the review ask already made (crew#522, twice).
+    """
+    if not LAWS_HEAD.search(body or ""):
+        return False, ("no '## Architecture laws' section; the idp gate refuses it and this "
+                       "check would have said nothing")
+    bad = [f"LAW {n} {LAWS[n]}" for n in LAWS if not law_line_ok(body, n)]
+    if bad:
+        return False, (f"{', '.join(bad)}: the line is missing or is a sentence. Make it the "
+                       "command or path that proves the law (a `/`, a backtick or `->`), or "
+                       "`n/a: <reason>` -- the idp operating-model gate refuses it otherwise")
+    return True, "four law lines carry a proof or an n/a reason"
+
+
+def dod_rows(body: str) -> tuple:
+    """(ok, message) for docs/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
+    body names all ten rows, or `n/a: <why>` for the ones that do not apply.
+
+    "DONE: on a reply with a missing row is the incident" is that section's own last line. A
+    row this function cannot find in the body at all is exactly that -- silently dropped -- so
+    it fails. So does a row typed as bare `n/a` with no reason after it: that is the same row
+    dropped wearing a costume instead of standing out where the review can see it.
+
+    A row that is present and not marked n/a passes on being named; how much is written next
+    to it is graded by the human review (LAW 38: a length floor here would refuse the founder's
+    own short pointers -- "this one.", "below." -- that a real PR body uses when the detail
+    lives in another section of the same body).
+    """
+    body = body or ""
+    missing, bare = [], []
+    for name in DOD_ROWS:
+        m = dod_row_pattern(name).search(body)
+        if not m:
+            missing.append(name)
+            continue
+        content = m.group(1).strip()
+        na = DOD_NA.match(content)
+        if na and len(re.sub(r"[^A-Za-z0-9 ]", "", na.group(1)).strip()) < 8:
+            bare.append(name)
+    if missing or bare:
+        parts = []
+        if missing:
+            parts.append(f"{len(missing)} row(s) not named at all: {', '.join(missing)}")
+        if bare:
+            parts.append(f"{len(bare)} row(s) marked bare 'n/a' with no reason: {', '.join(bare)}")
+        return False, ("; ".join(parts) + ". docs/STANDARDS.md 'Definition of done': every row "
+                       "needs its line, real content, or 'n/a: <why>' -- never dropped silently")
+    return True, "all 10 definition-of-done rows present"
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -600,13 +709,22 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
         return False, "#{} {}".format(info["number"], why_cpl)
+    # Blocking, unlike standards_line below: crew#207 was filed as a merge-blocker, and the
+    # section it enforces already ships ("## Definition of done", crew#205) -- there is no
+    # estate-wide debt to measure in report mode first the way crew#135 needed for LAW 45.
+    ok_dod, why_dod = dod_rows(body)
+    if not ok_dod:
+        return False, "#{} {}".format(info["number"], why_dod)
+    ok_laws, why_laws = architecture_laws(body)
+    if not ok_laws:
+        return False, "#{} {}".format(info["number"], why_laws)
     # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
     carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
     return True, (f"#{info['number']} carries {carries}, {why_opts}, "
-                  f"{why_cpl}; standards (report-only): {std}")
+                  f"{why_cpl}, {why_dod}, {why_laws}; standards (report-only): {std}")
 
 
 def selftest_commit_scope() -> int:
@@ -808,6 +926,63 @@ def selftest_options() -> int:
     return 1 if fails else 0
 
 
+def selftest_dod() -> int:
+    """The definition-of-done gate (crew#207), proved on literal bodies. Paired controls, and
+    the bad fixture is the one the issue names: a body where the Operational proof row is not
+    typed at all, present nowhere in the text -- a silently missing row, not a stated n/a.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    # Same shape crew#205's own PR body used: a number, the row name, an em dash, and either
+    # real content or a stated n/a with a reason.
+    good = (
+        "1. Tracked item — crew#207, owner named\n"
+        "2. Code or config — this PR\n"
+        "3. Gate proved both ways — selftest-dod covers it, both fixtures in one run\n"
+        "4. Reference doc — n/a: a gate function needs no new reference page\n"
+        "5. How-to and demo — n/a: a check flag has no user-facing how-to\n"
+        "6. Catalog entity — n/a: a check flag is not an entity\n"
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n"
+        "8. Scheduled re-grade — n/a: pr-evidence already runs on every PR\n"
+        "9. Standard row — Standard: docs/STANDARDS.md, review acceptance criteria\n"
+        "10. Evidence block — below\n"
+    )
+    check_one("all ten rows present passes", dod_rows(good)[0], True)
+    check_one("empty body fails naming all ten", dod_rows("")[0], False)
+    check_one("empty body names every missing row",
+              "Operational proof" in dod_rows("")[1] and "Tracked item" in dod_rows("")[1], True)
+    # The issue's own bad fixture: the Operational proof row typed nowhere in the body, not
+    # even as n/a -- the exact silently-missing-row incident LAW 44 exists to name.
+    dropped = good.replace(
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n",
+        "")
+    ok_drop, why_drop = dod_rows(dropped)
+    check_one("dropping the Operational proof row fails", ok_drop, False)
+    check_one("the failure names the dropped row", "Operational proof" in why_drop, True)
+    # A row present but marked bare n/a with no reason is the same incident wearing a costume.
+    bare = good.replace("7. Operational proof — Operational: `pr-evidence.py check --pr 205` "
+                        "ran, verdict below\n", "7. Operational proof — n/a\n")
+    check_one("a bare n/a with no reason fails", dod_rows(bare)[0], False)
+    check_one("a bare n/a still names the row", "Operational proof" in dod_rows(bare)[1], True)
+    # The pass beside every refusal (LAW 38): the same body, correctly written with bold and
+    # bullet markdown, still passes -- the gate is reading the row names, not one exact layout.
+    bold = good.replace("**", "").replace(
+        "9. Standard row — Standard:", "9. **Standard row** — **Standard:**")
+    check_one("bold row name and bold field still passes", dod_rows(bold)[0], True)
+    bulleted = "- Tracked item: crew#207\n" + "\n".join(good.splitlines()[1:])
+    check_one("a bulleted colon-separated row still passes", dod_rows(bulleted)[0], True)
+    print(f"selftest-dod: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 # -------------------------------------------------------------------- main
 
 def main() -> int:
@@ -841,6 +1016,8 @@ def main() -> int:
                    help="prove the options gate on literal bodies, no network")
     sub.add_parser("selftest-commit-scope",
                    help="prove the evidence commit takes only its own files, in a temp repo")
+    sub.add_parser("selftest-dod",
+                   help="prove the definition-of-done row gate on literal bodies, no network")
 
     # estate-selftest.py runs every script under ~/.claude/scripts that accepts
     # `--selftest`, once an hour, and this file is symlinked in there. It was
@@ -851,13 +1028,15 @@ def main() -> int:
     if "--selftest" in sys.argv[1:]:
         # Every suite in this file, not the first one that was written. A second
         # suite added beside a hardcoded call is a suite the hourly run never sees.
-        return max(selftest_options(), selftest_commit_scope())
+        return max(selftest_options(), selftest_commit_scope(), selftest_dod())
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()
     if ns.cmd == "selftest-commit-scope":
         return selftest_commit_scope()
+    if ns.cmd == "selftest-dod":
+        return selftest_dod()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

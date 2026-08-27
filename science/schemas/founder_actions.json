@@ -1,0 +1,58 @@
+{
+ "description": "founder_actions.py ledger: one row per FOUNDER ACTION item opened for the founder.",
+ "field_docs": {
+  "done_when": {
+   "description": "the receipt that closes it",
+   "pii": false
+  },
+  "id": {
+   "description": "item id",
+   "pii": false
+  },
+  "opened": {
+   "description": "ISO date the item was opened, day resolution (time_field)",
+   "pii": false
+  },
+  "source": {
+   "description": "session or script that opened it",
+   "pii": false
+  },
+  "unblocks": {
+   "description": "tracked items it unblocks",
+   "pii": false
+  },
+  "what": {
+   "description": "the action asked of the founder",
+   "pii": false
+  },
+  "why_founder": {
+   "description": "why no session can self-serve it",
+   "pii": false
+  }
+ },
+ "fields": {
+  "done_when": [
+   "str"
+  ],
+  "id": [
+   "str"
+  ],
+  "opened": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "unblocks": [
+   "str"
+  ],
+  "what": [
+   "str"
+  ],
+  "why_founder": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 0
+}

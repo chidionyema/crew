@@ -1,0 +1,35 @@
+{
+ "description": "Ships ledger: what shipped, when, by whom.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "commits": [
+   "int"
+  ],
+  "day": [
+   "str"
+  ],
+  "feats": [
+   "int"
+  ],
+  "fixes": [
+   "int"
+  ],
+  "pr": [
+   "int"
+  ],
+  "repo": [
+   "str"
+  ],
+  "shas": [
+   "list"
+  ],
+  "title": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 9
+}

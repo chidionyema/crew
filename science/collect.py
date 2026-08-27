@@ -457,10 +457,58 @@ def schema_from_rows(rows: list[dict]) -> dict:
     return {"fields": {k: sorted(v) for k, v in sorted(fields.items())}}
 
 
+#: crew#84: the schema file is the source's contract. Beside ``fields`` it carries who owns
+#: the source, what it is, a description and a PII flag per documented field, and the number
+#: of undocumented fields the tree was accepted with. ``--check`` and ``--contracts`` refuse a
+#: contract with no owner or description, a documented field the data no longer has, and
+#: more undocumented fields than the recorded baseline: a new field arrives described or it
+#: does not arrive. A second directory of YAML contracts was the alternative; one file per
+#: source already existed, so it grew.
+CONTRACT_KEYS = ("owner", "description", "field_docs", "undescribed_baseline")
+
+
+def contract_verdict(name: str) -> list[str]:
+    """The contract half of ``science/schemas/<name>.json``; no rows needed."""
+    path = SCHEMAS / f"{name}.json"
+    if not path.exists():
+        return []
+    c = json.loads(path.read_text())
+    fields = c.get("fields", {})
+    docs = c.get("field_docs") or {}
+    bad = []
+    if not str(c.get("owner") or "").strip():
+        bad.append(f"{name}: contract names no owner")
+    if not str(c.get("description") or "").strip():
+        bad.append(f"{name}: contract has no description")
+    for k, d in docs.items():
+        if k not in fields:
+            bad.append(f"{name}: field_docs describes {k!r}, which the schema does not have")
+        elif not str((d or {}).get("description") or "").strip():
+            bad.append(f"{name}: field_docs entry for {k!r} has no description")
+        elif not isinstance((d or {}).get("pii"), bool):
+            bad.append(f"{name}: field_docs entry for {k!r} does not say pii true or false")
+    undescribed = sorted(k for k in fields if k not in docs)
+    baseline = c.get("undescribed_baseline")
+    if not isinstance(baseline, int):
+        bad.append(f"{name}: contract records no undescribed_baseline")
+    elif len(undescribed) > baseline:
+        bad.append(f"{name}: {len(undescribed)} undescribed field(s), baseline is {baseline}: "
+                   + ", ".join(undescribed[:6]))
+    return bad
+
+
 def write_schema(name: str, rows: list[dict]) -> Path:
     SCHEMAS.mkdir(parents=True, exist_ok=True)
     out = SCHEMAS / f"{name}.json"
-    out.write_text(json.dumps(schema_from_rows(rows), indent=1, sort_keys=True) + "\n")
+    doc = schema_from_rows(rows)
+    #: A rewrite keeps the contract half and drops field_docs for fields that are gone.
+    old = json.loads(out.read_text()) if out.exists() else {}
+    for k in CONTRACT_KEYS:
+        if k in old:
+            doc[k] = old[k]
+    doc["field_docs"] = {k: v for k, v in (doc.get("field_docs") or {}).items() if k in doc["fields"]}
+    doc["undescribed_baseline"] = sum(1 for k in doc["fields"] if k not in doc["field_docs"])
+    out.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")
     return out
 
 
@@ -805,10 +853,25 @@ def main() -> int:
     ap.add_argument("--write-schemas", nargs="*", metavar="SOURCE",
                     help="(re)write science/schemas/<source>.json from the rows on disk "
                          "for the named sources, or every source when none is named (crew#74)")
+    ap.add_argument("--contracts", action="store_true",
+                    help="grade every science/schemas/<source>.json as a data contract "
+                         "(owner, description, field docs, undescribed baseline) and exit "
+                         "1 on any failure; needs no warehouse (crew#84)")
     ap.add_argument("--reconcile", action="store_true",
                     help="print what the machine's crawl found that this registry does "
                          "not mention, and exit without rebuilding")
     args = ap.parse_args()
+
+    if args.contracts:
+        files = sorted(p.stem for p in SCHEMAS.glob("*.json"))
+        missing = sorted(n for n in SOURCES if n not in files)
+        bad = [f for n in files for f in contract_verdict(n)]
+        print(f"contracts: {len(files) - len({f.split(':')[0] for f in bad})} of {len(files)} "
+              f"schema file(s) are complete contracts"
+              + (f"; BLIND (no schema file, run --write-schemas): {', '.join(missing)}" if missing else ""))
+        for f in bad:
+            print(f"  - {f}")
+        return 1 if bad else 0
 
     if args.reconcile:
         undeclared, stale, blind, note = reconcile()
@@ -932,6 +995,8 @@ def main() -> int:
           f"on schema, {len({f.split(':')[0] for f in schema_failures})} off"
           + (f", BLIND (no schema file, run --write-schemas): {', '.join(no_file)}" if no_file else ""))
     failures.extend(schema_failures)
+    #: crew#84: the contract half of every schema file, graded on every run.
+    failures.extend(f for e in report for f in contract_verdict(e["source"]))
 
     #: crew#74 row 3: row counts, null rates and key counts appended per run, and a
     #: source that shrank or whose null rate jumped is named by this run.

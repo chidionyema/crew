@@ -1,4 +1,6 @@
 {
+ "description": "GitHub Actions runs per repo and workflow over the last day: count, pass rate, medians, minutes.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -46,5 +48,7 @@
    "NoneType",
    "str"
   ]
- }
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 13
 }

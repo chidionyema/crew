@@ -1,4 +1,6 @@
 {
+ "description": "Revenue snapshot from the store API, one row per collection.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -30,5 +32,7 @@
   "total": [
    "float"
   ]
- }
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 10
 }

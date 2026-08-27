@@ -1,4 +1,6 @@
 {
+ "description": "Job timelines: each scheduled job's runs and durations.",
+ "field_docs": {},
  "fields": {
   "ID": [
    "str"
@@ -48,5 +50,7 @@
   "ts": [
    "int"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 16
 }

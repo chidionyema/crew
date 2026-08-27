@@ -1,4 +1,6 @@
 {
+ "description": "Estate bundle pushes: each backup bundle push and its result.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -45,5 +47,7 @@
   "ts": [
    "int"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 15
 }

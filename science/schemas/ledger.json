@@ -1,4 +1,6 @@
 {
+ "description": "Session ledger: what each session did and touched, appended by the Stop hooks.",
+ "field_docs": {},
  "fields": {
   "event": [
    "str"
@@ -58,5 +60,7 @@
   "unclaimed": [
    "list"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 19
 }

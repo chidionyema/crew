@@ -1,4 +1,6 @@
 {
+ "description": "CI reachability probes: whether GitHub Actions accepted and started a run.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -15,5 +17,7 @@
   "visibility": [
    "str"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 5
 }

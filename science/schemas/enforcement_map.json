@@ -1,4 +1,6 @@
 {
+ "description": "Law to guard map: which guard enforces which law; a rewritten snapshot.",
+ "field_docs": {},
  "fields": {
   "laws": [
    "list"
@@ -9,5 +11,7 @@
   "sections": [
    "list"
   ]
- }
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 3
 }

@@ -1,4 +1,6 @@
 {
+ "description": "prospector method metrics snapshot: per-method counts from the store ops directory.",
+ "field_docs": {},
  "fields": {
   "compliance": [
    "dict"
@@ -30,5 +32,7 @@
   "themes": [
    "list"
   ]
- }
+ },
+ "owner": "prospector",
+ "undescribed_baseline": 10
 }

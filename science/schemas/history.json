@@ -1,4 +1,6 @@
 {
+ "description": "Claude Code prompt history for this machine.",
+ "field_docs": {},
  "fields": {
   "display": [
    "str"
@@ -15,5 +17,7 @@
   "timestamp": [
    "int"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 5
 }

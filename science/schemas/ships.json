@@ -1,4 +1,6 @@
 {
+ "description": "Ships ledger: what shipped, when, by whom.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -27,5 +29,7 @@
   "title": [
    "str"
   ]
- }
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 9
 }

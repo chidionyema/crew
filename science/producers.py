@@ -109,7 +109,23 @@ MAC_MEASURES = {
 }
 
 
-def _monitored(plist: str | None) -> bool:
+SCHEDULE_YML = pathlib.Path(os.environ.get("ESTATE_SCHEDULE_YML", IDP / "scheduler" / "schedule.yml"))
+
+
+def _dagster_jobs() -> set[str]:
+    """Labels Dagster runs from schedule.yml; it writes exit status and duration per run (dagster-runs)."""
+    try:
+        import yaml
+        return set((yaml.safe_load(SCHEDULE_YML.read_text()) or {}).get("jobs") or {})
+    except Exception:  # noqa: BLE001  (no idp checkout, no yaml: nothing is monitored by Dagster)
+        return set()
+
+
+def _monitored(plist: str | None, label: str | None = None) -> bool:
+    # crew#373: a job Dagster schedules is monitored by the run store (last_exit_status,
+    # run_duration_s per run, collected as dagster-runs since crew#376), hc-wrap or not.
+    if label and label in _dagster_jobs():
+        return True
     if not plist or not pathlib.Path(plist).exists():
         return False
     try:
@@ -163,7 +179,7 @@ def mac() -> list[Producer]:
         # A scheduled job under hc-wrap pings a dead-man monitor; one without it can stop
         # and nothing says so. That is a different kind of producer, not a note.
         if kind == "scheduled_job":
-            kind = "scheduled_job:" + ("monitored" if _monitored(r.get("plist")) else "unmonitored")
+            kind = "scheduled_job:" + ("monitored" if _monitored(r.get("plist"), r.get("id")) else "unmonitored")
         prod = _p("mac", f"{kind.split(':')[0]}/{ident}", kind, MAC_MEASURES.get(kind.split(':')[0], ["exists"]),
                   r.get("plist") or r.get("path") or str(INVENTORY), size)
         # The inventory already knows which stores collect.py reads; that is a measured

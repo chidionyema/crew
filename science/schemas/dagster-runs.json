@@ -1,0 +1,24 @@
+{
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "end_time": [
+   "float"
+  ],
+  "job": [
+   "str"
+  ],
+  "run_id": [
+   "str"
+  ],
+  "start_time": [
+   "float"
+  ],
+  "status": [
+   "str"
+  ]
+ },
+ "undescribed_baseline": 6
+}

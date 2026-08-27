@@ -2,7 +2,8 @@
   "version": 1,
   "roots": {
     "home": "~",
-    "science": "."
+    "science": ".",
+    "code": "$ESTATE_CODE"
   },
   "default_stale_after_hours": 48,
   "sources": [
@@ -270,6 +271,28 @@
       "time_field": "at",
       "stale_after_hours": 30,
       "receiver": "otlp"
+    },
+    {
+      "name": "dagster-ticks",
+      "root": "code",
+      "path": "idp/run/dagster/schedules/schedules.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 2,
+      "query": "SELECT id, job_origin_id AS job, status, type, timestamp||'+00:00' AS at, json_extract(tick_body,'$.skip_reason') AS skip_reason, json_extract(tick_body,'$.error.message') AS error FROM job_ticks WHERE timestamp > datetime('now','-30 days')",
+      "why": "crew#376 / crew#85: every schedule skipped for 16 hours on a flat load ceiling and nothing outside Dagster's UI could say so. One row per tick: RUN, SKIPPED (with the reason) or FAILURE.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "dagster-runs",
+      "root": "code",
+      "path": "idp/run/dagster/history/runs.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
+      "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
+      "receiver": "otlp"
     }
   ],
   "declined": [
@@ -329,7 +352,7 @@
       "id": "dagster-run-store",
       "root": "home",
       "path": ".estate/dagster",
-      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs."
+      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs. 2026-08-27 (crew#376): the tick and run tables are now collected as dagster-ticks and dagster-runs from the live store under the idp checkout (run/dagster); this ~/.estate/dagster copy is stale since 2026-08-24 and stays declined."
     },
     {
       "id": ".estate/REQUIREMENTS.jsonl",

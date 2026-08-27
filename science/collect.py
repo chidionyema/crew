@@ -167,7 +167,10 @@ def load_registry(path: Path = REGISTRY) -> dict:
     except json.JSONDecodeError as exc:
         sys.exit(f"registry will not parse: {path}: {exc}")
 
-    roots = {"home": HOME, "science": Path(__file__).parent}
+    #: `code` is where every checkout lives (LAW 46: the registry never spells the
+    #: path; ESTATE_CODE moves it on another machine).
+    roots = {"home": HOME, "science": Path(__file__).parent,
+             "code": _env_path("ESTATE_CODE", HOME / "dev" / "code")}
     for name, raw in (reg.get("roots") or {}).items():
         if name not in roots:
             roots[name] = Path(os.path.expanduser(raw))
@@ -175,6 +178,7 @@ def load_registry(path: Path = REGISTRY) -> dict:
     sources: dict[str, tuple[Path, str, str | None]] = {}
     stale: dict[str, int] = {}
     receivers: dict[str, str] = {}
+    queries: dict[str, str] = {}
     for s in reg.get("sources", []):
         root = roots.get(s.get("root", "home"))
         if root is None:
@@ -185,6 +189,10 @@ def load_registry(path: Path = REGISTRY) -> dict:
                      f"says which collector receiver it arrives through.")
         receivers[s["name"]] = s["receiver"]
         sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
+        if s.get("kind") == "sqlite":
+            if not s.get("query"):
+                sys.exit(f"registry source {s['name']!r} is sqlite and names no query")
+            queries[s["name"]] = s["query"]
         if s.get("stale_after_hours"):
             stale[s["name"]] = int(s["stale_after_hours"])
 
@@ -212,13 +220,14 @@ def load_registry(path: Path = REGISTRY) -> dict:
                          f"{d.get('root')!r}")
             declined_dirs[d["id"]] = root / d["path"]
 
-    return {"sources": sources, "declined": declined, "declined_dirs": declined_dirs,
-            "stale": stale, "receivers": receivers,
+    return {"sources": sources, "queries": queries, "declined": declined,
+            "declined_dirs": declined_dirs, "stale": stale, "receivers": receivers,
             "default_stale": int(reg.get("default_stale_after_hours", 48))}
 
 
 _REG = load_registry()
 SOURCES: dict[str, tuple[Path, str, str | None]] = _REG["sources"]
+QUERIES: dict[str, str] = _REG["queries"]
 DECLINED: dict[str, str] = _REG["declined"]
 RECEIVERS: dict[str, str] = _REG["receivers"]
 #: The subset of DECLINED that excludes a whole directory rather than one crawl id.
@@ -357,11 +366,27 @@ def shard_files(path: Path) -> list[Path]:
     return sorted(p for p in path.rglob("*.jsonl") if p.is_file())
 
 
-def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
+def read_rows(path: Path, kind: str, query: str | None = None) -> tuple[list[dict], int]:
     """Return (rows, bad_row_count). A row that will not parse is counted, never guessed at."""
     rows: list[dict] = []
     bad = 0
-    if kind == "jsonl-dir":
+    if kind == "sqlite":
+        #: Read-only URI, so a collector can never write into another program's store.
+        #: The registry's query names the columns; a column called `at` is the row time.
+        #: crew#376: Dagster's tick and run tables are the only record of whether a
+        #: scheduled job ran, and 16 hours of skipped ticks went unseen without them.
+        if not query:
+            raise OSError(f"sqlite source {path} has no query")
+        db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            db.row_factory = sqlite3.Row
+            for r in db.execute(query):
+                rows.append(dict(r))
+        except sqlite3.Error as exc:
+            raise OSError(f"{path}: {exc}") from exc
+        finally:
+            db.close()
+    elif kind == "jsonl-dir":
         #: Every shard keeps its own name on the row. Without it the shards melt into
         #: one undifferentiated source and "which project was he talking about" stops
         #: being answerable, which is most of what the directives store is for.
@@ -570,7 +595,7 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         else:
             mtime = iso(path.stat().st_mtime)
         try:
-            rows, bad = read_rows(path, kind)
+            rows, bad = read_rows(path, kind, QUERIES.get(name))
         except OSError as exc:
             report.append({"source": name, "status": f"UNREADABLE: {exc}",
                            "rows": 0, "bad": 0, "mtime": mtime})
@@ -911,7 +936,7 @@ def main() -> int:
             if not path.exists():
                 print(f"{name}: ABSENT, no schema written")
                 continue
-            rows, _ = read_rows(path, kind)
+            rows, _ = read_rows(path, kind, QUERIES.get(name))
             out = write_schema(name, rows)
             print(f"{name}: {len(rows)} rows -> {out}")
         return 0

@@ -215,9 +215,10 @@
     },
     {
       "key": "mac/data/*dagster*",
-      "verdict": "WIRED_NEVER",
-      "why": "Dagster's own run and schedule history. Whether any scheduled asset ran, or how long, is answerable only inside Dagster's UI.",
-      "ticket": "crew#376"
+      "verdict": "COLLECTED",
+      "why": "Dagster's own run and schedule history. The tick table is the only record of whether a scheduled job ran or skipped, and why (crew#85: 3836 skipped ticks in 24h). Collected from the live store under the idp checkout; the ~/.estate/dagster copy is stale and declined.",
+      "ticket": "crew#376",
+      "reader": "crew science/collect.py sources dagster-ticks and dagster-runs (science/sources.json), read into warehouse.db facts"
     },
     {
       "key": "mac/data/*healthchecks/data/hc.sqlite",

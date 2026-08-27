@@ -33,7 +33,7 @@ The receiver's address and the project's ping key are two files under
 entry the server enrols itself with, so the Mac and the server never disagree and nobody
 copies a key from a screen:
 
-    ~/dev/code/idp/bin/idp-hc-enroll
+    $CODE/idp/bin/idp-hc-enroll
     # ok      hc-enroll  base=https://hc.<zone>/ping ping_key=<8 chars>... (33 bytes)
 
 It reads the vault through `idp-cloud`, which needs a live OCI session on this Mac. When

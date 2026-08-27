@@ -127,9 +127,41 @@ def census_check(graded: list[dict], blind: dict[str, str]) -> list[str]:
     return msgs
 
 
+CONTRACT_FIELDS = ("owner", "method", "retention_days", "sensitivity")
+METHODS = ("push", "poll", "hand")
+SENSITIVITIES = ("public", "internal", "restricted")
+
+
+def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -> list[str]:
+    """crew#71: a source in sources.json without an owner, a method, a retention and a
+    sensitivity is a store nobody can answer for. Measured 2026-08-24: 28 sources, 1,064
+    field paths, none of the four declared on any of them. The owner must be a file that
+    exists; a name that resolves to nothing is the same as no owner."""
+    d = json.load(sources_file.open())
+    v = []
+    for s in d.get("sources", []):
+        name = s.get("name", "?")
+        missing = [f for f in CONTRACT_FIELDS if f not in s]
+        if missing:
+            v.append(f"source {name}: no contract field {', '.join(missing)}")
+            continue
+        if s["method"] not in METHODS:
+            v.append(f"source {name}: method {s['method']!r} not in {METHODS}")
+        if s["sensitivity"] not in SENSITIVITIES:
+            v.append(f"source {name}: sensitivity {s['sensitivity']!r} not in {SENSITIVITIES}")
+        if not isinstance(s["retention_days"], int) or s["retention_days"] <= 0:
+            v.append(f"source {name}: retention_days must be a positive integer")
+        owner = pathlib.Path(str(s["owner"]).replace("~", str(pathlib.Path.home()), 1))
+        if not owner.is_absolute():
+            owner = sources_file.parent.parent / owner
+        if not owner.exists():
+            v.append(f"source {name}: owner {s['owner']} does not exist")
+    return v
+
+
 def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: list[str]) -> list[str]:
     """The gate. Every line here is one thing the founder's law forbids."""
-    v = []
+    v = contract_violations()
     unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
     if unexplained:
         v.append(f"{len(unexplained)} producer(s) UNEXPLAINED (first: {unexplained[0]['key']})")

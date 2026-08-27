@@ -96,3 +96,15 @@ How to read it:
   red; `--file-tickets` opens the ticket and writes the number back.
 - **GATE**: the line CI (`scripts/verify.d/26-datamap-register.sh`) and `STATE.md`
   (`scripts/estate-snapshot`, row `data map`) both print.
+
+## The source contract (crew#71)
+
+```
+$ python3 -c "import sys; sys.path.insert(0,'science'); import datamap; print(datamap.contract_violations())"
+[]
+$ python3 -c "import json; d=json.load(open('science/sources.json')); print(sum('owner' in s for s in d['sources']), 'of', len(d['sources']), 'sources declare owner, method, retention_days, sensitivity')"
+28 of 28 sources declare owner, method, retention_days, sensitivity
+```
+
+Remove `sensitivity` from one entry and run `python3 science/datamap.py --check --domains act`:
+the gate prints `source <name>: no contract field sensitivity` and exits 1.

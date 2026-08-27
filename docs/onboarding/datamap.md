@@ -29,6 +29,13 @@ python3 science/datamap.py --json                  # machine-readable, used by e
 3. `SHAPE CHANGED`: a domain returned less than half of what `census.json` recorded. Either
    the world shrank (commit the new census) or the discoverer broke (fix it).
 
+**The contract on every source (crew#71).** Each entry in `science/sources.json` declares
+`owner` (the file that appends to the store; it must exist), `method` (`push`, `poll` or
+`hand`), `retention_days` (a positive integer) and `sensitivity` (`public`, `internal` or
+`restricted`). `stale_after_hours` is the freshness SLA. `datamap.py --check` goes red on a
+source missing any of the four, a value outside the closed set, or an owner that does not
+exist. To add a source, add all four in the same edit; there is no default.
+
 **When you add a new kind of world** (a scheduler, a store, a cloud account, a listener class):
 add a domain function to `producers.py` and register it in `DOMAINS` in the same PR. This is
 the one residual the gate cannot see for you; LAW 50 rule 4 binds the PR.

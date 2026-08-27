@@ -10,6 +10,7 @@ import sys
 SCIENCE = pathlib.Path(__file__).resolve().parents[1] / "science"
 sys.path.insert(0, str(SCIENCE))
 _spec = importlib.util.spec_from_file_location("producers", SCIENCE / "producers.py")
+assert _spec is not None and _spec.loader is not None
 pr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(pr)
 import collect  # noqa: E402

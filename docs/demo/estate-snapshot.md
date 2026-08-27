@@ -53,3 +53,13 @@ If `bin/verify` produces no verdict line, or the INTENT directory is empty, or `
 row says `NOT RUN` and names why. It never says PASS. A checker that has died and an estate
 that is healthy must never produce the same output, because a green board nobody can distrust
 is how four days of broken coordination went unnoticed.
+
+## Elite grade row (crew#474, 2026-08-27)
+
+```
+$ scripts/estate-snapshot | grep 'elite grade'
+| elite grade | 31 GAP, 49 BLIND | 287 ELITE of 367 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+```
+
+Before idp#361 lands the row reads `NOT RUN | idp docs/SHOWCASE.md is not on main`. GREEN only
+when GAP and BLIND are both zero.

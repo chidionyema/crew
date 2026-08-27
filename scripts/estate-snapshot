@@ -221,6 +221,47 @@ def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int =
             f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
 
 
+def ci() -> list[str]:
+    """Is CI getting slower (crew#393). Read from `science/ci-runs.jsonl`, appended daily by
+    `.github/workflows/ci-runs.yml` running `outcomes.py ci`."""
+    return ci_row(pathlib.Path(__file__).resolve().parent.parent / "science" / "ci-runs.jsonl")
+
+
+def ci_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 30) -> list[str]:
+    if not path.exists():
+        return ["| ci runs | NOT RUN | no `science/ci-runs.jsonl`: run `science/outcomes.py ci` |"]
+    rows = []
+    for line in path.read_text().splitlines():
+        try:
+            rows.append(json.loads(line)) if line.strip() else None
+        except json.JSONDecodeError:
+            continue
+    if not rows:
+        return ["| ci runs | NOT RUN | `science/ci-runs.jsonl` holds no row |"]
+    at = max(str(r.get("at", "")) for r in rows)
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| ci runs | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| ci runs | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    last = [r for r in rows if r.get("at") == at]
+    good = [r for r in last if r.get("measured")]
+    if not good:
+        why = "; ".join(str(r.get("reason", ""))[:60] for r in last[:2])
+        return [f"| ci runs | NOT RUN | nothing measured at {at}: {why} |"]
+    runs = sum(int(r.get("runs", 0)) for r in good)
+    done = sum(int(r.get("completed", 0)) for r in good)
+    passed = sum(int(r.get("passed", 0)) for r in good)
+    slow = max(good, key=lambda r: float(r.get("median_duration_s") or 0))
+    unmeasured = len(last) - len(good)
+    tail = f", {unmeasured} repo(s) refused" if unmeasured else ""
+    return [f"| ci runs | GREEN | {len(good)} workflows, {runs} runs/{good[0].get('window_h', 24)}h, "
+            f"{passed}/{done} passed, slowest median {slow.get('median_duration_s')}s "
+            f"({slow.get('repo')}/{slow.get('workflow')}), measured {at}{tail} (`outcomes.py ci`) |"]
+
+
 def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
     """Tell the lane that owns a strand, once a day, on the channel it already reads.
 
@@ -690,7 +731,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, revenue, delivery, founder, collectors,
+    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, collectors,
         datamap, science_plane, research, hooks, github_actions, crew_p1,
                runtime):
         try:

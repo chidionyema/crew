@@ -45,6 +45,8 @@ SHIPS = SCIENCE / "ships.jsonl"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
 ATTENTION = SCIENCE / "attention.jsonl"
 REVENUE = SCIENCE / "revenue.jsonl"
+CI_RUNS = SCIENCE / "ci-runs.jsonl"
+GITHUB_OWNER = os.environ.get("ESTATE_GITHUB_OWNER", "chidionyema")
 
 #: The only place a customer can pay this estate is the store, and its backend answers here.
 #: crew#70: every efficiency number was a cost divided by nothing because no series held what
@@ -308,6 +310,108 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     return row
 
 
+def _iso(s: str | None) -> dt.datetime | None:
+    try:
+        return dt.datetime.strptime(str(s), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.UTC) if s else None
+    except ValueError:
+        return None
+
+
+def _median(xs: list[float]) -> float | None:
+    xs = sorted(xs)
+    return None if not xs else round(xs[len(xs) // 2], 1)
+
+
+def collect_ci(now: dt.datetime | None = None, fetch=None, hours: int = 24) -> list[dict]:
+    """One row per (repo, workflow) that ran in the last `hours`: runs, pass rate, median
+    duration, median queue wait, billed-shape minutes. crew#393: the Actions API held every
+    number that answers "is CI getting slower" and nothing pulled them.
+
+    `fetch(path)` returns the parsed JSON of `gh api <path>`; the default shells out to gh.
+    A repo the API refuses is skipped and named in the row list as measured=false, never
+    silently (LAW 30).
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    since = (now - dt.timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fetch = fetch or _gh_json
+    rows: list[dict] = []
+    try:
+        repos = [r["name"] for r in fetch(f"users/{GITHUB_OWNER}/repos?per_page=100&type=owner")]
+    except Exception as exc:                                    # noqa: BLE001
+        return [{"at": at, "repo": None, "workflow": None, "measured": False,
+                 "reason": f"repo list: {type(exc).__name__}: {exc}"[:200]}]
+    for repo in sorted(repos):
+        try:
+            body = fetch(f"repos/{GITHUB_OWNER}/{repo}/actions/runs?created=>={since}&per_page=100")
+        except Exception as exc:                                # noqa: BLE001
+            rows.append({"at": at, "repo": repo, "workflow": None, "measured": False,
+                         "reason": f"{type(exc).__name__}: {exc}"[:200]})
+            continue
+        by_wf: dict[str, list[dict]] = {}
+        for run in body.get("workflow_runs", []) if isinstance(body, dict) else []:
+            by_wf.setdefault(str(run.get("path", "")).rsplit("/", 1)[-1], []).append(run)
+        for wf, runs in sorted(by_wf.items()):
+            done = [r for r in runs if r.get("status") == "completed"]
+            durs, waits = [], []
+            for r in done:
+                c, st, up = _iso(r.get("created_at")), _iso(r.get("run_started_at")), _iso(r.get("updated_at"))
+                if st and up:
+                    durs.append((up - st).total_seconds())
+                if c and st:
+                    waits.append((st - c).total_seconds())
+            passed = sum(1 for r in done if r.get("conclusion") == "success")
+            rows.append({"at": at, "repo": repo, "workflow": wf, "measured": True, "window_h": hours,
+                         "runs": len(runs), "completed": len(done), "passed": passed,
+                         "pass_rate": round(passed / len(done), 3) if done else None,
+                         "median_duration_s": _median(durs), "median_queue_wait_s": _median(waits),
+                         "minutes": round(sum(durs) / 60, 1)})
+    return rows
+
+
+def _gh_json(path: str) -> dict | list:
+    """`gh api --paginate --slurp`: one JSON array holding every page. Without --slurp gh
+    concatenates page objects and json.loads fails with "Extra data" on any repo with more than
+    100 runs a day, which on the first live run was crew, idp and prospector (crew#393)."""
+    r = subprocess.run(["gh", "api", "--paginate", "--slurp", path], capture_output=True, text=True, timeout=180, check=False)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip()[:200])
+    return _merge_pages(json.loads(r.stdout))
+
+
+def _merge_pages(pages) -> dict | list:
+    """Pages of a list endpoint become one list; pages of a {workflow_runs: [...]} endpoint become
+    one dict whose lists are concatenated."""
+    if not isinstance(pages, list) or not pages or not all(isinstance(pg, (dict, list)) for pg in pages):
+        return pages
+    if all(isinstance(pg, list) for pg in pages):
+        return [x for pg in pages for x in pg]
+    out: dict = {}
+    for pg in pages:
+        for k, val in pg.items():
+            out[k] = out.get(k, []) + val if isinstance(val, list) else val
+    return out
+
+
+def cmd_ci(args) -> int:
+    rows = collect_ci(hours=args.hours)
+    with CI_RUNS.open("a") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+    print(f"{CI_RUNS}")
+    good = [r for r in rows if r.get("measured")]
+    bad = [r for r in rows if not r.get("measured")]
+    for r in bad:
+        print(f"NOT RUN  {r.get('repo') or 'repo list'}: {r.get('reason')}")
+    if not good:
+        return 1
+    runs = sum(r["runs"] for r in good)
+    slow = max(good, key=lambda r: r["median_duration_s"] or 0)
+    print(f"{len(good)} workflows  {runs} runs in {args.hours}h  slowest median {slow['median_duration_s']}s "
+          f"({slow['repo']}/{slow['workflow']})  minutes {round(sum(r['minutes'] for r in good), 1)}")
+    return 0
+
+
 def _http_json(url: str, token: str) -> dict:
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req, timeout=20) as r:
@@ -421,6 +525,9 @@ def main() -> int:
 
     v = sub.add_parser("revenue", help="has this estate ever been paid: measured from the store, never assumed")
     v.set_defaults(fn=cmd_revenue)
+    w = sub.add_parser("ci", help="every workflow run of the last day: runs, pass rate, duration, queue wait (crew#393)")
+    w.add_argument("--hours", type=int, default=24)
+    w.set_defaults(fn=cmd_ci)
 
     p = sub.add_parser("predict", help="record a causal prediction BEFORE the repair")
     p.add_argument("--issue", required=True, help="the issue or PR this is about")

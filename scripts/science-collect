@@ -13,11 +13,16 @@
 #   1. outcomes.py ship   collect what the estate produced (git + gh)
 #   2. outcomes.py attention  collect what it cost the founder (his own words)
 #   3. collect.py --check rebuild the warehouse, exit 1 if a source is stale
+#   4. foresight.py       pull CI history, score yesterday's predictions, predict today's open PRs (crew#405)
+#   5. showcase.py        regenerate docs/science/SHOWCASE.md from the stores just written (crew#403)
 #
 # A non-zero exit is the point, not a failure of this script: it means a source
 # stopped being written and somebody needs to look. It lands in the .err.log and
 # in the collector's own stdout, both named in docs/onboarding/collect.md.
 set -uo pipefail
+
+# foresight needs scikit-learn, which lives in the repo venv, not the system python3 (crew#404).
+PY="${CREW_PYTHON:-$PWD/.venv/bin/python}"; [ -x "$PY" ] || PY=python3
 
 CREW="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$CREW" || exit 1
@@ -51,5 +56,13 @@ collect_rc=$?
 python3 science/transcripts.py
 transcripts_rc=$?
 
-echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc transcripts=$transcripts_rc"
+for step in pull train score predict; do
+  "$PY" science/foresight.py "$step" || echo "science-collect: foresight $step exited $?"
+done
+
+"$PY" science/showcase.py
+showcase_rc=$?
+
+
+echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc transcripts=$transcripts_rc showcase=$showcase_rc"
 exit "$collect_rc"

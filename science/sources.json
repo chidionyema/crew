@@ -273,6 +273,15 @@
    "receiver": "otlp"
   },
   {
+   "name": "lane.code.pr-hygiene",
+   "root": "science",
+   "path": "pr-hygiene.jsonl",
+   "kind": "jsonl",
+   "time_field": "at",
+   "stale_after_hours": 30,
+   "receiver": "otlp"
+  },
+  {
    "name": "dagster-ticks",
    "root": "code",
    "path": "idp/run/dagster/schedules/schedules.db",

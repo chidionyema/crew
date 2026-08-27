@@ -1,0 +1,47 @@
+{
+ "description": "stuck-detector ticks and findings: sessions that stopped moving.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "class": [
+   "str"
+  ],
+  "cwd": [
+   "str"
+  ],
+  "evidence": [
+   "str"
+  ],
+  "findings": [
+   "int"
+  ],
+  "idle_s": [
+   "int"
+  ],
+  "kind": [
+   "str"
+  ],
+  "rc": [
+   "int"
+  ],
+  "session": [
+   "str"
+  ],
+  "slug": [
+   "str"
+  ],
+  "streak": [
+   "int"
+  ],
+  "ts": [
+   "str"
+  ],
+  "would_page": [
+   "bool"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 13
+}

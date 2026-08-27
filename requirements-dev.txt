@@ -1,8 +1,28 @@
 hypothesis>=6
 pytest>=8
 
+# tests/test_incident_linter_target_newer_than_the_interpreter.py reads pyproject.toml to
+# check that the linters are not configured for a newer Python than the one running. On
+# 3.11+ that is tomllib in the standard library. Below it, the test is the only thing that
+# will say so -- so it has to be able to run there, which needs the backport. It was
+# already present as a dbt transitive; a check against a version floor cannot depend on
+# another package's dependency tree happening to include it.
+tomli>=2 ; python_version < "3.11"
+
 # The warehouse loader crew#74 replaces read_rows()/row_time() with. dbt-duckdb pulls
 # dbt-core; both were absent from this machine until 2026-08-24, so anyone reproducing
 # science/duckdb_differential.py needs them named here rather than in a shell history.
 duckdb>=1.5
 dbt-duckdb>=1.11
+
+# The two checkers `scripts/verify.d/15-code-standard.sh` runs over Python. They are here
+# rather than in a README step because the gate is only enforcement if the runner has
+# them: without ruff it reports BLIND, and a check that is permanently BLIND is a check
+# nobody has. Measured the day they were added: 121 ruff findings and 24 pyright errors
+# on code that had never been linted once.
+ruff>=0.14
+pyright>=1.1
+
+# crew#405: foresight trains a logistic model on the estate CI history; pinned floor, sklearn is the
+# learner the estate buys rather than writes (LAW 43).
+scikit-learn>=1.5

@@ -1,0 +1,41 @@
+{
+ "description": "Goal net: goals, their edges and state changes.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "int"
+  ],
+  "depth": [
+   "int"
+  ],
+  "event": [
+   "str"
+  ],
+  "from": [
+   "str"
+  ],
+  "node": [
+   "str"
+  ],
+  "reason": [
+   "str"
+  ],
+  "session": [
+   "str"
+  ],
+  "signals": [
+   "list"
+  ],
+  "text": [
+   "str"
+  ],
+  "tick": [
+   "int"
+  ],
+  "to": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 11
+}

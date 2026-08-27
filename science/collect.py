@@ -58,8 +58,13 @@ import os
 import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
+if str(Path(__file__).parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent))
+import emit as otlp
+
 
 #: Every path this program uses is overridable from the environment, and none of the
 #: three defaults is baked into the registry file. code-84, on the estate's kubernetes
@@ -90,6 +95,80 @@ WAREHOUSE = _env_path("SCIENCE_WAREHOUSE", Path(__file__).parent / "warehouse.db
 # not a rewrite.
 REGISTRY = _env_path("SCIENCE_REGISTRY", Path(__file__).parent / "sources.json")
 
+#: The only three shapes anything here can read. This is a closed set on purpose: every
+#: reader in this directory branches on `kind`, and each of them used to treat "not one of
+#: the two I know" as "a single JSON document" rather than as an error. A registry entry
+#: saying `kind: "Jsonl"` was therefore accepted, and its store read as one malformed
+#: document: measured on a real two-row file, 0 rows and 1 bad line, reported as a source
+#: that simply had nothing in it. The estate's own rule for this shape is written down --
+#: do not leave an allow-list with a silent miss case -- and this was one.
+KINDS = ("jsonl", "jsonl-dir", "json", "sqlite")
+
+
+def _default_collector_config() -> Path:
+    """idp's collector config, found beside this repo's main checkout, never under a
+    typed home path (LAW 46). A worktree resolves through its git common dir."""
+    import subprocess
+    try:
+        # crew#455: without --path-format=absolute git answers `../.git` relative to the cwd it
+        # was asked in, and Path.resolve() then resolves that against the process cwd, so the
+        # verdict was BLIND from every cwd. Same form as scripts/verify.d/15-code-standard.sh.
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                cwd=Path(__file__).resolve().parent,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        main_checkout = Path(common).parent
+    except (subprocess.CalledProcessError, OSError):
+        main_checkout = Path(__file__).resolve().parents[1]
+    return main_checkout.parent / "idp" / "observability" / "otel-collector.yaml"
+
+
+#: The one pipeline every source lands in (crew#258, idp#128). Each source names the
+#: receiver key it arrives through; a name the collector does not declare is refused.
+COLLECTOR_CONFIG = _env_path("OTEL_COLLECTOR_CONFIG", _default_collector_config())
+
+
+def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
+    """Receiver keys the collector declares, or None when the file cannot be read.
+
+    Standard library only. The first cut imported PyYAML and treated ImportError as
+    BLIND; the CI runner has no PyYAML, so control G (an undeclared receiver must be
+    refused) passed there with rc=0. A dependency the gate cannot see must not read
+    as missing evidence. The keys are the lines indented exactly one level under a
+    top-level `receivers:` line, which is the shape the collector itself requires.
+    """
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return None
+    keys: set[str] = set()
+    inside = False
+    for raw in lines:
+        line = raw.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if not line.startswith((" ", "\t")):
+            inside = line == "receivers:"
+            continue
+        if inside and len(line) - len(line.lstrip()) == 2 and ":" in line:
+            key = line.strip().split(":", 1)[0].strip()
+            if key and " " not in key:
+                keys.add(key)
+    return keys
+
+
+def receiver_verdict() -> tuple[list[str], str]:
+    """Sources naming a receiver the collector lacks, and a one-line note.
+
+    BLIND when the collector config is unreadable: no verdict, never a pass."""
+    keys = collector_receivers()
+    if keys is None:
+        return [], f"receivers: BLIND (no collector config at {COLLECTOR_CONFIG})"
+    bad = sorted(f"{n} -> {r}" for n, r in RECEIVERS.items() if r not in keys)
+    if bad:
+        return bad, (f"receivers: {len(bad)} source(s) name a receiver the collector does not "
+                     f"declare ({', '.join(sorted(keys))}): {', '.join(bad)}")
+    return [], f"receivers: every source lands in a declared receiver ({', '.join(sorted(keys))})"
+
 
 def load_registry(path: Path = REGISTRY) -> dict:
     """Read the registry, or fail loudly. There is no built-in default on purpose.
@@ -105,22 +184,47 @@ def load_registry(path: Path = REGISTRY) -> dict:
     except json.JSONDecodeError as exc:
         sys.exit(f"registry will not parse: {path}: {exc}")
 
-    roots = {"home": HOME, "science": Path(__file__).parent}
+    #: `code` is where every checkout lives (LAW 46: the registry never spells the
+    #: path; ESTATE_CODE moves it on another machine).
+    #: `science` is where the ledgers this job writes live. SCIENCE_DATA moves it so the
+    #: scheduled run can execute main's copy of this file from a detached worktree while the
+    #: ledgers stay in the live checkout, where the snapshot commits them (crew#90, crew#479).
+    roots = {"home": HOME, "science": _env_path("SCIENCE_DATA", Path(__file__).parent),
+             "code": _env_path("ESTATE_CODE", HOME / "dev" / "code")}
     for name, raw in (reg.get("roots") or {}).items():
         if name not in roots:
             roots[name] = Path(os.path.expanduser(raw))
 
     sources: dict[str, tuple[Path, str, str | None]] = {}
     stale: dict[str, int] = {}
+    receivers: dict[str, str] = {}
+    queries: dict[str, str] = {}
     for s in reg.get("sources", []):
         root = roots.get(s.get("root", "home"))
         if root is None:
             sys.exit(f"registry names an unknown root {s.get('root')!r} for {s.get('name')!r}")
-        sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
+        kind = s.get("kind", "jsonl")
+        #: Refused here rather than at read time, because at read time it is indistinguishable
+        #: from an empty store. A typo in one letter is the likeliest way this file is ever
+        #: wrong, and it is the one mistake that produces a green run over nothing.
+        if kind not in KINDS:
+            sys.exit(f"registry gives {s.get('name')!r} an unknown kind {kind!r}. "
+                     f"It must be one of: {', '.join(KINDS)}.")
+        #: A source with no receiver has no way into the one pipeline (R37 req 8).
+        if not (s.get("receiver") or "").strip():
+            sys.exit(f"registry source {s.get('name')!r} names no receiver. Every source "
+                     f"says which collector receiver it arrives through.")
+        receivers[s["name"]] = s["receiver"]
+        sources[s["name"]] = (root / s["path"], kind, s.get("time_field"))
+        if kind == "sqlite":
+            if not s.get("query"):
+                sys.exit(f"registry source {s['name']!r} is sqlite and names no query")
+            queries[s["name"]] = s["query"]
         if s.get("stale_after_hours"):
             stale[s["name"]] = int(s["stale_after_hours"])
 
     declined: dict[str, str] = {}
+    declined_dirs: dict[str, Path] = {}
     for d in reg.get("declined", []):
         #: A reason is not decoration. An exclusion with no stated reason is
         #: indistinguishable from a store somebody forgot, which is the thing being
@@ -129,14 +233,32 @@ def load_registry(path: Path = REGISTRY) -> dict:
             sys.exit(f"registry declines {d.get('id')!r} with no reason. "
                      f"Every exclusion states why, or it is not an exclusion.")
         declined[d["id"]] = d["reason"]
+        #: An exclusion may name a directory instead of matching one crawl id, using the
+        #: same root/path pair a source uses. Without this, a tool that writes one file
+        #: per run -- Dagster's run store writes `<uuid>.db` -- has to be re-declined by
+        #: hand every time it runs, and the reconcile goes red on the next run whatever
+        #: anyone typed today. An exclusion that must be restated per run is not an
+        #: exclusion, it is a chore, and a chore in front of a gate is how the gate gets
+        #: switched off.
+        if d.get("path"):
+            root = roots.get(d.get("root", "home"))
+            if root is None:
+                sys.exit(f"registry declines {d.get('id')!r} against an unknown root "
+                         f"{d.get('root')!r}")
+            declined_dirs[d["id"]] = root / d["path"]
 
-    return {"sources": sources, "declined": declined, "stale": stale,
+    return {"sources": sources, "queries": queries, "declined": declined,
+            "declined_dirs": declined_dirs, "stale": stale, "receivers": receivers,
             "default_stale": int(reg.get("default_stale_after_hours", 48))}
 
 
 _REG = load_registry()
 SOURCES: dict[str, tuple[Path, str, str | None]] = _REG["sources"]
+QUERIES: dict[str, str] = _REG["queries"]
 DECLINED: dict[str, str] = _REG["declined"]
+RECEIVERS: dict[str, str] = _REG["receivers"]
+#: The subset of DECLINED that excludes a whole directory rather than one crawl id.
+DECLINED_DIRS: dict[str, Path] = _REG["declined_dirs"]
 
 # A source that has not been written inside this many hours is reported STALE. The
 # number is the source's own cadence times three, not a guess, and it lives beside the
@@ -157,6 +279,23 @@ CREATE TABLE IF NOT EXISTS facts (
 CREATE INDEX IF NOT EXISTS idx_facts_source ON facts(source);
 CREATE INDEX IF NOT EXISTS idx_facts_at     ON facts(at);
 
+-- crew#73 row 4: the count of rows without a time, per source, as of the last run.
+-- A producer that stops stamping makes this number grow, and growth is the failure.
+CREATE TABLE IF NOT EXISTS null_time_watermark (
+    source     TEXT PRIMARY KEY,
+    nulls      INTEGER NOT NULL,
+    seen_at    TEXT NOT NULL
+);
+-- crew#74 row 3: one row per source per run. Row count, the share of rows without a
+-- time, the number of distinct top-level keys the payloads use. Appended, never
+-- rewritten, so a run can be compared with the one before it.
+CREATE TABLE IF NOT EXISTS quality_checks (
+    run_at        TEXT NOT NULL,
+    source        TEXT NOT NULL,
+    rows          INTEGER NOT NULL,
+    null_at_rate  REAL NOT NULL,
+    distinct_keys INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ingest_log (
     source      TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
@@ -164,6 +303,14 @@ CREATE TABLE IF NOT EXISTS ingest_log (
     bad_rows    INTEGER NOT NULL,
     source_mtime TEXT,
     status      TEXT NOT NULL   -- OK | ABSENT | UNREADABLE
+);
+-- LAW 50 (crew#516 CP5): the newest row time this source has put on the wire. A tick
+-- emits only rows newer than it, so the collector sees each row once, not the whole
+-- table every hour (rows without a time are snapshots and go every tick, said so).
+CREATE TABLE IF NOT EXISTS emit_watermark (
+    source     TEXT PRIMARY KEY,
+    last_at    TEXT NOT NULL,
+    emitted_at TEXT NOT NULL
 );
 """
 
@@ -241,7 +388,7 @@ ORDER BY a.day;
 
 
 def iso(ts: float) -> str:
-    return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat(timespec="seconds")
+    return datetime.fromtimestamp(ts, tz=UTC).isoformat(timespec="seconds")
 
 
 def shard_files(path: Path) -> list[Path]:
@@ -254,11 +401,27 @@ def shard_files(path: Path) -> list[Path]:
     return sorted(p for p in path.rglob("*.jsonl") if p.is_file())
 
 
-def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
+def read_rows(path: Path, kind: str, query: str | None = None) -> tuple[list[dict], int]:
     """Return (rows, bad_row_count). A row that will not parse is counted, never guessed at."""
     rows: list[dict] = []
     bad = 0
-    if kind == "jsonl-dir":
+    if kind == "sqlite":
+        #: Read-only URI, so a collector can never write into another program's store.
+        #: The registry's query names the columns; a column called `at` is the row time.
+        #: crew#376: Dagster's tick and run tables are the only record of whether a
+        #: scheduled job ran, and 16 hours of skipped ticks went unseen without them.
+        if not query:
+            raise OSError(f"sqlite source {path} has no query")
+        db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            db.row_factory = sqlite3.Row
+            for r in db.execute(query):
+                rows.append(dict(r))
+        except sqlite3.Error as exc:
+            raise OSError(f"{path}: {exc}") from exc
+        finally:
+            db.close()
+    elif kind == "jsonl-dir":
         #: Every shard keeps its own name on the row. Without it the shards melt into
         #: one undifferentiated source and "which project was he talking about" stops
         #: being answerable, which is most of what the directives store is for.
@@ -281,12 +444,19 @@ def read_rows(path: Path, kind: str) -> tuple[list[dict], int]:
                     bad += 1
                     continue
                 rows.append(obj if isinstance(obj, dict) else {"value": obj})
-    else:
+    elif kind == "json":
         try:
             obj = json.loads(path.read_text(errors="ignore"))
         except json.JSONDecodeError:
             return [], 1
         rows.append(obj if isinstance(obj, dict) else {"value": obj})
+    else:
+        #: `load_registry` refuses an unknown kind before anything gets here, so this is
+        #: unreachable through the registry. It is written anyway because this function is
+        #: called directly by `duckdb_differential.py`, and the branch it replaces used to
+        #: read any unrecognised kind as a single JSON document -- which is the failure
+        #: this raise exists to make loud.
+        raise ValueError(f"read_rows got an unknown kind {kind!r}; expected one of {KINDS}")
     return rows, bad
 
 
@@ -326,13 +496,155 @@ def row_time(obj: dict, field: str | None) -> str | None:
             try:
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                continue
-            return v
+                #: crew#383: defensive. Every live capability receipt carries ended_at as a
+                #: float or int (0 strings in 25,155 rows); a writer that stringifies an
+                #: epoch would otherwise file every row as having no time.
+                try:
+                    v = float(v)
+                except ValueError:
+                    continue
+            else:
+                return v
         if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
             return iso(float(v))
         if isinstance(v, (int, float)) and EPOCH_MS_LO <= v <= EPOCH_MS_HI:
             return iso(float(v) / 1000)
     return None
+
+
+#: crew#74 row 2: one schema file per source, under version control. The schema is the
+#: closed set of top-level keys and the type names each one has been seen with.
+SCHEMAS = _env_path("SCIENCE_SCHEMAS", Path(__file__).parent / "schemas")
+#: How many offending lines a source may name per run before the rest are counted.
+SCHEMA_LINES_NAMED = 3
+
+
+def row_shape(row: dict) -> dict[str, str]:
+    return {k: type(v).__name__ for k, v in row.items() if not k.startswith("_")}
+
+
+def schema_from_rows(rows: list[dict]) -> dict:
+    fields: dict[str, set[str]] = {}
+    for r in rows:
+        for k, t in row_shape(r).items():
+            fields.setdefault(k, set()).add(t)
+    return {"fields": {k: sorted(v) for k, v in sorted(fields.items())}}
+
+
+#: crew#84: the schema file is the source's contract. Beside ``fields`` it carries who owns
+#: the source, what it is, a description and a PII flag per documented field, and the number
+#: of undocumented fields the tree was accepted with. ``--check`` and ``--contracts`` refuse a
+#: contract with no owner or description, a documented field the data no longer has, and
+#: more undocumented fields than the recorded baseline: a new field arrives described or it
+#: does not arrive. A second directory of YAML contracts was the alternative; one file per
+#: source already existed, so it grew.
+CONTRACT_KEYS = ("owner", "description", "field_docs", "undescribed_baseline")
+
+
+def contract_verdict(name: str) -> list[str]:
+    """The contract half of ``science/schemas/<name>.json``; no rows needed."""
+    path = SCHEMAS / f"{name}.json"
+    if not path.exists():
+        return []
+    c = json.loads(path.read_text())
+    fields = c.get("fields", {})
+    docs = c.get("field_docs") or {}
+    bad = []
+    if not str(c.get("owner") or "").strip():
+        bad.append(f"{name}: contract names no owner")
+    if not str(c.get("description") or "").strip():
+        bad.append(f"{name}: contract has no description")
+    for k, d in docs.items():
+        if k not in fields:
+            bad.append(f"{name}: field_docs describes {k!r}, which the schema does not have")
+        elif not str((d or {}).get("description") or "").strip():
+            bad.append(f"{name}: field_docs entry for {k!r} has no description")
+        elif not isinstance((d or {}).get("pii"), bool):
+            bad.append(f"{name}: field_docs entry for {k!r} does not say pii true or false")
+    undescribed = sorted(k for k in fields if k not in docs)
+    baseline = c.get("undescribed_baseline")
+    if not isinstance(baseline, int):
+        bad.append(f"{name}: contract records no undescribed_baseline")
+    elif len(undescribed) > baseline:
+        bad.append(f"{name}: {len(undescribed)} undescribed field(s), baseline is {baseline}: "
+                   + ", ".join(undescribed[:6]))
+    return bad
+
+
+def write_schema(name: str, rows: list[dict]) -> Path:
+    SCHEMAS.mkdir(parents=True, exist_ok=True)
+    out = SCHEMAS / f"{name}.json"
+    doc = schema_from_rows(rows)
+    #: A rewrite keeps the contract half and drops field_docs for fields that are gone.
+    old = json.loads(out.read_text()) if out.exists() else {}
+    for k in CONTRACT_KEYS:
+        if k in old:
+            doc[k] = old[k]
+    doc["field_docs"] = {k: v for k, v in (doc.get("field_docs") or {}).items() if k in doc["fields"]}
+    doc["undescribed_baseline"] = sum(1 for k in doc["fields"] if k not in doc["field_docs"])
+    out.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")
+    return out
+
+
+def schema_verdict(name: str, rows: list[dict]) -> list[str]:
+    """Every row of ``name`` against ``science/schemas/<name>.json``, naming the line.
+
+    A source with rows and no schema file is a failure: the row says one per source.
+    A row with a key the schema does not list, or a key whose type the schema has not
+    seen, is named by its 1-based line in the store. After SCHEMA_LINES_NAMED lines the
+    rest are counted, so a producer that changed shape yesterday does not print 8,000
+    lines. Lists and dicts are compared by type name only; their insides are data.
+    """
+    path = SCHEMAS / f"{name}.json"
+    if not path.exists():
+        #: Printed as a blind spot by --check, never a failure here: a source new to a
+        #: registry has no file yet, and the file's presence in git is graded by
+        #: tests/test_incident_crew74_shape_change_is_named_at_ingest.py (LAW 38).
+        return []
+    fields = json.loads(path.read_text())["fields"]
+    bad: list[str] = []
+    extra = 0
+    for i, r in enumerate(rows, 1):
+        for k, t in row_shape(r).items():
+            seen = fields.get(k)
+            if seen is None:
+                why = f"field {k!r} is not in the schema"
+            elif t not in seen:
+                why = f"field {k!r} is {t}, schema says {'/'.join(seen)}"
+            else:
+                continue
+            if len(bad) < SCHEMA_LINES_NAMED:
+                bad.append(f"{name}: line {i}: {why}")
+            else:
+                extra += 1
+            break
+    if extra:
+        bad.append(f"{name}: {extra} more line(s) off schema")
+    return bad
+
+
+def emit_new_rows(conn: sqlite3.Connection, name: str, rows: list[dict],
+                  tfield: str | None, now: str) -> str:
+    """Put this source's rows on the wire once each (crew#522 review, d5ae1960).
+
+    Rows with a time go when newer than the source's watermark; rows without one carry
+    the collection time as their timestamp (a 1970 stamp would sit outside every 24h
+    window forever) and go every tick, because a timeless source is a rewritten
+    snapshot, not a log. The watermark moves only after the collector said 2xx.
+    """
+    row = conn.execute("SELECT last_at FROM emit_watermark WHERE source = ?", (name,)).fetchone()
+    last_at = row[0] if row else ""
+    timed = [(row_time(r, tfield), r) for r in rows]
+    fresh: list[tuple[str | None, dict]] = [(at or now, r) for at, r in timed
+                                            if at is None or at > last_at]
+    verdict = otlp.emit(name, fresh)
+    if verdict.startswith("ok"):
+        newest = max((at for at, _ in timed if at), default=None)
+        if newest:
+            conn.execute("INSERT OR REPLACE INTO emit_watermark VALUES (?,?,?)",
+                         (name, newest, now))
+        verdict += f" of {len(rows)}"
+    return verdict
 
 
 def collect(conn: sqlite3.Connection) -> list[dict]:
@@ -356,7 +668,7 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         else:
             mtime = iso(path.stat().st_mtime)
         try:
-            rows, bad = read_rows(path, kind)
+            rows, bad = read_rows(path, kind, QUERIES.get(name))
         except OSError as exc:
             report.append({"source": name, "status": f"UNREADABLE: {exc}",
                            "rows": 0, "bad": 0, "mtime": mtime})
@@ -372,8 +684,13 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         )
         conn.execute("INSERT INTO ingest_log VALUES (?,?,?,?,?,?)",
                      (name, now, len(rows), bad, mtime, "OK"))
+        #: LAW 50 (crew#516 CP5): the same rows go to the estate collector, tagged
+        #: `science.source`, so `bin/idp-science-facts` can count them from ClickHouse.
+        #: With no endpoint configured this is one word in the report and no network.
+        emitted = emit_new_rows(conn, name, rows, tfield, now)
         report.append({"source": name, "status": "OK", "rows": len(rows),
-                       "bad": bad, "mtime": mtime})
+                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows),
+                       "emit": emitted})
 
     #: A source that moves from collected to declined leaves its old rows behind, because
     #: nothing in this loop visits a name the registry no longer mentions. Found 2026-08-24
@@ -397,6 +714,84 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
     return report
 
 
+#: Sources whose rows carry no time by design: a single snapshot that is rewritten,
+#: not appended. Every other source is a log, and a log row without a time is a
+#: producer defect (crew#73: 6,166 such rows sat in the warehouse and no check said so).
+#: crew#378: sovereign_budget is a per-session counter table with no time column, rewritten in place.
+NO_TIME_SOURCES = frozenset({"enforcement_map", "sovereign_budget"})
+
+
+def null_time_verdict(conn: sqlite3.Connection, now: str | None = None) -> tuple[list[str], str]:
+    """Rows with ``at IS NULL`` per source, against the count the last run recorded.
+
+    Returns (failures, note). A source outside NO_TIME_SOURCES whose null count grew
+    since the last run is a failure naming the growth: its producer stopped stamping.
+    The first run of a source seeds the watermark and says so, never a failure (LAW 38).
+    The watermark is then raised to the current count, so a fixed producer clears the
+    verdict on the next run and a broken one fails every run it keeps producing.
+    """
+    now = now or datetime.now(UTC).isoformat(timespec="seconds")
+    counts = dict(conn.execute(
+        "SELECT source, count(*) FROM facts WHERE at IS NULL GROUP BY source").fetchall())
+    marks = dict(conn.execute("SELECT source, nulls FROM null_time_watermark").fetchall())
+    failures, seeded = [], []
+    for source, nulls in sorted(counts.items()):
+        if source in NO_TIME_SOURCES:
+            continue
+        if source not in marks:
+            seeded.append(f"{source}={nulls}")
+        elif nulls > marks[source]:
+            failures.append(f"{source}: {nulls - marks[source]} new row(s) without a time "
+                            f"since the last run (producer stopped stamping)")
+        conn.execute("INSERT OR REPLACE INTO null_time_watermark VALUES (?, ?, ?)",
+                     (source, nulls, now))
+    conn.commit()
+    note = ("rows without a time: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            if counts else "rows without a time: none")
+    if seeded:
+        note += f"\nfirst watermark seeded, no verdict yet: {', '.join(seeded)}"
+    return failures, note
+
+
+#: A null-rate move larger than this between two runs of the same source is named.
+QUALITY_NULL_RATE_STEP = 0.05
+
+
+def quality_checks(conn: sqlite3.Connection, now: str | None = None) -> tuple[list[str], str]:
+    """Append one quality row per source for this run and compare it with the last one.
+
+    Returns (failures, note). Recorded per source: row count, the share of rows with
+    ``at IS NULL``, and how many distinct top-level keys the payloads carry. A source
+    whose row count fell, or whose null rate moved by more than QUALITY_NULL_RATE_STEP
+    since the previous run, is a failure naming the move. The first run of a source
+    records and never fails (LAW 38).
+    """
+    now = now or datetime.now(UTC).isoformat(timespec="seconds")
+    prev = {r[0]: (r[1], r[2]) for r in conn.execute(
+        "SELECT source, rows, null_at_rate FROM quality_checks q WHERE run_at = "
+        "(SELECT max(run_at) FROM quality_checks WHERE source = q.source)")}
+    cur = conn.execute(
+        "SELECT source, count(*), avg(at IS NULL), "
+        "(SELECT count(DISTINCT j.key) FROM facts f2, json_each(f2.payload) j "
+        " WHERE f2.source = facts.source AND json_valid(f2.payload)) "
+        "FROM facts GROUP BY source").fetchall()
+    failures = []
+    for source, rows, null_rate, keys in cur:
+        conn.execute("INSERT INTO quality_checks VALUES (?,?,?,?,?)",
+                     (now, source, rows, null_rate, keys))
+        if source in prev:
+            prows, prate = prev[source]
+            #: A rewritten snapshot (NO_TIME_SOURCES) shrinks by design; a log does not.
+            if rows < prows and source not in NO_TIME_SOURCES:
+                failures.append(f"{source}: row count fell {prows} -> {rows} since the last run")
+            if abs(null_rate - prate) > QUALITY_NULL_RATE_STEP:
+                failures.append(f"{source}: share of rows without a time moved "
+                                f"{prate:.2f} -> {null_rate:.2f} since the last run")
+    conn.commit()
+    note = f"quality: {len(cur)} source(s) recorded, {len(prev)} compared with the last run"
+    return failures, note
+
+
 def staleness(entry: dict) -> str:
     """How old the SOURCE file is, against its own declared cadence."""
     if entry["status"] != "OK" or not entry["mtime"]:
@@ -406,13 +801,42 @@ def staleness(entry: dict) -> str:
     return f"STALE {age_h:.0f}h" if age_h > limit else f"fresh {age_h:.0f}h"
 
 
-def reconcile() -> tuple[list[dict], list[str], str]:
+def _through_worktree(p: Path) -> Path | None:
+    """The same path under the main checkout, when ``p`` lies inside a linked git worktree.
+
+    crew#465: five worktrees of ~/.claude/scripts (.wt-crew325, .wt-crew331, ...) each carry
+    a copy of state/drills.jsonl, and the crawl named every copy as a store the registry had
+    never heard of. A linked worktree marks its root with a ``.git`` *file* whose one line is
+    ``gitdir: <main>/.git/worktrees/<name>``; the copy is covered by whatever declaration
+    covers the main checkout's path. A directory that merely looks like a checkout (no
+    ``.git`` file, or one that does not point into a ``worktrees`` dir) is left alone.
+    """
+    for d in (p, *p.parents):
+        marker = d / ".git"
+        try:
+            if not marker.is_file():
+                continue
+            line = marker.read_text().strip()
+        except OSError:
+            return None
+        if not line.startswith("gitdir:"):
+            return None
+        gitdir = Path(line.split(":", 1)[1].strip())
+        if gitdir.parent.name != "worktrees" or gitdir.parent.parent.name != ".git":
+            return None
+        return gitdir.parents[2] / p.relative_to(d)
+    return None
+
+
+def reconcile() -> tuple[list[dict], list[str], list[str], str]:
     """Compare the machine's crawl against this registry.
 
-    Returns (undeclared, stale_declines, note). `undeclared` is the finding that matters:
-    a store that exists, that the crawler found, and that this file has never heard of.
-    `stale_declines` is the other direction, an exclusion for something that is no longer
-    there, which is how a DECLINED map rots into a list of ghosts.
+    Returns (undeclared, stale_declines, blind_declines, note). `undeclared` is the
+    finding that matters: a store that exists, that the crawler found, and that this file
+    has never heard of. `stale_declines` is the other direction, an exclusion for
+    something that is no longer there, which is how a DECLINED map rots into a list of
+    ghosts. `blind_declines` is neither: an exclusion whose directory could not be read,
+    so this run has no opinion about it and says so instead of guessing.
 
     A shard is covered by its parent. The crawl already groups shard files under a
     logical store in its `member_of` field, so `directives/-Users-...jsonl` is answered
@@ -423,13 +847,13 @@ def reconcile() -> tuple[list[dict], list[str], str]:
     because it reads as proof of coverage.
     """
     if not INVENTORY.exists():
-        return [], [], (f"NO CRAWL TO RECONCILE AGAINST: {INVENTORY} is missing, so this "
+        return [], [], [], (f"NO CRAWL TO RECONCILE AGAINST: {INVENTORY} is missing, so this "
                         f"cannot tell a complete registry from an empty one. Run "
                         f"com.estate.inventory, or ~/.estate/scripts/inventory.py.")
     try:
         crawl = json.loads(INVENTORY.read_text())
     except (json.JSONDecodeError, OSError) as exc:
-        return [], [], f"CRAWL UNREADABLE: {INVENTORY}: {exc}"
+        return [], [], [], f"CRAWL UNREADABLE: {INVENTORY}: {exc}"
 
     declared_paths = {str(p.resolve()) if p.exists() else str(p)
                       for p, _k, _t in SOURCES.values()}
@@ -449,6 +873,70 @@ def reconcile() -> tuple[list[dict], list[str], str]:
             return False
         return any(d == rp or d in rp.parents for d in declared_dirs)
 
+    def presence_of(d: Path) -> str:
+        """"there", "gone" or "blind" -- and never "gone" because we could not look.
+
+        `Path.exists()` answers False for two different facts: the directory is not
+        there, and the directory could not be read. A permission error, a dead mount, a
+        network filesystem that timed out all come back as False, so an exclusion whose
+        directory is merely unreachable reports as a ghost, gets deleted as dead wood,
+        and the registry then goes red on a morning nobody typed anything wrong -- which
+        is the exact failure this directory exclusion exists to stop.
+
+        Three checks on this estate collapsed the same two facts on 2026-08-24: an escrow
+        check printed NOT PRESENT for a permission error, a database drill printed
+        corruption for SQLITE_CANTOPEN on a locked file, and a research pass reported a
+        file unmerged after looking at one branch. Attributed by session chidionyema-7e
+        reviewing this change, before it merged.
+
+        FileNotFoundError is on both sides, which is why the parent is asked. An
+        unmounted volume raises FileNotFoundError for everything beneath its mountpoint,
+        so a decline on an external disk or a dead network mount arrives looking exactly
+        like a deleted directory -- and the data is provably still there when it comes
+        back. Demonstrated by session chidionyema-73 on a real disk image: detach the
+        volume and this said "gone"; reattach it and the file was untouched. So an
+        absence only counts when it is an absence inside a filesystem we can still see:
+        if the parent is reachable the directory really is missing, and if the parent is
+        unreachable too we are looking at a hole rather than an absence.
+
+        RESIDUAL, stated rather than hidden: deleting a whole tree removes the parent as
+        well, so that reads "blind" from then on and the exclusion is never called stale.
+        That is the safe direction -- an exclusion nobody deletes costs a printed line,
+        where an exclusion wrongly deleted turns the registry red on the next run -- but
+        it is a real limit and the "COULD NOT LOOK" line is the only thing that surfaces
+        it.
+        """
+        try:
+            d.stat()
+        except NotADirectoryError:
+            return "gone"
+        except FileNotFoundError:
+            try:
+                d.parent.stat()
+            except OSError:
+                return "blind"
+            return "gone"
+        except OSError:
+            return "blind"
+        return "there"
+
+    #: Resolved once, outside the row loop, because resolve() hits the filesystem and the
+    #: crawl has thousands of rows.
+    presence = {i: presence_of(d) for i, d in DECLINED_DIRS.items()}
+    declined_dirs = {i: (d.resolve() if presence[i] == "there" else d)
+                     for i, d in DECLINED_DIRS.items()}
+
+    def covering_decline(p: Path) -> str:
+        """The id of the directory exclusion that covers this path, or ""."""
+        try:
+            rp = p.resolve()
+        except OSError:
+            rp = p
+        for i, d in declined_dirs.items():
+            if d == rp or d in rp.parents:
+                return i
+        return ""
+
     undeclared, seen_ids = [], set()
     for row in crawl.get("rows", []):
         if row.get("kind") not in ("data", "ledger"):
@@ -459,9 +947,17 @@ def reconcile() -> tuple[list[dict], list[str], str]:
         if ident in known_ids or (row.get("id") or "") in known_ids:
             continue
         p = Path(row.get("path") or "")
+        covered = covering_decline(p)
+        if covered:
+            seen_ids.add(covered)
+            continue
         if (str(p.resolve()) if p.exists() else str(p)) in declared_paths:
             continue
         if p.exists() and inside_declared_dir(p):
+            continue
+        main = _through_worktree(p) if p.exists() else None
+        if main is not None and (str(main.resolve() if main.exists() else main) in declared_paths
+                                 or inside_declared_dir(main)):
             continue
         #: A shard is only covered when its parent is. member_of is the crawl's own
         #: grouping, so this trusts it rather than re-deriving the grouping from paths.
@@ -470,23 +966,56 @@ def reconcile() -> tuple[list[dict], list[str], str]:
         undeclared.append({"id": row.get("id"), "path": row.get("path"),
                            "rows": row.get("rows"), "mb": row.get("mb")})
 
-    stale = sorted(i for i in DECLINED if i not in seen_ids)
-    return undeclared, stale, ""
+    #: A directory exclusion is stale when the directory is gone, not when this hour's
+    #: crawl happened to find nothing inside it. Judging it by crawl rows would report
+    #: `dagster-run-store` as a ghost on any morning Dagster had not run overnight, and an
+    #: instrument that cries ghost on a quiet night gets ignored on the night it means it.
+    #: An exclusion with no directory is not in `presence` at all, and defaults to "gone"
+    #: so that an id-only decline is judged exactly as it was before directories existed.
+    stale = sorted(i for i in DECLINED
+                   if i not in seen_ids and presence.get(i, "gone") == "gone")
+    #: Reported separately rather than folded into either answer. A directory that could
+    #: not be read is not evidence of anything, and a checker that quietly picks one of
+    #: the two verdicts it cannot distinguish is the defect, whichever one it picks.
+    blind = sorted(i for i, v in presence.items() if v == "blind")
+    return undeclared, stale, blind, ""
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true",
                     help="exit 1 if any source is absent, unreadable, stale or undeclared")
+    ap.add_argument("--write-schemas", nargs="*", metavar="SOURCE",
+                    help="(re)write science/schemas/<source>.json from the rows on disk "
+                         "for the named sources, or every source when none is named (crew#74)")
+    ap.add_argument("--contracts", action="store_true",
+                    help="grade every science/schemas/<source>.json as a data contract "
+                         "(owner, description, field docs, undescribed baseline) and exit "
+                         "1 on any failure; needs no warehouse (crew#84)")
     ap.add_argument("--reconcile", action="store_true",
                     help="print what the machine's crawl found that this registry does "
                          "not mention, and exit without rebuilding")
     args = ap.parse_args()
 
+    if args.contracts:
+        files = sorted(p.stem for p in SCHEMAS.glob("*.json"))
+        missing = sorted(n for n in SOURCES if n not in files)
+        bad = [f for n in files for f in contract_verdict(n)]
+        print(f"contracts: {len(files) - len({f.split(':')[0] for f in bad})} of {len(files)} "
+              f"schema file(s) are complete contracts"
+              + (f"; BLIND (no schema file, run --write-schemas): {', '.join(missing)}" if missing else ""))
+        for f in bad:
+            print(f"  - {f}")
+        return 1 if bad else 0
+
     if args.reconcile:
-        undeclared, stale, note = reconcile()
+        undeclared, stale, blind, note = reconcile()
         print(f"registry : {len(SOURCES)} collected, {len(DECLINED)} declined with a reason")
         print(f"crawl    : {INVENTORY}")
+        bad_receivers, rnote = receiver_verdict()
+        print(rnote)
+        if bad_receivers:
+            return 1
         if note:
             print(note)
             return 1
@@ -503,7 +1032,24 @@ def main() -> int:
                   "declined with a stated reason.")
         if stale:
             print(f"\nDECLINED FOR SOMETHING THAT IS GONE, {len(stale)}: {', '.join(stale)}")
+        if blind:
+            print(f"\nCOULD NOT LOOK, {len(blind)}: {', '.join(blind)}. These exclusions "
+                  f"name a directory this run could not read -- a permission error, an "
+                  f"unmounted volume, a filesystem that timed out. They are not stale and "
+                  f"they are not confirmed; nobody should delete them on this evidence.")
         return 1 if undeclared else 0
+
+    if args.write_schemas is not None:
+        names = args.write_schemas or list(SOURCES)
+        for name in names:
+            path, kind, _ = SOURCES[name]
+            if not path.exists():
+                print(f"{name}: ABSENT, no schema written")
+                continue
+            rows, _ = read_rows(path, kind, QUERIES.get(name))
+            out = write_schema(name, rows)
+            print(f"{name}: {len(rows)} rows -> {out}")
+        return 0
 
     # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
     # agent runs the same script by hand. Without a busy timeout the second one dies on
@@ -543,7 +1089,7 @@ def main() -> int:
     #: The registry checks itself against the machine on every run, not only when asked.
     #: A gap that is only visible behind a flag nobody types is the same shape as the
     #: defect this closes (LAW 28).
-    undeclared, stale_declines, note = reconcile()
+    undeclared, stale_declines, blind_declines, note = reconcile()
     if note:
         print(f"\n{note}")
         failures.append("no crawl to reconcile against")
@@ -555,6 +1101,58 @@ def main() -> int:
                         f"(run --reconcile)")
     if stale_declines:
         print(f"declined for something that is gone: {', '.join(stale_declines)}")
+    #: Printed, never counted as a failure. A directory this run could not read is a
+    #: blind spot, and failing the check on a blind spot is how a check that refuses
+    #: correct work gets switched off (LAW 38).
+    if blind_declines:
+        print(f"declined for a directory this run could not read, so no verdict on it: "
+              f"{', '.join(blind_declines)}")
+    #: Every source names the collector receiver it lands in; a receiver the collector
+    #: does not declare is a source with no way into the pipeline. BLIND when the
+    #: collector config is not on this host: printed, never a pass, never a failure.
+    bad_receivers, rnote = receiver_verdict()
+    print(rnote)
+    if bad_receivers:
+        failures.append(f"{len(bad_receivers)} source(s) name an undeclared receiver")
+
+    #: crew#73 row 4: a producer that stops stamping its rows is noticed by this run,
+    #: not by whoever next opens the warehouse.
+    null_failures, nnote = null_time_verdict(conn)
+    print(nnote)
+    failures.extend(null_failures)
+
+    #: crew#74 row 2: every row against its source's schema file; a shape change is named
+    #: by source and line, and a source with no schema file is a failure.
+    schema_failures = [f for e in report for f in e.get("schema", [])]
+    no_file = sorted(e["source"] for e in report if e["status"] == "OK"
+                     and not (SCHEMAS / f"{e['source']}.json").exists())
+    print(f"schema: {sum(1 for e in report if e.get('schema') == []) - len(no_file)} source(s) "
+          f"on schema, {len({f.split(':')[0] for f in schema_failures})} off"
+          + (f", BLIND (no schema file, run --write-schemas): {', '.join(no_file)}" if no_file else ""))
+    failures.extend(schema_failures)
+    #: crew#84: the contract half of every schema file, graded on every run.
+    failures.extend(f for e in report for f in contract_verdict(e["source"]))
+
+    #: crew#74 row 3: row counts, null rates and key counts appended per run, and a
+    #: source that shrank or whose null rate jumped is named by this run.
+    q_failures, qnote = quality_checks(conn)
+    print(qnote)
+    failures.extend(q_failures)
+
+    #: LAW 50 (crew#516 CP5): the collector's verdict per source, and a refused or
+    #: unreachable collector fails the run. No endpoint is one word, never a failure:
+    #: the machine has not been told where the collector is, and that is the
+    #: `bin/idp-science-facts` receipt's job to say (FAIL sources=0).
+    emits = [e for e in report if "emit" in e]
+    sent = [e for e in emits if e["emit"].startswith("ok")]
+    emit_failures = [f"{e['source']}: collector {e['emit']}" for e in emits
+                     if e["emit"].startswith("FAIL")]
+    if emits and all(e["emit"].startswith("skipped") for e in emits):
+        print(f"emit: {emits[0]['emit']}")
+    else:
+        print(f"emit: {len(sent)} of {len(emits)} source(s) reached the collector"
+              f" at {otlp.endpoint()}")
+    failures.extend(emit_failures)
 
     if failures:
         print("\nneeds attention:")

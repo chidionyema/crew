@@ -1,0 +1,24 @@
+# Append-only ledgers. Every one of them is written by MANY sessions at once -- measured
+# 2026-08-24: 14 live worktrees of this repo across roughly 8 Claude sessions, and
+# science/RESEARCH-LEDGER.jsonl has been touched by 15 commits. Two sessions each appending
+# one row to the end of the same file is not a disagreement about anything, but git's default
+# merge driver has no way to know that: it sees two different last lines and stops. That
+# conflict happened for real today, on a file where both sides only ever added.
+#
+# merge=union keeps BOTH sides' lines instead of refusing. It is the correct driver for a file
+# whose only operation is append, and the wrong one for a file where a line gets EDITED -- a
+# union merge of an edit keeps both the old and the new line. So this list is exactly the
+# append-only ledgers and nothing else. A file that starts being rewritten in place comes off
+# this list the same day.
+science/RESEARCH-LEDGER.jsonl merge=union
+science/attention.jsonl       merge=union
+science/predictions.jsonl     merge=union
+science/ships.jsonl           merge=union
+risk/REGISTER.jsonl           merge=union
+#
+# WHAT IT COSTS, stated so nobody discovers it later: a union merge appends the other side's
+# lines to yours, so rows land in MERGE order and not in date order. Every row carries its own
+# `date`, so anything that cares must sort rather than trust the file order. Proved both ways
+# 2026-08-24 in a scratch repo: two branches each appending one row merged with both rows kept,
+# and a file NOT on this list still conflicted on the same merge -- the driver is scoped, not
+# blanket.

@@ -1,0 +1,17 @@
+{
+ "description": "Board dead letters: board writes that failed and were parked.",
+ "field_docs": {},
+ "fields": {
+  "error": [
+   "str"
+  ],
+  "record": [
+   "dict"
+  ],
+  "ts": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 3
+}

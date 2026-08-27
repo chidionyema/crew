@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import fnmatch
 import json
 import pathlib
 import sqlite3
@@ -39,124 +40,166 @@ import sys
 
 SCIENCE = pathlib.Path(__file__).resolve().parent
 WAREHOUSE = SCIENCE / "warehouse.db"
-INVENTORY = pathlib.Path.home() / ".estate" / "state" / "inventory.json"
 SHAPES = SCIENCE / "shapes.json"
 
-#: Why each known store is not in the warehouse. The path is a substring match against
-#: the inventory's own path, so a store that moves still matches on its distinctive tail.
-#:
-#: Every row here was measured on 2026-08-24 and carries the reason a human gave. A store
-#: found by the inventory and absent from this table is reported as UNEXPLAINED, which is
-#: the finding worth the most: it is a store nobody has decided about.
-WHY_UNCOLLECTED: dict[str, tuple[str, str]] = {
-    ".claude/projects": (
-        "WIRED_NEVER",
-        "76k session transcripts, 6.5 GB. Every tool call, every result, every word he "
-        "typed. Only per-day spend is extracted. This is the largest unread asset the "
-        "estate owns and the one that would answer most questions about how agents work.",
-    ),
-    ".claude/telemetry": (
-        "EXCLUDED",
-        "1.2 GB of the CLI's own failed telemetry uploads. Not our data, not our schema, "
-        "and it grows without bound. The correct action is deletion and a size guard, "
-        "not ingestion.",
-    ),
-    "prospector/.claude/worktrees": (
-        "WIRED_NEVER",
-        "2,330 scored candidate dossiers, 131 MB, stranded in an abandoned agent "
-        "worktree. Every vetting decision the estate has ever made is in here and the "
-        "live store beside it holds zero files.",
-    ),
-    ".claude/state/toolguard": (
-        "WIRED_NEVER",
-        "28.5 MB, one file per tool decision. The `toolguard` source in the warehouse "
-        "carries counters only, so which tool call was refused and why is not queryable.",
-    ),
-    ".maestro/intents": (
-        "WIRED_NEVER",
-        "One file per sensing cycle. What maestro noticed is recorded; whether it was "
-        "right is not, because nothing joins an intent to what happened next.",
-    ),
-    "experience_graph.db": (
-        "WIRED_NEVER",
-        "The skills maestro can heal with. Read live by maestro, never sampled into a "
-        "series, so 'is the experience graph growing' has no answer.",
-    ),
-    "state/coord/jobs.sqlite": (
-        "WIRED_NEVER",
-        "Job coordination state. Small, and the timeline files beside it are the part "
-        "worth having.",
-    ),
-    ".claude/directives": (
-        "WIRED_NEVER",
-        "6,932 of his prompts. Now collected in DERIVED form as the daily `attention` "
-        "counts, which is a count of his messages and not the messages. The text itself "
-        "is still unqueryable.",
-    ),
-    "state/prompt-ledger": (
-        "WIRED_NEVER",
-        "7,046 rows recording the same prompts as `directives`, in a second format, with "
-        "an open/closed state the other one lacks. Two ledgers of one thing (LAW 39).",
-    ),
-    ".claude/history.jsonl": (
-        "WIRED_NEVER",
-        "12,928 rows, the largest single-file ledger on the machine and the only one "
-        "spanning every project. Nothing reads it.",
-    ),
-    "state/tickets": (
-        "WIRED_NEVER",
-        "11 local tickets that do not join to the 26 GitHub issues. The duplication is "
-        "the finding; collecting it is how the duplication becomes visible.",
-    ),
-    "jobs/": (
-        "WIRED_NEVER",
-        "Six per-job timeline files, 316 rows. No code refers to any of them, so these "
-        "are the clearest deletion candidates on the machine.",
-    ),
-    "estate-board.jsonl": (
-        "WIRED_NEVER",
-        "The peer channel under `.estate`. A second copy of the board already collected "
-        "from `~/.claude`, and no code refers to this one.",
-    ),
-    "estate-push.j": ("WIRED_NEVER", "Push receipts. Superseded by the `bundle_push` source."),
-    "estate-worktr": ("WIRED_NEVER", "Worktree cleanup receipts, 2 rows."),
-    "founder-actio": ("WIRED_NEVER", "One row. The mechanism was replaced by the prompt ledger."),
-    "prospector/store": (
-        "WIRED_NEVER",
-        "The live dossier store, and it holds zero files. Listed so the emptiness is a "
-        "row rather than an absence.",
-    ),
-    "knowledge/maestro": ("WIRED_NEVER", "A second copy of the experience graph, under `.estate`."),
-}
+REGISTER = SCIENCE / "verdicts.json"
+CENSUS = SCIENCE / "census.json"
 
-#: Things the estate DOES and does not record at all. There is no file to point at, which
-#: is exactly why these never appear in an inventory of files and never get fixed. Each
-#: one is an act performed many times a day whose outcome vanishes the moment it happens.
-NEVER_EMITTED: list[tuple[str, str, str]] = [
-    ("revenue", "money coming in",
-     "2 rows in 5,548 mention revenue. Every efficiency number is a cost over nothing."),
-    ("agent_decisions", "what an agent chose, and what it rejected",
-     "The transcripts hold the reasoning and nothing extracts it. The `decisions` source "
-     "was built for this and its writer has been dead 55 hours."),
-    ("research", "what was researched, and what changed because of it",
-     "RESEARCH-LEDGER.jsonl has 8 entries, all hand-written by an agent that remembered, "
-     "and 0 of 8 record the decision the research fed. LAW 35 has no mechanism."),
-    ("task_outcome", "did the thing an agent built actually work",
-     "Commits and PRs are counted. Whether the change held, was reverted, or broke "
-     "something is not, so there is no denominator for quality."),
-    ("run_duration", "how long each scheduled job takes",
-     "launchd runs 43 jobs and records exit codes in log files. No series of durations "
-     "exists, so 'is anything getting slower' is unanswerable."),
-    ("guard_outcome", "what a guard refused, and whether the refusal was correct",
-     "LAW 38 grades a guard by whether it allows correct work. Refusals are counted; "
-     "false refusals are not recorded at all, so the law cannot be measured."),
-    ("model_routing", "which model served each call, and what it cost",
-     "`spend` records dollars per owner per day. Cost per model, per task type and per "
-     "outcome is in the transcripts and is not extracted."),
-    ("context_waste", "tokens spent re-reading context that did not change",
-     "`method_metrics` computes output tokens per call for one project, once. It is a "
-     "single row, generated by hand, not a series."),
-]
+sys.path.insert(0, str(SCIENCE))
+import producers  # noqa: E402
+
+#: Six verdicts, and only six. DECLINED comes from science/sources.json (crew#253), never
+#: from verdicts.json, so a store is decided in one file. UNEXPLAINED is not a verdict: it is the absence of one,
+#: and the gate fails on it. BLIND is not a verdict either: it is a domain that could not
+#: see its world this run, and it fails the gate unless the register allows it by name.
+VERDICTS = ("COLLECTED", "WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED", "EXCLUDED", "DECLINED")
+GAPS = ("WIRED_NEVER", "WRITER_DEAD", "NEVER_EMITTED")
+CENSUS_FLOOR = 0.5   # a domain reporting under half of last run's members, without BLIND, is broken
+
+
+def register() -> dict:
+    reg = json.load(REGISTER.open())
+    for e in reg["entries"]:
+        if e["verdict"] == "DECLINED":
+            raise ValueError(f"{e['key']}: DECLINED is decided in science/sources.json, not here")
+        if e["verdict"] not in VERDICTS:
+            raise ValueError(f"{e['key']}: verdict {e['verdict']!r} is not one of {VERDICTS}")
+        if e["verdict"] == "COLLECTED" and not e.get("reader"):
+            raise ValueError(f"{e['key']}: COLLECTED must name the reader")
+        if e["verdict"] == "EXCLUDED" and not e.get("why"):
+            raise ValueError(f"{e['key']}: EXCLUDED must state the reason")
+    return reg
+
+
+def _match(entries: list[dict], prod: dict) -> dict | None:
+    """First entry whose key glob matches the producer's key, and whose kind glob (if any)
+    matches its kind. Order in the register is precedence: put the narrow entry first."""
+    for e in entries:
+        if fnmatch.fnmatchcase(prod["key"], e["key"]) and \
+                (not e.get("kind") or fnmatch.fnmatchcase(prod["kind"], e["kind"])):
+            return e
+    return None
+
+
+def grade(prods: list[dict], reg: dict) -> list[dict]:
+    """Attach a verdict to every producer. A table inside a store inherits the store's
+    verdict; a producer the register does not name is UNEXPLAINED."""
+    entries = reg["entries"]
+    out = []
+    for p in prods:
+        e = p.get("decided") or _match(entries, p)
+        if e is None and p["kind"] == "table":
+            # mac/table/<store>/<t> -> the store's own row
+            store = p["key"].rsplit("/", 1)[0].replace("mac/table/", "mac/data/", 1)
+            e = _match(entries, {"key": store, "kind": "data"})
+            if e is None:
+                owner = next((q for q in prods if q["key"] == store and q.get("decided")), None)
+                e = owner["decided"] if owner else None
+        if e is None and p.get("auto"):
+            e = p["auto"]
+        g = dict(p)
+        if e is None:
+            g.update(verdict="UNEXPLAINED", why="No decision has been recorded about this producer.")
+        else:
+            g.update(verdict=e["verdict"], why=e.get("why", ""), reader=e.get("reader", ""),
+                     ticket=e.get("ticket", ""), entry=e.get("key", "auto"),
+                     entry_kind=e.get("kind", ""))
+        out.append(g)
+    return out
+
+
+def census_check(graded: list[dict], blind: dict[str, str]) -> list[str]:
+    """A discoverer that quietly finds far fewer members than last time is the same
+    failure as one that raised, minus the honesty. Compare against the last census."""
+    now = collections.Counter(g["domain"] for g in graded)
+    msgs = []
+    if CENSUS.exists():
+        was = json.load(CENSUS.open()).get("domains", {})
+        for d, n_was in was.items():
+            if d in blind:
+                continue
+            n_now = now.get(d, 0)
+            if n_was and n_now < n_was * CENSUS_FLOOR:
+                msgs.append(f"{d}: {n_now} members, was {n_was}; a discoverer went half-blind without saying so")
+    for d in producers.DOMAINS:
+        if d not in now and d not in blind:
+            msgs.append(f"{d}: 0 members and not BLIND; a domain never returns nothing silently")
+    return msgs
+
+
+def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: list[str]) -> list[str]:
+    """The gate. Every line here is one thing the founder's law forbids."""
+    v = []
+    unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
+    if unexplained:
+        v.append(f"{len(unexplained)} producer(s) UNEXPLAINED (first: {unexplained[0]['key']})")
+    unticketed = sorted({g["entry"] for g in graded if g["verdict"] in GAPS and not g.get("ticket")})
+    if unticketed:
+        v.append(f"{len(unticketed)} gap entr(y/ies) without a ticket: {', '.join(unticketed[:5])}")
+    allowed = reg.get("blind_allowed", {})
+    for d, why in blind.items():
+        if d not in allowed:
+            v.append(f"domain {d} BLIND and not allowed: {why}")
+    v.extend(census)
+    return v
+
+
+# crew#526 CP1 (founder 2026-08-27: "158 unclaimed open how come this never goes down"): guards filed
+# issues with no closing rule, so nothing could ever close them. Every filed body carries the exact
+# command whose exit 0 closes it; the nightly closer (CP2) runs that line and closes with the receipt.
+def closes_when(key: str) -> str:
+    return f"Closes-when: `python3 science/datamap.py --row {key}`"
+
+
+def row_status(reg: dict, key: str) -> int:
+    """Exit code for `--row KEY`: 0 when the register entry is no longer a gap (COLLECTED, EXCLUDED
+    or DECLINED), 1 while it is still a gap, 3 when no such entry exists (BLIND, never argparse's 2)."""
+    for e in reg["entries"]:
+        if e["key"] == key:
+            return 1 if e["verdict"] in GAPS else 0
+    return 3
+
+
+def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
+    """One crew issue per unticketed gap entry (crew#320's third box), written back into
+    the register so the gate goes green on the same run that filed them."""
+    import subprocess
+    by_entry: dict[str, list[dict]] = collections.defaultdict(list)
+    for g in graded:
+        if g["verdict"] in GAPS and not g.get("ticket"):
+            by_entry[g["entry"]].append(g)
+    filed = 0
+    for e in reg["entries"]:
+        if e.get("ticket") or e["verdict"] not in GAPS:
+            continue
+        members = by_entry.get(e["key"], [])
+        if not members:
+            # crew#386: a register entry no producer matched this run is a rule waiting
+            # for a member, not a gap. Ticketing it files an issue nobody can close.
+            continue
+        sample = "\n".join(f"- `{m['key']}` ({m['kind']}; can measure: {', '.join(m['measures'][:5])})" for m in members[:15])
+        more = f"\n- ... and {len(members) - 15} more" if len(members) > 15 else ""
+        body = (f"Filed by `science/datamap.py --file-tickets` (LAW 50, crew#320).\n\n"
+                f"**Verdict:** {e['verdict']}\n**Register entry:** `{e['key']}`"
+                f"{' kind `' + e['kind'] + '`' if e.get('kind') else ''}\n**Members this run:** {len(members)}\n\n"
+                f"**Why it is a gap:** {e.get('why','')}\n\n{sample}{more}\n\n"
+                f"Done when the entry's verdict in `science/verdicts.json` is COLLECTED with a named reader, "
+                f"or EXCLUDED with a reason, and `datamap.py --check` is green.\n\n"
+                + closes_when(e["key"]))
+        assert "Closes-when:" in body  # crew#526 CP1: a filed issue names the command that closes it
+        title = f"datamap {e['verdict']}: {e['key']}" + (f" [{e['kind']}]" if e.get("kind") else "")
+        r = subprocess.run(["gh", "issue", "create", "-R", repo, "--title", title[:200], "--body", body,
+                            "--label", "datamap"], capture_output=True, text=True, timeout=60, check=False)
+        if r.returncode != 0:
+            print(f"  could not file for {e['key']}: {r.stderr.strip()[:160]}", file=sys.stderr)
+            continue
+        num = r.stdout.strip().rsplit("/", 1)[-1]
+        e["ticket"] = f"{repo.split('/')[-1]}#{num}"
+        filed += 1
+        print(f"  filed {e['ticket']}  {title}")
+    if filed:
+        REGISTER.write_text(json.dumps(reg, indent=1) + "\n")
+    return filed
 
 
 # A dict is a record when its keys are schema, and a map when its keys are data.
@@ -232,7 +275,13 @@ def collected() -> dict:
         return {}
     db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
     out: dict = {}
-    for (src,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1"):
+    try:
+        sources = [s for (s,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1")]
+    except sqlite3.OperationalError:
+        # crew#320: a fresh checkout or worktree holds an empty warehouse.db that collect.py
+        # never filled. That is the same state as no warehouse, not a crash.
+        return {}
+    for src in sources:
         rows = []
         bad = 0
         for (p,) in db.execute("SELECT payload FROM facts WHERE source = ?", (src,)):
@@ -251,32 +300,6 @@ def collected() -> dict:
             },
         }
     return out
-
-
-def uncollected() -> list[dict]:
-    if not INVENTORY.exists():
-        return []
-    rows = json.load(INVENTORY.open()).get("rows", [])
-    out = []
-    for r in rows:
-        if r.get("collected") is not False or r.get("member_of"):
-            continue
-        path = r.get("path") or r.get("name") or ""
-        reason, why = "UNEXPLAINED", "No decision has been recorded about this store."
-        for frag, (rsn, txt) in WHY_UNCOLLECTED.items():
-            if frag in path:
-                reason, why = rsn, txt
-                break
-        out.append({
-            "path": path,
-            "kind": r.get("kind"),
-            "mb": r.get("mb"),
-            "rows": r.get("rows"),
-            "reason": reason,
-            "why": why,
-            "referenced_by_code": bool(r.get("referenced")),
-        })
-    return sorted(out, key=lambda r: (r["reason"], -(r.get("mb") or 0)))
 
 
 def drift(now: dict) -> list[str]:
@@ -311,16 +334,38 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--json", action="store_true", help="emit the dictionary as data")
     ap.add_argument("--check", action="store_true",
-                    help="exit 1 if any source changed shape since the last run")
+                    help="exit 1 on any UNEXPLAINED producer, unticketed gap, disallowed BLIND "
+                         "domain, half-blind discoverer, or a source that changed shape")
+    ap.add_argument("--domains", default="", help="comma list of domains to run (default all)")
+    ap.add_argument("--file-tickets", action="store_true",
+                    help="open one crew issue per unticketed gap entry and write it back")
+    ap.add_argument("--repo", default="chidionyema/crew")
+    ap.add_argument("--row", default="", metavar="KEY",
+                    help="exit 0 when this register entry is no longer a gap (the Closes-when line of a filed issue)")
     args = ap.parse_args()
 
+    reg = register()
+    if args.row:
+        rc = row_status(reg, args.row)
+        print(f"datamap --row {args.row}: {'closed' if rc == 0 else 'still a gap' if rc == 1 else 'BLIND: no such entry'}")
+        return rc
     col = collected()
-    unc = uncollected()
     changes = drift(col)
+    only = set(args.domains.split(",")) - {""} or None
+    prods, blind = producers.discover(only)
+    graded = grade(prods, reg)
+    if args.file_tickets:
+        n = file_tickets(graded, reg, args.repo)
+        print(f"filed {n} ticket(s)")
+        graded = grade(prods, reg)
+    census = census_check(graded, blind) if only is None else []
+    bad = violations(graded, blind, reg, census)
+
+    counts = collections.Counter((g["domain"], g["verdict"]) for g in graded)
+    domains = sorted({g["domain"] for g in graded} | set(blind))
 
     if args.json:
-        json.dump({"collected": col, "uncollected": unc,
-                   "never_emitted": [{"id": a, "what": b, "why": c} for a, b, c in NEVER_EMITTED],
+        json.dump({"collected": col, "producers": graded, "blind": blind, "violations": bad,
                    "drift": changes}, sys.stdout, indent=1)
         print()
     else:
@@ -334,28 +379,39 @@ def main() -> int:
             print(f"  {src:<18} {v['rows']:>6} rows  {len(v['fields']):>4} fields{note}")
 
         print()
-        print(f"UNCOLLECTED  {len(unc)} stores that exist and nothing reads")
+        print(f"DATA MAP  {len(graded)} producers in {len(domains)} domains, "
+              f"{sum(len(g['measures']) for g in graded)} measurables")
         print("-" * 78)
-        for r in unc:
-            if r.get("mb"):
-                size = f"{r['mb']:.1f} MB"
-            elif r.get("rows") is not None:
-                size = f"{r['rows']} rows"
-            else:
-                size = "unsized"
-            # Two stores can share a basename and mean different things: there is an
-            # experience_graph.db under .maestro and another under a stale worktree, and
-            # printing both as "experience_graph.db" reads as the same row twice. Show
-            # the parent as well, trimmed from the left so the distinguishing end
-            # survives rather than the shared "/Users/chidionyema" head.
-            label = r["path"].replace(str(pathlib.Path.home()) + "/", "~/")
-            print(f"  {r['reason']:<14} {label[-44:]:<44} {size:>10}")
+        head = f"  {'domain':<13}{'total':>7}" + "".join(f"{v[:9]:>11}" for v in VERDICTS) + f"{'UNEXPL':>8}"
+        print(head)
+        for d in domains:
+            if d in blind:
+                print(f"  {d:<13}{'BLIND':>7}   {blind[d][:60]}")
+                continue
+            row = f"  {d:<13}{sum(n for (dd, _), n in counts.items() if dd == d):>7}"
+            row += "".join(f"{counts.get((d, v), 0):>11}" for v in VERDICTS)
+            row += f"{counts.get((d, 'UNEXPLAINED'), 0):>8}"
+            print(row)
 
+        gaps = [g for g in graded if g["verdict"] in GAPS]
+        # Two register rows may share a key and differ by kind (listener:forward vs
+        # listener:app, crew#375); the table keeps them apart or one ticket hides the other.
+        by_entry = collections.Counter((g["entry"], g.get("entry_kind", "")) for g in gaps)
         print()
-        print(f"NEVER EMITTED  {len(NEVER_EMITTED)} things the estate does and does not record")
+        print(f"GAPS  {len(gaps)} producers under {len(by_entry)} register entries; each entry carries a ticket")
         print("-" * 78)
-        for name, what, why in NEVER_EMITTED:
-            print(f"  {name:<16} {what}")
+        for (entry, ekind), n in by_entry.most_common():
+            g = next(x for x in gaps if x["entry"] == entry and x.get("entry_kind", "") == ekind)
+            label = f"{entry} [{ekind}]" if ekind else entry
+            print(f"  {g['verdict']:<14}{label[-40:]:<40}{n:>6}  {g.get('ticket') or 'NO TICKET'}")
+
+        unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
+        if unexplained:
+            print()
+            print(f"UNEXPLAINED  {len(unexplained)} producers nobody has decided about")
+            print("-" * 78)
+            for g in unexplained[:40]:
+                print(f"  {g['key'][-60:]:<60} {g['kind']}")
 
         if changes:
             print()
@@ -364,8 +420,19 @@ def main() -> int:
             for m in changes:
                 print(f"  {m}")
 
+        print()
+        if bad:
+            print(f"GATE  RED  {len(bad)} violation(s)")
+            for b in bad:
+                print(f"  {b}")
+        else:
+            print("GATE  GREEN  every producer has a verdict, every gap has a ticket, no domain silently blind")
+
     SHAPES.write_text(json.dumps(col, indent=1))
-    return 1 if (args.check and changes) else 0
+    if only is None:
+        CENSUS.write_text(json.dumps({"domains": dict(collections.Counter(g["domain"] for g in graded)),
+                                      "blind": blind}, indent=1) + "\n")
+    return 1 if (args.check and (bad or changes)) else 0
 
 
 if __name__ == "__main__":

@@ -10,7 +10,14 @@ which tier each law is actually on, and whether its guard is still emitting.
 
 Run it. Do not quote it from memory.
 """
-import json, os, re, subprocess, sys, time
+import calendar
+import contextlib
+import json
+import os
+import re
+import subprocess
+import sys
+import time
 
 H = os.path.expanduser("~")
 SETTINGS = f"{H}/.claude/settings.json"
@@ -20,9 +27,20 @@ SKIP_DIRS = {"node_modules", "venv", "__pycache__", "target",
              "build", "dist", "vendor", "Pods", "DerivedData"}
 STALE_H  = 24  # a tracking stream silent longer than this is not tracking
 
+
+def _read(path, errors=None):
+    """Whole file as text, closed on return."""
+    with open(path, errors=errors) as fh:
+        return fh.read()
+
+def _load(path):
+    """Parsed JSON file, closed on return."""
+    with open(path) as fh:
+        return json.load(fh)
+
 def laws():
     out = {}
-    try: txt = open(LAWS).read()
+    try: txt = _read(LAWS)
     except OSError: return out
     for n, title in re.findall(r'^#+\s*LAW (\d+)\s*[—-]\s*(.+)$', txt, re.M):
         out.setdefault(int(n), title.strip())
@@ -31,8 +49,8 @@ def laws():
 def wired():
     """guard basename -> [hook events]. These are PREVENTIVE: they run in-flight."""
     w = {}
-    try: cfg = json.load(open(SETTINGS))
-    except Exception: return w
+    try: cfg = _load(SETTINGS)
+    except (OSError, ValueError): return w
     for event, blocks in (cfg.get("hooks") or {}).items():
         for b in blocks:
             for hk in b.get("hooks", []):
@@ -43,8 +61,12 @@ def wired():
 
 def guards():
     if not os.path.isdir(SCRIPTS): return []
+    #: crew#423: opa-hook.py is the runner of every policy/*.rego except command.rego, so it
+    #: is a guard; before this it never entered the tier map and every reply.rego row derived
+    #: "dead" in the live job whatever the map said (only a hand-supplied tiermap graded it).
     return sorted(f[:-3] for f in os.listdir(SCRIPTS)
-                  if f.endswith(".py") and re.search(r'guard|fence|compliance|scrub|ledger|capture', f))
+                  if f.endswith(".py") and (f == "opa-hook.py"
+                  or re.search(r'guard|fence|compliance|scrub|ledger|capture', f)))
 
 _CORPUS = None
 def corpus():
@@ -67,7 +89,7 @@ def corpus():
             if os.path.basename(f) in ('index','HEAD','ORIG_HEAD','config'): continue
             try:
                 if os.path.getsize(f) > 2_000_000: continue
-                _CORPUS[f] = open(f, errors="ignore").read()
+                _CORPUS[f] = _read(f, errors="ignore")
             except OSError: pass
     return _CORPUS
 
@@ -88,13 +110,15 @@ def guard_path(name):
     """A guard is a .py in scripts/, or a git hook in scripts/hooks/ with no
     extension. The second kind was invisible to this probe until 2026-08-23,
     which is why it reported LAW 7 and LAW 32 as prose while both were wired."""
-    if name.startswith("hooks/"):
+    #: crew#434: policy rules live in scripts/policy/*.rego (the
+    #: hand-rolled-policy gate refuses a new .py guard), run by opa-hook.py.
+    if name.startswith("hooks/") or name.endswith(".rego"):
         return f"{SCRIPTS}/{name}"
     return f"{SCRIPTS}/{name}.py"
 
 def law_refs(name):
     """Which laws does this guard itself cite? Mechanical, not guessed."""
-    try: txt = open(guard_path(name), errors="ignore").read()
+    try: txt = _read(guard_path(name), errors="ignore")
     except OSError: return set()
     # Upper bound reads the laws file. It was hardcoded to 31, so LAW 32's own
     # gate cited a law this probe threw away. A constant that has to be edited
@@ -161,7 +185,7 @@ def guard_dir_reaches_impl(d):
     if not os.path.isfile(os.path.join(d, "_router")): return False
     for conf in (os.path.join(os.path.dirname(d.rstrip("/")), "estate.conf"),
                  f"{H}/.estate/guards/estate.conf"):
-        try: txt = open(conf, errors="ignore").read()
+        try: txt = _read(conf, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*GUARD_IMPL=(.+)$', txt, re.M)
         if not m: continue
@@ -182,7 +206,7 @@ def global_bind():
     if _GLOBAL_BIND is not None: return _GLOBAL_BIND
     _GLOBAL_BIND = False
     for cfgp in (f"{H}/.gitconfig", f"{H}/.config/git/config"):
-        try: txt = open(cfgp, errors="ignore").read()
+        try: txt = _read(cfgp, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
         if m and guard_dir_reaches_impl(m.group(1).strip()):
@@ -209,7 +233,7 @@ def hook_binds():
         g = os.path.join(r, ".git")
         cfgp = os.path.join(g, "config") if os.path.isdir(g) else None
         if not cfgp or not os.path.isfile(cfgp): continue
-        try: txt = open(cfgp, errors="ignore").read()
+        try: txt = _read(cfgp, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
         if not m: continue
@@ -235,27 +259,103 @@ def githooks():
     out = []
     for path in git_hooks():
         fp = os.path.join(d, path.split("/")[-1])
-        try: txt = open(fp, errors="replace").read()
+        try: txt = _read(fp, errors="replace")
         except OSError: continue
         ls = sorted({int(n) for n in re.findall(r'LAW\s*(\d{1,2})', txt)
                      if 1 <= int(n) <= 32})
         out.append((path.split("/")[-1], ls))
     return out
 
+# crew#80: the tracked streams used to be a hardcoded path list, and one of
+# them (state/one-branch/would-have-fired.jsonl) outlived its writer by five
+# days, so the lawenforcement check was red with nothing to fix. The names now
+# resolve through science/sources.json, the closed-world registry the datamap
+# gate keeps honest: a stream nobody registered cannot be tracked here, and a
+# stream the registry drops leaves this list in the same commit. toolguard
+# (state/toolguard/events.jsonl) went the same way: 77h silent on 2026-08-27,
+# tool-drip-guard.py wired into no hook, not in the registry, so not tracked.
+TRACKED_STREAMS = ("close_guard", "ledger", "board", "spend")
+SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.json")
+
+def stream_paths(sources=SOURCES, home=H):
+    """(display name, absolute path) for each tracked stream, from the registry.
+    A tracked name missing from the registry is an error, not a skip: silently
+    dropping it is how crew#80 happened in the other direction."""
+    with open(sources) as fh:
+        reg = {s["name"]: s for s in json.load(fh)["sources"]}
+    out = []
+    for name in TRACKED_STREAMS:
+        if name not in reg:
+            raise KeyError(f"tracked stream {name!r} is not in {sources}")
+        s = reg[name]
+        if s["root"] != "home":
+            raise ValueError(f"tracked stream {name!r} has root {s['root']!r}, expected 'home'")
+        out.append((s["path"], os.path.join(home, s["path"])))
+    return out
+
 def streams():
     """Tracking streams and how long since each last moved."""
-    cands = ["state/toolguard/events.jsonl","state/close-guard-observe.jsonl",
-             "state/one-branch/would-have-fired.jsonl","state/ledger.jsonl",
-             "ESTATE_BOARD.jsonl","estate-spend-history.jsonl"]
     now=time.time(); out=[]
-    for c in cands:
-        p=f"{H}/.claude/{c}"
+    for c,p in stream_paths():
         if not os.path.exists(p): continue
         age=(now-os.path.getmtime(p))/3600
-        try: n=sum(1 for _ in open(p,errors="ignore"))
+        try:
+            with open(p,errors="ignore") as fh: n=sum(1 for _ in fh)
         except OSError: n=-1
         out.append((c,n,age))
     return out
+
+CI_RUNS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci-runs.jsonl")
+
+
+def _repo_name():
+    """The repo as ci-runs.jsonl names it (the GitHub name), not the checkout
+    directory: a worktree named crew423 is still the crew repo."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        url = subprocess.run(["git", "-C", root, "config", "--get", "remote.origin.url"],
+                             capture_output=True, text=True, timeout=5, check=False).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    name = url.rstrip("/").rsplit("/", 1)[-1] if url else os.path.basename(root)
+    return name[:-4] if name.endswith(".git") else name
+
+
+REPO_NAME = _repo_name()
+
+def workflow_ran(workflow, ci_runs=CI_RUNS, repo=REPO_NAME, now=None, stale_h=30.0):
+    """crew#423: a GitHub Actions gate is live when the estate's own CI record
+    (science/ci-runs.jsonl, written daily by ci-runs.yml, crew#393) shows it
+    completed at least one run for this repo inside the last window. The file
+    existing in .github/workflows is not the question; a workflow that never
+    runs enforces nothing."""
+    try:
+        with open(ci_runs) as fh:
+            rows = [json.loads(line) for line in fh if line.strip()]
+    except (OSError, ValueError):
+        return False
+    now = time.time() if now is None else now
+    for r in rows:
+        if r.get("repo") != repo or r.get("workflow") != workflow or not r.get("measured"):
+            continue
+        try:
+            #: crew#425 review: mktime - timezone is 1h off under DST; timegm is UTC.
+            at = calendar.timegm(time.strptime(r["at"][:19], "%Y-%m-%dT%H:%M:%S"))
+        except (KeyError, ValueError):
+            continue
+        if (now - at) / 3600 <= stale_h and (r.get("completed") or 0) > 0:
+            return True
+    return False
+
+#: crew#423 row 25: policy/command.rego is loaded by rule-guard.py (PreToolUse on
+#: Bash), not by opa-hook.py, so its tier is rule-guard's. Every other .rego is
+#: opa-hook's.
+REGO_RUNNERS = {"command.rego": "rule-guard"}
+
+
+def rego_runner(name):
+    return REGO_RUNNERS.get(os.path.basename(name), "opa-hook")
+
 
 def derive(entry, tiermap):
     """LAW 28: the state field is hand-written, so it drifts, and a map that
@@ -268,8 +368,15 @@ def derive(entry, tiermap):
     """
     gs = entry.get("guards") or []
     if not gs: return "absent"
+    #: crew#423: the map was renumbered on 2026-08-23 (`was` is the number the
+    #: hook still cites, `law` the effective rank), so a hook citing LAW 32 was
+    #: graded dead against law=9. Either number is the citation.
+    cited = {n for n in (entry.get("law"), entry.get("was")) if n is not None}
     for g in gs:
         name = g[:-3] if g.endswith(".py") else g
+        if g.startswith(".github/workflows/"):
+            if workflow_ran(os.path.basename(g)): return "live"
+            continue
         if name.startswith("hooks/"):
             reached = global_bind() or hook_binds()
             #: A rule retired to a machine has no law number to cite, so the
@@ -281,7 +388,13 @@ def derive(entry, tiermap):
             #: For a rule still attached to a law, the hook must also SAY which
             #: law it enforces. That citation is what lets the map be checked
             #: against the guard instead of against itself.
-            elif entry["law"] in law_refs(name) and reached:
+            elif cited & law_refs(name) and reached:
+                return "live"
+        #: crew#434: a Rego rule is live when it cites the law and its runner,
+        #: opa-hook.py, is wired to a Claude Code hook. The rule cannot run any
+        #: other way, so the runner's tier is the rule's tier.
+        elif name.endswith(".rego"):
+            if cited & law_refs(name) and tiermap.get(rego_runner(name)) == "PREVENTIVE":
                 return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"
@@ -378,8 +491,8 @@ def main():
     mp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "enforcement-map.json")
     gap = []
     try:
-        M = json.load(open(mp))["laws"]
-    except Exception as e:
+        M = _load(mp)["laws"]
+    except (OSError, ValueError, KeyError) as e:
         M = []; print(f"\n  enforcement-map.json unreadable: {e}")
     if M:
         print("\n"+"="*74); print("LAW -> CHECK"); print("="*74)
@@ -406,11 +519,11 @@ def main():
         print(f"\n  mechanical AND live                  : {len(mech)-len(gap)} of {len(mech)}")
         print(f"  THE GAP                              : {[x['id'] for x in gap]}")
         for x in gap:
-            print(f"    LAW {x['id']:<3} {str(x['where']):<12} {x['check'][:52]}")
+            print(f"    LAW {x['id']:<3} {x['where']!s:<12} {x['check'][:52]}")
         if drift:
             print(f"\n  MAP DRIFT (the declared state was wrong): {len(drift)}")
             for i, said, real in drift:
-                print(f"    {str(i):<34} map said {said:<8} actually {real}")
+                print(f"    {i!s:<34} map said {said:<8} actually {real}")
         #: Both sides normalised to a bare name. The map writes a guard as
         #: `estate/in-git.py` or `hooks/pre-push`, and the probe names it
         #: `in-git` or `hooks/pre-push`, so comparing the raw strings reported
@@ -419,11 +532,10 @@ def main():
             x = x.split("/")[-1]
             return x[:-3] if x.endswith(".py") else x
         declared = {_norm(gg) for x in M for gg in x.get("guards", [])}
-        try:
+        with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
             declared |= {_norm(gg)
-                         for sec in json.load(open(mp)).get("sections", [])
+                         for sec in _load(mp).get("sections", [])
                          for gg in sec.get("guards", [])}
-        except Exception: pass
         tiermap = {r[0]: r[1] for r in rows}
         undeclared = [g for g in G if _norm(g) not in declared
                       and tiermap.get(g) != "DEAD"]
@@ -455,7 +567,8 @@ def main():
        "streams":[{"name":n,"lines":c_,"age_h":round(a,1)} for n,c_,a in streams()]}
     out=f"{H}/.claude/state/law-enforcement.json"
     try:
-        json.dump(j,open(out,"w"),indent=1); print(f"\nwrote {out}")
+        with open(out,"w") as fh: json.dump(j,fh,indent=1)
+        print(f"\nwrote {out}")
     except OSError as e:
         print(f"\ncould not write {out}: {e}")
     # exit 1 while any mechanical law is unenforced or any stream is stale,

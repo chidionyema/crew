@@ -1,0 +1,6 @@
+== pytest
+1 passed in 0.13s
+== ruff
+All checks passed!
+== live register
+Counter({'scheduled_job:monitored': 40, 'scheduled_job:unmonitored': 16})

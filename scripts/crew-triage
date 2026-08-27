@@ -36,9 +36,10 @@ from __future__ import annotations
 
 import argparse
 import os
+import pathlib
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 REPO = os.environ.get("CREW_REPO", "chidionyema/crew")
 FOUNDER_URL = f"https://github.com/{REPO}/blob/main/FOUNDER.md"
@@ -49,7 +50,9 @@ PENDING = "_(pending)_"
 
 def git(*args: str) -> str:
     """Git state is evidence. A repo-less directory reports that, not a crash."""
-    p = subprocess.run(["git", *args], capture_output=True, text=True)
+    #: check=False: the next line reads the return code. A non-zero git here means "not a
+    #: repo", which is the answer, not a crash.
+    p = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
     return p.stdout.strip() if p.returncode == 0 else "(not a git repo)"
 
 
@@ -58,7 +61,7 @@ def tick(done: bool, label: str) -> str:
 
 
 def body(ns: argparse.Namespace, transcript: str) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     dirty = "dirty" if git("status", "--short") else "clean"
     return f"""## 1. Origin — what was asked
 
@@ -147,7 +150,7 @@ def main() -> int:
 
     transcript = ""
     if ns.file:
-        transcript = open(ns.file).read()
+        transcript = pathlib.Path(ns.file).read_text()
     elif not sys.stdin.isatty():
         transcript = sys.stdin.read()
 
@@ -156,12 +159,12 @@ def main() -> int:
         print(text)
         return 0
 
-    labels = ["triage", *(l for l in (ns.label or []) if l != "triage")]
+    labels = ["triage", *(lab for lab in (ns.label or []) if lab != "triage")]
 
     def create():
         return subprocess.run(["gh", "issue", "create", "--repo", REPO, "--title", ns.title,
                                "--body-file", "-", "--label", ",".join(labels)],
-                              input=text, capture_output=True, text=True)
+                              input=text, capture_output=True, text=True, check=False)
 
     p = create()
     # A label this repo has never seen is not a reason to lose the issue. gh
@@ -171,7 +174,7 @@ def main() -> int:
         for name in labels:
             subprocess.run(["gh", "label", "create", name, "--repo", REPO,
                             "--description", "opened by crew-triage", "--force"],
-                           capture_output=True, text=True)
+                           capture_output=True, text=True, check=False)
         p = create()
     if p.returncode != 0:
         print(f"crew-triage: gh refused: {p.stderr.strip()}", file=sys.stderr)

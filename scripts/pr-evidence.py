@@ -43,9 +43,10 @@ class Fail(Exception):
 
 def run(args, timeout: int = 90, **kw):
     try:
-        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout, **kw)
-    except subprocess.TimeoutExpired:
-        raise Fail(f"{args[0]} did not finish inside {timeout}s")
+        p = subprocess.run(args, capture_output=True, text=True, timeout=timeout,
+                           check=False, **kw)
+    except subprocess.TimeoutExpired as e:
+        raise Fail(f"{args[0]} did not finish inside {timeout}s") from e
     if p.returncode != 0:
         raise Fail(f"{args[0]} failed ({p.returncode}): {(p.stderr or p.stdout).strip()[:400]}")
     return p.stdout
@@ -154,6 +155,56 @@ def evidence_name(dest: Path, src: Path, stamp: str, i: int) -> tuple[str, bool]
     return f"{stamp}-{i}{src.suffix or '.png'}", True
 
 
+def commit_evidence(root: Path, rels: list[str], caption: str) -> list[str]:
+    """Commit exactly these paths, and return what actually went into the commit.
+
+    This used to be `git add <images>` then a bare `git commit`, which commits the
+    whole index. On 2026-08-24 that turned one screenshot into crew 097eccd: the
+    commit also deleted two merged evidence images, reverted the --selftest alias
+    below, and re-applied a stale copy of two verify.d gates, because the checkout
+    it ran in had those changes sitting staged from earlier work.
+
+    The class is not "that worktree was dirty". It is that a tool which is handed
+    a list of files must commit that list and nothing else. A pathspec commit does
+    exactly that: it takes the working-tree content of the named paths, ignores the
+    rest of the index, and leaves other staged work staged for whoever staged it.
+
+    An empty result is the ordinary retry, not an error: an earlier run already
+    committed these exact bytes and only its push failed. `git commit` on an empty
+    change exits 1, which would abort the retry before it reached the push.
+    """
+    abs_paths = [str(root / r) for r in rels]
+    run(["git", "add", "--", *abs_paths], cwd=root)
+    staged = [p for p in run(["git", "diff", "--cached", "--name-only", "--",
+                              *abs_paths], cwd=root).split("\n") if p.strip()]
+    if staged:
+        run(["git", "commit", "-m", f"evidence: {caption}", "--", *abs_paths], cwd=root)
+    return staged
+
+
+def warn_if_behind_main(root: Path) -> bool:
+    """Say so, loudly, when this branch is behind the default branch.
+
+    The other half of 097eccd. This does not refuse: refusing to record evidence
+    because a branch is stale would be LAW 38, a guard that blocks correct work,
+    and the evidence is usually the last thing standing between a fix and a merge.
+    It prints the count and the command, at the moment a session is about to push.
+    """
+    try:
+        base = run(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+                   cwd=root).strip() or "origin/main"
+    except Fail:
+        base = "origin/main"
+    try:
+        behind = int(run(["git", "rev-list", "--count", f"HEAD..{base}"], cwd=root).strip())
+    except (Fail, ValueError):
+        return False        # no such ref here; nothing to compare against
+    if behind:
+        print(f"WARNING: this branch is {behind} commit(s) behind {base}. LAW 7: "
+              f"refresh before review, `git merge {base}`. The evidence still attaches.")
+    return bool(behind)
+
+
 def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bool) -> str:
     info = pr_info(pr, repo)
     n, branch = info["number"], info["headRefName"]
@@ -176,12 +227,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
             shutil.copyfile(src, dest / name)
         links.append(f"docs/evidence/pr-{n}/{name}")
 
-    run(["git", "add", *[str(dest / Path(l).name) for l in links]], cwd=root)
-    # Nothing staged means an earlier run already committed these exact bytes and only
-    # its push failed. That is the ordinary retry, not an error, and `git commit` with
-    # an empty index exits 1 and would abort the retry before it reached the push.
-    if run(["git", "diff", "--cached", "--name-only"], cwd=root).strip():
-        run(["git", "commit", "-m", f"evidence: {caption}"], cwd=root)
+    warn_if_behind_main(root)
+    commit_evidence(root, links, caption)
     if push:
         run(["git", "push", "origin", branch], cwd=root)
 
@@ -195,8 +242,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
         return f"https://github.com/{slug}/blob/{branch}/{rel}?raw=1"
     # The image inlines on a public repo. On a private one GitHub cannot fetch it
     # without the viewer's token, so the link beside it is what actually works.
-    rows = "\n".join(f"| {caption} | ![{Path(l).name}]({url_for(l)}) | [open]({url_for(l)}) |"
-                     for l in links)
+    rows = "\n".join(f"| {caption} | ![{Path(rel).name}]({url_for(rel)}) | [open]({url_for(rel)}) |"
+                     for rel in links)
     block = (f"{MARKER}\n{SECTION}\n\n"
              f"| what it proves | image | link |\n|---|---|---|\n{rows}\n{END}\n")
     if MARKER in body:
@@ -224,6 +271,137 @@ OPTIONS_CHOSEN = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*chosen\s*:", 
 #: a heading with nothing under it satisfies a word search and satisfies nobody reading it.
 OPTION_MIN_CHARS = 40
 
+#: Every file in a diff opens with this header, and for a BINARY file it is the only place the
+#: path appears in full. git prints no `---`/`+++` lines and no hunks for a binary; it prints
+#: one line, `Binary files /dev/null and b/<path> differ`. Evidence is screenshots, so a pattern
+#: written for text hunks matches nothing at all -- measured against #137's own diff on
+#: 2026-08-24, where `+++ b/` found 0 paths while the image sat committed in the branch.
+DIFF_SECTION = re.compile(r"^diff --git a/\S+ b/(\S+)$", re.M)
+#: What a section says when it REMOVES the file instead of adding it. Any one of these and the
+#: post-image is /dev/null whatever the header said. Without this a pull request could satisfy
+#: the gate by deleting somebody else's screenshot.
+DELETED_SECTION = re.compile(
+    r"^(?:deleted file mode|\+\+\+ /dev/null|Binary files a/.* and /dev/null differ)", re.M)
+def evidence_dir(number=None) -> str:
+    """The directory fragment that counts as evidence, for one pull request or for any.
+
+    `attach` always writes under the pull request's OWN number, so scoping to it is what
+    the tool already produces. It also closes a hole: #137 restores two screenshots deleted
+    from #120 and #128, and without the scope those restorations read as #137's own
+    verification. A pull request could then pass the gate by restoring somebody else's
+    evidence, which is the mirror of passing it by deleting somebody else's.
+
+    Measured before narrowing it, 2026-08-24: of the 10 open pull requests, 6 have evidence
+    in their diff and all 6 have it under their own number, so this refuses none of them
+    (LAW 38).
+    """
+    n = re.escape(str(number)) if number is not None else r"\d+"
+    return f"docs/evidence/pr-{n}/"
+
+
+def added_evidence(diff: str, number=None) -> set:
+    """Every evidence file a diff ADDS or MODIFIES, by path, ignoring the ones it deletes.
+
+    Reads the diff a file at a time rather than pattern-matching the whole blob, because the
+    only fact that decides an evidence path is whether ITS OWN section is a deletion. A regex
+    over the whole text cannot tell which section a `deleted file mode` line belongs to.
+    """
+    diff = diff or ""
+    wanted = re.compile("^" + evidence_dir(number) + ".")
+    marks = list(DIFF_SECTION.finditer(diff))
+    out = set()
+    for i, m in enumerate(marks):
+        path = m.group(1)
+        if not wanted.match(path):
+            continue
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(diff)
+        if DELETED_SECTION.search(diff[m.end():end]):
+            continue
+        out.add(path)
+    return out
+
+
+EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
+NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
+FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
+#: A fence has to contain something. Set on its own terms, NOT inherited from OPTION_MIN_CHARS:
+#: an option is prose a human writes and can always make longer, while a receipt is whatever the
+#: tool printed, and the tools here print short.
+#:
+#: The number is the shortest real verdict line this estate emits, rounded down. Measured:
+#:
+#:     All checks passed!                     18
+#:     91 passed in 13.66s                    19
+#:     0 errors, 0 warnings, 0 informations   36
+#:     PASS=5  FAIL=3  CANNOT RUN=6  of 14    36
+#:
+#: At 40 this refused `91 passed in 13.66s\nAll checks passed!` -- 38 characters, a complete
+#: pytest receipt in the form this estate prefers -- and told the author to go and find better
+#: evidence than the evidence. That is the outage LAW 38 names, and it was found by review
+#: rather than by anything here, which is why the floor now carries its measurement.
+#:
+#: State the limit rather than let a reader assume more. This measures the LENGTH of what is
+#: inside the fence. It cannot tell pasted command output from sixteen characters of prose, so a
+#: transcript is the weaker source and a committed file is preferred wherever one can exist:
+#: `evidence_paths` returns the diff's files first and only falls back to the body. What the
+#: floor buys is the case it was written for -- a heading with nothing under it, which the old
+#: marker gate passed -- and it still refuses that, and a bare `$ ls` with no output.
+TRANSCRIPT_MIN_CHARS = 16
+
+
+def transcript_evidence(body: str) -> int:
+    """How many command transcripts the Verification evidence section actually contains.
+
+    Not every pull request can produce a screenshot. #139 changes one markdown file and one
+    ledger, and its evidence is pasted `git status` and secret-scan output -- which is the
+    form this estate asks for everywhere else ("show the green run, do not describe it").
+    Requiring an image would refuse correct work, and a guard that refuses correct work is
+    an outage (LAW 38).
+
+    This still is not grading a proxy. The proxy was the marker comment, which asserted that
+    a section existed; an empty section satisfied it. What is counted here is the transcript
+    itself, which is the evidence a text change can offer.
+    """
+    m = EVIDENCE_SECTION.search(body or "")
+    if not m:
+        return 0
+    tail = body[m.end():]
+    # crew#519, 2026-08-27: a transcript line `# minus /estate/mcp: ...` inside the fence read as
+    # the next heading, the section ended before the closing fence, and a body with a full
+    # transcript was refused. Headings are searched with the fences masked; indices are kept.
+    masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
+    nxt = NEXT_HEADING.search(masked)
+    section = tail[:nxt.start()] if nxt else tail
+    return sum(1 for block in FENCE.findall(section)
+               if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
+
+
+def evidence_paths(body: str, diff: str, number=None) -> tuple:
+    """(paths, where) for a pull request's evidence: ask the diff first, the body second.
+
+    INCIDENT, 2026-08-24. `check` decided a pull request had no evidence by looking for one
+    marker comment in the body. A body is prose. `gh pr edit --body-file` replaces it whole
+    and takes the marker with it, which is the ordinary way a body gets rewritten, and the
+    image it pointed at is untouched in the commit the whole time. It red-lit #156 and #159
+    that day, and left #137 red while `docs/evidence/pr-137/20260824T080641Z-1.png` sat
+    committed in #137's own diff.
+
+    The class is grading a proxy. A marker in editable prose is a CLAIM that evidence exists;
+    the file the diff adds IS the evidence, and no body edit can take it away. crew#161 is the
+    same class seen from the other end -- an evidence link written as `blob/<branch>/...` dies
+    when the branch is pruned -- and a SHA permalink does not fix it, because the grader would
+    still be reading prose.
+
+    The body stays as the fallback for the one case the diff is not available, so a pull
+    request that links evidence it did not commit is still read the way it always was.
+    """
+    added = added_evidence(diff, number)
+    if added:
+        return added, "committed in the diff"
+    #: The same files as the body links them, inline and as a link, hence the set.
+    linked = re.compile("/" + evidence_dir(number) + r"[^)\s?]+")
+    return set(linked.findall(body or "")), "linked from the body"
+
 
 def options_considered(body: str) -> tuple:
     """(ok, message) for the requirement that a pull request shows the roads it did not take.
@@ -249,13 +427,13 @@ def options_considered(body: str) -> tuple:
             if len(re.sub(r"[^A-Za-z0-9 ]", "", s)) >= OPTION_MIN_CHARS:
                 bullets.append(s)
     if len(bullets) < 2:
-        return False, ("'Options considered' lists %d real option(s), needs 2. A bullet under %d "
-                       "characters does not count as an option that was weighed"
-                       % (len(bullets), OPTION_MIN_CHARS))
+        return False, (f"'Options considered' lists {len(bullets)} real option(s), needs 2. "
+                       f"A bullet under {OPTION_MIN_CHARS} characters does not count as an "
+                       "option that was weighed")
     if not OPTIONS_CHOSEN.search("\n".join(block)):
         return False, ("'Options considered' has no 'Chosen:' line. Two options and no verdict is "
                        "a list, not a decision")
-    return True, "%d options weighed, with a stated choice" % len(bullets)
+    return True, f"{len(bullets)} options weighed, with a stated choice"
 
 
 #: What day-0 lock-in actually looks like in a diff. Each of these names one vendor and cannot be
@@ -330,52 +508,292 @@ def provider_coupling(body: str, diff: str) -> tuple:
     hits = coupling_markers(diff)
     if not hits:
         return True, "adds no new provider coupling"
-    what = ", ".join(sorted({"%s in %s" % (k, f) for k, f, _ in hits}))
-    if not COUPLING_HEAD.search(body or ""):
-        return False, ("adds provider coupling (%s) with no '## Provider coupling' section. "
+    what = ", ".join(sorted({f"{k} in {f}" for k, f, _ in hits}))
+    head = COUPLING_HEAD.search(body or "")
+    if not head:
+        return False, (f"adds provider coupling ({what}) with no '## Provider coupling' section. "
                        "LAW 34: name what is coupled and add a 'Swap:' line saying what replaces "
-                       "it and how long that takes" % what)
+                       "it and how long that takes")
     block = []
-    for line in body[COUPLING_HEAD.search(body).end():].splitlines():
+    for line in body[head.end():].splitlines():
         if line.strip().startswith("#"):
             break
         block.append(line)
     joined = "\n".join(block)
     if len(re.sub(r"[^A-Za-z0-9 ]", "", joined).strip()) < OPTION_MIN_CHARS:
         return False, ("'Provider coupling' is a heading with nothing under it. Say what is "
-                       "coupled (%s) and what replaces it" % what)
+                       f"coupled ({what}) and what replaces it")
     if not COUPLING_SWAP.search(joined):
         return False, ("'Provider coupling' has no 'Swap:' line. Naming a dependency without "
                        "naming its replacement is a description, not an exit")
-    return True, "%d coupling(s) declared with a swap" % len(hits)
+    return True, f"{len(hits)} coupling(s) declared with a swap"
+
+
+#: Where a change is infra work and must name its standard. Exactly the paths crew#135 names,
+#: no wider: scripts/, workflows, launchd plists, and docs/STANDARDS.md itself — editing the
+#: standard IS infra work. Other docs prose stays exempt for the same reason EXEMPT exists
+#: above: a gate that refuses the page explaining it is a gate that gets deleted.
+INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
+
+#: Same emphasis-tolerant shape as OPTIONS_CHOSEN and COUPLING_SWAP, for the same measured
+#: reason (PR #19): people write `**Standard:**` and a pattern that only accepts the bare form
+#: refuses correct work, which LAW 38 calls an outage.
+STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|deviation)\s*:"
+                            r"(?:\*\*|__|\*|_)?\s*(.*)$", re.I | re.M)
+
+#: The ten rows of docs/STANDARDS.md "## Definition of done" (crew#205) -- this is the machine
+#: check that section's own row 3 asks for (crew#207). Exact row names from that table; rename
+#: here only if that table is renamed too.
+DOD_ROWS = (
+    "Tracked item", "Code or config", "Gate proved both ways", "Reference doc",
+    "How-to and demo", "Catalog entity", "Operational proof", "Scheduled re-grade",
+    "Standard row", "Evidence block",
+)
+
+#: A bare "n/a" -- no reason after it -- is a row typed to look addressed with nothing behind
+#: it: the silently-missing row the section's own last line names, wearing a costume.
+DOD_NA = re.compile(r"^n/?a\b\s*[:.]?\s*(.*)$", re.I)
+
+
+def infra_paths(diff: str) -> list:
+    """The infra files this diff touches — [] when it touches none.
+
+    All four header shapes, not just `+++ b/`: the first version read added files only, so a
+    PR DELETING `scripts/backup.py` because restic replaced it — exactly the change R7 wants a
+    line on — passed with nothing written, and a 100% rename emits no +++/--- lines at all,
+    only `rename from/to`. Demonstrated by code-3a on the #138 review; the goal-guard names
+    this exact class: an allow-list with a silent miss case. /dev/null never matches a prefix
+    below, so deletions surface through their `--- a/` side.
+    """
+    paths = set()
+    for line in (diff or "").splitlines():
+        if line.startswith(("+++ b/", "--- a/")):
+            p = line[6:].strip()
+        elif line.startswith(("rename from ", "rename to ")):
+            p = line.split(" ", 2)[2].strip()
+        else:
+            continue
+        if INFRA_PATH.search(p):
+            paths.add(p)
+    return sorted(paths)
+
+
+def standards_line(body: str, diff: str) -> tuple:
+    """(ok, message) for R7 / LAW 44. A pull request that touches infra names its standard.
+
+    docs/STANDARDS.md says a component not on the page needs a stated, reviewed deviation, and
+    until crew#135 nothing enforced that — a law without a protocol is a wish (LAW 44). The ask
+    is one line in the body: `Standard: <the STANDARDS.md row this uses>` or `Deviation: <what
+    and why>`. A deviation is never refused here — stating it is the whole requirement; the
+    review grades it (LAW 38: the escape hatch is writing the line, not routing around the gate).
+
+    A diff that touches no infra path passes without the author writing anything.
+    """
+    touched = infra_paths(diff)
+    if not touched:
+        return True, "touches no infra path"
+    for m in STANDARDS_MARK.finditer(body or ""):
+        if len(re.sub(r"[^A-Za-z0-9 ]", "", m.group(2)).strip()) >= 3:
+            return True, f"{m.group(1).capitalize()} line covers {len(touched)} infra file(s)"
+    what = ", ".join(sorted(touched)[:5])
+    return False, (f"touches infra ({what}) with no 'Standard:' or 'Deviation:' line. R7/LAW 44: add "
+                   "'Standard: <the docs/STANDARDS.md row this uses>' or 'Deviation: <what and "
+                   "why>' to the body. A deviation is allowed — stating it is the whole ask")
+
+
+def dod_row_pattern(name: str) -> re.Pattern:
+    """A line naming this definition-of-done row -- numbering, bullets and markdown emphasis
+    all tolerated, same shape as STANDARDS_MARK and OPTIONS_CHOSEN above and for the same
+    reason: a pattern that only accepts one way of writing a numbered list refuses a body that
+    named every row and wrote the list differently (LAW 38).
+    """
+    return re.compile(
+        r"^\s*(?:[-*+]\s+|\d+[.)]\s+)?(?:\*\*|__|\*|_)?\s*" + re.escape(name) +
+        r"\s*(?:\*\*|__|\*|_)?\s*[:\u2014\u2013-]\s*(.+)$", re.I | re.M)
+
+
+#: crew#522 (2026-08-27): the idp operating-model gate (policy/operating_model.rego,
+#: architecture_laws) refused two PRs from one session in one afternoon, both for the same
+#: thing: a `- LAW n <slug>:` line written as a sentence. The gate wants the shape of a proof
+#: -- a path or a backtick, an `->`, or `n/a: <reason>` -- and this check ran clean on both
+#: bodies because it never looked. Same regex as the gate, graded here before the PR exists.
+LAWS = {"1": "zero-gravity", "2": "fractal", "3": "nervous system", "4": "calibration"}
+LAWS_HEAD = re.compile(r"(?m)^## Architecture laws\s*$")
+
+
+def law_line_ok(body: str, n: str) -> bool:
+    slug = LAWS[n]
+    pat = rf"(?m)^- LAW {n} {slug}: (n/a: \S.*|[^\n]*[/`][^\n]*|[^\n]*->[^\n]*)$"
+    return re.search(pat, body) is not None
+
+
+def architecture_laws(body: str) -> tuple:
+    """(ok, message): the four law lines carry a command, a path or `n/a: <reason>`.
+
+    The idp gate grades exactly this shape; a sentence there is refused after the PR is
+    open, the evidence commit and the review ask already made (crew#522, twice).
+    """
+    if not LAWS_HEAD.search(body or ""):
+        return False, ("no '## Architecture laws' section; the idp gate refuses it and this "
+                       "check would have said nothing")
+    bad = [f"LAW {n} {LAWS[n]}" for n in LAWS if not law_line_ok(body, n)]
+    if bad:
+        return False, (f"{', '.join(bad)}: the line is missing or is a sentence. Make it the "
+                       "command or path that proves the law (a `/`, a backtick or `->`), or "
+                       "`n/a: <reason>` -- the idp operating-model gate refuses it otherwise")
+    return True, "four law lines carry a proof or an n/a reason"
+
+
+def dod_rows(body: str) -> tuple:
+    """(ok, message) for docs/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
+    body names all ten rows, or `n/a: <why>` for the ones that do not apply.
+
+    "DONE: on a reply with a missing row is the incident" is that section's own last line. A
+    row this function cannot find in the body at all is exactly that -- silently dropped -- so
+    it fails. So does a row typed as bare `n/a` with no reason after it: that is the same row
+    dropped wearing a costume instead of standing out where the review can see it.
+
+    A row that is present and not marked n/a passes on being named; how much is written next
+    to it is graded by the human review (LAW 38: a length floor here would refuse the founder's
+    own short pointers -- "this one.", "below." -- that a real PR body uses when the detail
+    lives in another section of the same body).
+    """
+    body = body or ""
+    missing, bare = [], []
+    for name in DOD_ROWS:
+        m = dod_row_pattern(name).search(body)
+        if not m:
+            missing.append(name)
+            continue
+        content = m.group(1).strip()
+        na = DOD_NA.match(content)
+        if na and len(re.sub(r"[^A-Za-z0-9 ]", "", na.group(1)).strip()) < 8:
+            bare.append(name)
+    if missing or bare:
+        parts = []
+        if missing:
+            parts.append(f"{len(missing)} row(s) not named at all: {', '.join(missing)}")
+        if bare:
+            parts.append(f"{len(bare)} row(s) marked bare 'n/a' with no reason: {', '.join(bare)}")
+        return False, ("; ".join(parts) + ". docs/STANDARDS.md 'Definition of done': every row "
+                       "needs its line, real content, or 'n/a: <why>' -- never dropped silently")
+    return True, "all 10 definition-of-done rows present"
 
 
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
-    if MARKER not in body:
-        return False, (f"#{info['number']} has no verification evidence. "
-                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`")
-    # Each image appears twice in a row, inline and as a link. Count the file,
-    # not the mention, or the gate reports double what is there.
-    imgs = set(re.findall(r"/docs/evidence/pr-\d+/[^)\s?]+", body))
-    if not imgs:
-        return False, f"#{info['number']} has an evidence section with no image in it"
-    ok_opts, why_opts = options_considered(body)
-    if not ok_opts:
-        return False, "#%s %s" % (info["number"], why_opts)
+    # The diff is fetched before anything is graded, because the evidence lives in it. See
+    # evidence_paths: reading the body's marker first is what made a body edit look like
+    # missing evidence.
     args = ["pr", "diff", pr] + (["--repo", repo] if repo else [])
     try:
         diff = gh(args)
-    except Exception:
-        # A diff we cannot fetch is not a pass. Say which check did not run, because a gate
-        # that goes quiet on its own failure is the shape LAW 28 forbids.
-        return False, "#%s: could not fetch the diff, so LAW 34 coupling was not checked" % info["number"]
+    except Exception:  # noqa: BLE001
+        # Blind on purpose, fail-closed: ANY fetch error must become a FAIL verdict, not a
+        # crash. A diff we cannot fetch is not a pass. Say which check did not run, because
+        # a gate that goes quiet on its own failure is the shape LAW 28 forbids.
+        return False, ("#{}: could not fetch the diff, so neither the evidence nor LAW 34 "
+                       "coupling was checked".format(info["number"]))
+    imgs, where = evidence_paths(body, diff, info["number"])
+    transcripts = transcript_evidence(body)
+    if not imgs and not transcripts:
+        return False, (f"#{info['number']} has no verification evidence. "
+                       f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`, "
+                       f"or paste the command output under `## Verification evidence`")
+    if not imgs:
+        where = f"{transcripts} command transcript(s) in the body"
+    ok_opts, why_opts = options_considered(body)
+    if not ok_opts:
+        return False, "#{} {}".format(info["number"], why_opts)
     ok_cpl, why_cpl = provider_coupling(body, diff)
     if not ok_cpl:
-        return False, "#%s %s" % (info["number"], why_cpl)
-    return True, "#%s carries %d evidence image(s), %s, %s" % (
-        info["number"], len(imgs), why_opts, why_cpl)
+        return False, "#{} {}".format(info["number"], why_cpl)
+    # Blocking, unlike standards_line below: crew#207 was filed as a merge-blocker, and the
+    # section it enforces already ships ("## Definition of done", crew#205) -- there is no
+    # estate-wide debt to measure in report mode first the way crew#135 needed for LAW 45.
+    ok_dod, why_dod = dod_rows(body)
+    if not ok_dod:
+        return False, "#{} {}".format(info["number"], why_dod)
+    ok_laws, why_laws = architecture_laws(body)
+    if not ok_laws:
+        return False, "#{} {}".format(info["number"], why_laws)
+    # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
+    # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
+    ok_std, why_std = standards_line(body, diff)
+    std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
+    carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
+    return True, (f"#{info['number']} carries {carries}, {why_opts}, "
+                  f"{why_cpl}, {why_dod}, {why_laws}; standards (report-only): {std}")
+
+
+def selftest_commit_scope() -> int:
+    """commit_evidence commits what it was handed, in a throwaway repository.
+
+    Four controls, and two of them are the tool saying yes. The incident (crew
+    097eccd) is control B: unrelated work was staged, and the evidence commit
+    swallowed it. Control A is the paired half, because a guard only ever seen
+    refusing has never been shown to permit.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    work = Path(tempfile.mkdtemp(prefix="pr-evidence-scope-"))
+    try:
+        # os.environ goes FIRST so these four win. The other order let an ambient
+        # GIT_AUTHOR_NAME silently replace the selftest's identity.
+        env = {**os.environ,
+               "GIT_AUTHOR_NAME": "selftest", "GIT_AUTHOR_EMAIL": "selftest@localhost",
+               "GIT_COMMITTER_NAME": "selftest", "GIT_COMMITTER_EMAIL": "selftest@localhost"}
+        run(["git", "init", "-q", "-b", "main", str(work)], env=env)
+        # The identity has to live in the repository, not just in this env dict, because
+        # the subject of the test -- commit_evidence -- runs git without it. On any
+        # machine with a global user.name that difference is invisible. A CI runner has
+        # none, so the selftest died with `fatal: empty ident name` on ubuntu-latest
+        # while passing here. Reproduce that locally with GIT_CONFIG_GLOBAL=/dev/null.
+        run(["git", "config", "user.email", "selftest@localhost"], cwd=work, env=env)
+        run(["git", "config", "user.name", "selftest"], cwd=work, env=env)
+        (work / "keep.txt").write_text("as merged\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+        run(["git", "commit", "-q", "-m", "base"], cwd=work, env=env)
+
+        # The dirty index that caused the incident: an unrelated file rewritten and
+        # staged, exactly as a stale checkout leaves it.
+        (work / "keep.txt").write_text("a rider from another branch\n")
+        run(["git", "add", "keep.txt"], cwd=work, env=env)
+
+        ev = work / "docs" / "evidence" / "pr-1"
+        ev.mkdir(parents=True)
+        (ev / "shot.png").write_bytes(b"\x89PNG evidence")
+        rel = "docs/evidence/pr-1/shot.png"
+
+        staged = commit_evidence(work, [rel], "a screenshot")
+        in_commit = sorted(p for p in run(["git", "show", "--pretty=", "--name-only", "HEAD"],
+                                          cwd=work, env=env).split("\n") if p.strip())
+
+        check_one("A the evidence image is in the commit", in_commit, [rel])
+        check_one("B the unrelated staged file is NOT in the commit",
+                  "keep.txt" in in_commit, False)
+        check_one("C the unrelated change is still staged, for whoever staged it",
+                  run(["git", "diff", "--cached", "--name-only"], cwd=work,
+                      env=env).strip(), "keep.txt")
+        # The retry path: same bytes, nothing to commit, and no exception. This is
+        # what a refused push leaves behind, and it has to stay free.
+        check_one("D re-attaching the same bytes commits nothing and does not raise",
+                  commit_evidence(work, [rel], "a screenshot"), [])
+        check_one("E the first call did report what it committed", staged, [rel])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    print(f"selftest-commit-scope: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
 
 
 def selftest_options() -> int:
@@ -385,9 +803,9 @@ def selftest_options() -> int:
     def check_one(name, got, want):
         ran.append(name)
         if got == want:
-            print("  ok   %s" % name)
+            print(f"  ok   {name}")
         else:
-            print("  FAIL %s: got %r, want %r" % (name, got, want))
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
             fails.append(name)
 
     good = ("## Options considered\n"
@@ -452,14 +870,116 @@ def selftest_options() -> int:
                         ("underscore bold", "__Swap:__ any chat model behind providers.chat, an hour"),
                         ("bare", "Swap: any chat model behind providers.chat, an hour"),
                         ("plain bullet", "- Swap: any chat model behind providers.chat, an hour")):
-        check_one("a %s Swap line is accepted" % label,
+        check_one(f"a {label} Swap line is accepted",
                   provider_coupling("## Provider coupling\nThe tick names claude-opus-5 "
                                     "directly when it summarises the day.\n" + line + "\n",
                                     d_model)[0], True)
     check_one("claude gets no exemption from the law it is named in",
               provider_coupling("no section at all",
                                 "+++ b/scripts/t.py\n+p = HOME / \".claude/projects\"\n")[0], False)
-    print("selftest-options: %d/%d passed" % (len(ran) - len(fails), len(ran)))
+    # ---- R7 / LAW 44 standards line, on literal diffs. Paired controls again: every refusal
+    # has the pass that shows the gate still says yes to correct work (LAW 38).
+    d_scripts = "+++ b/scripts/tick.py\n+    total = count_rows(db)\n"
+    d_wf = "+++ b/.github/workflows/crew-qa.yml\n+      - name: step\n"
+    d_plist = "+++ b/ops/com.founder.board.plist\n+<key>Label</key>\n"
+    d_page = "+++ b/docs/STANDARDS.md\n+| a row |\n"
+    d_prose = "+++ b/docs/onboarding/law-44.md\n+Some words about the gate.\n"
+    named = "Standard: launchd, per the substrate row\n"
+
+    check_one("a non-infra diff passes with nothing written",
+              standards_line("no line at all", d_prose)[0], True)
+    check_one("a scripts/ diff with no line fails",
+              standards_line("no line at all", d_scripts)[0], False)
+    check_one("a workflow diff with no line fails",
+              standards_line("no line at all", d_wf)[0], False)
+    check_one("a plist diff with no line fails",
+              standards_line("no line at all", d_plist)[0], False)
+    check_one("editing STANDARDS.md itself is infra work",
+              standards_line("no line at all", d_page)[0], False)
+    check_one("a Standard line passes", standards_line(named, d_scripts)[0], True)
+    check_one("a Deviation line passes",
+              standards_line("Deviation: cron here because launchd lacks a calendar for it\n",
+                             d_scripts)[0], True)
+    check_one("a bold Standard line passes",
+              standards_line("**Standard:** launchd, per the substrate row\n", d_scripts)[0], True)
+    check_one("a bulleted bold Deviation line passes",
+              standards_line("- **Deviation:** cron here, launchd lacks the trigger\n",
+                             d_scripts)[0], True)
+    check_one("a Standard line with nothing after the colon fails",
+              standards_line("Standard:\n", d_scripts)[0], False)
+    # The miss case code-3a demonstrated on the #138 review: deletions carry only a `--- a/`
+    # header and pure renames carry only `rename from/to` lines. Paired both ways again.
+    d_del = "--- a/scripts/backup.py\n+++ /dev/null\n"
+    d_ren = ("diff --git a/scripts/old-name.sh b/scripts/new-name.sh\n"
+             "rename from scripts/old-name.sh\nrename to scripts/new-name.sh\n")
+    check_one("deleting an infra file with no line fails",
+              standards_line("no line at all", d_del)[0], False)
+    check_one("deleting an infra file with a Deviation line passes",
+              standards_line("Deviation: backup.py deleted, restic owns backups now\n",
+                             d_del)[0], True)
+    check_one("a pure rename of an infra file with no line fails",
+              standards_line("no line at all", d_ren)[0], False)
+    check_one("deleting a docs prose file passes with nothing written",
+              standards_line("no line at all", "--- a/docs/onboarding/old.md\n+++ /dev/null\n")[0],
+              True)
+    print(f"selftest-options: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
+def selftest_dod() -> int:
+    """The definition-of-done gate (crew#207), proved on literal bodies. Paired controls, and
+    the bad fixture is the one the issue names: a body where the Operational proof row is not
+    typed at all, present nowhere in the text -- a silently missing row, not a stated n/a.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    # Same shape crew#205's own PR body used: a number, the row name, an em dash, and either
+    # real content or a stated n/a with a reason.
+    good = (
+        "1. Tracked item — crew#207, owner named\n"
+        "2. Code or config — this PR\n"
+        "3. Gate proved both ways — selftest-dod covers it, both fixtures in one run\n"
+        "4. Reference doc — n/a: a gate function needs no new reference page\n"
+        "5. How-to and demo — n/a: a check flag has no user-facing how-to\n"
+        "6. Catalog entity — n/a: a check flag is not an entity\n"
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n"
+        "8. Scheduled re-grade — n/a: pr-evidence already runs on every PR\n"
+        "9. Standard row — Standard: docs/STANDARDS.md, review acceptance criteria\n"
+        "10. Evidence block — below\n"
+    )
+    check_one("all ten rows present passes", dod_rows(good)[0], True)
+    check_one("empty body fails naming all ten", dod_rows("")[0], False)
+    check_one("empty body names every missing row",
+              "Operational proof" in dod_rows("")[1] and "Tracked item" in dod_rows("")[1], True)
+    # The issue's own bad fixture: the Operational proof row typed nowhere in the body, not
+    # even as n/a -- the exact silently-missing-row incident LAW 44 exists to name.
+    dropped = good.replace(
+        "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n",
+        "")
+    ok_drop, why_drop = dod_rows(dropped)
+    check_one("dropping the Operational proof row fails", ok_drop, False)
+    check_one("the failure names the dropped row", "Operational proof" in why_drop, True)
+    # A row present but marked bare n/a with no reason is the same incident wearing a costume.
+    bare = good.replace("7. Operational proof — Operational: `pr-evidence.py check --pr 205` "
+                        "ran, verdict below\n", "7. Operational proof — n/a\n")
+    check_one("a bare n/a with no reason fails", dod_rows(bare)[0], False)
+    check_one("a bare n/a still names the row", "Operational proof" in dod_rows(bare)[1], True)
+    # The pass beside every refusal (LAW 38): the same body, correctly written with bold and
+    # bullet markdown, still passes -- the gate is reading the row names, not one exact layout.
+    bold = good.replace("**", "").replace(
+        "9. Standard row — Standard:", "9. **Standard row** — **Standard:**")
+    check_one("bold row name and bold field still passes", dod_rows(bold)[0], True)
+    bulleted = "- Tracked item: crew#207\n" + "\n".join(good.splitlines()[1:])
+    check_one("a bulleted colon-separated row still passes", dod_rows(bulleted)[0], True)
+    print(f"selftest-dod: {len(ran) - len(fails)}/{len(ran)} passed")
     return 1 if fails else 0
 
 
@@ -494,10 +1014,29 @@ def main() -> int:
 
     sub.add_parser("selftest-options",
                    help="prove the options gate on literal bodies, no network")
+    sub.add_parser("selftest-commit-scope",
+                   help="prove the evidence commit takes only its own files, in a temp repo")
+    sub.add_parser("selftest-dod",
+                   help="prove the definition-of-done row gate on literal bodies, no network")
+
+    # estate-selftest.py runs every script under ~/.claude/scripts that accepts
+    # `--selftest`, once an hour, and this file is symlinked in there. It was
+    # reported as NO SELFTEST because the cases live behind a subcommand with a
+    # different name, so 24 paired-control cases sat on disk and nothing ran them.
+    # A control nobody runs is not a control, so the estate's spelling is accepted
+    # as an alias for the subcommand rather than the cases being moved.
+    if "--selftest" in sys.argv[1:]:
+        # Every suite in this file, not the first one that was written. A second
+        # suite added beside a hardcoded call is a suite the hourly run never sees.
+        return max(selftest_options(), selftest_commit_scope(), selftest_dod())
 
     ns = ap.parse_args()
     if ns.cmd == "selftest-options":
         return selftest_options()
+    if ns.cmd == "selftest-commit-scope":
+        return selftest_commit_scope()
+    if ns.cmd == "selftest-dod":
+        return selftest_dod()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

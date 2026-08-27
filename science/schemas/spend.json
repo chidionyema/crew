@@ -1,0 +1,26 @@
+{
+ "description": "Daily model spend per owner directory, written by the spend collector.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "by_owner": [
+   "dict"
+  ],
+  "day": [
+   "str"
+  ],
+  "reqs_by_owner": [
+   "dict"
+  ],
+  "requests": [
+   "int"
+  ],
+  "total": [
+   "float"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 6
+}

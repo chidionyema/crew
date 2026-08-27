@@ -8,28 +8,16 @@
 set -u
 CANDIDATES=("${LAWS_FILE:-$HOME/AGENTS.md}" "$HOME/AGENTS-FULL.md")
 found=""
+present=""
 for f in "${CANDIDATES[@]}"; do
   [ -f "$f" ] || continue
+  present="yes"
   echo "\$ grep -n '^# LAW 22' $f"
   if grep -n "^# LAW 22" "$f"; then found="$f"; break; fi
 done
-if [ -z "$found" ]; then
-  # Two different situations were reaching the same exit code. If a laws file is here
-  # and LAW 22 has no section in it, that is a real failure. If no laws file is here at
-  # all, the check never saw the thing it grades: that is CANNOT RUN (exit 2), which
-  # verify.sh defines as "the check needs something this machine does not have". A CI
-  # runner has no ~/AGENTS.md, so this reported the laws as broken on every pull
-  # request in the repo. LAW 45: a guard that loses its evidence reports BLIND, never
-  # a verdict.
-  present=""
-  for f in "${CANDIDATES[@]}"; do [ -f "$f" ] && present="$f"; done
-  if [ -z "$present" ]; then
-    echo "no laws file on this machine: none of ${CANDIDATES[*]} exists"
-    echo "RESIDUAL: LAW 22's section is graded only where the laws live, which is the"
-    echo "          estate laptop. Set LAWS_FILE to grade it anywhere else."
-    exit 2
-  fi
-  echo "FAIL: LAW 22 has no section in $present"
-  exit 1
-fi
+# A guard that loses its evidence reports BLIND, never a verdict. On a CI runner no laws
+# file exists at all, and that is not the same finding as "the file is here and LAW 22 is
+# not in it". Exit 2 is the harness's CANNOT RUN, the same as gates 30/35/60/86.
+[ -n "$present" ] || { echo "BLIND: no laws file on this host (${CANDIDATES[*]}); the laptop grades this check"; exit 2; }
+[ -n "$found" ] || { echo "LAW 22 has no section in any of: ${CANDIDATES[*]}"; exit 1; }
 echo "law bodies read from $found"

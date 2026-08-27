@@ -1,0 +1,55 @@
+# crew#320 row 3 (LAW 50): a new WIRED_NEVER / NEVER_EMITTED register entry becomes a tracked
+# ticket without a person running anything. `science/datamap.py --file-tickets` has existed since
+# crew#416 and was only ever run by hand; crew#319's row sat silent for two days that way. Daily,
+# off the laptop (R31), the register is read, every gap entry with no ticket gets a crew issue, and
+# the ticket number is written back into science/verdicts.json through an auto-merged pull request
+# so the next `--check` is green on the same day. The register drives it, not the runner's disk:
+# file_tickets() reads science/verdicts.json, so what the runner cannot see does not matter.
+name: datamap-tickets
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+concurrency:
+  group: datamap-tickets
+  cancel-in-progress: false
+jobs:
+  file:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: file a ticket per unticketed gap entry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          python3 science/datamap.py --check --domains act --file-tickets --repo "$GITHUB_REPOSITORY" | tee filed.txt || true
+          echo "filed=$(grep -c '^  filed ' filed.txt || true)" >> "$GITHUB_OUTPUT"
+        id: filer
+      - name: land the ticket numbers in the register
+        if: steps.filer.outputs.filed != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git diff --quiet science/verdicts.json && { echo "register unchanged"; exit 0; }
+          b="science/datamap-tickets-$(date -u +%Y%m%d)"
+          n="${{ steps.filer.outputs.filed }}"
+          git config user.name estate-agents; git config user.email 'estate-agents[bot]@users.noreply.github.com'
+          git checkout -b "$b"; git add science/verdicts.json
+          git commit -m "science: $n datamap gap ticket(s) filed $(date -u +%Y-%m-%d) (crew#320)"
+          git push origin "$b"
+          gh pr create --head "$b" --base main --title "science: $n datamap gap ticket(s) filed $(date -u +%Y-%m-%d) (crew#320)" \
+            --body "$(printf '%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+              "Part of #320 (row 3, No-Issue: scheduled write-back). Ticket numbers written back by datamap-tickets.yml: $(grep '^  filed ' filed.txt | tr -s ' ' | cut -d' ' -f3 | paste -sd, -)" \
+              "Author-session: datamap-tickets.yml" "Reviewed-by: schedule" "Cost-delta-usd-month: 0" \
+              "## Architecture laws" "- LAW 1 zero-gravity: \`science/verdicts.json\`" "- LAW 2 fractal: \`tests/test_incident_crew320_gap_tickets_are_filed_on_a_schedule.py\`" \
+              "- LAW 3 nervous system: \`scripts/verify.d/26-datamap-register.sh\`" "- LAW 4 calibration: n/a: no model output")"
+          gh pr merge "$b" --auto --squash

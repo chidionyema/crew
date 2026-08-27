@@ -368,6 +368,14 @@
    "time_field": "at",
    "stale_after_hours": 24,
    "receiver": "otlp"
+  },
+  {
+   "name": "pi_bridge_runs",
+   "root": "home",
+   "path": ".claude/state/pi-bridge-runs.jsonl",
+   "kind": "jsonl",
+   "time_field": "ts",
+   "receiver": "otlp"
   }
  ],
  "declined": [

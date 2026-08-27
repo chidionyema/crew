@@ -1,14 +1,13 @@
 # Science lane showcase
 
-Generated 2026-08-27T08:47Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-27T08:56Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-27T08:45Z.
+Previous run: 2026-08-27T08:56Z.
 
-- producers discovered: 8206 -> 8261
-- field paths: 0 -> 915
+No number changed.
 
 ## Capabilities
 
@@ -80,7 +79,7 @@ Previous run: 2026-08-27T08:45Z.
 
 `python3 science/outcomes.py rate`
 
-- 12 recorded before a repair, 1 scored after, hit rate 100%
+- 13 recorded before a repair, 1 scored after, hit rate 100%
 
 ## Foresight: will this PR go red?
 
@@ -90,4 +89,4 @@ Previous run: 2026-08-27T08:45Z.
 - unseen newest 216 PRs: accuracy 68% against a base rate of 63%; Brier 0.209
 - model beats the base rate on unseen PRs
 - strongest signals: r_crew (+0.64), log_files (+0.43), log_add (+0.34), log_del (-0.33), f_workflow (+0.30)
-- live: 10 open PRs predicted before their CI finished, 0 scored, hit rate n/a (none scored yet)
+- live: 11 open PRs predicted before their CI finished, 0 scored, hit rate n/a (none scored yet)

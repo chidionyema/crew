@@ -21,6 +21,9 @@
 # in the collector's own stdout, both named in docs/onboarding/collect.md.
 set -uo pipefail
 
+# foresight needs scikit-learn, which lives in the repo venv, not the system python3 (crew#404).
+PY="${CREW_PYTHON:-$PWD/.venv/bin/python}"; [ -x "$PY" ] || PY=python3
+
 CREW="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$CREW" || exit 1
 
@@ -54,10 +57,10 @@ python3 science/transcripts.py
 transcripts_rc=$?
 
 for step in pull train score predict; do
-  python3 science/foresight.py "$step" || echo "science-collect: foresight $step exited $?"
+  "$PY" science/foresight.py "$step" || echo "science-collect: foresight $step exited $?"
 done
 
-python3 science/showcase.py
+"$PY" science/showcase.py
 showcase_rc=$?
 
 

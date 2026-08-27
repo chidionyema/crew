@@ -1,0 +1,30 @@
+{
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "closed_by_stale": [
+   "int"
+  ],
+  "closed_prs": [
+   "list"
+  ],
+  "measured": [
+   "bool"
+  ],
+  "reopened_by_wake": [
+   "int"
+  ],
+  "reopened_prs": [
+   "list"
+  ],
+  "repo": [
+   "str"
+  ],
+  "window_h": [
+   "int"
+  ]
+ },
+ "undescribed_baseline": 8
+}

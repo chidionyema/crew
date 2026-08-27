@@ -46,6 +46,8 @@ PREDICTIONS = SCIENCE / "predictions.jsonl"
 ATTENTION = SCIENCE / "attention.jsonl"
 REVENUE = SCIENCE / "revenue.jsonl"
 CI_RUNS = SCIENCE / "ci-runs.jsonl"
+#: crew#508 CP2, lane `code`: what stale closed and wake-blocked reopened, per repo per day.
+PR_HYGIENE = SCIENCE / "pr-hygiene.jsonl"
 GITHUB_OWNER = os.environ.get("ESTATE_GITHUB_OWNER", "chidionyema")
 
 #: The only place a customer can pay this estate is the store, and its backend answers here.
@@ -369,6 +371,74 @@ def collect_ci(now: dt.datetime | None = None, fetch=None, hours: int = 24) -> l
     return rows
 
 
+def collect_pr_hygiene(now: dt.datetime | None = None, fetch=None, hours: int = 24) -> list[dict]:
+    """One row per repo: pull requests closed by the stale workflow and pull requests reopened
+    by wake-blocked in the last `hours` (crew#504 shipped both, crew#508 CP2 asks the lane to
+    land its facts in the warehouse). A closed-by-stale PR is closed, unmerged, closed inside
+    the window and carries the `stale` label. A reopened-by-wake PR has a `reopened` event by
+    `github-actions[bot]` inside the window. A repo the API refuses is a measured=false row,
+    named, never dropped (LAW 30).
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    since = now - dt.timedelta(hours=hours)
+    fetch = fetch or _gh_json
+    rows: list[dict] = []
+    try:
+        repos = [r["name"] for r in fetch(f"users/{GITHUB_OWNER}/repos?per_page=100&type=owner")]
+    except Exception as exc:                                    # noqa: BLE001
+        return [{"at": at, "repo": None, "measured": False,
+                 "reason": f"repo list: {type(exc).__name__}: {exc}"[:200]}]
+    for repo in sorted(repos):
+        try:
+            prs = fetch(f"repos/{GITHUB_OWNER}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100")
+        except Exception as exc:                                # noqa: BLE001
+            rows.append({"at": at, "repo": repo, "measured": False,
+                         "reason": f"{type(exc).__name__}: {exc}"[:200]})
+            continue
+        closed_by_stale, reopened_by_wake = [], []
+        for pr in prs if isinstance(prs, list) else []:
+            updated = _iso(pr.get("updated_at"))
+            if not updated or updated < since:
+                continue
+            labels = {str(lb.get("name", "")).lower() for lb in pr.get("labels") or []}
+            closed = _iso(pr.get("closed_at"))
+            if pr.get("state") == "closed" and not pr.get("merged_at") and closed and closed >= since and "stale" in labels:
+                closed_by_stale.append(pr["number"])
+            if pr.get("state") == "open":
+                try:
+                    events = fetch(f"repos/{GITHUB_OWNER}/{repo}/issues/{pr['number']}/events?per_page=100")
+                except Exception:                               # noqa: BLE001
+                    events = []
+                for ev in events if isinstance(events, list) else []:
+                    when = _iso(ev.get("created_at"))
+                    if (ev.get("event") == "reopened" and when and when >= since
+                            and str((ev.get("actor") or {}).get("login", "")).startswith("github-actions")):
+                        reopened_by_wake.append(pr["number"])
+                        break
+        rows.append({"at": at, "repo": repo, "measured": True, "window_h": hours,
+                     "closed_by_stale": len(closed_by_stale), "reopened_by_wake": len(reopened_by_wake),
+                     "closed_prs": sorted(closed_by_stale), "reopened_prs": sorted(reopened_by_wake)})
+    return rows
+
+
+def cmd_pr_hygiene(args) -> int:
+    rows = collect_pr_hygiene(hours=args.hours)
+    with PR_HYGIENE.open("a") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+    print(f"{PR_HYGIENE}")
+    good = [r for r in rows if r.get("measured")]
+    for r in rows:
+        if not r.get("measured"):
+            print(f"NOT RUN  {r.get('repo') or 'repo list'}: {r.get('reason')}")
+    if not good:
+        return 1
+    print(f"{len(good)} repos  closed by stale {sum(r['closed_by_stale'] for r in good)}  "
+          f"reopened by wake {sum(r['reopened_by_wake'] for r in good)} in {args.hours}h")
+    return 0
+
+
 def _gh_json(path: str) -> dict | list:
     """`gh api --paginate --slurp`: one JSON array holding every page. Without --slurp gh
     concatenates page objects and json.loads fails with "Extra data" on any repo with more than
@@ -528,6 +598,9 @@ def main() -> int:
     w = sub.add_parser("ci", help="every workflow run of the last day: runs, pass rate, duration, queue wait (crew#393)")
     w.add_argument("--hours", type=int, default=24)
     w.set_defaults(fn=cmd_ci)
+    h = sub.add_parser("pr-hygiene", help="PRs closed by stale and reopened by wake-blocked, per repo (crew#508 CP2, lane code)")
+    h.add_argument("--hours", type=int, default=24)
+    h.set_defaults(fn=cmd_pr_hygiene)
 
     p = sub.add_parser("predict", help="record a causal prediction BEFORE the repair")
     p.add_argument("--issue", required=True, help="the issue or PR this is about")

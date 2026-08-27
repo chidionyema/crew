@@ -50,6 +50,9 @@ def _load():
 def snap(tmp_path, monkeypatch):
     mod = _load()
     monkeypatch.setattr(mod, "SNAP_WT", tmp_path / "wt")
+    key = tmp_path / "deploy-key"
+    key.write_text("fake")
+    monkeypatch.setattr(mod, "SNAP_KEY", key, raising=False)
     return mod
 
 
@@ -69,6 +72,8 @@ class _Git:
             wt = cmd.split("worktree add --detach -q '")[1].split("'")[0]
             (pathlib.Path(wt) / ".git").parent.mkdir(parents=True, exist_ok=True)
             (pathlib.Path(wt) / ".git").write_text("gitdir: fake")
+        if "remote get-url origin" in cmd:
+            return 0, "https://github.com/chidionyema/crew.git\n"
         if "git log --oneline -1" in cmd:
             return 0, "deadbee chore(state): estate snapshot"
         return 0, ""
@@ -119,3 +124,30 @@ def test_a_failed_push_is_named_and_non_zero(snap, capsys):
 
 def test_the_branch_it_writes_to_is_named_once(snap):
     assert snap.BRANCH == "main"
+
+
+# crew#391, 2026-08-27: main took required checks and the session-token push was refused (GH013);
+# the commit subject named no ticket and tracked.py refused it. Rung 4, both ways.
+def test_incident_crew391_the_push_travels_on_the_deploy_key_not_the_session_token(snap):
+    git = _Git(); snap.sh = git
+    assert snap.ready_to_commit() == ""
+    cfg = [c for c in git.ran if "git config" in c]
+    assert any("remote.origin.pushurl 'git@github.com:chidionyema/crew.git'" in c for c in cfg), git.ran
+    assert any(f"core.sshCommand 'ssh -i {snap.SNAP_KEY} -o IdentitiesOnly=yes'" in c for c in cfg), git.ran
+    assert all(str(snap.SNAP_WT) in c for c in cfg)
+
+
+def test_incident_crew391_no_deploy_key_is_a_stated_refusal_not_a_refused_push(snap, monkeypatch):
+    git = _Git(); snap.sh = git
+    monkeypatch.setattr(snap, "SNAP_KEY", snap.SNAP_KEY.with_name("absent"))
+    why = snap.ready_to_commit()
+    assert "no deploy key" in why and "crew#391" in why
+    assert not any("git config" in c for c in git.ran)
+
+
+def test_incident_crew391_the_commit_subject_names_its_ticket(snap):
+    import re
+    git = _Git(); snap.sh = git
+    assert snap.commit("2026-08-27 07:28 UTC") == 0
+    subject = next(c for c in git.ran if "git commit" in c)
+    assert re.search(r"crew#\d+", subject), subject

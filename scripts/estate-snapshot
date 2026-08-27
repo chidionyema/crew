@@ -216,7 +216,7 @@ def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int =
     cur = last.get("currency") or ""
     if n == 0:
         return [f"| revenue | GREEN | 0 paid orders, measured {at} from the store (`outcomes.py revenue`) |"]
-    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {len(last.get('payers', []))} payer(s), "
+    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {last.get('payers', 0)} payer(s), "
             f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
 
 

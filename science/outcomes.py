@@ -267,7 +267,7 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     token = os.environ.get("MEDUSA_ADMIN_TOKEN", "")
     url = f"{STORE_API}/admin/orders?payment_status=captured&limit=50&fields=id,email,total,currency_code,created_at"
     row = {"at": at, "source": url, "measured": False, "paid_orders": 0, "total": 0.0,
-           "currency": None, "payers": [], "first_paid_at": None, "last_paid_at": None, "reason": ""}
+           "currency": None, "payers": 0, "first_paid_at": None, "last_paid_at": None, "reason": ""}
     if not token:
         row["reason"] = "MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin)"
         return row
@@ -285,7 +285,9 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     row["paid_orders"] = int(body.get("count", len(orders)))
     row["total"] = round(sum(float(o.get("total") or 0) for o in orders), 2)
     row["currency"] = next((o.get("currency_code") for o in orders if o.get("currency_code")), None)
-    row["payers"] = sorted({o.get("email") for o in orders if o.get("email")})
+    # crew#70 REWORK (crew#409 review): the count only. revenue.jsonl is tracked in a public
+    # repository, so an address must never be written into it; the store keeps who paid.
+    row["payers"] = len({o.get("email") for o in orders if o.get("email")})
     whens = sorted(o.get("created_at") for o in orders if o.get("created_at"))
     row["first_paid_at"], row["last_paid_at"] = (whens[0], whens[-1]) if whens else (None, None)
     return row
@@ -306,7 +308,7 @@ def cmd_revenue(args) -> int:
         print(f"NOT RUN  revenue not measured at {row['at']}: {row['reason']}")
         return 1
     print(f"paid orders {row['paid_orders']}  total {row['total']} {row['currency'] or ''}  "
-          f"payers {len(row['payers'])}  first {row['first_paid_at']}  last {row['last_paid_at']}  "
+          f"payers {row['payers']}  first {row['first_paid_at']}  last {row['last_paid_at']}  "
           f"measured {row['at']}")
     return 0
 

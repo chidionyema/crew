@@ -60,7 +60,7 @@ def test_incident_crew70_a_payment_names_who_how_much_when(monkeypatch, tmp_path
     orders = [{"id": "o1", "email": "a@x.io", "total": 12.5, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"},
               {"id": "o2", "email": "b@x.io", "total": 7.5, "currency_code": "gbp", "created_at": "2026-08-26T10:00:00Z"}]
     row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 2})
-    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", ["a@x.io", "b@x.io"])
+    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", 2)
     assert (row["first_paid_at"], row["last_paid_at"]) == ("2026-08-20T10:00:00Z", "2026-08-26T10:00:00Z")
     line = _row(tmp_path, row)
     assert "GREEN" in line and "2 paid order(s)" in line and "20.0 gbp" in line
@@ -76,3 +76,13 @@ def test_incident_crew70_revenue_is_a_declared_source():
     reg = json.loads((ROOT / "science" / "sources.json").read_text())
     src = {s["name"]: s for s in reg["sources"]}
     assert src["revenue"]["path"] == "revenue.jsonl" and src["revenue"]["stale_after_hours"] <= 24
+
+
+def test_incident_crew409_no_customer_address_reaches_the_tracked_row(monkeypatch):
+    """crew#409 review: science/revenue.jsonl is tracked in a public repository. A payer's
+    address must never appear in the row; the count is enough for the founder's number."""
+    monkeypatch.setenv("MEDUSA_ADMIN_TOKEN", "x")
+    orders = [{"id": "o1", "email": "a@x.io", "total": 1.0, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"}]
+    row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 1})
+    assert "@" not in json.dumps(row)
+    assert row["payers"] == 1

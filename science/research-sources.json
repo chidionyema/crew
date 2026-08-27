@@ -1,0 +1,27 @@
+{
+  "_why": "crew#508 CP8. Every STANDARDS.md row that names a tool with a release stream is watched here; research_intake.py pulls the newest release of each repo once a day and files anything unseen as a candidate on science/RESEARCH-INTAKE.jsonl. A row missing from this file is a standard the estate cannot fall behind on because it is not watching it, and research_grade.py counts those too.",
+  "watch": [
+    {"row": "GitOps (at k8s time)", "repo": "fluxcd/flux2"},
+    {"row": "Admission policy", "repo": "kyverno/kyverno"},
+    {"row": "Data", "repo": "duckdb/duckdb"},
+    {"row": "Data", "repo": "dbt-labs/dbt-core"},
+    {"row": "Job monitoring", "repo": "healthchecks/healthchecks"},
+    {"row": "Notifications", "repo": "caronc/apprise"},
+    {"row": "Backups", "repo": "restic/restic"},
+    {"row": "Secrets", "repo": "getsops/sops"},
+    {"row": "Secrets", "repo": "FiloSottile/age"},
+    {"row": "Identity", "repo": "spiffe/spire"},
+    {"row": "LLM providers", "repo": "BerriAI/litellm"},
+    {"row": "Observability", "repo": "open-telemetry/opentelemetry-collector"},
+    {"row": "Observability", "repo": "SigNoz/signoz"},
+    {"row": "Front door", "repo": "kubernetes-sigs/external-dns"},
+    {"row": "Agent traces", "repo": "langfuse/langfuse"},
+    {"row": "Experiments", "repo": "mlflow/mlflow"},
+    {"row": "Scheduling", "repo": "dagster-io/dagster"},
+    {"row": "Scheduling", "repo": "argoproj/argo-workflows"},
+    {"row": "Code quality", "repo": "astral-sh/ruff"},
+    {"row": "Code quality", "repo": "microsoft/pyright"},
+    {"row": "Front end (every public surface)", "repo": "vercel/next.js"},
+    {"row": "Front end (every public surface)", "repo": "payloadcms/payload"}
+  ]
+}

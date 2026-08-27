@@ -23,6 +23,9 @@ import pathlib
 import statistics
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import research_intake
+
 SCIENCE = pathlib.Path(__file__).resolve().parent
 CREW = SCIENCE.parent
 LEDGER = SCIENCE / "RESEARCH-LEDGER.jsonl"
@@ -146,12 +149,23 @@ def inward() -> dict:
             "hit_rate": round(100 * hits / scored) if scored else None}
 
 
-def grades(g: dict, inw: dict) -> tuple[str, str]:
+def intake(now: dt.datetime | None = None) -> dict:
+    """The scheduled outward intake (crew#508 CP8), graded by research_intake.grade."""
+    now = now or dt.datetime.now(dt.UTC)
+    sources = research_intake.watched() if research_intake.SOURCES.exists() else []
+    state = json.loads(research_intake.STATE.read_text()) if research_intake.STATE.exists() else None
+    return research_intake.grade(research_intake.read_rows(), state, sources, now)
+
+
+def grades(g: dict, inw: dict, ink: dict | None = None) -> tuple[str, str]:
     """ELITE when the block answers its own question with numbers; GAP when it answers with a
-    hole it can name; BLIND when its source is not on disk at all."""
+    hole it can name; BLIND when its source is not on disk at all. Outward is also GAP when
+    the intake is stale (>2 days since a pull) or a candidate release sits >7 days unanswered:
+    research that stopped watching the world is research that fell behind (crew#508 CP8)."""
+    ink = ink or {"fresh": True, "late": []}
     if not g["questions"]:
         out_g = "BLIND"
-    elif g["stale"] or g["sourceless"]:
+    elif g["stale"] or g["sourceless"] or not ink["fresh"] or ink["late"]:
         out_g = "GAP"
     else:
         out_g = "ELITE"
@@ -166,7 +180,8 @@ def grades(g: dict, inw: dict) -> tuple[str, str]:
 
 def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
     inw = inward()
-    out_g, in_g = grades(g, inw)
+    ink = intake()
+    out_g, in_g = grades(g, inw, ink)
     med = "n/a" if g["median_hours_to_decision"] is None else f"{g['median_hours_to_decision']}h"
     L = rel(ledger)
     out = ["# Research capability, graded", ""]
@@ -182,7 +197,8 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         "| Direction | Grade | One sentence |",
         "|---|---|---|",
         f"| Outward | **{out_g}** | {g['decisions_fed']} of {g['questions']} questions fed a "
-        f"decision; {len(g['stale'])} stale, {g['sourceless']} with no source. |",
+        f"decision; {len(g['stale'])} stale, {g['sourceless']} with no source; intake "
+        f"{'fresh' if ink['fresh'] else 'RED'}, {ink['candidates']} candidates ({len(ink['late'])} late). |",
         f"| Inward | **{in_g}** | foresight {'trained' if inw['trained'] else 'untrained'}; "
         f"{inw['scored']} of {inw['recorded']} predictions scored. |",
         "",
@@ -214,6 +230,7 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
                 f"{s['question'][:120]} |" for s in g["stale"]]
         out += ["", f"A red row is research that cost tokens and fed nothing. {len(g['stale'])} of "
                     f"{g['questions']} questions are in this state.", ""]
+    out += [research_intake.render(ink, research_intake.read_rows()), ""]
     out += [
         "## Inward — what the estate knows about itself",
         "",

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_incident_crew495_snapshot_publishes_the_hazard_page():
     text = (ROOT / "scripts" / "estate-snapshot").read_text()
     assert 'HAZARD_PAGE = "docs/HAZARDS.md"' in text
-    assert "(*SCIENCE_LEDGERS, HAZARD_PAGE)" in text, "the page ships with the science ledgers"
+    assert "(*SCIENCE_LEDGERS, HAZARD_PAGE, SCIENCE_PAGE)" in text, "the page ships with the science ledgers"
     regen = text.index("regenerate the hazard page")
     copy = text.index("copy STATE.md into the worktree")
     assert regen < copy, "the page is regenerated before anything is copied"

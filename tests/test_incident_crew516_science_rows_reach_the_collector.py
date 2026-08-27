@@ -91,3 +91,9 @@ def test_collect_reports_the_emit_verdict_per_source():
     src = (Path(__file__).resolve().parents[1] / "science" / "collect.py").read_text()
     assert 'otlp.emit(name, [(row_time(r, tfield), r) for r in rows])' in src
     assert '"emit": emitted' in src
+
+
+def test_collect_check_fails_when_the_collector_refuses_and_says_skipped_when_unset():
+    src = (Path(__file__).resolve().parents[1] / "science" / "collect.py").read_text()
+    assert 'collector {e[\'emit\']}' in src and "failures.extend(emit_failures)" in src
+    assert 'print(f"emit: {emits[0][\'emit\']}")' in src

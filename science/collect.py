@@ -1084,6 +1084,21 @@ def main() -> int:
     print(qnote)
     failures.extend(q_failures)
 
+    #: LAW 50 (crew#516 CP5): the collector's verdict per source, and a refused or
+    #: unreachable collector fails the run. No endpoint is one word, never a failure:
+    #: the machine has not been told where the collector is, and that is the
+    #: `bin/idp-science-facts` receipt's job to say (FAIL sources=0).
+    emits = [e for e in report if "emit" in e]
+    sent = [e for e in emits if e["emit"].startswith("ok")]
+    emit_failures = [f"{e['source']}: collector {e['emit']}" for e in emits
+                     if e["emit"].startswith("FAIL")]
+    if emits and all(e["emit"].startswith("skipped") for e in emits):
+        print(f"emit: {emits[0]['emit']}")
+    else:
+        print(f"emit: {len(sent)} of {len(emits)} source(s) reached the collector"
+              f" at {otlp.endpoint()}")
+    failures.extend(emit_failures)
+
     if failures:
         print("\nneeds attention:")
         for f in failures:

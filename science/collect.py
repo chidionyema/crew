@@ -646,7 +646,8 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
 #: Sources whose rows carry no time by design: a single snapshot that is rewritten,
 #: not appended. Every other source is a log, and a log row without a time is a
 #: producer defect (crew#73: 6,166 such rows sat in the warehouse and no check said so).
-NO_TIME_SOURCES = frozenset({"enforcement_map"})
+#: crew#378: sovereign_budget is a per-session counter table with no time column, rewritten in place.
+NO_TIME_SOURCES = frozenset({"enforcement_map", "sovereign_budget"})
 
 
 def null_time_verdict(conn: sqlite3.Connection, now: str | None = None) -> tuple[list[str], str]:

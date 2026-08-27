@@ -234,9 +234,10 @@
     },
     {
       "key": "mac/data/*sovereign/budget.db",
-      "verdict": "WIRED_NEVER",
-      "why": "The sovereign worker's spend ledger. Nothing joins it to spend_daily in the warehouse.",
-      "ticket": "crew#378"
+      "verdict": "COLLECTED",
+      "why": "The sovereign worker's per-session spend ledger; 5 rows on 2026-08-27, no time column, collected as a snapshot since crew#378.",
+      "ticket": "crew#378",
+      "reader": "science/collect.py source sovereign_budget (sources.json, sqlite query over budget)"
     },
     {
       "key": "mac/ledger/*capability_receipts.jsonl",

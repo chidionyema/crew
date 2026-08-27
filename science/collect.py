@@ -95,6 +95,15 @@ WAREHOUSE = _env_path("SCIENCE_WAREHOUSE", Path(__file__).parent / "warehouse.db
 # not a rewrite.
 REGISTRY = _env_path("SCIENCE_REGISTRY", Path(__file__).parent / "sources.json")
 
+#: The only three shapes anything here can read. This is a closed set on purpose: every
+#: reader in this directory branches on `kind`, and each of them used to treat "not one of
+#: the two I know" as "a single JSON document" rather than as an error. A registry entry
+#: saying `kind: "Jsonl"` was therefore accepted, and its store read as one malformed
+#: document: measured on a real two-row file, 0 rows and 1 bad line, reported as a source
+#: that simply had nothing in it. The estate's own rule for this shape is written down --
+#: do not leave an allow-list with a silent miss case -- and this was one.
+KINDS = ("jsonl", "jsonl-dir", "json", "sqlite")
+
 
 def _default_collector_config() -> Path:
     """idp's collector config, found beside this repo's main checkout, never under a
@@ -194,13 +203,20 @@ def load_registry(path: Path = REGISTRY) -> dict:
         root = roots.get(s.get("root", "home"))
         if root is None:
             sys.exit(f"registry names an unknown root {s.get('root')!r} for {s.get('name')!r}")
+        kind = s.get("kind", "jsonl")
+        #: Refused here rather than at read time, because at read time it is indistinguishable
+        #: from an empty store. A typo in one letter is the likeliest way this file is ever
+        #: wrong, and it is the one mistake that produces a green run over nothing.
+        if kind not in KINDS:
+            sys.exit(f"registry gives {s.get('name')!r} an unknown kind {kind!r}. "
+                     f"It must be one of: {', '.join(KINDS)}.")
         #: A source with no receiver has no way into the one pipeline (R37 req 8).
         if not (s.get("receiver") or "").strip():
             sys.exit(f"registry source {s.get('name')!r} names no receiver. Every source "
                      f"says which collector receiver it arrives through.")
         receivers[s["name"]] = s["receiver"]
-        sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
-        if s.get("kind") == "sqlite":
+        sources[s["name"]] = (root / s["path"], kind, s.get("time_field"))
+        if kind == "sqlite":
             if not s.get("query"):
                 sys.exit(f"registry source {s['name']!r} is sqlite and names no query")
             queries[s["name"]] = s["query"]
@@ -428,12 +444,19 @@ def read_rows(path: Path, kind: str, query: str | None = None) -> tuple[list[dic
                     bad += 1
                     continue
                 rows.append(obj if isinstance(obj, dict) else {"value": obj})
-    else:
+    elif kind == "json":
         try:
             obj = json.loads(path.read_text(errors="ignore"))
         except json.JSONDecodeError:
             return [], 1
         rows.append(obj if isinstance(obj, dict) else {"value": obj})
+    else:
+        #: `load_registry` refuses an unknown kind before anything gets here, so this is
+        #: unreachable through the registry. It is written anyway because this function is
+        #: called directly by `duckdb_differential.py`, and the branch it replaces used to
+        #: read any unrecognised kind as a single JSON document -- which is the failure
+        #: this raise exists to make loud.
+        raise ValueError(f"read_rows got an unknown kind {kind!r}; expected one of {KINDS}")
     return rows, bad
 
 

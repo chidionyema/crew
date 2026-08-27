@@ -385,8 +385,10 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "the session dropped a thread and wrote no checkpoints/LATEST.md",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+    "policy/reply.rego"
+   ]
   },
   {
    "rule": "every-founder-request-is-a",

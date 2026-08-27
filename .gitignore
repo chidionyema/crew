@@ -24,3 +24,4 @@ science/dbt/logs/
 # dbt writes this itself on first run. It is a machine-local anonymous-usage id, not
 # configuration, and committing it means every machine that clones this fights over it.
 science/dbt/.user.yml
+science/showcase-state.json

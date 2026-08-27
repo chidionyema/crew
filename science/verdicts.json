@@ -61,15 +61,15 @@
     },
     {
       "key": "mac/*estate-worktr*",
-      "verdict": "WIRED_NEVER",
-      "why": "Worktree cleanup receipts, 2 rows.",
-      "ticket": "crew#361"
+      "verdict": "COLLECTED",
+      "why": "estate_audit.py worktree salvage receipts, 2 rows; collected since crew#361.",
+      "reader": "science/collect.py source worktree_cleanup (sources.json)"
     },
     {
       "key": "mac/*founder-actio*",
-      "verdict": "WIRED_NEVER",
-      "why": "One row. The mechanism was replaced by the prompt ledger.",
-      "ticket": "crew#362"
+      "verdict": "COLLECTED",
+      "why": "founder_actions.py FOUNDER ACTION ledger; 2 rows, written 2026-08-27 01:43Z, so the writer is live; collected since crew#362.",
+      "reader": "science/collect.py source founder_actions (sources.json)"
     },
     {
       "key": "act/revenue",

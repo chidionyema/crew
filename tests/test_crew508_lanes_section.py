@@ -121,3 +121,10 @@ def test_an_empty_file_where_the_warehouse_should_be_is_blind(tmp_path, monkeypa
     monkeypatch.setattr(m, "WAREHOUSE", empty)
     with pytest.raises(m.Blind, match="no readable facts table"):
         m.lanes(dt.datetime(2026, 8, 27, 12, 0, 0))
+
+
+def test_a_source_named_by_the_lane_convention_maps_by_name():
+    showcase = _showcase()
+    # crew#508 CP2: `lane.code.pr-hygiene` is the code lane without a LANE_SOURCES entry.
+    assert showcase._lane_of("lane.code.pr-hygiene") == "code"
+    assert showcase._lane_of("lane.nolane.x") == showcase.UNMAPPED

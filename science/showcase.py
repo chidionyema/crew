@@ -260,6 +260,11 @@ def foresight(now: dt.datetime) -> dict:
 
 
 def _lane_of(source: str) -> str:
+    """A source named ``lane.<lane>.<what>`` (the registry convention from crew#508 CP2, e.g.
+    ``lane.code.pr-hygiene``) belongs to that lane by name; older sources are looked up."""
+    parts = source.split(".")
+    if len(parts) >= 3 and parts[0] == "lane" and parts[1] in LANE_SOURCES:
+        return parts[1]
     for lane, names in LANE_SOURCES.items():
         if source in names:
             return lane

@@ -1,0 +1,24 @@
+# crew#74 row 1 (LAW 19): the warehouse exit drill runs on a schedule and goes red when it stops.
+# The runner has no warehouse (science/dbt/warehouse.duckdb is a gitignored build artefact of
+# the laptop's JSONL), so the daily run drills the built-in database: it proves the exit path
+# itself, EXPORT DATABASE to Parquet and IMPORT DATABASE into a fresh file, on the pinned
+# DuckDB, every day, off the laptop (R31). The same script against the real warehouse is
+# `python3 science/exit_drill.py` on the machine that holds it.
+name: warehouse-exit-drill
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -q "duckdb>=1.5"
+      - name: EXPORT DATABASE, IMPORT DATABASE, compare
+        run: python3 science/exit_drill.py --fixture --no-record

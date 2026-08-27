@@ -1,4 +1,6 @@
 {
+ "description": "Prompt ledger: prompts a session sent and what they cost.",
+ "field_docs": {},
  "fields": {
   "ac": [
    "list"
@@ -33,5 +35,7 @@
   "ts": [
    "str"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 10
 }

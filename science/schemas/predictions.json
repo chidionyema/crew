@@ -1,4 +1,6 @@
 {
+ "description": "Predictions register: forecasts made by sessions and their later grading.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -26,5 +28,7 @@
   "step": [
    "str"
   ]
- }
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 8
 }

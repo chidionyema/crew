@@ -1,4 +1,6 @@
 {
+ "description": "Drill runs and their verdicts, one row per run.",
+ "field_docs": {},
  "fields": {
   "id": [
    "str"
@@ -24,5 +26,7 @@
   "ts": [
    "int"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 8
 }

@@ -1,4 +1,6 @@
 {
+ "description": "Daily model spend per owner directory, written by the spend collector.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -18,5 +20,7 @@
   "total": [
    "float"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 6
 }

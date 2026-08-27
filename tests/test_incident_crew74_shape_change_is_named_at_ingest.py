@@ -25,7 +25,9 @@ def test_a_new_field_or_a_new_type_is_named_by_line(tmp_path, monkeypatch):
     rows = [{"at": "2026-08-27T00:00:00Z", "n": 1}, {"at": "2026-08-27T00:01:00Z", "n": 2}]
     assert collect.schema_verdict("src", rows) == []   # no file: blind, never a failure (LAW 38)
     collect.write_schema("src", rows)
-    assert json.loads((tmp_path / "src.json").read_text()) == {"fields": {"at": ["str"], "n": ["int"]}}
+    #: crew#84: a fresh file also carries the contract half, empty, with the baseline recorded.
+    assert json.loads((tmp_path / "src.json").read_text()) == {
+        "fields": {"at": ["str"], "n": ["int"]}, "field_docs": {}, "undescribed_baseline": 2}
     assert collect.schema_verdict("src", rows) == []
     drifted = [*rows, {"at": "x", "n": "3"}, {"at": "y", "n": 4, "extra": True}]
     assert collect.schema_verdict("src", drifted) == [

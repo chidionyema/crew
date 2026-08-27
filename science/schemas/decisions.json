@@ -1,4 +1,6 @@
 {
+ "description": "DECISIONS ledger: founder and session decisions with their receipts.",
+ "field_docs": {},
  "fields": {
   "alternatives": [
    "list"
@@ -68,5 +70,7 @@
   "why": [
    "str"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 22
 }

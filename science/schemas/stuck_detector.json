@@ -1,4 +1,6 @@
 {
+ "description": "stuck-detector ticks and findings: sessions that stopped moving.",
+ "field_docs": {},
  "fields": {
   "class": [
    "str"
@@ -33,5 +35,7 @@
   "would_page": [
    "bool"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 11
 }

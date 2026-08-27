@@ -1,4 +1,6 @@
 {
+ "description": "ESTATE_BOARD ledger: one row per board event (claim, release, note) across sessions.",
+ "field_docs": {},
  "fields": {
   "at": [
    "str"
@@ -49,5 +51,7 @@
   "ts": [
    "str"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 16
 }

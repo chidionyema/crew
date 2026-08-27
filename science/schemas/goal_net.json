@@ -1,4 +1,6 @@
 {
+ "description": "Goal net: goals, their edges and state changes.",
+ "field_docs": {},
  "fields": {
   "at": [
    "int"
@@ -33,5 +35,7 @@
   "to": [
    "str"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 11
 }

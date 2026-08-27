@@ -1,4 +1,6 @@
 {
+ "description": "Sovereign worker receipts: one row per workflow activity the worker completed.",
+ "field_docs": {},
  "fields": {
   "backend": [
    "str"
@@ -112,5 +114,7 @@
   "winner": [
    "str"
   ]
- }
+ },
+ "owner": "idp/sovereign",
+ "undescribed_baseline": 36
 }

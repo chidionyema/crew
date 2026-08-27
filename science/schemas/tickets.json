@@ -1,3 +1,7 @@
 {
- "fields": {}
+ "description": "Ticket-gate records: founder asks turned into tracked items.",
+ "field_docs": {},
+ "fields": {},
+ "owner": "claude-guards",
+ "undescribed_baseline": 0
 }

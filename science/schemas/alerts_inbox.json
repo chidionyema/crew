@@ -1,4 +1,6 @@
 {
+ "description": "Operator alerts inbox: every alert sent to the founder's disk inbox.",
+ "field_docs": {},
  "fields": {
   "dag_hash": [
    "str"
@@ -30,5 +32,7 @@
   "ts": [
    "float"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 10
 }

@@ -1,4 +1,6 @@
 {
+ "description": "close-guard observations: each reply the guard saw and what it decided.",
+ "field_docs": {},
  "fields": {
   "after_head": [
    "str"
@@ -23,5 +25,7 @@
   "waited_ms": [
    "int"
   ]
- }
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 7
 }

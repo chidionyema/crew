@@ -1,0 +1,52 @@
+{
+ "fields": {
+  "ID": [
+   "str"
+  ],
+  "Labels": [
+   "str"
+  ],
+  "Names": [
+   "str"
+  ],
+  "Ports": [
+   "str"
+  ],
+  "at": [
+   "str"
+  ],
+  "detail": [
+   "str"
+  ],
+  "id": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "log": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "rc": [
+   "int"
+  ],
+  "seconds": [
+   "float"
+  ],
+  "state": [
+   "str"
+  ],
+  "status": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ]
+ }
+}

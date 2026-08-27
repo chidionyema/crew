@@ -1,0 +1,13 @@
+{
+ "fields": {
+  "laws": [
+   "list"
+  ],
+  "laws_commit": [
+   "dict"
+  ],
+  "sections": [
+   "list"
+  ]
+ }
+}

@@ -1,0 +1,34 @@
+{
+ "fields": {
+  "compliance": [
+   "dict"
+  ],
+  "efficiency": [
+   "dict"
+  ],
+  "generated_at": [
+   "str"
+  ],
+  "headline": [
+   "dict"
+  ],
+  "mechanisms": [
+   "list"
+  ],
+  "predictions": [
+   "list"
+  ],
+  "project": [
+   "str"
+  ],
+  "sessions": [
+   "list"
+  ],
+  "stops": [
+   "dict"
+  ],
+  "themes": [
+   "list"
+  ]
+ }
+}

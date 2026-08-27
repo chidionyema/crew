@@ -1,0 +1,44 @@
+{
+ "fields": {
+  "class_of_error": [
+   "str"
+  ],
+  "date": [
+   "str"
+  ],
+  "decision_fed": [
+   "str"
+  ],
+  "findings": [
+   "list"
+  ],
+  "metric": [
+   "str"
+  ],
+  "metric_after": [
+   "NoneType",
+   "str"
+  ],
+  "metric_before": [
+   "str"
+  ],
+  "owner": [
+   "str"
+  ],
+  "question": [
+   "str"
+  ],
+  "sources": [
+   "list"
+  ],
+  "ticket": [
+   "str"
+  ],
+  "what_this_costs": [
+   "str"
+  ],
+  "why": [
+   "str"
+  ]
+ }
+}

@@ -1,0 +1,49 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "bytes": [
+   "int"
+  ],
+  "commits": [
+   "int"
+  ],
+  "contents_scanned": [
+   "bool"
+  ],
+  "event": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "mode": [
+   "str"
+  ],
+  "reason": [
+   "str"
+  ],
+  "remote": [
+   "str"
+  ],
+  "repo": [
+   "str"
+  ],
+  "restore": [
+   "str"
+  ],
+  "sha256": [
+   "str"
+  ],
+  "slug": [
+   "str"
+  ],
+  "tip": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ]
+ }
+}

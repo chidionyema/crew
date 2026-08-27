@@ -1,0 +1,28 @@
+{
+ "fields": {
+  "bytes": [
+   "int"
+  ],
+  "critical": [
+   "str"
+  ],
+  "day": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "sha256": [
+   "str"
+  ],
+  "stamp": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ],
+  "verified": [
+   "str"
+  ]
+ }
+}

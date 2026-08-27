@@ -1,0 +1,19 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "healed": [
+   "str"
+  ],
+  "last5": [
+   "list"
+  ],
+  "repo": [
+   "str"
+  ],
+  "visibility": [
+   "str"
+  ]
+ }
+}

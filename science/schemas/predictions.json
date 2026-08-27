@@ -1,0 +1,30 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "because": [
+   "str"
+  ],
+  "correct": [
+   "NoneType",
+   "bool"
+  ],
+  "id": [
+   "int"
+  ],
+  "issue": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "scored_at": [
+   "NoneType",
+   "str"
+  ],
+  "step": [
+   "str"
+  ]
+ }
+}

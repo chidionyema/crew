@@ -1,0 +1,34 @@
+{
+ "fields": {
+  "dag_hash": [
+   "str"
+  ],
+  "key": [
+   "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "legacy_hash": [
+   "str"
+  ],
+  "query": [
+   "dict"
+  ],
+  "rowid": [
+   "int"
+  ],
+  "source": [
+   "str"
+  ],
+  "table": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "ts": [
+   "float"
+  ]
+ }
+}

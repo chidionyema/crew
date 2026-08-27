@@ -37,8 +37,14 @@ if [ "$att_rc" -ne 0 ]; then
   echo "science-collect: outcomes.py attention exited $att_rc"
 fi
 
+python3 science/outcomes.py revenue
+rev_rc=$?
+if [ "$rev_rc" -ne 0 ]; then
+  echo "science-collect: outcomes.py revenue exited $rev_rc (NOT RUN is recorded, not hidden)"
+fi
+
 python3 science/collect.py --check
 collect_rc=$?
 
-echo "science-collect: ship=$ship_rc attention=$att_rc collect=$collect_rc"
+echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc"
 exit "$collect_rc"

@@ -31,7 +31,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import os
 import subprocess
+import urllib.error
+import urllib.request
 import sys
 import datetime as dt
 from pathlib import Path
@@ -40,6 +43,13 @@ SCIENCE = Path(__file__).resolve().parent
 SHIPS = SCIENCE / "ships.jsonl"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
 ATTENTION = SCIENCE / "attention.jsonl"
+REVENUE = SCIENCE / "revenue.jsonl"
+
+#: The only place a customer can pay this estate is the store, and its backend answers here.
+#: crew#70: every efficiency number was a cost divided by nothing because no series held what
+#: came in. The admin token is read from the environment (vault entry `medusa-admin`), never
+#: from a file in this repo.
+STORE_API = os.environ.get("ESTATE_STORE_API", "https://api.mumchimp.com")
 
 #: Where his own words are captured. `directive-capture.py` writes one file per project on
 #: UserPromptSubmit, so this directory is the estate's complete record of what he asked for.
@@ -240,6 +250,63 @@ def cmd_attention(args) -> int:
     return 0
 
 
+def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
+    """One row: has this estate ever been paid, by whom, how much, when.
+
+    Measured, never assumed. A captured payment is counted from the store backend's
+    admin orders endpoint; when the backend does not answer, or no token is set, the
+    row says so with `measured: false` and the snapshot prints NOT RUN. A zero is only
+    written when the store answered and reported no captured payment (LAW 30).
+    """
+    now = now or dt.datetime.now(dt.timezone.utc)
+    at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    token = os.environ.get("MEDUSA_ADMIN_TOKEN", "")
+    url = f"{STORE_API}/admin/orders?payment_status=captured&limit=50&fields=id,email,total,currency_code,created_at"
+    row = {"at": at, "source": url, "measured": False, "paid_orders": 0, "total": 0.0,
+           "currency": None, "payers": [], "first_paid_at": None, "last_paid_at": None, "reason": ""}
+    if not token:
+        row["reason"] = "MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin)"
+        return row
+    fetch = fetch or _http_json
+    try:
+        body = fetch(url, token)
+    except Exception as exc:                                    # noqa: BLE001
+        row["reason"] = f"{STORE_API} did not answer: {type(exc).__name__}: {exc}"[:200]
+        return row
+    orders = body.get("orders") if isinstance(body, dict) else None
+    if orders is None:
+        row["reason"] = "backend answered without an orders list"
+        return row
+    row["measured"] = True
+    row["paid_orders"] = int(body.get("count", len(orders)))
+    row["total"] = round(sum(float(o.get("total") or 0) for o in orders), 2)
+    row["currency"] = next((o.get("currency_code") for o in orders if o.get("currency_code")), None)
+    row["payers"] = sorted({o.get("email") for o in orders if o.get("email")})
+    whens = sorted(o.get("created_at") for o in orders if o.get("created_at"))
+    row["first_paid_at"], row["last_paid_at"] = (whens[0], whens[-1]) if whens else (None, None)
+    return row
+
+
+def _http_json(url: str, token: str) -> dict:
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req, timeout=20) as r:          # noqa: S310
+        return json.loads(r.read().decode())
+
+
+def cmd_revenue(args) -> int:
+    row = collect_revenue()
+    with REVENUE.open("a") as fh:
+        fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+    print(f"{REVENUE}")
+    if not row["measured"]:
+        print(f"NOT RUN  revenue not measured at {row['at']}: {row['reason']}")
+        return 1
+    print(f"paid orders {row['paid_orders']}  total {row['total']} {row['currency'] or ''}  "
+          f"payers {len(row['payers'])}  first {row['first_paid_at']}  last {row['last_paid_at']}  "
+          f"measured {row['at']}")
+    return 0
+
+
 def load_predictions() -> list[dict]:
     if not PREDICTIONS.exists():
         return []
@@ -330,6 +397,9 @@ def main() -> int:
     a = sub.add_parser("attention", help="his messages and complaints, per day")
     a.add_argument("--days", type=int, default=21, help="how many days to print, not to collect")
     a.set_defaults(fn=cmd_attention)
+
+    v = sub.add_parser("revenue", help="has this estate ever been paid: measured from the store, never assumed")
+    v.set_defaults(fn=cmd_revenue)
 
     p = sub.add_parser("predict", help="record a causal prediction BEFORE the repair")
     p.add_argument("--issue", required=True, help="the issue or PR this is about")

@@ -234,6 +234,15 @@
       "kind": "jsonl",
       "time_field": "ts",
       "receiver": "otlp"
+    },
+    {
+      "name": "revenue",
+      "root": "science",
+      "path": "revenue.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp"
     }
   ],
   "declined": [

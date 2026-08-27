@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-26 20:48 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-27 05:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,28 +8,32 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 7.44s |
-| maestro | GREEN | last cycle 3 min ago (`INTENT-20260826-204009-0d20f3e7.json`) |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 12.25s |
+| &nbsp;&nbsp;failing | | FAIL  README describes what ships        .github/workflows/build-agent-image.yml is in the repo, and the README never says why |
+| &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 4 links, pinned msg 14008 |
+| &nbsp;&nbsp;failing | | FAIL  the dispatch runtime is installed  claude |
+| maestro | GREEN | last cycle 4 min ago (`INTENT-20260827-045442-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| delivery | RED | 23 commits on no remote (oldest 2.4d), 42 dirty files, 6 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 633 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | scripts | 21 commits no remote holds, oldest 2.4d, 13 dirty |
-| &nbsp;&nbsp;stranded | .idp-state | 1 commits no remote holds, oldest 0.1d, 0 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 0.0d, 1 dirty |
+| delivery | RED | 25 commits on no remote (oldest 2.7d), 36 dirty files, 6 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 697 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
+| &nbsp;&nbsp;stranded | scripts | 22 commits no remote holds, oldest 2.7d, 7 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 2 commits no remote holds, oldest 0.4d, 0 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 1 commits no remote holds, oldest 0.4d, 1 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 51h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 4 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 59h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 2 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 2 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 28 | `science/sources.json` |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
-| crew P1 | 26 open | the fires nobody has put out |
+| crew P1 | 25 open | the fires nobody has put out |
+| &nbsp;&nbsp;#407 SECURITY INCIDENT: a credential was sent over Telegram (crew#400 login, session a0d64ea4, 2026-08-27); tr | | |
+| &nbsp;&nbsp;#396 LAW: KINI checkpoints run as durable workflows on the estate's Temporal; 'Finish KINI' then close the lap | | |
+| &nbsp;&nbsp;#395 LAW: a founder directive rewrites every live session's goal by itself; no session reads a transcript and  | | |
 | &nbsp;&nbsp;#345 Platform-level: OCI session expires every ~1-2h, blocking all live verification — durable identity, not r | | |
-| &nbsp;&nbsp;#344 Platform-level: Flux alerting is opt-in by hand-typed namespace allowlist, not default-on — structural ca | | |
-| &nbsp;&nbsp;#341 Gap: no Kyverno policy blocks secrets injected via env vars/envFrom — nothing stops the next Helm chart f | | |
 | &nbsp;&nbsp;#340 Langfuse (langfuse-web) healthcheck failing 2+ days, unnoticed — same silent-failure class as crew#308 | | |
 | &nbsp;&nbsp;#326 Incident: ~/.estate/guards/hooks/_router overwritten with a refuse-all stub at 17:06Z; every commit and p | | |
 | &nbsp;&nbsp;#325 idp architectural review 2026-08-26: cluster layer KEEP, README/STANDARDS/tests/sovereign REWORK | | |
@@ -46,13 +50,11 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
 | &nbsp;&nbsp;#114 Fully operational today — the day board, 2026-08-24 | | |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |
-| &nbsp;&nbsp;#78 Decommission Fly, move to Kubernetes — architecture decision, scope not yet defined | | |
 | &nbsp;&nbsp;#74 Build the real data pipeline: DuckDB + DuckLake + fastjsonschema, and grade each dependency on use, distri | | |
 | &nbsp;&nbsp;#71 1,064 field paths, 0 declared: the warehouse has no schema, no owner, no retention and no sensitivity on a | | |
-| &nbsp;&nbsp;#69 32 of 59 scripts are wired into nothing, and one of them is the LAW 22 evidence tool | | |
 | &nbsp;&nbsp;#32 prospector is still in ~/Documents/code — the move to ~/dev/code has never been applied | | |
 | &nbsp;&nbsp;#26 Estate spend is $866/day against a $120 cap, and one owner is 69% of it | | |
 | &nbsp;&nbsp;#13 Retire the Hermes estate — unconditional, Hermes is discontinued | | |
 | laptop VM (R26) | RED | 51871 /usr/local/bin/limactl; stop it, do not restart it |
-| OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
-| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
+| OKE nodes | NOT RUN | `kubectl get nodes` rc=124 'TIMED OUT after 30s' |
+| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=124 'TIMED OUT after 30s' |

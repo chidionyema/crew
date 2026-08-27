@@ -140,6 +140,45 @@ def github_actions() -> list[str]:
     return [f"| GitHub Actions | {colour} {st} | githubstatus.com; a red row means pending CI is theirs, not yours |"]
 
 
+VERIFY_WINDOW_H = 24
+VERIFY_MIN_RUNS = 20   # 24 hourly crons minus GitHub's documented scheduling drops; fewer is a dead schedule
+
+
+def verification_identity() -> list[str]:
+    """Can the platform check itself with nobody logged in? (crew#345, 2026-08-26)
+
+    Live verification stopped five times in one night because a laptop's OCI browser session
+    (a 60-minute JWT) had expired. idp's verify-drill.yml now runs every hour on the estate-ci
+    machine identity and reads the cluster's own in-cluster receipt. The ticket's acceptance
+    criterion is 24 hours of that with zero founder interaction, so this row counts the
+    scheduled runs of the last 24 hours: GREEN only when at least VERIFY_MIN_RUNS fired and
+    every one succeeded; RED on any failure; COUNTING while the window is still filling;
+    NOT RUN when GitHub cannot be asked. A person's login is never part of this measurement.
+    """
+    rc, out = sh("gh run list -R chidionyema/idp --workflow verify-drill.yml --event schedule --limit 60 "
+                 "--json conclusion,createdAt,status", timeout=40)
+    if rc or not out:
+        return ["| OCI verification identity | NOT RUN | gh run list verify-drill.yml failed |"]
+    try:
+        runs = json.loads(out)
+    except ValueError as exc:
+        return [f"| OCI verification identity | NOT RUN | {type(exc).__name__} parsing gh run list |"]
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=VERIFY_WINDOW_H)
+    window = [r for r in runs
+              if dt.datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= cutoff
+              and r.get("status") == "completed"]
+    n = len(window)
+    bad = [r for r in window if r.get("conclusion") != "success"]
+    how = "idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345)"
+    if n == 0:
+        return [f"| OCI verification identity | RED 0 scheduled runs in 24h | {how}; the cron never fired |"]
+    if bad:
+        return [f"| OCI verification identity | RED {len(bad)}/{n} scheduled runs failed | {how} |"]
+    if n < VERIFY_MIN_RUNS:
+        return [f"| OCI verification identity | COUNTING {n}/{VERIFY_MIN_RUNS} green, window still filling | {how} |"]
+    return [f"| OCI verification identity | GREEN {n}/{n} scheduled runs green, zero logins | {how} |"]
+
+
 def crew_p1() -> list[str]:
     rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
                  "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
@@ -862,7 +901,7 @@ def main() -> int:
 
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
-        datamap, science_plane, research, hooks, github_actions, crew_p1,
+        datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
                runtime, elite_grade):
         try:
             rows += fn()

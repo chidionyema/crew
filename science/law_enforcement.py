@@ -10,7 +10,12 @@ which tier each law is actually on, and whether its guard is still emitting.
 
 Run it. Do not quote it from memory.
 """
-import json, os, re, subprocess, sys, time
+import contextlib
+import json
+import os
+import re
+import sys
+import time
 
 H = os.path.expanduser("~")
 SETTINGS = f"{H}/.claude/settings.json"
@@ -20,9 +25,20 @@ SKIP_DIRS = {"node_modules", "venv", "__pycache__", "target",
              "build", "dist", "vendor", "Pods", "DerivedData"}
 STALE_H  = 24  # a tracking stream silent longer than this is not tracking
 
+
+def _read(path, errors=None):
+    """Whole file as text, closed on return."""
+    with open(path, errors=errors) as fh:
+        return fh.read()
+
+def _load(path):
+    """Parsed JSON file, closed on return."""
+    with open(path) as fh:
+        return json.load(fh)
+
 def laws():
     out = {}
-    try: txt = open(LAWS).read()
+    try: txt = _read(LAWS)
     except OSError: return out
     for n, title in re.findall(r'^#+\s*LAW (\d+)\s*[—-]\s*(.+)$', txt, re.M):
         out.setdefault(int(n), title.strip())
@@ -31,8 +47,8 @@ def laws():
 def wired():
     """guard basename -> [hook events]. These are PREVENTIVE: they run in-flight."""
     w = {}
-    try: cfg = json.load(open(SETTINGS))
-    except Exception: return w
+    try: cfg = _load(SETTINGS)
+    except (OSError, ValueError): return w
     for event, blocks in (cfg.get("hooks") or {}).items():
         for b in blocks:
             for hk in b.get("hooks", []):
@@ -67,7 +83,7 @@ def corpus():
             if os.path.basename(f) in ('index','HEAD','ORIG_HEAD','config'): continue
             try:
                 if os.path.getsize(f) > 2_000_000: continue
-                _CORPUS[f] = open(f, errors="ignore").read()
+                _CORPUS[f] = _read(f, errors="ignore")
             except OSError: pass
     return _CORPUS
 
@@ -94,7 +110,7 @@ def guard_path(name):
 
 def law_refs(name):
     """Which laws does this guard itself cite? Mechanical, not guessed."""
-    try: txt = open(guard_path(name), errors="ignore").read()
+    try: txt = _read(guard_path(name), errors="ignore")
     except OSError: return set()
     # Upper bound reads the laws file. It was hardcoded to 31, so LAW 32's own
     # gate cited a law this probe threw away. A constant that has to be edited
@@ -161,7 +177,7 @@ def guard_dir_reaches_impl(d):
     if not os.path.isfile(os.path.join(d, "_router")): return False
     for conf in (os.path.join(os.path.dirname(d.rstrip("/")), "estate.conf"),
                  f"{H}/.estate/guards/estate.conf"):
-        try: txt = open(conf, errors="ignore").read()
+        try: txt = _read(conf, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*GUARD_IMPL=(.+)$', txt, re.M)
         if not m: continue
@@ -182,7 +198,7 @@ def global_bind():
     if _GLOBAL_BIND is not None: return _GLOBAL_BIND
     _GLOBAL_BIND = False
     for cfgp in (f"{H}/.gitconfig", f"{H}/.config/git/config"):
-        try: txt = open(cfgp, errors="ignore").read()
+        try: txt = _read(cfgp, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
         if m and guard_dir_reaches_impl(m.group(1).strip()):
@@ -209,7 +225,7 @@ def hook_binds():
         g = os.path.join(r, ".git")
         cfgp = os.path.join(g, "config") if os.path.isdir(g) else None
         if not cfgp or not os.path.isfile(cfgp): continue
-        try: txt = open(cfgp, errors="ignore").read()
+        try: txt = _read(cfgp, errors="ignore")
         except OSError: continue
         m = re.search(r'^\s*hooksPath\s*=\s*(.+)$', txt, re.M)
         if not m: continue
@@ -235,24 +251,48 @@ def githooks():
     out = []
     for path in git_hooks():
         fp = os.path.join(d, path.split("/")[-1])
-        try: txt = open(fp, errors="replace").read()
+        try: txt = _read(fp, errors="replace")
         except OSError: continue
         ls = sorted({int(n) for n in re.findall(r'LAW\s*(\d{1,2})', txt)
                      if 1 <= int(n) <= 32})
         out.append((path.split("/")[-1], ls))
     return out
 
+# crew#80: the tracked streams used to be a hardcoded path list, and one of
+# them (state/one-branch/would-have-fired.jsonl) outlived its writer by five
+# days, so the lawenforcement check was red with nothing to fix. The names now
+# resolve through science/sources.json, the closed-world registry the datamap
+# gate keeps honest: a stream nobody registered cannot be tracked here, and a
+# stream the registry drops leaves this list in the same commit. toolguard
+# (state/toolguard/events.jsonl) went the same way: 77h silent on 2026-08-27,
+# tool-drip-guard.py wired into no hook, not in the registry, so not tracked.
+TRACKED_STREAMS = ("close_guard", "ledger", "board", "spend")
+SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.json")
+
+def stream_paths(sources=SOURCES, home=H):
+    """(display name, absolute path) for each tracked stream, from the registry.
+    A tracked name missing from the registry is an error, not a skip: silently
+    dropping it is how crew#80 happened in the other direction."""
+    with open(sources) as fh:
+        reg = {s["name"]: s for s in json.load(fh)["sources"]}
+    out = []
+    for name in TRACKED_STREAMS:
+        if name not in reg:
+            raise KeyError(f"tracked stream {name!r} is not in {sources}")
+        s = reg[name]
+        if s["root"] != "home":
+            raise ValueError(f"tracked stream {name!r} has root {s['root']!r}, expected 'home'")
+        out.append((s["path"], os.path.join(home, s["path"])))
+    return out
+
 def streams():
     """Tracking streams and how long since each last moved."""
-    cands = ["state/toolguard/events.jsonl","state/close-guard-observe.jsonl",
-             "state/one-branch/would-have-fired.jsonl","state/ledger.jsonl",
-             "ESTATE_BOARD.jsonl","estate-spend-history.jsonl"]
     now=time.time(); out=[]
-    for c in cands:
-        p=f"{H}/.claude/{c}"
+    for c,p in stream_paths():
         if not os.path.exists(p): continue
         age=(now-os.path.getmtime(p))/3600
-        try: n=sum(1 for _ in open(p,errors="ignore"))
+        try:
+            with open(p,errors="ignore") as fh: n=sum(1 for _ in fh)
         except OSError: n=-1
         out.append((c,n,age))
     return out
@@ -378,8 +418,8 @@ def main():
     mp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "enforcement-map.json")
     gap = []
     try:
-        M = json.load(open(mp))["laws"]
-    except Exception as e:
+        M = _load(mp)["laws"]
+    except (OSError, ValueError, KeyError) as e:
         M = []; print(f"\n  enforcement-map.json unreadable: {e}")
     if M:
         print("\n"+"="*74); print("LAW -> CHECK"); print("="*74)
@@ -406,11 +446,11 @@ def main():
         print(f"\n  mechanical AND live                  : {len(mech)-len(gap)} of {len(mech)}")
         print(f"  THE GAP                              : {[x['id'] for x in gap]}")
         for x in gap:
-            print(f"    LAW {x['id']:<3} {str(x['where']):<12} {x['check'][:52]}")
+            print(f"    LAW {x['id']:<3} {x['where']!s:<12} {x['check'][:52]}")
         if drift:
             print(f"\n  MAP DRIFT (the declared state was wrong): {len(drift)}")
             for i, said, real in drift:
-                print(f"    {str(i):<34} map said {said:<8} actually {real}")
+                print(f"    {i!s:<34} map said {said:<8} actually {real}")
         #: Both sides normalised to a bare name. The map writes a guard as
         #: `estate/in-git.py` or `hooks/pre-push`, and the probe names it
         #: `in-git` or `hooks/pre-push`, so comparing the raw strings reported
@@ -419,11 +459,10 @@ def main():
             x = x.split("/")[-1]
             return x[:-3] if x.endswith(".py") else x
         declared = {_norm(gg) for x in M for gg in x.get("guards", [])}
-        try:
+        with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
             declared |= {_norm(gg)
-                         for sec in json.load(open(mp)).get("sections", [])
+                         for sec in _load(mp).get("sections", [])
                          for gg in sec.get("guards", [])}
-        except Exception: pass
         tiermap = {r[0]: r[1] for r in rows}
         undeclared = [g for g in G if _norm(g) not in declared
                       and tiermap.get(g) != "DEAD"]
@@ -455,7 +494,8 @@ def main():
        "streams":[{"name":n,"lines":c_,"age_h":round(a,1)} for n,c_,a in streams()]}
     out=f"{H}/.claude/state/law-enforcement.json"
     try:
-        json.dump(j,open(out,"w"),indent=1); print(f"\nwrote {out}")
+        with open(out,"w") as fh: json.dump(j,fh,indent=1)
+        print(f"\nwrote {out}")
     except OSError as e:
         print(f"\ncould not write {out}: {e}")
     # exit 1 while any mechanical law is unenforced or any stream is stale,

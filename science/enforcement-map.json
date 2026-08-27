@@ -96,8 +96,10 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "reply contains 'founder action' or an ask aimed at him, and no line names a blocker of the three permitted kinds",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+    "blocker-guard.py"
+   ]
   },
   {
    "rule": "take-the-smaller-road-when",
@@ -188,8 +190,10 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "a run produced a result and appended nothing to the record",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+    "research-capture.py"
+   ]
   },
   {
    "rule": "hold-the-platform-and-the",
@@ -212,8 +216,11 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "reply opens with DONE and contains no command output",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+    "dod-guard.py",
+    "close-guard.py"
+   ]
   },
   {
    "rule": "show-the-green-run-do",
@@ -431,7 +438,9 @@
    "where": "GitHub Actions: pull_request",
    "check": "PR template's DoD boxes are commands (crew qa, pr-evidence check --pr <n>, Author-session/Reviewed-by + REVIEW: comment), and review-gate.yml fails the PR until they resolve",
    "state": "live",
-   "guards": []
+   "guards": [
+    ".github/workflows/review-gate.yml"
+   ]
   },
   {
    "rule": "a-law-without-a-protocol",
@@ -443,7 +452,9 @@
    "where": "GitHub Actions: pull_request",
    "check": "review-gate.yml is the protocol: it fails closed on any gh api error and refuses a PR with no Author-session/Reviewed-by pair and no matching REVIEW: comment",
    "state": "live",
-   "guards": []
+   "guards": [
+    ".github/workflows/review-gate.yml"
+   ]
   },
   {
    "rule": "never-reinvent-the-wheel",
@@ -455,7 +466,9 @@
    "where": "pr-evidence.py check",
    "check": "pr-evidence.py's Options-considered gate fails a PR body with no '## Options considered' heading, fewer than 2 real bullets, or no Chosen: line naming what was picked over a researched off-the-shelf option",
    "state": "live",
-   "guards": []
+   "guards": [
+    ".github/workflows/crew-qa.yml"
+   ]
   }
  ],
  "sections": [

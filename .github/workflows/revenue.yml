@@ -21,6 +21,7 @@ jobs:
       - name: measure
         env:
           MEDUSA_ADMIN_TOKEN: ${{ secrets.MEDUSA_ADMIN_TOKEN }}
+          REVENUE_PAYER_KEY: ${{ secrets.REVENUE_PAYER_KEY }}
         run: python3 science/outcomes.py revenue
       - name: commit the row
         run: |

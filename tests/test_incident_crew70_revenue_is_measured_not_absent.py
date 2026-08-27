@@ -57,10 +57,11 @@ def test_incident_crew70_measured_zero_is_green_with_a_date(monkeypatch, tmp_pat
 
 def test_incident_crew70_a_payment_names_who_how_much_when(monkeypatch, tmp_path):
     monkeypatch.setenv("MEDUSA_ADMIN_TOKEN", "x")
+    monkeypatch.setenv("REVENUE_PAYER_KEY", "k")
     orders = [{"id": "o1", "email": "a@x.io", "total": 12.5, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"},
               {"id": "o2", "email": "b@x.io", "total": 7.5, "currency_code": "gbp", "created_at": "2026-08-26T10:00:00Z"}]
     row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 2})
-    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", [outcomes.payer_id("a@x.io"), outcomes.payer_id("b@x.io")])
+    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", [outcomes.payer_id("a@x.io", "k"), outcomes.payer_id("b@x.io", "k")])
     assert (row["first_paid_at"], row["last_paid_at"]) == ("2026-08-20T10:00:00Z", "2026-08-26T10:00:00Z")
     line = _row(tmp_path, row)
     assert "GREEN" in line and "2 paid order(s)" in line and "20.0 gbp" in line

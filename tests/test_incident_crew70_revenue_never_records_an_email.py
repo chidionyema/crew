@@ -20,8 +20,13 @@ def test_collect_revenue_records_opaque_payers():
     orders = [{"id": 1, "email": "Alice@Example.org", "total": 1000, "currency_code": "gbp", "created_at": "2026-08-01T00:00:00Z"},
               {"id": 2, "email": "alice@example.org", "total": 500, "currency_code": "gbp", "created_at": "2026-08-02T00:00:00Z"}]
     os.environ["MEDUSA_ADMIN_TOKEN"] = "x"
+    os.environ.pop("REVENUE_PAYER_KEY", None)
     row = outcomes.collect_revenue(fetch=lambda u, t: {"orders": orders, "count": 2})
-    assert row["payers"] == [outcomes.payer_id("alice@example.org")] and len(row["payers"][0]) == 12
+    assert row["payer_count"] == 1 and row["payers"] == [], "no key: count only, nobody named"
+    os.environ["REVENUE_PAYER_KEY"] = "k1"
+    row = outcomes.collect_revenue(fetch=lambda u, t: {"orders": orders, "count": 2})
+    assert row["payers"] == [outcomes.payer_id("alice@example.org", "k1")] and len(row["payers"][0]) == 12
+    assert row["payers"] != [outcomes.payer_id("alice@example.org", "k2")], "the id depends on the key"
     assert not EMAIL.search(json.dumps(row))
 
 

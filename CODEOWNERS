@@ -1,0 +1,15 @@
+# crew#88: every document names an owner. GitHub CODEOWNERS is the ownership record;
+# science/docsmap.py reads it (crew#477). One founder today; rows split by area so a
+# second owner is a one-line change.
+*                 @chidionyema
+/docs/            @chidionyema
+/science/         @chidionyema
+/scripts/         @chidionyema
+/policy/          @chidionyema
+/risk/            @chidionyema
+/roles/           @chidionyema
+/deploy/          @chidionyema
+/integrations/    @chidionyema
+/ops/             @chidionyema
+/tests/           @chidionyema
+/.github/         @chidionyema

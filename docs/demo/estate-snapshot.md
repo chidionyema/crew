@@ -63,3 +63,12 @@ $ git show --stat HEAD | grep science/
  science/ships.jsonl | 40 +
  science/census.json | 12 +-
 ```
+## Elite grade row (crew#474, 2026-08-27)
+
+```
+$ scripts/estate-snapshot | grep 'elite grade'
+| elite grade | 31 GAP, 49 BLIND | 287 ELITE of 367 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+```
+
+Before idp#361 lands the row reads `NOT RUN | idp docs/SHOWCASE.md is not on main`. GREEN only
+when GAP and BLIND are both zero.

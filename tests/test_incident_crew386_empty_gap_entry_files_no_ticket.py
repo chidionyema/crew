@@ -8,6 +8,7 @@ import subprocess
 
 _p = pathlib.Path(__file__).resolve().parents[1] / "science" / "datamap.py"
 _spec = importlib.util.spec_from_file_location("datamap", _p)
+assert _spec is not None and _spec.loader is not None
 dm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(dm)
 

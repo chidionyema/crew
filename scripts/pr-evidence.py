@@ -353,7 +353,11 @@ def transcript_evidence(body: str) -> int:
     if not m:
         return 0
     tail = body[m.end():]
-    nxt = NEXT_HEADING.search(tail)
+    # crew#519, 2026-08-27: a transcript line `# minus /estate/mcp: ...` inside the fence read as
+    # the next heading, the section ended before the closing fence, and a body with a full
+    # transcript was refused. Headings are searched with the fences masked; indices are kept.
+    masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
+    nxt = NEXT_HEADING.search(masked)
     section = tail[:nxt.start()] if nxt else tail
     return sum(1 for block in FENCE.findall(section)
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)

@@ -13,6 +13,7 @@ ABS_PATH = re.compile(r"(?<![\w/])/(Users|private|home|tmp)/")
 
 def _showcase():
     spec = importlib.util.spec_from_file_location("showcase", ROOT / "science" / "showcase.py")
+    assert spec is not None and spec.loader is not None
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

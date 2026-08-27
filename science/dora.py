@@ -18,7 +18,7 @@ import os
 import statistics
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 DEFAULT_REPOS = os.environ.get("DORA_REPOS", "chidionyema/idp,chidionyema/crew").split(",")
 
@@ -59,7 +59,7 @@ def four_keys(prs: list[dict], p1s: list[dict], since: datetime, days: int) -> d
 
 def _gh(path: str, **params: str) -> list[dict]:
     q = "&".join(f"{k}={v}" for k, v in params.items())
-    out = subprocess.run(["gh", "api", "--paginate", f"{path}?{q}"], capture_output=True, text=True)
+    out = subprocess.run(["gh", "api", "--paginate", f"{path}?{q}"], capture_output=True, text=True, check=False)
     if out.returncode:
         sys.exit(f"gh api {path}: {out.stderr.strip()[:200]}")
     rows: list[dict] = []
@@ -88,12 +88,12 @@ def fetch(repo: str, since: datetime) -> tuple[list[dict], list[dict]]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description="DORA four keys from the GitHub API")
     ap.add_argument("--repo", action="append", help="owner/name; repeatable (default: DORA_REPOS or idp,crew)")
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     since = now - timedelta(days=a.days)
     out = {}
     for repo in a.repo or DEFAULT_REPOS:

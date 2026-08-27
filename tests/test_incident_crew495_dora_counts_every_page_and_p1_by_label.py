@@ -5,13 +5,13 @@ is respected. Rung 4, both ways: rows inside the window count; rows outside do n
 no close date is opened but not repaired.
 """
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "science"))
-import dora  # noqa: E402
+import dora
 
-NOW = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 SINCE = NOW - timedelta(days=7)
 
 

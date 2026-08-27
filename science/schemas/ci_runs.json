@@ -12,30 +12,21 @@
    "bool"
   ],
   "median_duration_s": [
-   "NoneType",
-   "float",
-   "int"
+   "float"
   ],
   "median_queue_wait_s": [
-   "NoneType",
-   "float",
-   "int"
+   "float"
   ],
   "minutes": [
    "float"
   ],
   "pass_rate": [
-   "NoneType",
    "float"
   ],
   "passed": [
    "int"
   ],
-  "reason": [
-   "str"
-  ],
   "repo": [
-   "NoneType",
    "str"
   ],
   "runs": [
@@ -45,10 +36,9 @@
    "int"
   ],
   "workflow": [
-   "NoneType",
    "str"
   ]
  },
  "owner": "crew/science",
- "undescribed_baseline": 13
+ "undescribed_baseline": 12
 }

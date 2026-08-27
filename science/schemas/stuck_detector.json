@@ -2,6 +2,9 @@
  "description": "stuck-detector ticks and findings: sessions that stopped moving.",
  "field_docs": {},
  "fields": {
+  "at": [
+   "str"
+  ],
   "class": [
    "str"
   ],
@@ -16,6 +19,9 @@
   ],
   "idle_s": [
    "int"
+  ],
+  "kind": [
+   "str"
   ],
   "rc": [
    "int"
@@ -37,5 +43,5 @@
   ]
  },
  "owner": "claude-guards",
- "undescribed_baseline": 11
+ "undescribed_baseline": 13
 }

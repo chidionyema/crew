@@ -1,8 +1,9 @@
-"""crew#383 (datamap WIRED_NEVER): ~/.estate/state/capability_receipts.jsonl, 24,953 rows and
-10 MB, the largest ledger under ~/.estate, and no collector named it. The wrapper stamps
-`ended_at` as an epoch string ("1787811578.055679"), which row_time() treated as no time at
-all, so registering the source alone would have filed 25k rows without a time (crew#73 row 4).
-Rule: the source is registered with its time field, and an epoch stored as a string is a time.
+"""crew#383 (datamap WIRED_NEVER): ~/.estate/state/capability_receipts.jsonl, 25,155 rows and
+10 MB, the largest ledger under ~/.estate, and no collector named it. The writer
+(~/.claude/scripts/estate/launchd_receipt.py) stamps `ended_at` as a float epoch, so the source
+is registered with that time field. row_time() also accepts an epoch stored as a string, as a
+defence for the next writer that stringifies one. Rule: the source is registered with its time
+field, and an epoch in the epoch range is a time whether it arrives as a number or a string.
 Rung 4, incident test, both ways."""
 import json
 import sys

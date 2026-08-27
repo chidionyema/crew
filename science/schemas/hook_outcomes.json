@@ -1,4 +1,5 @@
 {
+ "description": "One row per hook invocation outcome recorded by the guards.",
  "field_docs": {},
  "fields": {
   "at": [
@@ -23,7 +24,6 @@
    "str"
   ]
  },
- "undescribed_baseline": 7,
  "owner": "claude-guards",
- "description": "One row per hook invocation outcome recorded by the guards."
+ "undescribed_baseline": 7
 }

@@ -454,8 +454,9 @@ def row_time(obj: dict, field: str | None) -> str | None:
             try:
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                #: crew#383: the capability-receipt wrapper writes epochs as strings
-                #: ("1787811578.055679"); a numeric string in the epoch range is an epoch.
+                #: crew#383: defensive. Every live capability receipt carries ended_at as a
+                #: float or int (0 strings in 25,155 rows); a writer that stringifies an
+                #: epoch would otherwise file every row as having no time.
                 try:
                     v = float(v)
                 except ValueError:

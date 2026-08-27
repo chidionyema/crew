@@ -1,27 +1,28 @@
 {
+ "description": "One row per Dagster run from the live run store: which job, its status and when it started and ended.",
  "field_docs": {
-  "run_id": {
-   "description": "Dagster run id",
+  "at": {
+   "description": "last update, UTC",
+   "pii": false
+  },
+  "end_time": {
+   "description": "run end, epoch seconds, null while running",
    "pii": false
   },
   "job": {
    "description": "job name",
    "pii": false
   },
-  "status": {
-   "description": "run status: STARTED, SUCCESS, FAILURE, CANCELED",
-   "pii": false
-  },
-  "at": {
-   "description": "last update, UTC",
+  "run_id": {
+   "description": "Dagster run id",
    "pii": false
   },
   "start_time": {
    "description": "run start, epoch seconds",
    "pii": false
   },
-  "end_time": {
-   "description": "run end, epoch seconds, null while running",
+  "status": {
+   "description": "run status: STARTED, SUCCESS, FAILURE, CANCELED",
    "pii": false
   }
  },
@@ -45,7 +46,6 @@
    "str"
   ]
  },
- "undescribed_baseline": 0,
  "owner": "idp scheduler (scheduler/estate_scheduler)",
- "description": "One row per Dagster run from the live run store: which job, its status and when it started and ended."
+ "undescribed_baseline": 0
 }

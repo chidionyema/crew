@@ -234,6 +234,15 @@
       "kind": "jsonl",
       "time_field": "ts",
       "receiver": "otlp"
+    },
+    {
+      "name": "research_ledger",
+      "root": "science",
+      "path": "RESEARCH-LEDGER.jsonl",
+      "kind": "jsonl",
+      "time_field": "date",
+      "receiver": "otlp",
+      "stale_after_hours": 168
     }
   ],
   "declined": [

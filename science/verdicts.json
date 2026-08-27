@@ -365,9 +365,15 @@
     },
     {
       "key": "transcript/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Session transcripts per project. Only per-day spend is extracted; tool calls, failures and founder messages are unread (crew#319).",
+      "verdict": "COLLECTED",
+      "reader": "science/transcripts.py reads every transcript byte once by offset (manifest table) into science/transcripts.db: tool calls, tool results, error first lines, sessions, timestamps; scripts/science-collect runs it four times a day (crew#432)",
+      "why": "collected since crew#432 (2026-08-27); message text is not copied, the JSONL stays the system of record",
       "ticket": "crew#319"
+    },
+    {
+      "key": "mac/*science/transcripts.db*",
+      "verdict": "EXCLUDED",
+      "why": "Derived, not a source: science/transcripts.py rebuilds it from transcript/* (delete the file to replay from offset zero), the same way science/dbt/warehouse.duckdb is derived from warehouse.db (crew#432)."
     },
     {
       "key": "mac/data/~/.estate/healthchecks/hc.sqlite",

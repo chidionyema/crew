@@ -1,70 +1,26 @@
-# Demo — the dead-man that is not on the Mac
+# Demo — the dead-man that is not on the Mac (crew#163)
 
-Owner: the platform lane
-Last true: 2026-08-24
+## The ninety-second version
 
-Every block below is real output, captured on 2026-08-24 by running the command above it.
+1. `~/.claude/scripts/hc-wrap.sh estate-snapshot true` — one ping from this Mac.
+2. Open `https://hc.<zone>/` — the check `estate-snapshot` shows the ping, its schedule
+   and when it is next expected.
+3. Stop the scheduler (`launchctl bootout gui/$(id -u)/ai.estate.scheduler`) and the check
+   goes down after the grace period; the alert leaves the cluster, not the Mac. Start it
+   again (`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.estate.scheduler.plist`)
+   and the next ping clears it.
 
-## The normal case: the Mac is alive
+## Options considered
 
-```
-$ ./scripts/deadman-check.sh
-heartbeat: STATE.md last changed 2026-08-24 11:45 UTC
-heartbeat age: 15m
-threshold: 180m of silence
+- A GitHub Actions schedule reading STATE.md commit ages (`deadman.yml`, the first cut of
+  this PR): a second dead-man with a second threshold, e-mail-only alerting, and a schedule
+  GitHub switches off after 60 idle days. Rejected, LAW 43.
+- A cron on a rented box curling the repository: same duplication, plus a host to keep alive.
+- Chosen: the Healthchecks receiver the estate already runs on OKE, with the snapshot job
+  already wrapped in `hc-wrap.sh`. The only work is enrolling each Mac once
+  (`idp-hc-enroll`) and deleting the duplicate.
 
-last 30h: 19 heartbeats, 4 gap(s) over 90m, worst 170m   (reported, not gating)
+## What a buyer's engineer sees
 
-ALIVE: last heartbeat 15m ago, inside the 180m threshold.
-$ echo $?
-0
-```
-
-The middle line gates nothing. It is there because the hourly snapshot missed four runs
-in the last 30 hours and a number nobody prints is a number nobody fixes.
-
-## The case it exists for: the Mac has gone silent
-
-There is no way to make the real Mac disappear for a demo, so the age is forced. Everything
-downstream of the age is the real code path.
-
-```
-$ DEADMAN_AGE_MINUTES=999 ./scripts/deadman-check.sh
-heartbeat age: 999m (forced by DEADMAN_AGE_MINUTES, not measured)
-threshold: 180m of silence
-
-DEAD: the Mac has been silent for 999m, past the 180m threshold.
-      Every job on it is unmonitored right now, including the monitors.
-$ echo $?
-1
-```
-
-## The boundary, both sides
-
-```
-$ DEADMAN_AGE_MINUTES=179 ./scripts/deadman-check.sh | tail -1
-ALIVE: last heartbeat 179m ago, inside the 180m threshold.
-  exit 0
-$ DEADMAN_AGE_MINUTES=180 ./scripts/deadman-check.sh | tail -1
-ALIVE: last heartbeat 180m ago, inside the 180m threshold.
-  exit 0
-$ DEADMAN_AGE_MINUTES=181 ./scripts/deadman-check.sh | tail -1
-      Every job on it is unmonitored right now, including the monitors.
-  exit 1
-```
-
-## What GitHub runs
-
-The workflow proves the refuse direction before it trusts the permit direction, on every
-run. A dead-man only ever seen passing has never been shown to be able to fail.
-
-```
-$ DEADMAN_AGE_MINUTES=999 ./scripts/deadman-check.sh && echo 'not a dead-man' || echo 'refuses as it should.'
-refuses as it should.
-```
-
-## What a real failure looks like to you
-
-The `deadman` workflow goes red and GitHub mails the repository owner. There is no other
-channel, no secret and no service to keep alive. The body of the failing step is the DEAD
-block above.
+One receiver, in the platform repo, with a Terraform-generated key; the Mac holds two files
+it did not type. No script of ours parses git dates to decide whether a machine is alive.

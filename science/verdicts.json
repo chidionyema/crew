@@ -37,15 +37,15 @@
     },
     {
       "key": "mac/*.claude/directives*",
-      "verdict": "WIRED_NEVER",
-      "why": "6,932 of his prompts. Now collected in DERIVED form as the daily `attention` counts, which is a count of his messages and not the messages. The text itself is still unqueryable.",
-      "ticket": "crew#354"
+      "verdict": "COLLECTED",
+      "why": "Every founder prompt (80 files, 8,116 rows on 2026-08-27, writer ~/.claude/scripts/directive-capture.py). Source directives has collected the text since before the register; WIRED_NEVER was a stale grade, the same class as crew#358.",
+      "reader": "science/collect.py source directives (sources.json, jsonl-dir over ~/.claude/directives, time_field ts); attention.jsonl is the derived daily count"
     },
     {
       "key": "mac/*state/prompt-ledger*",
-      "verdict": "WIRED_NEVER",
-      "why": "7,046 rows recording the same prompts as `directives`, in a second format, with an open/closed state the other one lacks. Two ledgers of one thing (LAW 39).",
-      "ticket": "crew#355"
+      "verdict": "COLLECTED",
+      "why": "8,414 warehouse rows to 2026-08-27 02:31Z: source prompt_ledger already collects it, so WIRED_NEVER was a stale grade (crew#355). It records the same prompts as directives with an open/closed state the other lacks; folding the two ledgers into one (LAW 39) is a writer change, tracked on crew#355, not a collection gap.",
+      "reader": "science/collect.py source prompt_ledger (sources.json, jsonl-dir over ~/.claude/state/prompt-ledger, time_field at)"
     },
     {
       "key": "mac/*jobs/*",

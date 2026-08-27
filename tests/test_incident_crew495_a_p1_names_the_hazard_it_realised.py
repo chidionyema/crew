@@ -17,7 +17,7 @@ def _run(tmp: Path, issues: list[dict]) -> tuple[int, str, str]:
     f.write_text(json.dumps(issues))
     out = tmp / "HAZARDS.md"
     r = subprocess.run([sys.executable, str(GEN), "--check", "--issues", str(f), "--out", str(out)],
-                       capture_output=True, text=True, env={**os.environ, "CREW_ROOT": str(CREW)})
+                       capture_output=True, text=True, check=False, env={**os.environ, "CREW_ROOT": str(CREW)})
     return r.returncode, r.stdout, out.read_text()
 
 

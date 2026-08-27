@@ -156,7 +156,7 @@ def prose_chars(text: str) -> int:
 
 
 def git(repo: pathlib.Path, *args: str) -> str:
-    r = subprocess.run(["git", "-C", str(repo), *args],
+    r = subprocess.run(["git", "-C", str(repo), *args], check=False,
                        capture_output=True, text=True)
     return r.stdout if r.returncode == 0 else ""
 
@@ -222,7 +222,7 @@ def main() -> int:
                 for d in docs if d.failures()}
         pathlib.Path(args.write_baseline).write_text(
             json.dumps({
-                "written": dt.date.today().isoformat(),
+                "written": dt.datetime.now(dt.timezone.utc).date().isoformat(),
                 "documents_total": len(docs),
                 "documents_failing": len(base),
                 "note": "Tolerated failures. New documents must have none. "

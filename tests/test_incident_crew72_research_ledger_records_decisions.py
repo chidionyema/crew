@@ -11,7 +11,7 @@ LEDGER = ROOT / "science" / "RESEARCH-LEDGER.jsonl"
 
 
 def _rows():
-    return [json.loads(l) for l in LEDGER.read_text().splitlines() if l.strip()]
+    return [json.loads(line) for line in LEDGER.read_text().splitlines() if line.strip()]
 
 
 def test_incident_crew72_every_entry_names_the_decision_it_fed():

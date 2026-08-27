@@ -29,7 +29,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 MARKER = "<!-- pr-evidence -->"
@@ -1139,9 +1141,10 @@ def main() -> int:
         # the bug it warned about: selftest_evidence_section was added on 2026-08-24 and
         # a hardcoded call would have left the hourly run blind to it. A suite is any
         # module-level `selftest_*` function taking no arguments.
-        suites = sorted((n, f) for n, f in list(globals().items())
-                        if n.startswith("selftest_") and callable(f)
-                        and f.__code__.co_argcount == 0)
+        suites: list[tuple[str, Callable[[], int]]] = []
+        for n, f in sorted(globals().items(), key=lambda nf: nf[0]):
+            if n.startswith("selftest_") and callable(f) and f.__code__.co_argcount == 0:
+                suites.append((n, cast(Callable[[], int], f)))
         if not suites:
             print("BLIND: no selftest suites found in this file", file=sys.stderr)
             return 2

@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from collect import (  # noqa: E402  the registry has one reader, and this is not a second
+from collect import (
     SOURCES,
     WAREHOUSE,
     read_rows,

@@ -61,8 +61,12 @@ def wired():
 
 def guards():
     if not os.path.isdir(SCRIPTS): return []
+    #: crew#423: opa-hook.py is the runner of every policy/*.rego except command.rego, so it
+    #: is a guard; before this it never entered the tier map and every reply.rego row derived
+    #: "dead" in the live job whatever the map said (only a hand-supplied tiermap graded it).
     return sorted(f[:-3] for f in os.listdir(SCRIPTS)
-                  if f.endswith(".py") and re.search(r'guard|fence|compliance|scrub|ledger|capture', f))
+                  if f.endswith(".py") and (f == "opa-hook.py"
+                  or re.search(r'guard|fence|compliance|scrub|ledger|capture', f)))
 
 _CORPUS = None
 def corpus():

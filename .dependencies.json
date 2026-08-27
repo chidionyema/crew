@@ -1,0 +1,98 @@
+{
+  "_": "Every host and credential in this repository is either covered by a drill on the estate register or dismissed with a reason. drills/audit.py --ci enforces it on every pull request. There is no third state: an unclassified dependency is a vendor nobody decided about.",
+  "scan": {
+    "exclude": [
+      "docs/*",
+      "docs/**",
+      "science/*.md",
+      "science/RESEARCH-LEDGER.jsonl",
+      "science/research-ledger.html",
+      "science/revenue.jsonl",
+      "roles/*",
+      "ESTATE_STATE.md",
+      "DECISIONS.md",
+      "mkdocs.yml",
+      "tests/*"
+    ],
+    "_exclude_why": "citations and research records, not calls: a URL in a markdown file or a ledger row is something a session read once, and the audit's job is the hosts a scheduled job calls (crew#44, 2026-08-27)"
+  },
+  "hosts": {
+    "github.com": {
+      "covered_by": "github-gone"
+    },
+    "raw.githubusercontent.com": {
+      "covered_by": "github-gone"
+    },
+    "en.wikipedia.org": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "onlinelibrary.wiley.com": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "sms.onlinelibrary.wiley.com": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "pubsonline.informs.org": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "www.cambridge.org": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "www.aei.org": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "worksinprogress.co": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "www.n2growth.com": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "www.viima.com": {
+      "dismissed": "a citation in roles/science.md, not a call"
+    },
+    "api.github.com": {
+      "is": "the board and rulings science/research_intake.py reads; same outage surface as github.com",
+      "covered_by": "github-gone"
+    },
+    "api.telegram.org": {
+      "is": "the only channel that reaches the founder (founder-blocker.py, estate_alert.py)",
+      "covered_by": "telegram-delivery"
+    },
+    "api.mumchimp.com": {
+      "is": "the store's own API on OKE, read by science/outcomes.py for the payer count",
+      "covered_by": "oke-rebuild"
+    },
+    "fonts.googleapis.com": {
+      "is": "web font CSS on the research-ledger page",
+      "dismissed": "a page renders without it"
+    },
+    "fonts.gstatic.com": {
+      "is": "web font files",
+      "dismissed": "same"
+    },
+    "www.githubstatus.com": {
+      "is": "GitHub's status page, read only when github.com is already down",
+      "covered_by": "github-gone"
+    },
+    "www.apple.com": {
+      "is": "Apple's public site, named in a doc string as the Mac's software-update host",
+      "dismissed": "nothing scheduled calls it; the Mac is not infrastructure (R: infra never Mac-bound)"
+    }
+  },
+  "credentials": {
+    "GH_TOKEN": {
+      "covered_by": "github-gone"
+    },
+    "GITHUB_TOKEN": {
+      "covered_by": "github-gone"
+    },
+    "MINIMAX_API_KEY": {
+      "is": "a substrate rail named on docs/STANDARDS.md",
+      "dismissed": "no scheduled job in this repository calls it; the router that does is graded in idp"
+    },
+    "SNAP_KEY": {
+      "is": "the name of the snapshot's object key inside scripts/estate-snapshot, not a credential",
+      "dismissed": "a path variable; the snapshot's recovery is the estate-bundle-restore drill on the register"
+    }
+  }
+}

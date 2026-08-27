@@ -1,6 +1,27 @@
 {
  "description": "Predictions register: forecasts made by sessions and their later grading.",
- "field_docs": {},
+ "field_docs": {
+  "model": {
+   "description": "which predictor wrote the row: a session by hand (outcomes.py) or foresight.py's fitted model",
+   "pii": false
+  },
+  "p_red": {
+   "description": "foresight.py's probability that the CI step goes red, 0..1",
+   "pii": false
+  },
+  "pr": {
+   "description": "pull request number the prediction is about",
+   "pii": false
+  },
+  "predicted_red": {
+   "description": "true when the model predicted the step red",
+   "pii": false
+  },
+  "repo": {
+   "description": "repository the pull request belongs to",
+   "pii": false
+  }
+ },
  "fields": {
   "at": [
    "str"
@@ -18,7 +39,22 @@
   "issue": [
    "str"
   ],
+  "model": [
+   "str"
+  ],
   "note": [
+   "str"
+  ],
+  "p_red": [
+   "float"
+  ],
+  "pr": [
+   "int"
+  ],
+  "predicted_red": [
+   "bool"
+  ],
+  "repo": [
    "str"
   ],
   "scored_at": [

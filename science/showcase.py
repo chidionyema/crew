@@ -24,6 +24,7 @@ import pathlib
 import re
 import sqlite3
 import sys
+from collections.abc import Callable, Iterable
 from typing import Any
 
 SCIENCE = pathlib.Path(__file__).resolve().parent
@@ -110,8 +111,8 @@ def warehouse(now: dt.datetime) -> dict:
 
 def _contract_violations(dm: Any) -> list | str:
     """datamap.contract_violations lands with crew#71 (crew#402); until then the row is BLIND."""
-    fn = getattr(dm, "contract_violations", None)
-    if not callable(fn):
+    fn: Callable[[], Iterable[str]] | None = getattr(dm, "contract_violations", None)
+    if fn is None:
         return "BLIND (crew#71 not merged)"
     return list(fn())
 

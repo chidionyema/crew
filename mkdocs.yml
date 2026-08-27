@@ -1,0 +1,7 @@
+# TechDocs manifest (crew#412 row 1). Backstage renders docs/ on the Docs tab of the founder
+# entities in idp (backstage/founder/catalog-info.yaml, annotation backstage.io/techdocs-ref).
+# No nav block: every page under docs/ is in the tree, so a new page is never left out.
+site_name: Crew
+docs_dir: docs
+plugins:
+  - techdocs-core

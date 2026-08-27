@@ -24,10 +24,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
+import time
 
 #: bin/verify colours its rows. Colour codes in a markdown table render as literal
 #: escape bytes on GitHub, which makes the snapshot look broken to the one reader
@@ -174,6 +176,90 @@ def spend() -> list[str]:
     state = "GREEN" if rate <= cap else "RED"
     return [f"| estate spend | {state} | ${rate:.0f}/day 7-day mean against a ${cap:.0f} cap "
             f"(`spend_daily`, {db.name}) |"]
+
+
+def revenue() -> list[str]:
+    """The other side of every efficiency number (crew#70).
+
+    Read from `science/revenue.jsonl`, the series `outcomes.py revenue` appends to. GREEN
+    only when the store answered inside the staleness bar; a row the store did not answer
+    is NOT RUN, never a zero, because an unmeasured zero and a measured zero look the same
+    on a page and only one of them is true.
+    """
+    path = pathlib.Path(__file__).resolve().parent.parent / "science" / "revenue.jsonl"
+    return revenue_row(path)
+
+
+def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 24) -> list[str]:
+    if not path.exists():
+        return ["| revenue | NOT RUN | no `science/revenue.jsonl`: run `science/outcomes.py revenue` |"]
+    last = None
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line:
+            try:
+                last = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+    if not last:
+        return ["| revenue | NOT RUN | `science/revenue.jsonl` holds no row |"]
+    at = last.get("at", "")
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| revenue | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| revenue | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    if not last.get("measured"):
+        return [f"| revenue | NOT RUN | store not measured at {at}: {str(last.get('reason', ''))[:90]} |"]
+    n = int(last.get("paid_orders", 0))
+    cur = last.get("currency") or ""
+    if n == 0:
+        return [f"| revenue | GREEN | 0 paid orders, measured {at} from the store (`outcomes.py revenue`) |"]
+    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {len(last.get('payers', []))} payer(s), "
+            f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
+
+
+def ci() -> list[str]:
+    """Is CI getting slower (crew#393). Read from `science/ci-runs.jsonl`, appended daily by
+    `.github/workflows/ci-runs.yml` running `outcomes.py ci`."""
+    return ci_row(pathlib.Path(__file__).resolve().parent.parent / "science" / "ci-runs.jsonl")
+
+
+def ci_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 30) -> list[str]:
+    if not path.exists():
+        return ["| ci runs | NOT RUN | no `science/ci-runs.jsonl`: run `science/outcomes.py ci` |"]
+    rows = []
+    for line in path.read_text().splitlines():
+        try:
+            rows.append(json.loads(line)) if line.strip() else None
+        except json.JSONDecodeError:
+            continue
+    if not rows:
+        return ["| ci runs | NOT RUN | `science/ci-runs.jsonl` holds no row |"]
+    at = max(str(r.get("at", "")) for r in rows)
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| ci runs | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| ci runs | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    last = [r for r in rows if r.get("at") == at]
+    good = [r for r in last if r.get("measured")]
+    if not good:
+        why = "; ".join(str(r.get("reason", ""))[:60] for r in last[:2])
+        return [f"| ci runs | NOT RUN | nothing measured at {at}: {why} |"]
+    runs = sum(int(r.get("runs", 0)) for r in good)
+    done = sum(int(r.get("completed", 0)) for r in good)
+    passed = sum(int(r.get("passed", 0)) for r in good)
+    slow = max(good, key=lambda r: float(r.get("median_duration_s") or 0))
+    unmeasured = len(last) - len(good)
+    tail = f", {unmeasured} repo(s) refused" if unmeasured else ""
+    return [f"| ci runs | GREEN | {len(good)} workflows, {runs} runs/{good[0].get('window_h', 24)}h, "
+            f"{passed}/{done} passed, slowest median {slow.get('median_duration_s')}s "
+            f"({slow.get('repo')}/{slow.get('workflow')}), measured {at}{tail} (`outcomes.py ci`) |"]
 
 
 def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
@@ -487,6 +573,17 @@ BRANCH = "main"
 #: read it first. A worktree pinned to origin/main has no branch for a session to leave it on.
 SNAP_WT = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-worktree"
 
+#: The identity the push travels on. 2026-08-27 (crew#391): main took required checks (ruleset
+#: estate-security-scan) and every hourly push from the session token was refused with GH013, so
+#: STATE.md on main stood 36 hours stale while every session was told to read it first. A deploy
+#: key registered on the repo with write and listed as a bypass actor on that ruleset is the one
+#: writer allowed past the checks; a session's own token is not. No key file, no push, said so.
+SNAP_KEY = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-deploy-key"
+
+#: Every commit names the ticket it serves; `tracked.py` (crew#53) refuses one that does not.
+#: 2026-08-27 07:28Z: the subject had no ticket and the commit step failed after the push fix.
+TICKET = "crew#391"
+
 
 def ready_to_commit() -> str:
     """"" when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
@@ -500,7 +597,22 @@ def ready_to_commit() -> str:
     rc, out = sh(f"cd '{SNAP_WT}' && git checkout -q --detach origin/{BRANCH}", timeout=60)
     if rc:
         return f"snapshot worktree could not move to origin/{BRANCH}: {out.strip()[:200]}"
+    if not SNAP_KEY.exists():
+        return (f"no deploy key at {SNAP_KEY}: {BRANCH}'s ruleset requires checks and refuses a "
+                f"session-token push ({TICKET}); mint one with ssh-keygen, register it on the repo "
+                f"with write, list DeployKey as a bypass actor")
     return ""
+
+
+def push_url() -> str:
+    """origin's url as ssh, the form a deploy key can authenticate. Read, never written: the
+    snapshot worktree shares `.git/config` with the live checkout and every other worktree, so a
+    `remote.origin.pushurl` or `core.sshCommand` set here would put every session's `git push`
+    on the bypass key and past main's required checks (78caaa17, crew#452 review)."""
+    rc, out = sh(f"cd '{SNAP_WT}' && git remote get-url origin")
+    url = out.strip()
+    m = re.match(r"https://([^/]+)/(.+?)(?:\.git)?$", url)
+    return f"git@{m.group(1)}:{m.group(2)}.git" if (rc == 0 and m) else url
 
 
 def commit(now: str) -> int:
@@ -513,8 +625,9 @@ def commit(now: str) -> int:
     steps = [
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
         ("stage STATE.md", "git add STATE.md"),
-        ("commit", f"git commit -q -m 'chore(state): estate snapshot {now}'"),
-        ("push", f"git push -q origin HEAD:{BRANCH}"),
+        ("commit", f"git commit -q -m 'chore(state): estate snapshot {now} ({TICKET})'"),
+        ("push", f"GIT_SSH_COMMAND='ssh -i {SNAP_KEY} -o IdentitiesOnly=yes' "
+                 f"git push -q {push_url()} HEAD:{BRANCH}"),
     ]
     for label, cmd in steps:
         rc, out = sh(f"cd '{SNAP_WT}' && {cmd}", timeout=120)
@@ -572,6 +685,67 @@ def science_plane() -> list[str]:
     return rows
 
 
+def research_row(path: pathlib.Path, now: dt.datetime | None = None, window_days: int = 7) -> list[str]:
+    """crew#72 row 5: the research ledger reaches him as one row, never as a file he must open.
+
+    GREEN when an entry landed inside the window; RED when the ledger exists but the week is
+    empty (LAW 35 grades the loop weekly, so a silent week is the finding); NOT RUN when there is
+    no ledger or a row cannot be read. The decision count is printed beside it because crew#72
+    row 2 found 0 of 23 entries record what the research changed.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| research | NOT RUN | no ledger at `{path.name}` |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        dates = [dt.datetime.fromisoformat(str(r["date"])[:10]).replace(tzinfo=dt.UTC) for r in rows]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| research | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not dates:
+        return [f"| research | RED | ledger is empty (`{path.name}`) |"]
+    last = max(dates)
+    recent = sum(1 for d in dates if (now - d).days < window_days)
+    decided = sum(1 for r in rows if r.get("decision_fed"))
+    verdict = "GREEN" if recent else "RED"
+    return [f"| research | {verdict} | {recent} entr{'y' if recent == 1 else 'ies'} in {window_days}d, "
+            f"{len(rows)} total, {decided} with a decision fed, last {last:%Y-%m-%d} (`{path.name}`) |"]
+
+
+def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: int = 24) -> list[str]:
+    """crew#391: every hook run is a row in ~/.claude/state/hook-outcomes.jsonl (hook-run.py in
+    claude-guards). GREEN when hooks ran inside the window, and the row says how many refused and
+    which hook refused most, because LAW 38 grades a guard by what it refuses. RED when the ledger
+    exists and the window is silent: 36 hooks fire on every event, so a silent day means the
+    wrapper is unwired. NOT RUN when there is no ledger or a row cannot be read.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| hooks | NOT RUN | no ledger at `{path.name}` (claude-guards hook-run.py not wired) |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        recent = [r for r in rows if (now - dt.datetime.fromisoformat(str(r["at"]).replace("Z", "+00:00"))).total_seconds() < window_hours * 3600]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| hooks | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not recent:
+        return [f"| hooks | RED | no hook run in {window_hours}h, {len(rows)} rows total (`{path.name}`) |"]
+    refused = [r for r in recent if r.get("refused")]
+    by_hook: dict[str, int] = {}
+    for r in refused:
+        by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
+    top = max(by_hook, key=lambda h: by_hook[h]) if by_hook else "none"
+    slow = max((int(r.get("ms") or 0) for r in recent), default=0)
+    return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
+            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]
+
+
+def hooks() -> list[str]:
+    return hooks_row(pathlib.Path(os.path.expanduser("~/.claude/state/hook-outcomes.jsonl")))
+
+
+def research() -> list[str]:
+    return research_row(ROOT / "science" / "RESEARCH-LEDGER.jsonl")
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -584,8 +758,8 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors,
-        datamap, science_plane, github_actions, crew_p1,
+    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, collectors,
+        datamap, science_plane, research, hooks, github_actions, crew_p1,
                runtime):
         try:
             rows += fn()

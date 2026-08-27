@@ -39,8 +39,19 @@ if [ "$att_rc" -ne 0 ]; then
   echo "science-collect: outcomes.py attention exited $att_rc"
 fi
 
+python3 science/outcomes.py revenue
+rev_rc=$?
+if [ "$rev_rc" -ne 0 ]; then
+  echo "science-collect: outcomes.py revenue exited $rev_rc (NOT RUN is recorded, not hidden)"
+fi
+
 python3 science/collect.py --check
 collect_rc=$?
+
+# crew#319: the transcript store, every byte read once by offset. Its own exit code never
+# gates this job: a transcript that cannot be read is a run row, not a stale source.
+python3 science/transcripts.py
+transcripts_rc=$?
 
 for step in pull train score predict; do
   python3 science/foresight.py "$step" || echo "science-collect: foresight $step exited $?"
@@ -49,5 +60,6 @@ done
 python3 science/showcase.py
 showcase_rc=$?
 
-echo "science-collect: ship=$ship_rc attention=$att_rc collect=$collect_rc showcase=$showcase_rc"
+
+echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc transcripts=$transcripts_rc showcase=$showcase_rc"
 exit "$collect_rc"

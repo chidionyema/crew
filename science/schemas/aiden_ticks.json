@@ -1,0 +1,27 @@
+{
+ "description": "Aiden loop ticks: each pass of the autonomous loop and its outcome.",
+ "field_docs": {},
+ "fields": {
+  "alerts": [
+   "NoneType",
+   "int"
+  ],
+  "at": [
+   "str"
+  ],
+  "board": [
+   "str"
+  ],
+  "delivery": [
+   "dict"
+  ],
+  "sent": [
+   "int"
+  ],
+  "took_s": [
+   "float"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 6
+}

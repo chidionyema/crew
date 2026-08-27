@@ -1,0 +1,65 @@
+{
+ "description": "estate_audit.py worktree salvage receipts: one row per sweep that salvaged worktrees.",
+ "field_docs": {
+  "applied": {
+   "description": "1 if the cleanup was applied, 0 for report mode",
+   "pii": false
+  },
+  "iso": {
+   "description": "ISO time of the sweep (time_field)",
+   "pii": false
+  },
+  "kb": {
+   "description": "kilobytes salvaged",
+   "pii": false
+  },
+  "kept": {
+   "description": "worktrees kept",
+   "pii": false
+  },
+  "salvaged": {
+   "description": "worktrees salvaged",
+   "pii": false
+  },
+  "sha256": {
+   "description": "digest of the salvage bundle",
+   "pii": false
+  },
+  "stamp": {
+   "description": "salvage directory stamp",
+   "pii": false
+  },
+  "ts": {
+   "description": "epoch seconds of the sweep",
+   "pii": false
+  }
+ },
+ "fields": {
+  "applied": [
+   "int"
+  ],
+  "iso": [
+   "str"
+  ],
+  "kb": [
+   "int"
+  ],
+  "kept": [
+   "int"
+  ],
+  "salvaged": [
+   "int"
+  ],
+  "sha256": [
+   "str"
+  ],
+  "stamp": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 0
+}

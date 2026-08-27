@@ -27,3 +27,9 @@ science/dbt/.user.yml
 science/showcase-state.json
 science/ci/
 science/foresight-state.json
+
+# The transcript store (crew#319). Rebuilt from ~/.claude/projects by science/transcripts.py,
+# every byte read once; delete it to replay from offset zero.
+science/transcripts.db
+science/transcripts.db-shm
+science/transcripts.db-wal

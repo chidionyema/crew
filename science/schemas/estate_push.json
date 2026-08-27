@@ -1,0 +1,32 @@
+{
+ "description": "Estate pushes: each push of estate state and its result.",
+ "field_docs": {},
+ "fields": {
+  "bytes": [
+   "int"
+  ],
+  "critical": [
+   "str"
+  ],
+  "day": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "sha256": [
+   "str"
+  ],
+  "stamp": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ],
+  "verified": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 8
+}

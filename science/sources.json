@@ -2,7 +2,8 @@
   "version": 1,
   "roots": {
     "home": "~",
-    "science": "."
+    "science": ".",
+    "code": "$ESTATE_CODE"
   },
   "default_stale_after_hours": 48,
   "sources": [
@@ -234,12 +235,127 @@
       "kind": "jsonl",
       "time_field": "ts",
       "receiver": "otlp"
+    },
+    {
+      "name": "research_ledger",
+      "root": "science",
+      "path": "RESEARCH-LEDGER.jsonl",
+      "kind": "jsonl",
+      "time_field": "date",
+      "receiver": "otlp",
+      "stale_after_hours": 168
+    },
+    {
+      "name": "revenue",
+      "root": "science",
+      "path": "revenue.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp"
+    },
+    {
+      "name": "hook_outcomes",
+      "root": "home",
+      "path": ".claude/state/hook-outcomes.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp"
+    },
+    {
+      "name": "ci_runs",
+      "root": "science",
+      "path": "ci-runs.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 30,
+      "receiver": "otlp"
+    },
+    {
+      "name": "dagster-ticks",
+      "root": "code",
+      "path": "idp/run/dagster/schedules/schedules.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 2,
+      "query": "SELECT id, job_origin_id AS job, status, type, timestamp||'+00:00' AS at, json_extract(tick_body,'$.skip_reason') AS skip_reason, json_extract(tick_body,'$.error.message') AS error FROM job_ticks WHERE timestamp > datetime('now','-30 days')",
+      "why": "crew#376 / crew#85: every schedule skipped for 16 hours on a flat load ceiling and nothing outside Dagster's UI could say so. One row per tick: RUN, SKIPPED (with the reason) or FAILURE.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "dagster-runs",
+      "root": "code",
+      "path": "idp/run/dagster/history/runs.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
+      "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "capability_receipts",
+      "root": "home",
+      "path": ".estate/state/capability_receipts.jsonl",
+      "kind": "jsonl",
+      "time_field": "ended_at",
+      "receiver": "otlp"
+    },
+    {
+      "name": "sovereign_budget",
+      "root": "home",
+      "path": ".estate/sovereign/budget.db",
+      "kind": "sqlite",
+      "query": "SELECT session_id, total, remaining, version FROM budget",
+      "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "runaway-reaper",
+      "root": "home",
+      "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 168,
+      "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "temporal_dev_executions",
+      "root": "home",
+      "path": ".estate/temporal/dev.db",
+      "kind": "sqlite",
+      "query": "SELECT start_time AS at, execution_time, close_time, workflow_id, run_id, workflow_type_name, status, task_queue, execution_duration, history_length, state_transition_count FROM executions_visibility",
+      "time_field": "at",
+      "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
+      "receiver": "otlp"
+    },
+    {
+      "name": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "kind": "jsonl",
+      "time_field": "iso",
+      "stale_after_hours": 720,
+      "why": "crew#361: one row per estate_audit.py worktree salvage (salvaged, kept, kb, applied); 2 rows, last 2026-08-23. Runs only when a sweep salvages, so stale after 30 days, not 24 h.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "kind": "jsonl",
+      "time_field": "opened",
+      "stale_after_hours": 720,
+      "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
+      "receiver": "otlp"
     }
   ],
   "declined": [
     {
       "id": "transcripts",
-      "reason": "6.5 GB of raw session text. It is rows in no sense this can ingest, and copying it would double the largest thing on the disk. It needs summarising into facts by a reader that does not exist yet, which is a ticket and not an exclusion forever."
+      "reason": "6.5 GB of raw session text, so never a facts source: copying it would double the largest thing on the disk. Read instead by science/transcripts.py (crew#319), every byte once by offset, into science/transcripts.db: tool calls, results, errors, sessions."
     },
     {
       "id": "telemetry",
@@ -293,7 +409,7 @@
       "id": "dagster-run-store",
       "root": "home",
       "path": ".estate/dagster",
-      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs."
+      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs. 2026-08-27 (crew#376): the tick and run tables are now collected as dagster-ticks and dagster-runs from the live store under the idp checkout (run/dagster); this ~/.estate/dagster copy is stale since 2026-08-24 and stays declined."
     },
     {
       "id": ".estate/REQUIREMENTS.jsonl",

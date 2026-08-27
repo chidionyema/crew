@@ -1,0 +1,76 @@
+{
+ "description": "DECISIONS ledger: founder and session decisions with their receipts.",
+ "field_docs": {},
+ "fields": {
+  "alternatives": [
+   "list"
+  ],
+  "angles": [
+   "list"
+  ],
+  "chosen": [
+   "str"
+  ],
+  "confidence": [
+   "NoneType",
+   "str"
+  ],
+  "finding": [
+   "NoneType",
+   "str"
+  ],
+  "gaps": [
+   "list"
+  ],
+  "id": [
+   "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "options": [
+   "list"
+  ],
+  "question": [
+   "str"
+  ],
+  "rests_on": [
+   "list"
+  ],
+  "reversible": [
+   "bool"
+  ],
+  "revisit_when": [
+   "str"
+  ],
+  "searches": [
+   "list"
+  ],
+  "session": [
+   "str"
+  ],
+  "sources": [
+   "list"
+  ],
+  "status": [
+   "str"
+  ],
+  "superseded_by": [
+   "NoneType"
+  ],
+  "ts": [
+   "str"
+  ],
+  "undo": [
+   "str"
+  ],
+  "updated": [
+   "str"
+  ],
+  "why": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 22
+}

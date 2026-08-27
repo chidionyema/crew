@@ -40,6 +40,7 @@ Each producer is a record:
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import pathlib
@@ -65,6 +66,16 @@ SKIP_DIRS = {".wt-", ".worktrees", "node_modules", ".git", ".venv", "venv", "__p
 
 Producer = dict
 
+
+
+#: The SKIP_DIRS entries that mark a git worktree. `.claude` is in SKIP_DIRS for the yaml walk
+#: inside a repo; here every row lives under ~/.claude, so only the worktree markers apply.
+WORKTREE_DIRS = (".wt-", ".worktrees")
+
+
+def _in_worktree(path: str) -> bool:
+    """True when a directory segment of `path` is a git worktree (`.wt-crew69`, `.worktrees`)."""
+    return any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in path.split("/")[:-1])
 
 def _p(domain: str, key: str, kind: str, measures: list[str], evidence: str,
        size: float | int | None = None) -> Producer:
@@ -99,7 +110,23 @@ MAC_MEASURES = {
 }
 
 
-def _monitored(plist: str | None) -> bool:
+SCHEDULE_YML = pathlib.Path(os.environ.get("ESTATE_SCHEDULE_YML", IDP / "scheduler" / "schedule.yml"))
+
+
+def _dagster_jobs() -> set[str]:
+    """Labels Dagster runs from schedule.yml; it writes exit status and duration per run (dagster-runs)."""
+    try:
+        import yaml
+        return set((yaml.safe_load(SCHEDULE_YML.read_text()) or {}).get("jobs") or {})
+    except Exception:  # noqa: BLE001  (no idp checkout, no yaml: nothing is monitored by Dagster)
+        return set()
+
+
+def _monitored(plist: str | None, label: str | None = None) -> bool:
+    # crew#373: a job Dagster schedules is monitored by the run store (last_exit_status,
+    # run_duration_s per run, collected as dagster-runs since crew#376), hc-wrap or not.
+    if label and label in _dagster_jobs():
+        return True
     if not plist or not pathlib.Path(plist).exists():
         return False
     try:
@@ -130,6 +157,49 @@ def _sources_decision(row: dict) -> dict | None:
     return None
 
 
+@functools.lru_cache(maxsize=1)
+def _ledger_hooks() -> frozenset[str]:
+    """Every hook name the hook-outcomes ledger has recorded a run for. crew#374 (2026-08-27):
+    `mac/guard/*` was graded NEVER_EMITTED as one block while 19 of its 46 members were the
+    settings hooks `hook-run.py` already writes to the ledger (source `hook_outcomes`). The
+    ledger is the measurement; a guard it has rows for is COLLECTED, whatever the register says.
+    Path: $HOOK_OUTCOMES (what hook-run.py honours) or the `hook_outcomes` source."""
+    try:
+        import collect
+    except ImportError:
+        sys.path.insert(0, str(SCIENCE))
+        import collect
+    path = pathlib.Path(os.environ.get("HOOK_OUTCOMES") or collect.SOURCES["hook_outcomes"][0])
+    names = set()
+    try:
+        with path.open() as fh:
+            for line in fh:
+                try:
+                    names.add(json.loads(line)["hook"])
+                except (ValueError, KeyError, TypeError):
+                    continue
+    except OSError:
+        return frozenset()
+    return frozenset(names)
+
+
+def _listener_class(row: dict) -> str:
+    """forward | system | app, from the inventory row alone. crew#375 (2026-08-27): `mac/listener/*`
+    was one NEVER_EMITTED block over 32 rows that are three different things. A `ssh:` forward is a
+    transport whose workload is a container in the colima VM (crew#458), not the port. A macOS or
+    VM-host daemon (ControlCenter, rapportd, limactl, a desktop .app) is not an estate workload.
+    Everything else is an estate process that owns the port and can be asked what it received."""
+    path = str(row.get("path") or "")
+    proc = str(row.get("process") or "")
+    if path == "ssh:" or proc == "ssh":
+        return "forward"
+    if proc == "ollama":  # Ollama.app ships under /Applications but is an estate model server (crew#460 review)
+        return "app"
+    if path.startswith(("/System/", "/usr/libexec/", "/Applications/")) or proc in ("limactl", "rapportd", "ControlCenter"):
+        return "system"
+    return "app"
+
+
 def mac() -> list[Producer]:
     """Every row the Mac inventory found: ledgers, stores, jobs, guards, listeners, repos, drills."""
     doc = json.load(INVENTORY.open())
@@ -143,12 +213,19 @@ def mac() -> list[Producer]:
         # jobs, guards, listeners and drills by the id the inventory gave them.
         if kind in ("ledger", "data") and r.get("path"):
             ident = r["path"]
+        # A file inside a git worktree is a copy of a producer, never a producer: the same
+        # SKIP_DIRS rule the yaml walk applies. Measured 2026-08-27 (crew#320): 6 UNEXPLAINED
+        # rows, all `~/.claude/scripts/.wt-crew*/state/drills.jsonl`, held the gate RED.
+        if _in_worktree(str(r.get("path") or r.get("plist") or ident)):
+            continue
         ident = str(ident).replace(str(HOME) + "/", "~/")
         size = r.get("mb") or r.get("rows")
         # A scheduled job under hc-wrap pings a dead-man monitor; one without it can stop
         # and nothing says so. That is a different kind of producer, not a note.
         if kind == "scheduled_job":
-            kind = "scheduled_job:" + ("monitored" if _monitored(r.get("plist")) else "unmonitored")
+            kind = "scheduled_job:" + ("monitored" if _monitored(r.get("plist"), r.get("id")) else "unmonitored")
+        if kind == "listener":
+            kind = "listener:" + _listener_class(r)
         prod = _p("mac", f"{kind.split(':')[0]}/{ident}", kind, MAC_MEASURES.get(kind.split(':')[0], ["exists"]),
                   r.get("plist") or r.get("path") or str(INVENTORY), size)
         # The inventory already knows which stores collect.py reads; that is a measured
@@ -160,6 +237,11 @@ def mac() -> list[Producer]:
         # (crew#253). A decline recorded there is a verdict, and it outranks verdicts.json so
         # the same store is never decided in two files.
         decided = _sources_decision(r)
+        # A guard the hook-outcomes ledger has rows for is measured (crew#374); the ledger,
+        # not the register, decides it, the same way sources.json decides a store.
+        if not decided and kind == "guard" and r.get("id") in _ledger_hooks():
+            decided = {"verdict": "COLLECTED", "reader": "science/collect.py source hook_outcomes",
+                       "entry": "hook-outcomes ledger has rows for this hook (crew#374)"}
         if decided:
             prod["decided"] = decided
         out.append(prod)

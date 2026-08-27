@@ -1,0 +1,60 @@
+{
+ "description": "One row per Dagster schedule or sensor tick from the live run store: whether the job ran, skipped (with the reason) or failed.",
+ "field_docs": {
+  "at": {
+   "description": "tick timestamp, UTC",
+   "pii": false
+  },
+  "error": {
+   "description": "error message when the tick failed, null otherwise",
+   "pii": false
+  },
+  "id": {
+   "description": "tick id in schedules.db",
+   "pii": false
+  },
+  "job": {
+   "description": "job origin id (hash of the job definition)",
+   "pii": false
+  },
+  "skip_reason": {
+   "description": "why the tick skipped (load gate, battery, breaker, empty sensor), null otherwise",
+   "pii": false
+  },
+  "status": {
+   "description": "tick status: STARTED, SUCCESS, SKIPPED, FAILURE",
+   "pii": false
+  },
+  "type": {
+   "description": "SCHEDULE or SENSOR",
+   "pii": false
+  }
+ },
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "error": [
+   "NoneType",
+   "str"
+  ],
+  "id": [
+   "int"
+  ],
+  "job": [
+   "str"
+  ],
+  "skip_reason": [
+   "NoneType",
+   "str"
+  ],
+  "status": [
+   "str"
+  ],
+  "type": [
+   "str"
+  ]
+ },
+ "owner": "idp scheduler (scheduler/estate_scheduler)",
+ "undescribed_baseline": 0
+}

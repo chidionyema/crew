@@ -1,0 +1,33 @@
+# crew#70 row 1: the estate measures whether it has ever been paid, daily, off the laptop (R31).
+# `science/outcomes.py revenue` appends one row to science/revenue.jsonl; without the store token
+# the row is measured=false and the STATE.md revenue row reads NOT RUN, never GREEN.
+name: revenue
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: revenue
+  cancel-in-progress: false
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: measure
+        env:
+          MEDUSA_ADMIN_TOKEN: ${{ secrets.MEDUSA_ADMIN_TOKEN }}
+          REVENUE_PAYER_KEY: ${{ secrets.REVENUE_PAYER_KEY }}
+        run: python3 science/outcomes.py revenue
+      - name: commit the row
+        run: |
+          git config user.name "estate-revenue"
+          git config user.email "estate-revenue@users.noreply.github.com"
+          git add science/revenue.jsonl
+          git diff --cached --quiet && { echo "no new row"; exit 0; }
+          git commit -m "science: revenue measured $(date -u +%Y-%m-%d) (crew#70)"
+          git push origin HEAD:main

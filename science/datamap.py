@@ -102,7 +102,8 @@ def grade(prods: list[dict], reg: dict) -> list[dict]:
             g.update(verdict="UNEXPLAINED", why="No decision has been recorded about this producer.")
         else:
             g.update(verdict=e["verdict"], why=e.get("why", ""), reader=e.get("reader", ""),
-                     ticket=e.get("ticket", ""), entry=e.get("key", "auto"))
+                     ticket=e.get("ticket", ""), entry=e.get("key", "auto"),
+                     entry_kind=e.get("kind", ""))
         out.append(g)
     return out
 
@@ -359,13 +360,16 @@ def main() -> int:
             print(row)
 
         gaps = [g for g in graded if g["verdict"] in GAPS]
-        by_entry = collections.Counter(g["entry"] for g in gaps)
+        # Two register rows may share a key and differ by kind (listener:forward vs
+        # listener:app, crew#375); the table keeps them apart or one ticket hides the other.
+        by_entry = collections.Counter((g["entry"], g.get("entry_kind", "")) for g in gaps)
         print()
         print(f"GAPS  {len(gaps)} producers under {len(by_entry)} register entries; each entry carries a ticket")
         print("-" * 78)
-        for entry, n in by_entry.most_common():
-            g = next(x for x in gaps if x["entry"] == entry)
-            print(f"  {g['verdict']:<14}{entry[-40:]:<40}{n:>6}  {g.get('ticket') or 'NO TICKET'}")
+        for (entry, ekind), n in by_entry.most_common():
+            g = next(x for x in gaps if x["entry"] == entry and x.get("entry_kind", "") == ekind)
+            label = f"{entry} [{ekind}]" if ekind else entry
+            print(f"  {g['verdict']:<14}{label[-40:]:<40}{n:>6}  {g.get('ticket') or 'NO TICKET'}")
 
         unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
         if unexplained:

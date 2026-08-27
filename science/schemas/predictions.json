@@ -1,0 +1,34 @@
+{
+ "description": "Predictions register: forecasts made by sessions and their later grading.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "because": [
+   "str"
+  ],
+  "correct": [
+   "NoneType",
+   "bool"
+  ],
+  "id": [
+   "int"
+  ],
+  "issue": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "scored_at": [
+   "NoneType",
+   "str"
+  ],
+  "step": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 8
+}

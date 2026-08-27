@@ -1,0 +1,44 @@
+{
+ "description": "GitHub Actions runs per repo and workflow over the last day: count, pass rate, medians, minutes.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "completed": [
+   "int"
+  ],
+  "measured": [
+   "bool"
+  ],
+  "median_duration_s": [
+   "float"
+  ],
+  "median_queue_wait_s": [
+   "float"
+  ],
+  "minutes": [
+   "float"
+  ],
+  "pass_rate": [
+   "float"
+  ],
+  "passed": [
+   "int"
+  ],
+  "repo": [
+   "str"
+  ],
+  "runs": [
+   "int"
+  ],
+  "window_h": [
+   "int"
+  ],
+  "workflow": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 12
+}

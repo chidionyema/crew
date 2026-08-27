@@ -30,9 +30,11 @@ class _Sink(HTTPServer):
 
 class _Handler(BaseHTTPRequestHandler):
     def do_POST(self):
+        sink = self.server
+        assert isinstance(sink, _Sink)
         n = int(self.headers.get("Content-Length", 0))
-        self.server.posts.append((self.path, dict(self.headers), json.loads(self.rfile.read(n))))
-        self.send_response(self.server.status)
+        sink.posts.append((self.path, dict(self.headers), json.loads(self.rfile.read(n))))
+        self.send_response(sink.status)
         self.end_headers()
 
     def log_message(self, *a):

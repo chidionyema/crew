@@ -228,9 +228,10 @@
     },
     {
       "key": "mac/data/*temporal/dev.db",
-      "verdict": "WIRED_NEVER",
-      "why": "Temporal's dev-server history. Workflow durations and failures are in it and nothing extracts them.",
-      "ticket": "crew#377"
+      "verdict": "COLLECTED",
+      "why": "Temporal dev-server visibility: workflow executions with start, close, status and duration; 12 rows on 2026-08-27, collected since crew#377.",
+      "ticket": "crew#377",
+      "reader": "science/collect.py source temporal_dev_executions (sources.json, sqlite query over executions_visibility), time_field at (start_time)"
     },
     {
       "key": "mac/data/*sovereign/budget.db",

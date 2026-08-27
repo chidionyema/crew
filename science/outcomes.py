@@ -87,7 +87,7 @@ def collect_ships(days: int) -> list[dict]:
     It is the easiest number on this page to game, and it is here so that a later
     reader can see whether commit count and line count ever disagree.
     """
-    since = (dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days)).isoformat()
+    since = (dt.datetime.now(dt.UTC).date() - dt.timedelta(days=days)).isoformat()
     rows: list[dict] = []
     for repo in REPOS:
         if not (repo / ".git").exists():
@@ -112,7 +112,7 @@ def collect_ships(days: int) -> list[dict]:
                 d["fixes"] += 1
             d["shas"].append(sha[:8])
         for day, d in per_day.items():
-            rows.append({"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+            rows.append({"at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
                          "day": day, "repo": repo.name, **d})
     return rows
 
@@ -131,7 +131,7 @@ def collect_prs() -> list[dict]:
     for pr in prs:
         merged = (pr.get("mergedAt") or "")[:10]
         if merged:
-            rows.append({"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+            rows.append({"at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
                          "day": merged, "repo": "crew", "pr": pr["number"],
                          "title": pr.get("title", "")[:120]})
     return rows
@@ -219,7 +219,7 @@ def collect_attention() -> tuple[list[dict], int]:
             d["messages"] += 1
             if words and any(w in text.lower() for w in words):
                 d["complaints"] += 1
-    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    now = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
     rows = [{"at": now, "day": day, "messages": d["messages"], "complaints": d["complaints"],
              "complaint_rate": round(100 * d["complaints"] / d["messages"], 1),
              "lexicon_size": len(words)}
@@ -323,7 +323,7 @@ def cmd_predict(args) -> int:
     """Write a prediction BEFORE the repair. It cannot be scored by this command."""
     rows = load_predictions()
     pid = max([r["id"] for r in rows], default=0) + 1
-    rec = {"id": pid, "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+    rec = {"id": pid, "at": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
            "issue": args.issue, "step": args.step, "because": args.because,
            "scored_at": None, "correct": None}
     with open(PREDICTIONS, "a") as fh:
@@ -347,7 +347,7 @@ def cmd_score(args) -> int:
               f"{'correct' if rec['correct'] else 'wrong'}; a score is not revised",
               file=sys.stderr)
         return 1
-    rec = dict(rec, scored_at=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+    rec = dict(rec, scored_at=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
                correct=bool(args.correct), note=args.note or "")
     with open(PREDICTIONS, "a") as fh:
         fh.write(json.dumps(rec, separators=(",", ":")) + "\n")

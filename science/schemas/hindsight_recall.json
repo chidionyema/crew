@@ -1,0 +1,25 @@
+{
+ "description": "Hindsight recall history: one row per session-start recall of the mistake ledger, whether anything came back and how much.",
+ "field_docs": {
+  "at": "UTC ISO-8601 time the recall ran",
+  "chars": "total characters of the returned entries",
+  "count": "number of ledger entries returned",
+  "returned": "true when the recall returned at least one ledger entry"
+ },
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "chars": [
+   "int"
+  ],
+  "count": [
+   "int"
+  ],
+  "returned": [
+   "bool"
+  ]
+ },
+ "owner": "claude-guards/hindsight-recall",
+ "undescribed_baseline": 0
+}

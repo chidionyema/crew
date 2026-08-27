@@ -101,7 +101,8 @@ Nothing to start. `idp/scheduler/workspace.yaml` names
 (relative to the idp checkout, so no file names where a checkout lives, LAW 46),
 and `idp/bin/scheduler-up` loads it with the schedule.yml jobs and refuses to
 report "up" if it does not import. The dashboard is the scheduler's own,
-the address `idp/bin/scheduler-up` prints on its `ui` line (`$DAGSTER_URL` below).
+the address `idp/bin/scheduler-up` prints on its `ui` line; set `DAGSTER_URL` to
+that address (scheme included) before the query below.
 
 Freshness state, which is the answer to "is anything about to fail":
 

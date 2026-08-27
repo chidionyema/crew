@@ -4,7 +4,7 @@ Measured 2026-08-27 15:45–16:00Z by session 78caaa17 on the founder Mac. Every
 
 ## The one-sentence answer
 
-The cluster (OKE, `idp/clusters/oke`) already holds the platform — Backstage, observability, identity, secret store, LLM router, Temporal, SPIRE, Healthchecks, chaos, edge, alerts — but **the Mac still runs 20 Dagster schedules, 10 launchd daemons, a 5 GiB colima VM with 14 containers (three of them second copies of a cluster row), and the hermes gateway**, and nobody can verify the cluster from a runner for longer than an OCI session lasts (crew#345). The laptop is still the scheduler, the model router for local sessions, and the only place the science warehouse is written.
+The cluster (OKE, `idp/clusters/oke`) already holds the platform — Backstage, observability, identity, secret store, LLM router, Temporal, SPIRE, Healthchecks, chaos, edge, alerts — but **the Mac still runs 41 Dagster schedules, 10 launchd daemons, a 5 GiB colima VM with 14 containers (three of them second copies of a cluster row), and the hermes gateway**, and nobody can verify the cluster from a runner for longer than an OCI session lasts (crew#345). The laptop is still the scheduler, the model router for local sessions, and the only place the science warehouse is written.
 
 ## What is in the cloud today
 
@@ -28,7 +28,7 @@ The cluster (OKE, `idp/clusters/oke`) already holds the platform — Backstage, 
 
 | Workload | Count | Evidence | Cloud home / ticket |
 |---|---|---|---|
-| Dagster schedules (science-collect, idp reconcile, friction relay, cost sentinel, downshift, drills, key escrow, law writer, bundle push, …) | 20 RUNNING | Dagster GraphQL `localhost:3210` this turn | Argo Workflows / CronJobs on OKE — STANDARDS row "Scheduling: partially live"; crew#247 step 1 |
+| Dagster schedules (science-collect, idp reconcile, friction relay, cost sentinel, downshift, drills, key escrow, law writer, bundle push, …) | 41 RUNNING (the 15:45Z draft said 20; recounted 17:20Z) | Dagster GraphQL `localhost:3210` | Argo Workflows / CronJobs on OKE — STANDARDS row "Scheduling: partially live"; crew#247 step 1 |
 | launchd daemons: `ai.estate.{cockpit,consultd,deepseek-bridge,kimi-bridge,scheduler,session-timeout,sovereign-worker,temporal}`, `com.founder.{boardserve,estate-awake}` | 10 loaded | `launchctl list` | none named; `ai.estate.temporal` duplicates the OKE Temporal row |
 | colima VM: x86_64, 2 CPU, **5 GiB of 16** — **stopped 16:02Z** (was `Running` with docker and ssh dead) | 14 containers | `colima list`; crew#458 body | crew#458: langfuse-web, litellm-proxy, otel-fallback, agentgateway, github-mcp, prospector-edge, store-api all have a cluster row on idp main (`platform/mcp` idp#352); **estate-mcp is the only one without**, and its blocker is data: it serves `catalog/estate.db`, built from `~/.estate/state/inventory.json`, the LAW 39 inventory the Mac produces (crew#458 row 3, crew#392) |
 | Science warehouse + ledgers (`science/warehouse.db`, 40 sources) | written only here | `com.founder.sciencecollect` skipped 4 of last 5 ticks on load ceiling (crew#90) | none; the data lane has no cluster writer |
@@ -70,7 +70,7 @@ Recon 2026-08-27 16:05Z (read-only over `hermes-v2`, `idp/platform/hermes-agent`
 ## The gaps, in the order to close them (tracked as crew#516 CP1–CP9)
 
 1. **Durable cluster identity (crew#345).** Until a runner can reach OKE for 24h without a founder login, nothing else can be proved off the Mac. Scoped service principal in Terraform.
-2. **Scheduler off the Mac (crew#247 step 1).** 20 Dagster schedules → Argo Workflows/CronJobs reconciled by Flux; retire `ai.estate.scheduler`, `idp-install-launchd`, `scheduler-migrate`.
+2. **Scheduler off the Mac (crew#247 step 1, crew#516 CP2).** 41 Dagster schedules. idp#431 graded every spec row (`runs_on: cluster|mac|retire`) by reading what each script opens: **0 can move today**, 33 read or write Mac files (inventory, science ledgers, the board, `ESTATE_HOME`), 10 exist only because there is a Mac. The scheduler is not the bottleneck; the Mac-local state is: inventory (CP3), science ledgers (CP5, crew#522), board (crew#412), `ESTATE_HOME` markers (crew#396). CronJobs follow the first store that leaves the Mac; retire `ai.estate.scheduler`, `idp-install-launchd`, `scheduler-migrate` last.
 3. **Kill the VM (crew#458).** Stopped 16:02Z. Left: remove the `estate` MCP entry in `~/.claude.json` (points at the dead VM; `github` already uses `mcp.mumchimp.com`), give the inventory a cluster producer so `/estate/mcp` can answer off the Mac, then `colima delete` (founder call: 40 GiB image and container volumes go with it).
 4. **Hermes gateway to the cluster** (`idp/platform/hermes-agent` exists; see the section above for what is still local).
 5. **Science lane writer on the cluster.** The warehouse is written by a laptop job that skips under load; move `science-collect` with the scheduler, ledgers to object storage.

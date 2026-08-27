@@ -183,6 +183,21 @@ def _ledger_hooks() -> frozenset[str]:
     return frozenset(names)
 
 
+def _listener_class(row: dict) -> str:
+    """forward | system | app, from the inventory row alone. crew#375 (2026-08-27): `mac/listener/*`
+    was one NEVER_EMITTED block over 32 rows that are three different things. A `ssh:` forward is a
+    transport whose workload is a container in the colima VM (crew#458), not the port. A macOS or
+    VM-host daemon (ControlCenter, rapportd, limactl, a desktop .app) is not an estate workload.
+    Everything else is an estate process that owns the port and can be asked what it received."""
+    path = str(row.get("path") or "")
+    proc = str(row.get("process") or "")
+    if path == "ssh:" or proc == "ssh":
+        return "forward"
+    if path.startswith(("/System/", "/usr/libexec/", "/Applications/")) or proc in ("limactl", "rapportd", "ControlCenter"):
+        return "system"
+    return "app"
+
+
 def mac() -> list[Producer]:
     """Every row the Mac inventory found: ledgers, stores, jobs, guards, listeners, repos, drills."""
     doc = json.load(INVENTORY.open())
@@ -207,6 +222,8 @@ def mac() -> list[Producer]:
         # and nothing says so. That is a different kind of producer, not a note.
         if kind == "scheduled_job":
             kind = "scheduled_job:" + ("monitored" if _monitored(r.get("plist"), r.get("id")) else "unmonitored")
+        if kind == "listener":
+            kind = "listener:" + _listener_class(r)
         prod = _p("mac", f"{kind.split(':')[0]}/{ident}", kind, MAC_MEASURES.get(kind.split(':')[0], ["exists"]),
                   r.get("plist") or r.get("path") or str(INVENTORY), size)
         # The inventory already knows which stores collect.py reads; that is a measured

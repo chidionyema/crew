@@ -6,7 +6,9 @@ registry raises; a registered one resolves to its path under the home root.
 Rung 4, incident test.
 """
 import json
+
 import pytest
+
 from science import law_enforcement as le
 
 

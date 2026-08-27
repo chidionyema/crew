@@ -22,3 +22,7 @@ dbt-duckdb>=1.11
 # on code that had never been linted once.
 ruff>=0.14
 pyright>=1.1
+
+# crew#405: foresight trains a logistic model on the estate CI history; pinned floor, sklearn is the
+# learner the estate buys rather than writes (LAW 43).
+scikit-learn>=1.5

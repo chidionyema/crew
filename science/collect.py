@@ -250,6 +250,16 @@ CREATE TABLE IF NOT EXISTS null_time_watermark (
     nulls      INTEGER NOT NULL,
     seen_at    TEXT NOT NULL
 );
+-- crew#74 row 3: one row per source per run. Row count, the share of rows without a
+-- time, the number of distinct top-level keys the payloads use. Appended, never
+-- rewritten, so a run can be compared with the one before it.
+CREATE TABLE IF NOT EXISTS quality_checks (
+    run_at        TEXT NOT NULL,
+    source        TEXT NOT NULL,
+    rows          INTEGER NOT NULL,
+    null_at_rate  REAL NOT NULL,
+    distinct_keys INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ingest_log (
     source      TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
@@ -528,6 +538,44 @@ def null_time_verdict(conn: sqlite3.Connection, now: str | None = None) -> tuple
     return failures, note
 
 
+#: A null-rate move larger than this between two runs of the same source is named.
+QUALITY_NULL_RATE_STEP = 0.05
+
+
+def quality_checks(conn: sqlite3.Connection, now: str | None = None) -> tuple[list[str], str]:
+    """Append one quality row per source for this run and compare it with the last one.
+
+    Returns (failures, note). Recorded per source: row count, the share of rows with
+    ``at IS NULL``, and how many distinct top-level keys the payloads carry. A source
+    whose row count fell, or whose null rate moved by more than QUALITY_NULL_RATE_STEP
+    since the previous run, is a failure naming the move. The first run of a source
+    records and never fails (LAW 38).
+    """
+    now = now or datetime.now(UTC).isoformat(timespec="seconds")
+    prev = {r[0]: (r[1], r[2]) for r in conn.execute(
+        "SELECT source, rows, null_at_rate FROM quality_checks q WHERE run_at = "
+        "(SELECT max(run_at) FROM quality_checks WHERE source = q.source)")}
+    cur = conn.execute(
+        "SELECT source, count(*), avg(at IS NULL), "
+        "(SELECT count(DISTINCT j.key) FROM facts f2, json_each(f2.payload) j "
+        " WHERE f2.source = facts.source AND json_valid(f2.payload)) "
+        "FROM facts GROUP BY source").fetchall()
+    failures = []
+    for source, rows, null_rate, keys in cur:
+        conn.execute("INSERT INTO quality_checks VALUES (?,?,?,?,?)",
+                     (now, source, rows, null_rate, keys))
+        if source in prev:
+            prows, prate = prev[source]
+            if rows < prows:
+                failures.append(f"{source}: row count fell {prows} -> {rows} since the last run")
+            if abs(null_rate - prate) > QUALITY_NULL_RATE_STEP:
+                failures.append(f"{source}: share of rows without a time moved "
+                                f"{prate:.2f} -> {null_rate:.2f} since the last run")
+    conn.commit()
+    note = f"quality: {len(cur)} source(s) recorded, {len(prev)} compared with the last run"
+    return failures, note
+
+
 def staleness(entry: dict) -> str:
     """How old the SOURCE file is, against its own declared cadence."""
     if entry["status"] != "OK" or not entry["mtime"]:
@@ -795,6 +843,12 @@ def main() -> int:
     null_failures, nnote = null_time_verdict(conn)
     print(nnote)
     failures.extend(null_failures)
+
+    #: crew#74 row 3: row counts, null rates and key counts appended per run, and a
+    #: source that shrank or whose null rate jumped is named by this run.
+    q_failures, qnote = quality_checks(conn)
+    print(qnote)
+    failures.extend(q_failures)
 
     if failures:
         print("\nneeds attention:")

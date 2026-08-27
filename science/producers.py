@@ -66,6 +66,16 @@ SKIP_DIRS = {".wt-", ".worktrees", "node_modules", ".git", ".venv", "venv", "__p
 Producer = dict
 
 
+
+#: The SKIP_DIRS entries that mark a git worktree. `.claude` is in SKIP_DIRS for the yaml walk
+#: inside a repo; here every row lives under ~/.claude, so only the worktree markers apply.
+WORKTREE_DIRS = (".wt-", ".worktrees")
+
+
+def _in_worktree(path: str) -> bool:
+    """True when a directory segment of `path` is a git worktree (`.wt-crew69`, `.worktrees`)."""
+    return any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in path.split("/")[:-1])
+
 def _p(domain: str, key: str, kind: str, measures: list[str], evidence: str,
        size: float | int | None = None) -> Producer:
     return {"domain": domain, "key": f"{domain}/{key}", "kind": kind,
@@ -143,6 +153,11 @@ def mac() -> list[Producer]:
         # jobs, guards, listeners and drills by the id the inventory gave them.
         if kind in ("ledger", "data") and r.get("path"):
             ident = r["path"]
+        # A file inside a git worktree is a copy of a producer, never a producer: the same
+        # SKIP_DIRS rule the yaml walk applies. Measured 2026-08-27 (crew#320): 6 UNEXPLAINED
+        # rows, all `~/.claude/scripts/.wt-crew*/state/drills.jsonl`, held the gate RED.
+        if _in_worktree(str(r.get("path") or r.get("plist") or ident)):
+            continue
         ident = str(ident).replace(str(HOME) + "/", "~/")
         size = r.get("mb") or r.get("rows")
         # A scheduled job under hc-wrap pings a dead-man monitor; one without it can stop

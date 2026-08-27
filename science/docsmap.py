@@ -73,6 +73,45 @@ OWNER_RE = re.compile(r"^\s*(?:[-*>#]\s*)?(?:\*\*)?owner(?:\*\*)?\s*[:=]\s*(\S.*
 DATE_RE = re.compile(r"\b(20\d{2})-(\d{2})-(\d{2})\b")
 
 
+# crew#88, 2026-08-27: 377 of 389 documents named no owner. GitHub's CODEOWNERS is the mature
+# ownership record (it gates review on the same paths), so a document a CODEOWNERS row covers is
+# owned by that row when the file itself has no Owner line. An Owner line in the file still wins.
+CODEOWNERS_PATHS = ("CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS")
+
+
+def codeowners(repo: pathlib.Path) -> list[tuple[str, str]]:
+    """(pattern, owners) rows in file order; the last matching row wins, as GitHub applies it."""
+    for rel in CODEOWNERS_PATHS:
+        f = repo / rel
+        if f.exists():
+            rows = []
+            for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                line = line.split("#", 1)[0].strip()
+                if not line:
+                    continue
+                parts = line.split()
+                if len(parts) >= 2:
+                    rows.append((parts[0], " ".join(parts[1:])))
+            return rows
+    return []
+
+
+def codeowner_of(rel: str, rows: list[tuple[str, str]]) -> str | None:
+    owner = None
+    for pattern, who in rows:
+        pat = pattern
+        anchored = pat.startswith("/")
+        pat = pat.lstrip("/")
+        if pat.endswith("/"):
+            pat += "**"
+        if not anchored and "/" not in pat.rstrip("*"):
+            pat = "**/" + pat
+        rx = "^" + re.escape(pat).replace(r"\*\*/", "(?:.*/)?").replace(r"\*\*", ".*").replace(r"\*", "[^/]*") + "$"
+        if re.match(rx, rel) or re.match(rx, rel + "/"):
+            owner = who
+    return owner
+
+
 @dataclasses.dataclass
 class Doc:
     repo: str
@@ -131,6 +170,7 @@ def scan(repo_str: str) -> list[Doc]:
                  git(repo, "ls-files", "--others", "--exclude-standard", "*.md").splitlines()
                  if p}
 
+    rows = codeowners(repo)
     docs = []
     for rel in sorted(tracked | untracked):
         if EXCLUDE.search(rel):
@@ -149,7 +189,7 @@ def scan(repo_str: str) -> list[Doc]:
             repo=repo_str,
             path=rel,
             persisted=rel in tracked,
-            owner=owner_m.group(1).strip()[:60] if owner_m else None,
+            owner=(owner_m.group(1).strip()[:60] if owner_m else codeowner_of(rel, rows)),
             date=f"{date_m.group(1)}-{date_m.group(2)}-{date_m.group(3)}" if date_m else None,
             prose=prose_chars(text),
             last_commit=last,

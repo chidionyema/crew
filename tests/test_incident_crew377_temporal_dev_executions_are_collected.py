@@ -45,6 +45,7 @@ def test_registered_graded_collected_and_a_live_shaped_row_carries_its_start_tim
     assert ent["verdict"] == "COLLECTED" and "temporal_dev_executions" in ent["reader"]
     rows, bad = collect.read_rows(_db(tmp_path, "2026-08-26 03:57:51.383855+00:00"), "sqlite", src["query"])
     assert bad == 0 and rows[0]["workflow_type_name"] == "KiniFinish" and rows[0]["status"] == 2
+    assert "execution_time" in rows[0]  # 09cd04a6 on crew#447: execution_duration = close_time - execution_time
     assert collect.row_time(rows[0], "at") is not None
 
 

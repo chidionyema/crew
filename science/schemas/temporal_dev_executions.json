@@ -13,6 +13,10 @@
    "description": "duration in nanoseconds, null while running",
    "pii": false
   },
+  "execution_time": {
+   "description": "execution_time: when the run became eligible to execute; execution_duration = close_time - execution_time (not start_time)",
+   "pii": false
+  },
   "history_length": {
    "description": "history event count",
    "pii": false
@@ -53,6 +57,9 @@
   "execution_duration": [
    "NoneType",
    "int"
+  ],
+  "execution_time": [
+   "str"
   ],
   "history_length": [
    "NoneType",

@@ -585,6 +585,31 @@ SNAP_KEY = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-deploy-key
 TICKET = "crew#391"
 
 
+ELITE_RE = re.compile(r"\*\*(\d+) ELITE\*\*, \*\*(\d+) GAP\*\*, \*\*(\d+) BLIND\*\* of (\d+)")
+
+
+def elite_grade_row(page: str | None) -> list[str]:
+    """Founder, 2026-08-27: "what happened to the elite grading? needs to be a continuous
+    process, not just a one off ... visible to founder." The grade is idp docs/SHOWCASE.md,
+    rendered by Dagster com.estate.catalog-render four times a day and checked on every idp
+    PR (crew#474). This row puts its counts on the hourly board so he never opens the page
+    to learn whether the estate got better or worse. GREEN only with zero GAP and zero BLIND.
+    """
+    if page is None:
+        return ["| elite grade | NOT RUN | idp docs/SHOWCASE.md is not on main (idp#361 not merged, or fetch failed) |"]
+    m = ELITE_RE.search(page)
+    if not m:
+        return ["| elite grade | BLIND | idp docs/SHOWCASE.md has no `The bar` counts; bin/estate-showcase changed shape |"]
+    elite, gap, blind, total = (int(x) for x in m.groups())
+    state = "GREEN" if gap == 0 and blind == 0 else f"{gap} GAP, {blind} BLIND"
+    return [f"| elite grade | {state} | {elite} ELITE of {total} entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |"]
+
+
+def elite_grade() -> list[str]:
+    rc, out = sh("gh api -H 'Accept: application/vnd.github.raw' repos/chidionyema/idp/contents/docs/SHOWCASE.md", timeout=30)
+    return elite_grade_row(out if rc == 0 else None)
+
+
 def ready_to_commit() -> str:
     """"" when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
     rc, out = sh(f"cd '{ROOT}' && git fetch -q origin {BRANCH}", timeout=60)
@@ -760,7 +785,7 @@ def main() -> int:
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, collectors,
         datamap, science_plane, research, hooks, github_actions, crew_p1,
-               runtime):
+               runtime, elite_grade):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

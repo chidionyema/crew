@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "science"))
 
-import research_grade as rg  # noqa: E402
+import research_grade as rg
 
 TODAY = dt.date(2026, 8, 27)
 

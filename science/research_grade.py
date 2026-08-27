@@ -179,7 +179,7 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         "graded separately (R37): **Outward** is what the estate learned from the world, "
         "**Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.",
         "",
-        f"| Direction | Grade | One sentence |",
+        "| Direction | Grade | One sentence |",
         "|---|---|---|",
         f"| Outward | **{out_g}** | {g['decisions_fed']} of {g['questions']} questions fed a "
         f"decision; {len(g['stale'])} stale, {g['sourceless']} with no source. |",

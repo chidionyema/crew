@@ -456,6 +456,12 @@
   {
    "id": ".estate/healthchecks/hc.sqlite",
    "reason": "a 0-byte file at the directory root, created 2026-08-27 01:14 beside the real database data/hc.sqlite (declined above); nothing writes it, so there is nothing to collect (crew#465)"
+  },
+  {
+   "id": "transcripts-index",
+   "root": "code",
+   "path": "crew/science/transcripts.db",
+   "reason": "science/transcripts.py's own index of the declined transcripts (every byte read once by offset). A derived store of a declined source, rebuilt four times a day by scripts/science-collect (crew#432); its tool-call and error rows already reach the warehouse through that reader, so collecting the index again would count them twice. crew#90."
   }
  ]
 }

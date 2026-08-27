@@ -133,13 +133,14 @@ METHODS = ("push", "poll", "hand")
 SENSITIVITIES = ("public", "internal", "restricted")
 
 
-def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -> list[str]:
+def contract_audit(sources_file: pathlib.Path = SCIENCE / "sources.json") -> tuple[list[str], list[str]]:
     """crew#71: a source in sources.json without an owner, a method, a retention and a
     sensitivity is a store nobody can answer for. Measured 2026-08-24: 28 sources, 1,064
     field paths, none of the four declared on any of them. The owner must be a file that
     exists; a name that resolves to nothing is the same as no owner."""
     d = json.load(sources_file.open())
-    v = []
+    v: list[str] = []
+    blind: list[str] = []   #: owners that could not be checked this run, by source name; never silent
     for s in d.get("sources", []):
         name = s.get("name", "?")
         missing = [f for f in CONTRACT_FIELDS if f not in s]
@@ -158,15 +159,23 @@ def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -
         if str(s["owner"]).startswith("~") and not HOME_SCRIPTS.exists():
             #: CI has no ~/.claude/scripts, so a home-rooted owner cannot be checked there.
             #: A guard that loses its evidence says BLIND, never a verdict (LAW 45).
+            blind.append(name)
             continue
         if not owner.exists():
             v.append(f"source {name}: owner {s['owner']} does not exist")
-    return v
+    return v, blind
+
+
+def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -> list[str]:
+    """The violations half of contract_audit(); callers that want the blind count use contract_audit()."""
+    return contract_audit(sources_file)[0]
 
 
 def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: list[str]) -> list[str]:
     """The gate. Every line here is one thing the founder's law forbids."""
-    v = contract_violations()
+    v, contract_blind = contract_audit()
+    if contract_blind:
+        print(f"BLIND owners: {len(contract_blind)} ({', '.join(contract_blind[:6])}{'...' if len(contract_blind) > 6 else ''}) -- home-rooted owner path absent on this host; contract not checked")
     unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
     if unexplained:
         v.append(f"{len(unexplained)} producer(s) UNEXPLAINED (first: {unexplained[0]['key']})")

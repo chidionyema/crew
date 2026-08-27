@@ -28,6 +28,21 @@ def test_the_committed_register_declares_every_contract():
     assert datamap.contract_violations() == []
 
 
+def test_blind_owners_are_named_never_silently_skipped(tmp_path, monkeypatch):
+    """crew#402 REWORK (78caaa17): 34/43 owners live under ~/.claude/scripts, absent in CI.
+    A blind owner is a returned name, never a silent `continue`."""
+    v, blind = datamap.contract_audit()
+    assert v == []
+    if datamap.HOME_SCRIPTS.exists():
+        assert blind == [], blind
+    monkeypatch.setattr(datamap, "HOME_SCRIPTS", tmp_path / "absent")
+    monkeypatch.setattr(datamap.pathlib.Path, "home", classmethod(lambda cls: tmp_path))
+    v2, blind2 = datamap.contract_audit()
+    assert v2 == []
+    assert blind2, "home-rooted owners must be reported blind when the home path is absent"
+    assert len(blind2) == len(set(blind2))
+
+
 def test_a_source_missing_any_field_is_red(tmp_path):
     for field in datamap.CONTRACT_FIELDS:
         s = dict(GOOD)

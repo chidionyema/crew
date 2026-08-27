@@ -14,9 +14,21 @@ def _rows():
     return [json.loads(line) for line in LEDGER.read_text().splitlines() if line.strip()]
 
 
+def records_a_decision(row: dict) -> bool:
+    """crew#72 row 2: sources and findings with no decision is a reading list, not research."""
+    return bool(str(row.get("decision_fed", "")).strip())
+
+
 def test_incident_crew72_every_entry_names_the_decision_it_fed():
-    bare = [r.get("question", "?")[:60] for r in _rows() if not str(r.get("decision_fed", "")).strip()]
+    bare = [r.get("question", "?")[:60] for r in _rows() if not records_a_decision(r)]
     assert not bare, f"entries with no decision_fed: {bare}"
+
+
+def test_incident_crew72_the_rule_refuses_a_reading_list_entry_and_permits_a_decision():
+    reading_list = {"question": "q", "sources": ["s"], "findings": "f", "decision_fed": "  "}
+    decided = {"question": "q", "sources": ["s"], "findings": "f", "decision_fed": "crew#72 row 2"}
+    assert not records_a_decision(reading_list)
+    assert records_a_decision(decided)
 
 
 def test_incident_crew72_every_entry_has_sources_and_a_date():

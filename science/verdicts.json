@@ -421,8 +421,8 @@
     {
       "key": "mac/*.claude/logs/consult.jsonl*",
       "verdict": "WRITER_DEAD",
-      "why": "78 rows, the newest 2026-08-23T15:55Z (a groq success); nothing written in the 4 days since, because ai.estate.consultd has no backend configured on this machine \u2014 the `consult` id in science/sources.json records the same (crew#265). Not collected and not excluded: when consultd writes again the verdict flips to COLLECTED with a reader.",
-      "ticket": "crew#265"
+      "why": "78 rows, the newest 2026-08-23T15:55Z (a groq success); nothing written in the 4 days since, because ai.estate.consultd has no backend configured on this machine — the `consult` id in science/sources.json records the same (crew#265, closed as STALE; the open tracker is crew#320, the LAW ticket for every WRITER_DEAD row). Not collected and not excluded: when consultd writes again the verdict flips to COLLECTED with a reader.",
+      "ticket": "crew#320"
     }
   ]
 }

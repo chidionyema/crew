@@ -135,13 +135,13 @@
     },
     {
       "key": "act/guard_outcome",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "what a guard refused, and whether the refusal was correct",
-      "why": "refusals and refusal_rate are collected since claude-guards#122 (hook_outcomes source, crew#391); false_refusals still has no writer: nothing records that a refusal was wrong, so LAW 38 is half measured",
-      "ticket": "crew#370",
+      "why": "refusals and refusal_rate collected since claude-guards#122 (hook_outcomes source, crew#391); false_refusals since crew#370: a refusal the same session overturns with an override marker within 10 min is counted on the hooks row, so LAW 38 is measured from both sides (a floor: a refusal nobody overrides is not counted)",
       "measures": [
         "false_refusals"
-      ]
+      ],
+      "reader": "scripts/estate-snapshot hooks_row -> false_refusals() (ledger ~/.claude/state/hook-outcomes.jsonl, `waived` written by claude-guards hook-run.py)"
     },
     {
       "key": "act/model_routing",
@@ -421,7 +421,7 @@
     {
       "key": "mac/*.claude/logs/consult.jsonl*",
       "verdict": "WRITER_DEAD",
-      "why": "78 rows, the newest 2026-08-23T15:55Z (a groq success); nothing written in the 4 days since, because ai.estate.consultd has no backend configured on this machine \u2014 the `consult` id in science/sources.json records the same (crew#265, closed as STALE; the open tracker is crew#320, the LAW ticket for every WRITER_DEAD row). Not collected and not excluded: when consultd writes again the verdict flips to COLLECTED with a reader.",
+      "why": "78 rows, the newest 2026-08-23T15:55Z (a groq success); nothing written in the 4 days since, because ai.estate.consultd has no backend configured on this machine — the `consult` id in science/sources.json records the same (crew#265, closed as STALE; the open tracker is crew#320, the LAW ticket for every WRITER_DEAD row). Not collected and not excluded: when consultd writes again the verdict flips to COLLECTED with a reader.",
       "ticket": "crew#320"
     },
     {

@@ -876,8 +876,31 @@ def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: 
         by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
     top = max(by_hook, key=lambda h: by_hook[h]) if by_hook else "none"
     slow = max((int(r.get("ms") or 0) for r in recent), default=0)
+    overturned = false_refusals(recent)
     return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
-            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]
+            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms, "
+            f"{overturned} overturned by a marker (`{path.name}`) |"]
+
+
+def false_refusals(rows: list[dict], within_s: int = 600) -> int:
+    """crew#370: the false half of LAW 38. A refusal is counted overturned when the same hook, in
+    the same session, passes a command carrying an override marker (`waived`, written by
+    claude-guards hook-run.py) within `within_s` seconds after it. The agent asserting the work
+    was correct and the guard letting it through is the one recorded signal that the refusal was
+    wrong; a refusal nobody overrides is not counted, so this is a floor, not the rate.
+    """
+    def at(r: dict) -> dt.datetime:
+        return dt.datetime.fromisoformat(str(r["at"]).replace("Z", "+00:00"))
+    waived = [r for r in rows if r.get("waived") and not r.get("refused")]
+    n = 0
+    for r in rows:
+        if not r.get("refused"):
+            continue
+        t = at(r)
+        if any(w.get("hook") == r.get("hook") and w.get("session") == r.get("session")
+               and 0 <= (at(w) - t).total_seconds() <= within_s for w in waived):
+            n += 1
+    return n
 
 
 def hooks() -> list[str]:

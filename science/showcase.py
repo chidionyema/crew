@@ -43,13 +43,23 @@ LAUNCHD = pathlib.Path.home() / ".claude" / "scripts" / "launchagents"
 WINDOW_DAYS = 7
 
 
+def rel(path) -> str:
+    """A path as the page prints it: relative to the repo, never the checkout's absolute path.
+    crew#403: a page generated in a scratchpad worktree named that worktree's stores, read BLIND
+    on main for 4.6 hours, and the publisher copied it instead of regenerating it."""
+    try:
+        return str(pathlib.Path(path).resolve().relative_to(SCIENCE.parent))
+    except ValueError:
+        return str(path)
+
+
 class Blind(Exception):
     """A section that cannot see its source says so and stops."""
 
 
 def _jsonl(path: pathlib.Path) -> list[dict]:
     if not path.exists():
-        raise Blind(f"{path} absent")
+        raise Blind(f"{rel(path)} absent")
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
@@ -104,7 +114,7 @@ def refusals(rows: Iterable[dict]) -> list[str]:
 
 def warehouse(now: dt.datetime) -> dict:
     if not WAREHOUSE.exists():
-        raise Blind(f"{WAREHOUSE} absent")
+        raise Blind(f"{rel(WAREHOUSE)} absent")
     db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
     rows, sources, last = db.execute("select count(*), count(distinct source), max(ingested_at) from facts").fetchone()
     per = dict(db.execute("select source, max(at) from facts group by source").fetchall())
@@ -138,7 +148,7 @@ def datamap(now: dt.datetime) -> dict:
     sys.path.insert(0, str(SCIENCE))
     import datamap as dm
     if not dm.REGISTER.exists():
-        raise Blind(f"{dm.REGISTER} absent")
+        raise Blind(f"{rel(dm.REGISTER)} absent")
     reg = json.load(dm.REGISTER.open())
     census = json.load(dm.CENSUS.open()) if dm.CENSUS.exists() else {}
     shapes = json.load(dm.SHAPES.open()) if dm.SHAPES.exists() else {}
@@ -149,7 +159,7 @@ def datamap(now: dt.datetime) -> dict:
             "blind": sorted(census.get("blind", {})),
             "field_paths": sum(len(v.get("fields", {})) for v in shapes.values()),
             "shapes_walked": _file_age(dm.SHAPES) if shapes else None,
-            "shapes_path": str(dm.SHAPES),
+            "shapes_path": rel(dm.SHAPES),
             "contract_violations": _contract_violations(dm)}
 
 
@@ -212,7 +222,7 @@ def foresight(now: dt.datetime) -> dict:
     """The estate's own predictions about its CI, scored against what happened (crew#405)."""
     import foresight as fs
     if not fs.STATE.exists():
-        raise Blind(f"{fs.STATE} absent (python3 science/foresight.py train)")
+        raise Blind(f"{rel(fs.STATE)} absent (python3 science/foresight.py train)")
     return fs.summary()
 
 

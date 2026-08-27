@@ -647,11 +647,15 @@ SCIENCE_LEDGERS = ("science/ships.jsonl", "science/attention.jsonl", "science/re
 #: every snapshot and committed with STATE.md, so "which fire realises which hazard" is never
 #: older than an hour.
 HAZARD_PAGE = "docs/HAZARDS.md"
+#: crew#403: the science page is regenerated from the live checkout's own stores on every
+#: snapshot. A copy generated anywhere else names stores that checkout does not hold and reads
+#: BLIND; copying such a page forward kept it BLIND on main for 4.6 hours on 2026-08-27.
+SCIENCE_PAGE = "docs/science/SHOWCASE.md"
 
 
 def published_ledgers(root: pathlib.Path | None = None) -> list[str]:
     root = root or ROOT
-    return [rel for rel in (*SCIENCE_LEDGERS, HAZARD_PAGE) if (root / rel).is_file()]
+    return [rel for rel in (*SCIENCE_LEDGERS, HAZARD_PAGE, SCIENCE_PAGE) if (root / rel).is_file()]
 ELITE_RE = re.compile(r"\*\*(\d+) ELITE\*\*, \*\*(\d+) GAP\*\*, \*\*(\d+) BLIND\*\* of (\d+)")
 
 
@@ -716,6 +720,7 @@ def commit(now: str) -> int:
     """
     steps = [
         ("regenerate the hazard page", f"cd '{ROOT}' && python3 scripts/hazard-register >/dev/null; true"),
+        ("regenerate the science page", f"cd '{ROOT}' && python3 science/showcase.py >/dev/null; true"),
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
         ("copy the science ledgers into the worktree",
          " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers())),

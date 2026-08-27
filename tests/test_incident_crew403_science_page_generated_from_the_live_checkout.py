@@ -22,7 +22,7 @@ def _showcase():
 def test_incident_crew403_snapshot_regenerates_the_science_page_before_copying():
     text = (ROOT / "scripts" / "estate-snapshot").read_text()
     assert 'SCIENCE_PAGE = "docs/science/SHOWCASE.md"' in text
-    assert "(*SCIENCE_LEDGERS, HAZARD_PAGE, SCIENCE_PAGE)" in text
+    assert "(*SCIENCE_LEDGERS, HAZARD_PAGE, SCIENCE_PAGE, RESEARCH_PAGE)" in text
     regen = text.index("regenerate the science page")
     assert regen < text.index("copy STATE.md into the worktree")
     assert "python3 science/showcase.py" in text[regen:regen + 200]

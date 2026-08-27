@@ -110,8 +110,8 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "reply ends by naming two options and their costs instead of a decision",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": ["policy/reply.rego"]
   },
   {
    "rule": "fix-the-trap-where-you",

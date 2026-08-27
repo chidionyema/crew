@@ -148,8 +148,15 @@ def datamap(now: dt.datetime) -> dict:
             "producers": sum(census.get("domains", {}).values()),
             "blind": sorted(census.get("blind", {})),
             "field_paths": sum(len(v.get("fields", {})) for v in shapes.values()),
+            "shapes_walked": _file_age(dm.SHAPES) if shapes else None,
+            "shapes_path": str(dm.SHAPES),
             "contract_violations": _contract_violations(dm)}
 
+
+
+def _file_age(path) -> str:
+    """UTC mtime of a store, so a number on the page carries the date it was measured."""
+    return dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).strftime("%Y-%m-%d %H:%MZ")
 
 def research(now: dt.datetime) -> dict:
     rows = _jsonl(LEDGER)
@@ -305,7 +312,8 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
         elif title == "Data map (LAW 50)":
             v = ", ".join(f"{k} {n}" for k, n in sorted(d["verdicts"].items()))
             out += [f"- {d['entries']} register entries ({v}); {d['producers']} producers discovered at the last census",
-                    f"- {d['field_paths']} field paths in the last shape walk",
+                    (f"- {d['field_paths']} field paths in the shape walk of {d['shapes_walked']}" if d.get("shapes_walked")
+                     else f"- shape walk: BLIND ({d['shapes_path']} empty or absent; no walk has landed)"),
                     f"- domains blind at the last census: {', '.join(d['blind']) if d['blind'] else 'none'}",
                     "- contract violations now: " + (str(len(d["contract_violations"])) if isinstance(d["contract_violations"], list) else d["contract_violations"])]
         elif title == "Research ledger":

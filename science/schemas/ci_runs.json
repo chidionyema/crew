@@ -1,0 +1,45 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "completed": [
+   "int"
+  ],
+  "measured": [
+   "bool"
+  ],
+  "median_duration_s": [
+   "NoneType",
+   "float",
+   "int"
+  ],
+  "median_queue_wait_s": [
+   "NoneType",
+   "float",
+   "int"
+  ],
+  "minutes": [
+   "float"
+  ],
+  "pass_rate": [
+   "NoneType",
+   "float"
+  ],
+  "passed": [
+   "int"
+  ],
+  "repo": [
+   "str"
+  ],
+  "runs": [
+   "int"
+  ],
+  "window_h": [
+   "int"
+  ],
+  "workflow": [
+   "str"
+  ]
+ }
+}

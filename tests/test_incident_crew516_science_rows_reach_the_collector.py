@@ -56,7 +56,7 @@ def test_rows_arrive_as_otlp_logs_tagged_with_the_source(monkeypatch):
     assert [r["attributes"][0] for r in recs] == [
         {"key": "science.source", "value": {"stringValue": "attention"}}] * 2
     assert recs[0]["timeUnixNano"] == str(1_787_824_800 * 10**9)
-    assert recs[1]["timeUnixNano"] == "0"
+    assert recs[1]["timeUnixNano"] == "0"  # emit() is literal; collect substitutes the tick time
     assert json.loads(recs[1]["body"]["stringValue"]) == {"n": 2}
     assert body["resourceLogs"][0]["resource"]["attributes"][0]["value"]["stringValue"] == "science-collect"
     srv.shutdown()
@@ -89,7 +89,7 @@ def test_rows_are_chunked(monkeypatch):
 
 def test_collect_reports_the_emit_verdict_per_source():
     src = (Path(__file__).resolve().parents[1] / "science" / "collect.py").read_text()
-    assert 'otlp.emit(name, [(row_time(r, tfield), r) for r in rows])' in src
+    assert 'emitted = emit_new_rows(conn, name, rows, tfield, now)' in src
     assert '"emit": emitted' in src
 
 
@@ -97,3 +97,40 @@ def test_collect_check_fails_when_the_collector_refuses_and_says_skipped_when_un
     src = (Path(__file__).resolve().parents[1] / "science" / "collect.py").read_text()
     assert 'collector {e[\'emit\']}' in src and "failures.extend(emit_failures)" in src
     assert 'print(f"emit: {emits[0][\'emit\']}")' in src
+
+
+def test_collect_emits_each_timed_row_once_and_stamps_timeless_rows_with_the_tick(monkeypatch):
+    import sqlite3
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "science"))
+    import collect
+
+    srv, base = _serve(200)
+    monkeypatch.setenv(emit.ENDPOINT_VAR, base)
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(collect.SCHEMA)
+    rows = [{"at": "2026-08-27T10:00:00+00:00", "n": 1}, {"n": 2}]
+    assert collect.emit_new_rows(conn, "s", rows, "at", "2026-08-27T11:00:00+00:00") == "ok n=2 posts=1 of 2"
+    # second tick, one new timed row: the old timed row stays home, the timeless one goes again
+    rows.append({"at": "2026-08-27T10:30:00+00:00", "n": 3})
+    assert collect.emit_new_rows(conn, "s", rows, "at", "2026-08-27T12:00:00+00:00") == "ok n=2 posts=1 of 3"
+    recs = srv.posts[1][2]["resourceLogs"][0]["scopeLogs"][0]["logRecords"]
+    assert sorted(json.loads(r["body"]["stringValue"])["n"] for r in recs) == [2, 3]
+    assert all(r["timeUnixNano"] != "0" for r in recs)
+    assert conn.execute("SELECT last_at FROM emit_watermark WHERE source='s'").fetchone()[0] == "2026-08-27T10:30:00+00:00"
+    srv.shutdown()
+
+
+def test_watermark_does_not_move_when_the_collector_refuses(monkeypatch):
+    import sqlite3
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "science"))
+    import collect
+
+    srv, base = _serve(503)
+    monkeypatch.setenv(emit.ENDPOINT_VAR, base)
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(collect.SCHEMA)
+    v = collect.emit_new_rows(conn, "s", [{"at": "2026-08-27T10:00:00+00:00"}], "at", "2026-08-27T11:00:00+00:00")
+    assert v.startswith("FAIL") and conn.execute("SELECT count(*) FROM emit_watermark").fetchone()[0] == 0
+    srv.shutdown()

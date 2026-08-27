@@ -51,6 +51,12 @@ def headers() -> dict[str, str]:
 
 
 def _nanos(at: str | None) -> str:
+    """Nanoseconds since the epoch, or "0" for a value that is not a time.
+
+    Callers hand every row a time (collect.emit_new_rows substitutes the collection
+    time for a row without one) because a 1970 stamp sits outside every window a
+    backend query could ask for (crew#522 review).
+    """
     if not at:
         return "0"
     try:

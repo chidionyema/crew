@@ -288,6 +288,14 @@ CREATE TABLE IF NOT EXISTS ingest_log (
     source_mtime TEXT,
     status      TEXT NOT NULL   -- OK | ABSENT | UNREADABLE
 );
+-- LAW 50 (crew#516 CP5): the newest row time this source has put on the wire. A tick
+-- emits only rows newer than it, so the collector sees each row once, not the whole
+-- table every hour (rows without a time are snapshots and go every tick, said so).
+CREATE TABLE IF NOT EXISTS emit_watermark (
+    source     TEXT PRIMARY KEY,
+    last_at    TEXT NOT NULL,
+    emitted_at TEXT NOT NULL
+);
 """
 
 # Spend is the estate's only money series, so it gets a typed view rather than
@@ -592,6 +600,29 @@ def schema_verdict(name: str, rows: list[dict]) -> list[str]:
     return bad
 
 
+def emit_new_rows(conn: sqlite3.Connection, name: str, rows: list[dict],
+                  tfield: str | None, now: str) -> str:
+    """Put this source's rows on the wire once each (crew#522 review, d5ae1960).
+
+    Rows with a time go when newer than the source's watermark; rows without one carry
+    the collection time as their timestamp (a 1970 stamp would sit outside every 24h
+    window forever) and go every tick, because a timeless source is a rewritten
+    snapshot, not a log. The watermark moves only after the collector said 2xx.
+    """
+    row = conn.execute("SELECT last_at FROM emit_watermark WHERE source = ?", (name,)).fetchone()
+    last_at = row[0] if row else ""
+    timed = [(row_time(r, tfield), r) for r in rows]
+    fresh = [(at or now, r) for at, r in timed if at is None or at > last_at]
+    verdict = otlp.emit(name, fresh)
+    if verdict.startswith("ok"):
+        newest = max((at for at, _ in timed if at), default=None)
+        if newest:
+            conn.execute("INSERT OR REPLACE INTO emit_watermark VALUES (?,?,?)",
+                         (name, newest, now))
+        verdict += f" of {len(rows)}"
+    return verdict
+
+
 def collect(conn: sqlite3.Connection) -> list[dict]:
     now = iso(time.time())
     report = []
@@ -632,7 +663,7 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         #: LAW 50 (crew#516 CP5): the same rows go to the estate collector, tagged
         #: `science.source`, so `bin/idp-science-facts` can count them from ClickHouse.
         #: With no endpoint configured this is one word in the report and no network.
-        emitted = otlp.emit(name, [(row_time(r, tfield), r) for r in rows])
+        emitted = emit_new_rows(conn, name, rows, tfield, now)
         report.append({"source": name, "status": "OK", "rows": len(rows),
                        "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows),
                        "emit": emitted})

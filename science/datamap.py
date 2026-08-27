@@ -144,6 +144,22 @@ def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: lis
     return v
 
 
+# crew#526 CP1 (founder 2026-08-27: "158 unclaimed open how come this never goes down"): guards filed
+# issues with no closing rule, so nothing could ever close them. Every filed body carries the exact
+# command whose exit 0 closes it; the nightly closer (CP2) runs that line and closes with the receipt.
+def closes_when(key: str) -> str:
+    return f"Closes-when: `python3 science/datamap.py --row {key}`"
+
+
+def row_status(reg: dict, key: str) -> int:
+    """Exit code for `--row KEY`: 0 when the register entry is no longer a gap (COLLECTED, EXCLUDED
+    or DECLINED), 1 while it is still a gap, 3 when no such entry exists (BLIND, never argparse's 2)."""
+    for e in reg["entries"]:
+        if e["key"] == key:
+            return 1 if e["verdict"] in GAPS else 0
+    return 3
+
+
 def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
     """One crew issue per unticketed gap entry (crew#320's third box), written back into
     the register so the gate goes green on the same run that filed them."""
@@ -168,7 +184,9 @@ def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
                 f"{' kind `' + e['kind'] + '`' if e.get('kind') else ''}\n**Members this run:** {len(members)}\n\n"
                 f"**Why it is a gap:** {e.get('why','')}\n\n{sample}{more}\n\n"
                 f"Done when the entry's verdict in `science/verdicts.json` is COLLECTED with a named reader, "
-                f"or EXCLUDED with a reason, and `datamap.py --check` is green.")
+                f"or EXCLUDED with a reason, and `datamap.py --check` is green.\n\n"
+                + closes_when(e["key"]))
+        assert "Closes-when:" in body  # crew#526 CP1: a filed issue names the command that closes it
         title = f"datamap {e['verdict']}: {e['key']}" + (f" [{e['kind']}]" if e.get("kind") else "")
         r = subprocess.run(["gh", "issue", "create", "-R", repo, "--title", title[:200], "--body", body,
                             "--label", "datamap"], capture_output=True, text=True, timeout=60, check=False)
@@ -322,9 +340,15 @@ def main() -> int:
     ap.add_argument("--file-tickets", action="store_true",
                     help="open one crew issue per unticketed gap entry and write it back")
     ap.add_argument("--repo", default="chidionyema/crew")
+    ap.add_argument("--row", default="", metavar="KEY",
+                    help="exit 0 when this register entry is no longer a gap (the Closes-when line of a filed issue)")
     args = ap.parse_args()
 
     reg = register()
+    if args.row:
+        rc = row_status(reg, args.row)
+        print(f"datamap --row {args.row}: {'closed' if rc == 0 else 'still a gap' if rc == 1 else 'BLIND: no such entry'}")
+        return rc
     col = collected()
     changes = drift(col)
     only = set(args.domains.split(",")) - {""} or None

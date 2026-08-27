@@ -101,11 +101,11 @@ Nothing to start. `idp/scheduler/workspace.yaml` names
 (relative to the idp checkout, so no file names where a checkout lives, LAW 46),
 and `idp/bin/scheduler-up` loads it with the schedule.yml jobs and refuses to
 report "up" if it does not import. The dashboard is the scheduler's own,
-http://127.0.0.1:3210.
+the address `idp/bin/scheduler-up` prints on its `ui` line (`$DAGSTER_URL` below).
 
 Freshness state, which is the answer to "is anything about to fail":
 
-    curl -s http://127.0.0.1:3210/graphql -H 'Content-Type: application/json' \
+    curl -s "$DAGSTER_URL/graphql" -H 'Content-Type: application/json' \
       -d '{"query":"{ assetNodes { assetKey { path } freshnessStatusInfo { freshnessStatus } } }"}'
 
 Tests, from the repo root, on any interpreter that has `dagster`

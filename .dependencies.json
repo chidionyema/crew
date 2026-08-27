@@ -93,6 +93,10 @@
     "SNAP_KEY": {
       "is": "the name of the snapshot's object key inside scripts/estate-snapshot, not a credential",
       "dismissed": "a path variable; the snapshot's recovery is the estate-bundle-restore drill on the register"
+    },
+    "MTIME_KEY": {
+      "is": "the name of the mtime metadata field science/scheduler/estate_dagster/sources.py records on a materialization, not a credential",
+      "dismissed": "a metadata field name; the freshness check it feeds is the estate-facts code location graded by science/scheduler/tests"
     }
   }
 }

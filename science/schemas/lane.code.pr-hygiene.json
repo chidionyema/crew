@@ -1,5 +1,39 @@
 {
- "field_docs": {},
+ "description": "Code-lane PR hygiene per repo per day: pull requests closed by the stale workflow and reopened by wake-blocked (crew#504, crew#508 CP2).",
+ "field_docs": {
+  "at": {
+   "description": "UTC time of the measurement",
+   "pii": false
+  },
+  "closed_by_stale": {
+   "description": "count of PRs closed unmerged inside the window carrying the stale label",
+   "pii": false
+  },
+  "closed_prs": {
+   "description": "the PR numbers behind closed_by_stale",
+   "pii": false
+  },
+  "measured": {
+   "description": "false when the API refused the repo; then reason holds why",
+   "pii": false
+  },
+  "reopened_by_wake": {
+   "description": "count of open PRs with a reopened event by github-actions inside the window",
+   "pii": false
+  },
+  "reopened_prs": {
+   "description": "the PR numbers behind reopened_by_wake",
+   "pii": false
+  },
+  "repo": {
+   "description": "repository name under the estate owner",
+   "pii": false
+  },
+  "window_h": {
+   "description": "hours looked back",
+   "pii": false
+  }
+ },
  "fields": {
   "at": [
    "str"
@@ -26,5 +60,6 @@
    "int"
   ]
  },
- "undescribed_baseline": 8
+ "owner": "crew/science",
+ "undescribed_baseline": 0
 }

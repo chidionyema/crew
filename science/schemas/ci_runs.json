@@ -29,7 +29,11 @@
   "passed": [
    "int"
   ],
+  "reason": [
+   "str"
+  ],
   "repo": [
+   "NoneType",
    "str"
   ],
   "runs": [
@@ -39,6 +43,7 @@
    "int"
   ],
   "workflow": [
+   "NoneType",
    "str"
   ]
  }

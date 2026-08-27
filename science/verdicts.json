@@ -240,9 +240,10 @@
     },
     {
       "key": "mac/ledger/*capability_receipts.jsonl",
-      "verdict": "WIRED_NEVER",
-      "why": "24,953 capability receipts, 10 MB. The largest ledger under ~/.estate and no collector names it.",
-      "ticket": "crew#383"
+      "verdict": "COLLECTED",
+      "why": "24,953 capability receipts on 2026-08-26; every launchd/cron wrapper run with its exit code, duration and budget. Collected since crew#383.",
+      "ticket": "crew#383",
+      "reader": "science/collect.py source capability_receipts (sources.json), time_field ended_at"
     },
     {
       "key": "warehouse/*",

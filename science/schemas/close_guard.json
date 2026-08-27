@@ -9,6 +9,9 @@
    "NoneType",
    "str"
   ],
+  "at": [
+   "str"
+  ],
   "before_head": [
    "str"
   ],
@@ -19,6 +22,9 @@
   "changed": [
    "bool"
   ],
+  "kind": [
+   "str"
+  ],
   "session": [
    "str"
   ],
@@ -27,5 +33,5 @@
   ]
  },
  "owner": "claude-guards",
- "undescribed_baseline": 7
+ "undescribed_baseline": 9
 }

@@ -295,12 +295,21 @@
       "receiver": "otlp"
     },
     {
+      "name": "capability_receipts",
+      "root": "home",
+      "path": ".estate/state/capability_receipts.jsonl",
+      "kind": "jsonl",
+      "time_field": "ended_at",
+      "receiver": "otlp"
+    },
+    {
       "name": "runaway-reaper",
       "root": "home",
       "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
       "kind": "jsonl",
       "time_field": "ts",
       "stale_after_hours": 168,
+      "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
       "receiver": "otlp"
     }
   ],

@@ -454,8 +454,15 @@ def row_time(obj: dict, field: str | None) -> str | None:
             try:
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                continue
-            return v
+                #: crew#383: defensive. Every live capability receipt carries ended_at as a
+                #: float or int (0 strings in 25,155 rows); a writer that stringifies an
+                #: epoch would otherwise file every row as having no time.
+                try:
+                    v = float(v)
+                except ValueError:
+                    continue
+            else:
+                return v
         if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
             return iso(float(v))
         if isinstance(v, (int, float)) and EPOCH_MS_LO <= v <= EPOCH_MS_HI:

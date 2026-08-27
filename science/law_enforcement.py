@@ -10,6 +10,7 @@ which tier each law is actually on, and whether its guard is still emitting.
 
 Run it. Do not quote it from memory.
 """
+import calendar
 import contextlib
 import json
 import os
@@ -332,7 +333,8 @@ def workflow_ran(workflow, ci_runs=CI_RUNS, repo=REPO_NAME, now=None, stale_h=30
         if r.get("repo") != repo or r.get("workflow") != workflow or not r.get("measured"):
             continue
         try:
-            at = time.mktime(time.strptime(r["at"][:19], "%Y-%m-%dT%H:%M:%S")) - time.timezone
+            #: crew#425 review: mktime - timezone is 1h off under DST; timegm is UTC.
+            at = calendar.timegm(time.strptime(r["at"][:19], "%Y-%m-%dT%H:%M:%S"))
         except (KeyError, ValueError):
             continue
         if (now - at) / 3600 <= stale_h and (r.get("completed") or 0) > 0:

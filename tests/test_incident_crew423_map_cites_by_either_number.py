@@ -27,6 +27,9 @@ def test_workflow_guard_is_live_only_when_ci_record_shows_a_run(tmp_path):
     now = 1787799600.0  # 2026-08-27T04:20:00Z
     ci.write_text(json.dumps(row) + "\n")
     assert le.workflow_ran("review-gate.yml", ci_runs=str(ci), repo="crew", now=now)
+    # crew#425 review: the timestamp is UTC whatever the local zone says (DST or not)
+    assert le.workflow_ran("review-gate.yml", ci_runs=str(ci), repo="crew", now=now + 29.5 * 3600)
+    assert not le.workflow_ran("review-gate.yml", ci_runs=str(ci), repo="crew", now=now + 30.5 * 3600)
     assert not le.workflow_ran("review-gate.yml", ci_runs=str(ci), repo="idp", now=now)
     assert not le.workflow_ran("review-gate.yml", ci_runs=str(ci), repo="crew", now=now + 40 * 3600)
     ci.write_text(json.dumps({**row, "completed": 0}) + "\n")

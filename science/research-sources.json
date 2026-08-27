@@ -1,7 +1,7 @@
 {
   "_why": "crew#508 CP8. Every STANDARDS.md row that names a tool with a release stream is watched here; research_intake.py pulls the newest release of each repo once a day and files anything unseen as a candidate on science/RESEARCH-INTAKE.jsonl. A row missing from this file is a standard the estate cannot fall behind on because it is not watching it, and research_grade.py counts those too.",
   "watch": [
-    {"row": "GitOps (at k8s time)", "repo": "fluxcd/flux2"},
+    {"row": "GitOps", "repo": "fluxcd/flux2"},
     {"row": "Admission policy", "repo": "kyverno/kyverno"},
     {"row": "Data", "repo": "duckdb/duckdb"},
     {"row": "Data", "repo": "dbt-labs/dbt-core"},

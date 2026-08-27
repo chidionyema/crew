@@ -102,7 +102,8 @@
    "owner": "~/.claude/scripts/stuck_detector_tick.sh",
    "method": "poll",
    "retention_days": 30,
-   "sensitivity": "internal"
+   "sensitivity": "internal",
+   "note": "Two record kinds share this store (crew#71 smell 3): an observation row (class, cwd, evidence, idle_s, session, slug, streak, would_page; 84% of rows) and a run-summary row (findings, rc, ts; 16%). Nothing in the row says which; the writer is stuck_detector_tick.sh."
   },
   {
    "name": "bundle_push",

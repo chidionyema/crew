@@ -299,6 +299,30 @@ def sh_fields(rows: list[dict]) -> tuple[collections.Counter, dict[str, str]]:
 
     for r in rows:
         walk(r)
+    return _fold_scalar_maps(keys, types)
+
+
+def _fold_scalar_maps(keys: collections.Counter, types: dict[str, str]) -> tuple[collections.Counter, dict[str, str]]:
+    """crew#71 smell 2: `spend.by_owner.<project>` is one number per project name, and no
+    single row holds enough names for _is_map to see it; across 1,084 rows it is 42 fields
+    for one measure. A parent with MAP_MIN_KEYS or more scalar children of one type, seen
+    across rows, is a map keyed by data: it becomes `parent.*`, present in every row that
+    had any child, so the field count describes the schema and not the project list."""
+    by_parent: dict[str, list[str]] = collections.defaultdict(list)
+    for path in keys:
+        parent, _, leaf = path.rpartition(".")
+        if parent and leaf != "*":
+            by_parent[parent].append(path)
+    for parent, children in by_parent.items():
+        kinds = {types[c] for c in children}
+        if len(children) < MAP_MIN_KEYS or len(kinds) != 1 or kinds & {"map", "dict", "list"}:
+            continue
+        star = f"{parent}.*"
+        keys[star] = max(keys[c] for c in children)
+        types[star] = kinds.pop()
+        for c in children:
+            del keys[c]
+            del types[c]
     return keys, types
 
 

@@ -15,7 +15,10 @@ GATE = os.path.join(ROOT, "scripts", "verify.d", "12-mature-platform.sh")
 def _repo(tmp_path, script_text):
     r = tmp_path / "r"
     r.mkdir()
-    git = lambda *a: subprocess.run(["git", "-C", str(r), *a], check=True, capture_output=True, text=True)
+
+    def git(*a):
+        return subprocess.run(["git", "-C", str(r), *a], check=True, capture_output=True, text=True)
+
     git("init", "-q", "-b", "main")
     git("config", "user.email", "t@t")
     git("config", "user.name", "t")
@@ -31,11 +34,11 @@ def _repo(tmp_path, script_text):
 
 def _run(repo):
     return subprocess.run(["bash", GATE], cwd=repo, env={**os.environ, "CREW_ROOT": str(repo)},
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, check=False)
 
 
 def test_selftest_five_arms_pass():
-    out = subprocess.run(["bash", GATE, "--selftest"], capture_output=True, text=True)
+    out = subprocess.run(["bash", GATE, "--selftest"], capture_output=True, text=True, check=False)
     assert out.returncode == 0, out.stdout + out.stderr
     assert "selftest: 5 arms, 0 failures" in out.stdout
 

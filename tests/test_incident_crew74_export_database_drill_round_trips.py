@@ -4,6 +4,8 @@ fresh IMPORT DATABASE gets every row back; a copy missing a table or a row
 fails. Rung 4, incident test, proved both ways."""
 import os
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -48,12 +50,11 @@ def test_a_missing_warehouse_is_a_failure_not_a_pass(tmp_path):
 
 
 def test_cli_exit_follows_the_verdict(tmp_path):
-    import subprocess, sys
     wh = tmp_path / "warehouse.db"
     _warehouse(wh)
     env = {**os.environ, "SCIENCE_WAREHOUSE": str(wh)}
-    p = subprocess.run([sys.executable, str(Path(export_drill.__file__))], capture_output=True, text=True, env=env)
+    p = subprocess.run([sys.executable, str(Path(export_drill.__file__))], capture_output=True, text=True, env=env, check=False)
     assert p.returncode == 0 and p.stdout.rstrip().splitlines()[-1].startswith("PASS    export-database: 2 table(s)")
     env["SCIENCE_WAREHOUSE"] = str(tmp_path / "absent.db")
-    p = subprocess.run([sys.executable, str(Path(export_drill.__file__))], capture_output=True, text=True, env=env)
+    p = subprocess.run([sys.executable, str(Path(export_drill.__file__))], capture_output=True, text=True, env=env, check=False)
     assert p.returncode == 1 and "FAIL" in p.stdout

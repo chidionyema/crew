@@ -359,6 +359,15 @@
    "stale_after_hours": 720,
    "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
    "receiver": "otlp"
+  },
+  {
+   "name": "hindsight_recall",
+   "root": "home",
+   "path": ".claude/hindsight-recall-history.jsonl",
+   "kind": "jsonl",
+   "time_field": "at",
+   "stale_after_hours": 24,
+   "receiver": "otlp"
   }
  ],
  "declined": [

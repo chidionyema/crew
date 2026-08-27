@@ -243,6 +243,13 @@ CREATE TABLE IF NOT EXISTS facts (
 CREATE INDEX IF NOT EXISTS idx_facts_source ON facts(source);
 CREATE INDEX IF NOT EXISTS idx_facts_at     ON facts(at);
 
+-- crew#73 row 4: the count of rows without a time, per source, as of the last run.
+-- A producer that stops stamping makes this number grow, and growth is the failure.
+CREATE TABLE IF NOT EXISTS null_time_watermark (
+    source     TEXT PRIMARY KEY,
+    nulls      INTEGER NOT NULL,
+    seen_at    TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS ingest_log (
     source      TEXT NOT NULL,
     ingested_at TEXT NOT NULL,
@@ -481,6 +488,44 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         report.append({"source": name, "status": "DROPPED", "rows": n, "bad": 0,
                        "mtime": None})
     return report
+
+
+#: Sources whose rows carry no time by design: a single snapshot that is rewritten,
+#: not appended. Every other source is a log, and a log row without a time is a
+#: producer defect (crew#73: 6,166 such rows sat in the warehouse and no check said so).
+NO_TIME_SOURCES = frozenset({"enforcement_map"})
+
+
+def null_time_verdict(conn: sqlite3.Connection, now: str | None = None) -> tuple[list[str], str]:
+    """Rows with ``at IS NULL`` per source, against the count the last run recorded.
+
+    Returns (failures, note). A source outside NO_TIME_SOURCES whose null count grew
+    since the last run is a failure naming the growth: its producer stopped stamping.
+    The first run of a source seeds the watermark and says so, never a failure (LAW 38).
+    The watermark is then raised to the current count, so a fixed producer clears the
+    verdict on the next run and a broken one fails every run it keeps producing.
+    """
+    now = now or datetime.now(UTC).isoformat(timespec="seconds")
+    counts = dict(conn.execute(
+        "SELECT source, count(*) FROM facts WHERE at IS NULL GROUP BY source").fetchall())
+    marks = dict(conn.execute("SELECT source, nulls FROM null_time_watermark").fetchall())
+    failures, seeded = [], []
+    for source, nulls in sorted(counts.items()):
+        if source in NO_TIME_SOURCES:
+            continue
+        if source not in marks:
+            seeded.append(f"{source}={nulls}")
+        elif nulls > marks[source]:
+            failures.append(f"{source}: {nulls - marks[source]} new row(s) without a time "
+                            f"since the last run (producer stopped stamping)")
+        conn.execute("INSERT OR REPLACE INTO null_time_watermark VALUES (?, ?, ?)",
+                     (source, nulls, now))
+    conn.commit()
+    note = ("rows without a time: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            if counts else "rows without a time: none")
+    if seeded:
+        note += f"\nfirst watermark seeded, no verdict yet: {', '.join(seeded)}"
+    return failures, note
 
 
 def staleness(entry: dict) -> str:
@@ -744,6 +789,12 @@ def main() -> int:
     print(rnote)
     if bad_receivers:
         failures.append(f"{len(bad_receivers)} source(s) name an undeclared receiver")
+
+    #: crew#73 row 4: a producer that stops stamping its rows is noticed by this run,
+    #: not by whoever next opens the warehouse.
+    null_failures, nnote = null_time_verdict(conn)
+    print(nnote)
+    failures.extend(null_failures)
 
     if failures:
         print("\nneeds attention:")

@@ -12,7 +12,7 @@ those roles quote are real.
 
 ## Charter (founder, 2026-08-27)
 
-Three lines, said on the showcase (crew#403, crew#474), verbatim:
+Five lines, said on the showcase (crew#403, crew#474), verbatim:
 
 - "elite and super impressive, if any part of estate does not meet elite grade status shout out
   loud, we need to expose ourselves before the market exposes us and correct it"

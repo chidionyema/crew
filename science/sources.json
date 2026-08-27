@@ -252,6 +252,15 @@
       "time_field": "at",
       "stale_after_hours": 24,
       "receiver": "otlp"
+    },
+    {
+      "name": "hook_outcomes",
+      "root": "home",
+      "path": ".claude/state/hook-outcomes.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp"
     }
   ],
   "declined": [

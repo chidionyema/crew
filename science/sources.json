@@ -303,6 +303,15 @@
       "receiver": "otlp"
     },
     {
+      "name": "sovereign_budget",
+      "root": "home",
+      "path": ".estate/sovereign/budget.db",
+      "kind": "sqlite",
+      "query": "SELECT session_id, total, remaining, version FROM budget",
+      "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
+      "receiver": "otlp"
+    },
+    {
       "name": "runaway-reaper",
       "root": "home",
       "path": ".estate/logs/maintenance/runaway-reaper.jsonl",

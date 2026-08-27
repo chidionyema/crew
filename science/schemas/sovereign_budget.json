@@ -1,5 +1,23 @@
 {
- "field_docs": {},
+ "description": "Sovereign worker per-session token budget (total, remaining); a rewritten snapshot with no time column.",
+ "field_docs": {
+  "remaining": {
+   "description": "tokens left",
+   "pii": false
+  },
+  "session_id": {
+   "description": "sovereign session the budget belongs to; joins to spend",
+   "pii": false
+  },
+  "total": {
+   "description": "tokens granted to the session",
+   "pii": false
+  },
+  "version": {
+   "description": "optimistic-lock counter",
+   "pii": false
+  }
+ },
  "fields": {
   "remaining": [
    "int"
@@ -14,5 +32,6 @@
    "int"
   ]
  },
- "undescribed_baseline": 4
+ "owner": "crew/science",
+ "undescribed_baseline": 0
 }

@@ -343,6 +343,16 @@ def workflow_ran(workflow, ci_runs=CI_RUNS, repo=REPO_NAME, now=None, stale_h=30
             return True
     return False
 
+#: crew#423 row 25: policy/command.rego is loaded by rule-guard.py (PreToolUse on
+#: Bash), not by opa-hook.py, so its tier is rule-guard's. Every other .rego is
+#: opa-hook's.
+REGO_RUNNERS = {"command.rego": "rule-guard"}
+
+
+def rego_runner(name):
+    return REGO_RUNNERS.get(os.path.basename(name), "opa-hook")
+
+
 def derive(entry, tiermap):
     """LAW 28: the state field is hand-written, so it drifts, and a map that
     says live about a dead guard is worse than no map. Derive it.
@@ -380,7 +390,7 @@ def derive(entry, tiermap):
         #: opa-hook.py, is wired to a Claude Code hook. The rule cannot run any
         #: other way, so the runner's tier is the rule's tier.
         elif name.endswith(".rego"):
-            if cited & law_refs(name) and tiermap.get("opa-hook") == "PREVENTIVE":
+            if cited & law_refs(name) and tiermap.get(rego_runner(name)) == "PREVENTIVE":
                 return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"

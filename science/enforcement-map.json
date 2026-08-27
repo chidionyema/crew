@@ -415,9 +415,9 @@
    "retired_to": null,
    "verdict": "mechanical",
    "where": "PreToolUse",
-   "check": "work starts on a new issue while the previous one's last comment is not a CHECKPOINT",
-   "state": "absent",
-   "guards": []
+   "check": "a switch command (git worktree add, checkout -b, switch -c, gh issue edit --add-assignee) runs while checkpoints/LATEST.md is more than 30 min old",
+   "state": "live",
+   "guards": ["policy/command.rego"]
   },
   {
    "rule": "crew-is-the-sync-layer",

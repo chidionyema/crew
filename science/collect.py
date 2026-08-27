@@ -329,6 +329,22 @@ WHERE source = 'spend'
 GROUP BY day
 ORDER BY day;
 
+-- crew#371 act/model_routing: which model served the calls and what each cost, per day.
+-- The history row carries by_model (usd) and reqs_by_model (calls) since claude-guards
+-- crew#371; rows written before that yield nothing here rather than a zero.
+DROP VIEW IF EXISTS spend_by_model;
+CREATE VIEW spend_by_model AS
+SELECT
+    json_extract(f.payload, '$.day') AS day,
+    m.key                            AS model,
+    MAX(m.value)                     AS usd,
+    MAX(json_extract(f.payload, '$.reqs_by_model."' || m.key || '"')) AS requests
+FROM facts f, json_each(f.payload, '$.by_model') m
+WHERE f.source = 'spend'
+  AND json_extract(f.payload, '$.day') >= '2020-01-01'
+GROUP BY day, model
+ORDER BY day, usd DESC;
+
 -- What the money bought. Crude on purpose: a commit is not value, and this view
 -- says nothing about whether any of it was worth doing. It is the estate's first
 -- denominator of any kind, and the point of it is that dividing by SOMETHING makes

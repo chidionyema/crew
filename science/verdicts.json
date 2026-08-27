@@ -145,15 +145,15 @@
     },
     {
       "key": "act/model_routing",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "which model served each call, and what it cost",
-      "why": "`spend` records dollars per owner per day. Cost per model, per task type and per outcome is in the transcripts and is not extracted.",
-      "ticket": "crew#371",
+      "why": "Was: `spend` records dollars per owner per day and dropped the per-model split scan() already computed. Now the history row keeps by_model/reqs_by_model and the warehouse exposes them as a view.",
       "measures": [
         "calls_per_model",
         "cost_per_model",
         "fallbacks"
-      ]
+      ],
+      "reader": "science/collect.py view spend_by_model (day, model, usd, requests) over facts source=spend; the row carries by_model and reqs_by_model from ~/.claude/scripts/estate/estate_cost_sentinel.py record() (claude-guards crew#371). fallbacks: not in this reader; the signal is LiteLLM_SpendLogs model vs model_group in litellm-db (idp platform/llm/litellm.yaml DATABASE_URL), crew#371 CP2 when the cluster answers"
     },
     {
       "key": "act/context_waste",

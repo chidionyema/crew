@@ -26,3 +26,5 @@ pyright>=1.1
 # crew#405: foresight trains a logistic model on the estate CI history; pinned floor, sklearn is the
 # learner the estate buys rather than writes (LAW 43).
 scikit-learn>=1.5
+# science/scheduler: the estate-facts code location; pyright needs the real module (crew#140)
+dagster>=1.13

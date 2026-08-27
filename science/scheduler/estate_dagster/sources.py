@@ -1,4 +1,4 @@
-"""The estate's 28 fact files, as Dagster assets that go stale when their
+"""The estate's fact files (every source in sources.json), as Dagster assets that go stale when their
 producer dies.
 
 WHY THIS IS NOT A SCRIPT
@@ -85,7 +85,7 @@ import dagster as dg
 from dagster import AssetExecutionContext
 from dagster.preview.freshness import FreshnessPolicy
 
-#: .../science/dagster/estate_dagster/sources.py -> .../science
+#: .../science/scheduler/estate_dagster/sources.py -> .../science
 SCIENCE = Path(__file__).resolve().parents[2]
 SOURCES_JSON = SCIENCE / "sources.json"
 
@@ -214,9 +214,9 @@ def _recorded_mtime(context: AssetExecutionContext, key: dg.AssetKey) -> float |
 def observe(context: AssetExecutionContext):
     """Record a materialization for every source file whose mtime moved.
 
-    One run covers all 28 -- 28 stat() calls -- rather than 28 runs.
+    One run covers every source -- one stat() each -- rather than one run per source.
     """
-    selected = {k for k in context.selected_asset_keys}
+    selected = set(context.selected_asset_keys)
     now = time.time()
     moved: list[str] = []
     unchanged: list[str] = []

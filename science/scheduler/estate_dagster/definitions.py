@@ -1,12 +1,14 @@
-"""The estate as one Dagster code location.
+"""The fact assets plus the dbt warehouse, for an interpreter that carries dagster-dbt.
 
-Two things are declared here and nothing is orchestrated by hand:
+The registered code location is facts.py (idp/scheduler/workspace.yaml, name
+`estate-facts`); this module adds the dbt half on top of it and is NOT
+registered anywhere yet, because the scheduler's interpreter (Python 3.14)
+resolves dagster-dbt back to 0.22.6 / dagster 1.6.6 (see facts.py).
 
-  estate/<name>   28 fact files, polled every 15 minutes, each carrying the
-                  freshness window sources.json already declared for it.
+  estate/<name>   every source in sources.json, from facts.py.
   facts           the dbt model that unions them into DuckDB.
 
-NOT YET WIRED: `facts` reads the same 28 files but is not declared as depending
+NOT YET WIRED: `facts` reads the same files but is not declared as depending
 on them, so the two halves are separate graphs in the UI. Joining them means
 emitting a dbt sources.yml from science/sources.json alongside the generated
 facts.sql, which is a change to dbt_build.py and is not in this step.
@@ -20,14 +22,9 @@ older than its declared window" into a failed check on a named asset with a
 lineage graph attached, which is the thing three separate hand-rolled watchers
 were each approximating into three separate logs.
 
-RUNNING IT
-----------
-  export DAGSTER_HOME=~/.estate/dagster
-  ~/.estate/venvs/dagster/bin/dagster dev -m estate_dagster.definitions
-
-Python 3.12. Not 3.14: pip resolves dagster-dbt backwards to 0.11.14 there,
-because no Dagster wheel is built for 3.14 yet, and the install looks like it
-succeeded.
+Python 3.12 or 3.13. Not 3.14: pip resolves dagster-dbt backwards there
+(measured 2026-08-27 on the idp venv: dagster-dbt 0.22.6, dagster 1.6.6), and
+the install looks like it succeeded.
 """
 
 # No `from __future__ import annotations` in this module. It turns every
@@ -45,7 +42,8 @@ import dagster as dg
 from dagster import AssetExecutionContext
 from dagster_dbt import DbtCliResource, DbtProject, dbt_assets
 
-from estate_dagster.sources import GROUP, SCIENCE, observe
+from estate_dagster.facts import observe_job, observe_schedule
+from estate_dagster.sources import SCIENCE, observe
 
 DBT_DIR = SCIENCE / "dbt"
 
@@ -75,20 +73,6 @@ dbt_project.prepare_if_dev()
 def dbt_estate_assets(context: AssetExecutionContext, dbt: DbtCliResource):
     yield from dbt.cli(["build"], context=context).stream()
 
-
-# Observation is cheap -- 28 stat() calls -- so it runs far more often than the
-# shortest declared window (6h). The check is only ever as current as the last
-# observation, so the observation cadence is the resolution of every prediction
-# this code location makes.
-observe_job = dg.define_asset_job(
-    "observe_estate_facts",
-    selection=dg.AssetSelection.groups(GROUP),
-)
-observe_schedule = dg.ScheduleDefinition(
-    job=observe_job,
-    cron_schedule="*/15 * * * *",
-    name="observe_estate_facts_every_15m",
-)
 
 build_job = dg.define_asset_job("build_warehouse", selection=dg.AssetSelection.all())
 build_schedule = dg.ScheduleDefinition(

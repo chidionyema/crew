@@ -39,7 +39,7 @@
       "key": "mac/*.claude/directives*",
       "verdict": "COLLECTED",
       "why": "Every founder prompt (80 files, 8,116 rows on 2026-08-27, writer ~/.claude/scripts/directive-capture.py). Source directives has collected the text since before the register; WIRED_NEVER was a stale grade, the same class as crew#358.",
-      "reader": "science/collect.py source directives (sources.json, jsonl-dir over ~/.claude/directives, time_field ts); attention.jsonl is the derived daily count"
+      "reader": "science/collect.py source directives (sources.json, jsonl-dir over ~/.claude/directives; declared time_field at, rows carry ts, resolved through TIME_KEYS at collect.py row_time); attention.jsonl is the derived daily count"
     },
     {
       "key": "mac/*state/prompt-ledger*",

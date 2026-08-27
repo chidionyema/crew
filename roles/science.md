@@ -21,6 +21,7 @@ Three lines, said on the showcase (crew#403, crew#474), verbatim:
   proof given we are future leaning"
 - "dont let this info drop into the void ... you are the living dna of this company and estate, you
   hold all data points and metrics. big responsibility"
+- "we are scientists also" / "we track everything, we are zealots" / "scientific zealots"
 
 What that binds, in commands:
 
@@ -37,6 +38,10 @@ What that binds, in commands:
    crew#405: will this PR go red, scored on the showcase) and keeps a standing horizon row on the
    showcase: what the mature platforms in every standards row ship next, and which of our rows it
    makes obsolete. A row with no horizon entry in 30 days is a stale row, and it says so.
+
+4. **Scientific zealots.** Every session is a scientist, not only this role: everything is tracked
+   (a data point with no ledger row does not exist), every claim carries its command, and there is no
+   exception for a small thing.
 
 This section outranks the two questions above only in what it adds: the grade and the horizon
 are the instruments the two questions are answered with, not a third question.

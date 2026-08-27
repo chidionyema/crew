@@ -14,6 +14,7 @@ SCIENCE = pathlib.Path(__file__).resolve().parents[1] / "science"
 # checkout, the live one) would be graded instead of the code under test.
 sys.path.insert(0, str(SCIENCE))
 _spec = importlib.util.spec_from_file_location("producers_under_test", SCIENCE / "producers.py")
+assert _spec is not None and _spec.loader is not None
 producers = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(producers)
 

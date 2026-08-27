@@ -616,6 +616,36 @@ def science_plane() -> list[str]:
     return rows
 
 
+def research_row(path: pathlib.Path, now: dt.datetime | None = None, window_days: int = 7) -> list[str]:
+    """crew#72 row 5: the research ledger reaches him as one row, never as a file he must open.
+
+    GREEN when an entry landed inside the window; RED when the ledger exists but the week is
+    empty (LAW 35 grades the loop weekly, so a silent week is the finding); NOT RUN when there is
+    no ledger or a row cannot be read. The decision count is printed beside it because crew#72
+    row 2 found 0 of 23 entries record what the research changed.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| research | NOT RUN | no ledger at `{path.name}` |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        dates = [dt.datetime.fromisoformat(str(r["date"])[:10]).replace(tzinfo=dt.UTC) for r in rows]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| research | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not dates:
+        return [f"| research | RED | ledger is empty (`{path.name}`) |"]
+    last = max(dates)
+    recent = sum(1 for d in dates if (now - d).days < window_days)
+    decided = sum(1 for r in rows if r.get("decision_fed"))
+    verdict = "GREEN" if recent else "RED"
+    return [f"| research | {verdict} | {recent} entr{'y' if recent == 1 else 'ies'} in {window_days}d, "
+            f"{len(rows)} total, {decided} with a decision fed, last {last:%Y-%m-%d} (`{path.name}`) |"]
+
+
+def research() -> list[str]:
+    return research_row(ROOT / "science" / "RESEARCH-LEDGER.jsonl")
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -629,7 +659,7 @@ def main() -> int:
 
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, delivery, founder, collectors,
-        datamap, science_plane, github_actions, crew_p1,
+        datamap, science_plane, research, github_actions, crew_p1,
                runtime):
         try:
             rows += fn()

@@ -187,9 +187,30 @@
       "ticket": "crew#374"
     },
     {
+      "key": "mac/listener/port-3210",
+      "kind": "listener:app",
+      "verdict": "COLLECTED",
+      "reader": "science/collect.py source dagster-runs (~/dev/code/idp/run/dagster/history/runs.db)",
+      "why": "The Dagster webserver: every launch it receives is a row in runs.db, which source dagster-runs ingests (crew#369)."
+    },
+    {
       "key": "mac/listener/*",
+      "kind": "listener:forward",
       "verdict": "NEVER_EMITTED",
-      "why": "Listeners receive events and no ledger counts what arrived, what was dropped or when the last event came.",
+      "why": "Measured 2026-08-27 (crew#375): 9 ssh port forwards (3000, 3200, 3310, 4000, 4318, 5291, 8080, 8443, 8611) into the colima VM, where 14 containers run (langfuse-web, langfuse-otel-fallback on 4318, mcp-estate, mcp-agentgateway, mcp-github, prospector-edge, litellm-proxy, prospector-store-api and their stores). The forward is a transport; the container behind it emits to nothing the estate collector reads. The row closes when crew#458 moves each container onto its OKE row and the forward is gone.",
+      "ticket": "crew#458"
+    },
+    {
+      "key": "mac/listener/*",
+      "kind": "listener:system",
+      "verdict": "EXCLUDED",
+      "why": "Measured 2026-08-27 (crew#375): macOS and VM-host daemons the estate does not run (ControlCenter 5000/7000, rapportd, limactl 53/64035). Not an estate workload; nothing here is ours to measure."
+    },
+    {
+      "key": "mac/listener/*",
+      "kind": "listener:app",
+      "verdict": "NEVER_EMITTED",
+      "why": "Measured 2026-08-27 (crew#375): estate processes that own a port on the Mac (backstage 3100, postgres 5432, temporal dev server 7233 and its 5 ephemeral ports, kimi_bridge 8765/8766, consultd 8767, board_serve 8787, sovereign cockpit 8788, hermes gate 9900, ollama 11434). None counts what it received, dropped, or when the last event came.",
       "ticket": "crew#375"
     },
     {

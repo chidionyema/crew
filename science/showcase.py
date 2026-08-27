@@ -24,6 +24,7 @@ import pathlib
 import re
 import sqlite3
 import sys
+from typing import Any
 
 SCIENCE = pathlib.Path(__file__).resolve().parent
 CREW = SCIENCE.parent
@@ -107,7 +108,7 @@ def warehouse(now: dt.datetime) -> dict:
             "declared": len(reg["sources"]), "contracted": contracted}
 
 
-def _contract_violations(dm) -> list | str:
+def _contract_violations(dm: Any) -> list | str:
     """datamap.contract_violations lands with crew#71 (crew#402); until then the row is BLIND."""
     fn = getattr(dm, "contract_violations", None)
     if not callable(fn):

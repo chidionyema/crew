@@ -41,6 +41,27 @@ PREDICTIONS = SCIENCE / "predictions.jsonl"
 SOURCES = SCIENCE / "sources.json"
 LAUNCHD = pathlib.Path.home() / ".claude" / "scripts" / "launchagents"
 WINDOW_DAYS = 7
+LANE_HOURS = 24
+
+# crew#508 (founder, 2026-08-27): "when I say science I need to see progress across all lanes
+# simultaneously, everything needs to be feeding the machine." A lane is graded on what it emits,
+# not on what it claims. The mapping is explicit and typed here, never inferred from a name, so a
+# new source is unmapped-and-visible rather than silently absorbed into a lane that looks healthy.
+LANE_SOURCES: dict[str, tuple[str, ...]] = {
+    "code": ("ships", "ci_runs", "ci_reach", "bundle_push", "estate_push", "worktree_cleanup",
+             "hook_outcomes", "close_guard"),
+    "crew": ("board", "ledger", "decisions", "directives", "tickets", "goal_net", "attention",
+             "founder_actions", "board_deadletter", "prompt_ledger"),
+    "hermes-v2": ("alerts_inbox", "sovereign_receipts", "sovereign_budget", "revenue", "agent_cert",
+                  "runaway-reaper", "stuck_detector", "aiden_ticks"),
+    "portal": ("estate_registry", "capability_receipts", "enforcement_map", "drills", "drills_scripts"),
+    "science": ("research_ledger", "predictions", "method_metrics", "history", "spend"),
+    "data-ml": ("dagster-ticks", "dagster-runs", "temporal_dev_executions", "job_timelines"),
+}
+UNMAPPED = "unmapped"
+# The ledgers showcase.py already opens. A checkpoint is a ticked markdown box in one of them.
+CHECKPOINT_LEDGERS = (LEDGER, SHIPS, ATTENTION, PREDICTIONS)
+TICKED = re.compile(r"^\s*-\s*\[x\]\s*(.+)$", re.M | re.I)
 
 
 def rel(path) -> str:
@@ -116,8 +137,14 @@ def warehouse(now: dt.datetime) -> dict:
     if not WAREHOUSE.exists():
         raise Blind(f"{rel(WAREHOUSE)} absent")
     db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
-    rows, sources, last = db.execute("select count(*), count(distinct source), max(ingested_at) from facts").fetchone()
-    per = dict(db.execute("select source, max(at) from facts group by source").fetchall())
+    try:
+        # crew#508: a 0-byte warehouse.db opens cleanly and has no tables. Before this, that
+        # raised OperationalError out of build() and took the whole page down with it; a store
+        # that cannot answer is BLIND, one section wide (LAW 45).
+        rows, sources, last = db.execute("select count(*), count(distinct source), max(ingested_at) from facts").fetchone()
+        per = dict(db.execute("select source, max(at) from facts group by source").fetchall())
+    except sqlite3.Error as e:
+        raise Blind(f"{rel(WAREHOUSE)} has no readable facts table ({e})") from e
     reg = json.load(SOURCES.open()) if SOURCES.exists() else {"sources": [], "default_stale_after_hours": 48}
     default = reg.get("default_stale_after_hours", 48)
     stale = []
@@ -195,11 +222,16 @@ def outcomes(now: dt.datetime) -> dict:
     if WAREHOUSE.exists():
         db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
         per_day: dict[str, float] = {}
-        for (payload,) in db.execute("select payload from facts where source='spend' order by at"):
-            p = json.loads(payload)
-            if p.get("day", "") >= since and isinstance(p.get("total"), (int, float)):
-                per_day[p["day"]] = p["total"]        # newest sample of the day wins
-        spend = round(sum(per_day.values()), 2)
+        try:
+            samples = db.execute("select payload from facts where source='spend' order by at").fetchall()
+        except sqlite3.Error:
+            samples = []                              # crew#508: an unreadable store is no spend, not a crash
+        else:
+            for (payload,) in samples:
+                p = json.loads(payload)
+                if p.get("day", "") >= since and isinstance(p.get("total"), (int, float)):
+                    per_day[p["day"]] = p["total"]    # newest sample of the day wins
+            spend = round(sum(per_day.values()), 2)
     return {"window_days": WINDOW_DAYS, "commits": commits, "repos": len({k[1] for k in latest}),
             "messages": messages, "complaints": complaints,
             "complaint_rate": round(100 * complaints / messages, 1) if messages else None,
@@ -226,8 +258,87 @@ def foresight(now: dt.datetime) -> dict:
     return fs.summary()
 
 
+
+def _lane_of(source: str) -> str:
+    for lane, names in LANE_SOURCES.items():
+        if source in names:
+            return lane
+    return UNMAPPED
+
+
+def _ticked_checkpoints(now: dt.datetime) -> tuple[dict[str, int], str]:
+    """Checkpoints ticked in the window, per lane, from the ledgers this page already reads.
+
+    A ledger is counted only when the file itself was written inside the window: a `- [x]` line
+    carries no timestamp of its own, and dating it by anything else would be a number the page
+    cannot reproduce. When no ledger holds a ticked box the count is 0 for every lane and the
+    reason names the files that were searched (LAW 45: never render empty, render why)."""
+    counts: dict[str, int] = {}
+    searched, fresh = [], []
+    for path in CHECKPOINT_LEDGERS:
+        searched.append(rel(path))
+        if not path.exists():
+            continue
+        age_h = (now - dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).replace(tzinfo=None)).total_seconds() / 3600
+        if age_h > LANE_HOURS:
+            continue
+        fresh.append(rel(path))
+        for text in TICKED.findall(path.read_text(errors="replace")):
+            low = text.lower()
+            for lane in LANE_SOURCES:
+                if lane in low:
+                    counts[lane] = counts.get(lane, 0) + 1
+    if not counts:
+        why = (f"0 for every lane: no `- [x]` line in a ledger written in the last {LANE_HOURS}h "
+               f"(searched {', '.join(searched)}"
+               + (f"; fresh: {', '.join(fresh)}" if fresh else "; none written in the window") + ")")
+        return counts, why
+    return counts, ""
+
+
+def _grade(facts: int, checkpoints: int) -> str:
+    """BLIND outranks everything: a lane emitting nothing cannot be graded on anything else."""
+    if facts <= 0:
+        return "BLIND"
+    return "ELITE" if checkpoints > 0 else "GAP"
+
+
+def lanes(now: dt.datetime) -> dict:
+    """One row per lane, graded on facts it emitted in the last 24h (crew#508)."""
+    if not WAREHOUSE.exists():
+        raise Blind(f"{rel(WAREHOUSE)} absent")
+    since = (now - dt.timedelta(hours=LANE_HOURS)).isoformat(sep=" ")
+    db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
+    try:
+        pairs = db.execute(
+            "select source, count(*) from facts where ingested_at >= ? group by source", (since,)
+        ).fetchall()
+    except sqlite3.Error as e:
+        raise Blind(f"{rel(WAREHOUSE)} has no readable facts table ({e})") from e
+    per_lane: dict[str, int] = {lane: 0 for lane in LANE_SOURCES}
+    unmapped: dict[str, int] = {}
+    for source, n in pairs:
+        lane = _lane_of(source or "")
+        if lane == UNMAPPED:
+            unmapped[source or "(null)"] = unmapped.get(source or "(null)", 0) + n
+        per_lane[lane] = per_lane.get(lane, 0) + n
+    ticks, tick_note = _ticked_checkpoints(now)
+    rows = []
+    for lane in list(LANE_SOURCES) + ([UNMAPPED] if unmapped else []):
+        facts = per_lane.get(lane, 0) if lane != UNMAPPED else sum(unmapped.values())
+        cps = ticks.get(lane, 0)
+        rows.append({"lane": lane, "facts": facts, "checkpoints": cps,
+                     "grade": _grade(facts, cps),
+                     "sources": ", ".join(sorted(unmapped)) if lane == UNMAPPED
+                                else ", ".join(LANE_SOURCES[lane])})
+    rows.sort(key=lambda r: ({"BLIND": 0, "GAP": 1, "ELITE": 2}[r["grade"]], r["lane"]))
+    return {"rows": rows, "hours": LANE_HOURS, "since": since,
+            "checkpoint_note": tick_note, "unmapped": unmapped}
+
+
 SECTIONS = [
     ("Capabilities", capabilities, "python3 science/showcase.py  (reads science/*.py, scripts/science-collect, scripts/verify.d, launchd)"),
+    ("Lanes", lanes, "sqlite3 science/warehouse.db \"select source, count(*) from facts where ingested_at >= datetime('now','-24 hours') group by source\""),
     ("Warehouse", warehouse, "sqlite3 science/warehouse.db \"select count(*), count(distinct source), max(ingested_at) from facts\""),
     ("Data map (LAW 50)", datamap, "python3 science/datamap.py --check"),
     ("Research ledger", research, "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))\""),
@@ -275,6 +386,12 @@ def numbers(data: dict) -> dict[str, float]:
             n["USD per commit"] = o["usd_per_commit"]
     if p:
         n.update({"predictions recorded": p["recorded"], "predictions scored": p["scored"]})
+    lanes_d = data.get("Lanes")
+    if lanes_d:
+        for r in lanes_d["rows"]:
+            n[f"lane {r['lane']} facts 24h"] = r["facts"]
+        n["lanes BLIND"] = sum(r["grade"] == "BLIND" for r in lanes_d["rows"])
+        n["lanes ELITE"] = sum(r["grade"] == "ELITE" for r in lanes_d["rows"])
     if data.get("Capabilities"):
         rows, _ = data["Capabilities"]
         n["capabilities"] = len(rows)
@@ -315,6 +432,21 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
             out += ["| Capability | What it answers | Run | Scheduled by |", "|---|---|---|---|"]
             out += [f"| {r['name']} | {r['what']} | `{r['run']}` | {r['scheduled']} |" for r in rows]
             out += [""] + [f"{n}" for n in notes]
+        elif title == "Lanes":
+            out += [f"Every lane graded on what it emitted in the last {d['hours']}h. BLIND rows first:",
+                    "a lane that emitted no fact is not healthy, it is unobserved (crew#508).", "",
+                    "| Lane | Facts, 24h | Checkpoints, 24h | Grade | Sources counted |",
+                    "|---|---:|---:|---|---|"]
+            out += [f"| {r['lane']} | {r['facts']:,} | {r['checkpoints']} | {r['grade']} | {r['sources']} |"
+                    for r in d["rows"]]
+            out.append("")
+            blind_lanes = [r["lane"] for r in d["rows"] if r["grade"] == "BLIND"]
+            out.append(f"- BLIND: {', '.join(blind_lanes) if blind_lanes else 'none'}")
+            if d["unmapped"]:
+                out.append("- sources in no lane: " + ", ".join(f"{k} ({n:,})" for k, n in sorted(d["unmapped"].items()))
+                           + " — add them to LANE_SOURCES in science/showcase.py")
+            if d["checkpoint_note"]:
+                out.append(f"- checkpoints {d['checkpoint_note']}")
         elif title == "Warehouse":
             out += [f"- {d['rows']:,} rows across {d['sources']} sources; last ingest {d['last_ingest']}",
                     f"- {d['contracted']} of {d['declared']} declared sources carry owner, method, retention and sensitivity",

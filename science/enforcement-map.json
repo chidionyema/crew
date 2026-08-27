@@ -295,8 +295,10 @@
    "verdict": "mechanical",
    "where": "Stop",
    "check": "reply to the founder contains an imperative aimed at him: run, type, execute, paste, open a browser",
-   "state": "absent",
-   "guards": []
+   "state": "live",
+   "guards": [
+        "policy/reply.rego"
+      ]
   },
   {
    "rule": "a-feature-ships-with-a",

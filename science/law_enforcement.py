@@ -106,7 +106,9 @@ def guard_path(name):
     """A guard is a .py in scripts/, or a git hook in scripts/hooks/ with no
     extension. The second kind was invisible to this probe until 2026-08-23,
     which is why it reported LAW 7 and LAW 32 as prose while both were wired."""
-    if name.startswith("hooks/"):
+    #: crew#434: policy rules live in scripts/policy/*.rego (the
+    #: hand-rolled-policy gate refuses a new .py guard), run by opa-hook.py.
+    if name.startswith("hooks/") or name.endswith(".rego"):
         return f"{SCRIPTS}/{name}"
     return f"{SCRIPTS}/{name}.py"
 
@@ -373,6 +375,12 @@ def derive(entry, tiermap):
             #: law it enforces. That citation is what lets the map be checked
             #: against the guard instead of against itself.
             elif cited & law_refs(name) and reached:
+                return "live"
+        #: crew#434: a Rego rule is live when it cites the law and its runner,
+        #: opa-hook.py, is wired to a Claude Code hook. The rule cannot run any
+        #: other way, so the runner's tier is the rule's tier.
+        elif name.endswith(".rego"):
+            if cited & law_refs(name) and tiermap.get("opa-hook") == "PREVENTIVE":
                 return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"

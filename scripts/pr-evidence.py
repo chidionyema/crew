@@ -324,16 +324,29 @@ def added_evidence(diff: str, number=None) -> set:
 EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
 NEXT_HEADING = re.compile(r"^#{1,4}\s+\S", re.M)
 FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.S)
-#: A fence has to contain something. Same floor, and the same reason, as OPTION_MIN_CHARS.
+#: A fence has to contain something. Set on its own terms, NOT inherited from OPTION_MIN_CHARS:
+#: an option is prose a human writes and can always make longer, while a receipt is whatever the
+#: tool printed, and the tools here print short.
+#:
+#: The number is the shortest real verdict line this estate emits, rounded down. Measured:
+#:
+#:     All checks passed!                     18
+#:     91 passed in 13.66s                    19
+#:     0 errors, 0 warnings, 0 informations   36
+#:     PASS=5  FAIL=3  CANNOT RUN=6  of 14    36
+#:
+#: At 40 this refused `91 passed in 13.66s\nAll checks passed!` -- 38 characters, a complete
+#: pytest receipt in the form this estate prefers -- and told the author to go and find better
+#: evidence than the evidence. That is the outage LAW 38 names, and it was found by review
+#: rather than by anything here, which is why the floor now carries its measurement.
 #:
 #: State the limit rather than let a reader assume more. This measures the LENGTH of what is
-#: inside the fence. It cannot tell pasted command output from forty characters of prose, so a
+#: inside the fence. It cannot tell pasted command output from sixteen characters of prose, so a
 #: transcript is the weaker source and a committed file is preferred wherever one can exist:
 #: `evidence_paths` returns the diff's files first and only falls back to the body. What the
-#: floor does buy is the case it was written for -- a heading with nothing under it, which the
-#: old marker gate passed. Tightening it further would refuse output that has no `$` prompt in
-#: it, which is most machine output, and refusing correct work is the outage (LAW 38).
-TRANSCRIPT_MIN_CHARS = 40
+#: floor buys is the case it was written for -- a heading with nothing under it, which the old
+#: marker gate passed -- and it still refuses that, and a bare `$ ls` with no output.
+TRANSCRIPT_MIN_CHARS = 16
 
 
 def transcript_evidence(body: str) -> int:

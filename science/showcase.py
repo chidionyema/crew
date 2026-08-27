@@ -310,6 +310,8 @@ def _grade(facts: int, checkpoints: int) -> str:
 
 def lanes(now: dt.datetime) -> dict:
     """One row per lane, graded on facts it emitted in the last 24h (crew#508)."""
+    if now.tzinfo is not None:  # the page keeps naive UTC throughout (see build())
+        now = now.astimezone(dt.UTC).replace(tzinfo=None)
     if not WAREHOUSE.exists():
         raise Blind(f"{rel(WAREHOUSE)} absent")
     since = (now - dt.timedelta(hours=LANE_HOURS)).isoformat(sep=" ")

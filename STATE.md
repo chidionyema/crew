@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-25 19:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-27 07:45 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,30 +8,56 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | NOT RUN | bin/verify produced no verdict line |
-| maestro | GREEN | last cycle 5 min ago (`INTENT-20260825-185410-0d20f3e7.json`) |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 3.21s |
+| &nbsp;&nbsp;failing | | FAIL  README describes what ships        .github/workflows/build-agent-image.yml is in the repo, and the README never says why |
+| maestro | GREEN | last cycle 4 min ago (`INTENT-20260827-073619-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
-| Fly | NOT RUN | `flyctl apps list` failed: TIMED OUT after 45s |
+| Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| delivery | RED | 19 commits on no remote (oldest 1.3d), 20 dirty files, 5 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 433 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | scripts | 18 commits no remote holds, oldest 1.3d, 0 dirty |
-| &nbsp;&nbsp;stranded | .wt-backstage-proof | 1 commits no remote holds, oldest 0.6d, 3 dirty |
+| revenue | NOT RUN | store not measured at 2026-08-27T01:23:38Z: MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin) |
+| ci runs | GREEN | 49 workflows, 2479 runs/24h, 1876/2469 passed, slowest median 819.0s (haworks-platform/codeql.yml), measured 2026-08-27T03:28:24Z (`outcomes.py ci`) |
+| delivery | RED | 37 commits on no remote (oldest 2.8d), 37 dirty files, 6 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 742 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
+| &nbsp;&nbsp;stranded | scripts | 22 commits no remote holds, oldest 2.8d, 7 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 12 commits no remote holds, oldest 0.6d, 2 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 3 commits no remote holds, oldest 0.5d, 0 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| crew P1 | 12 open | the fires nobody has put out |
+| data map | NOT RUN | `science/datamap.py --check --json` did not answer |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 62h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 39 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
+| science plane: forecast ledger | RED | 2 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
+| science plane: declared stores | 40 | `science/sources.json` |
+| research | GREEN | 23 entries in 7d, 23 total, 23 with a decision fed, last 2026-08-25 (`RESEARCH-LEDGER.jsonl`) |
+| hooks | GREEN | 5081 runs in 24h, 39 refused (most: auto-objective.py 18), slowest 13470 ms (`hook-outcomes.jsonl`) |
+| GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
+| crew P1 | 25 open | the fires nobody has put out |
+| &nbsp;&nbsp;#407 SECURITY INCIDENT: a credential was sent over Telegram (crew#400 login, session a0d64ea4, 2026-08-27); tr | | |
+| &nbsp;&nbsp;#396 LAW: KINI checkpoints run as durable workflows on the estate's Temporal; 'Finish KINI' then close the lap | | |
+| &nbsp;&nbsp;#395 LAW: a founder directive rewrites every live session's goal by itself; no session reads a transcript and  | | |
+| &nbsp;&nbsp;#345 Platform-level: OCI session expires every ~1-2h, blocking all live verification — durable identity, not r | | |
+| &nbsp;&nbsp;#340 Langfuse (langfuse-web) healthcheck failing 2+ days, unnoticed — same silent-failure class as crew#308 | | |
+| &nbsp;&nbsp;#326 Incident: ~/.estate/guards/hooks/_router overwritten with a refuse-all stub at 17:06Z; every commit and p | | |
+| &nbsp;&nbsp;#325 idp architectural review 2026-08-26: cluster layer KEEP, README/STANDARDS/tests/sovereign REWORK | | |
+| &nbsp;&nbsp;#320 LAW: every WIRED_NEVER / NEVER_EMITTED row in datamap.py becomes a tracked ticket, permanently -- 17 + 8  | | |
+| &nbsp;&nbsp;#319 RED ALERT: session transcripts (76k files, 6.5GB, WIRED_NEVER) are the estate's largest unread asset -- d | | |
+| &nbsp;&nbsp;#318 P0: MacBook load average 555/530/336 — machine is in genuine distress, not "feels slow" | | |
+| &nbsp;&nbsp;#313 LiteLLM proxy down: colima not running, blocking CP1 photo intake and every LLM call routed through it | | |
+| &nbsp;&nbsp;#311 Class: the estate-operators policy lives outside tofu, so every new statement needs a founder browser sig | | |
+| &nbsp;&nbsp;#301 oke-rebuild --check red: tofu-plan and flux rows broken (drill 2026-08-26T10:42Z) | | |
+| &nbsp;&nbsp;#290 Continuity: reach Otto/the estate through any single loss — phone, laptop, or one cloud provider | | |
+| &nbsp;&nbsp;#283 Science & ML: close the 3 measured gaps before adding capability (readerless metrics, unrun experiments,  | | |
+| &nbsp;&nbsp;#279 Estate MCP needs a write-side ledger tool: architecture changes reach agents hours late | | |
+| &nbsp;&nbsp;#248 Prospector scheduler runs nowhere: no re-verification since 2026-08-16 | | |
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
 | &nbsp;&nbsp;#114 Fully operational today — the day board, 2026-08-24 | | |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |
-| &nbsp;&nbsp;#78 Decommission Fly, move to Kubernetes — architecture decision, scope not yet defined | | |
 | &nbsp;&nbsp;#74 Build the real data pipeline: DuckDB + DuckLake + fastjsonschema, and grade each dependency on use, distri | | |
 | &nbsp;&nbsp;#71 1,064 field paths, 0 declared: the warehouse has no schema, no owner, no retention and no sensitivity on a | | |
-| &nbsp;&nbsp;#69 32 of 59 scripts are wired into nothing, and one of them is the LAW 22 evidence tool | | |
-| &nbsp;&nbsp;#38 The exit from Fly has never once been drilled: the escape hatch cannot pass as written | | |
-| &nbsp;&nbsp;#35 Fly.io refuses to build: the account has overdue invoices, and production is 10 commits behind | | |
+| &nbsp;&nbsp;#32 prospector is still in ~/Documents/code — the move to ~/dev/code has never been applied | | |
 | &nbsp;&nbsp;#26 Estate spend is $866/day against a $120 cap, and one owner is 69% of it | | |
-| &nbsp;&nbsp;#22 Observability: the proposed architecture covers a third of the estate — audit, and the smaller next step | | |
 | &nbsp;&nbsp;#13 Retire the Hermes estate — unconditional, Hermes is discontinued | | |
-| docker context | GREEN | `docker context show` -> colima |
-| second container runtime | GREEN | `pgrep -f 'Docker.app/Contents/MacOS' | wc -l` -> 0 |
-| colima dockerd | RED | socket gave nothing in 8s -- every estate container is unserved; do NOT restart colima, route to the firefighter |
+| laptop VM (R26) | RED | 51871 /usr/local/bin/limactl; stop it, do not restart it |
+| OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
+| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |

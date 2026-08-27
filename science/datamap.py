@@ -157,6 +157,10 @@ def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
         if e.get("ticket") or e["verdict"] not in GAPS:
             continue
         members = by_entry.get(e["key"], [])
+        if not members:
+            # crew#386: a register entry no producer matched this run is a rule waiting
+            # for a member, not a gap. Ticketing it files an issue nobody can close.
+            continue
         sample = "\n".join(f"- `{m['key']}` ({m['kind']}; can measure: {', '.join(m['measures'][:5])})" for m in members[:15])
         more = f"\n- ... and {len(members) - 15} more" if len(members) > 15 else ""
         body = (f"Filed by `science/datamap.py --file-tickets` (LAW 50, crew#320).\n\n"

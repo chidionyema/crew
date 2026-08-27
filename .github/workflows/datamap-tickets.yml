@@ -48,7 +48,7 @@ jobs:
           git push origin "$b"
           gh pr create --head "$b" --base main --title "science: $n datamap gap ticket(s) filed $(date -u +%Y-%m-%d) (crew#320)" \
             --body "$(printf '%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
-              "Closes #320 row 3. Ticket numbers written back by datamap-tickets.yml: $(grep '^  filed ' filed.txt | tr -s ' ' | cut -d' ' -f3 | paste -sd, -)" \
+              "Part of #320 (row 3, No-Issue: scheduled write-back). Ticket numbers written back by datamap-tickets.yml: $(grep '^  filed ' filed.txt | tr -s ' ' | cut -d' ' -f3 | paste -sd, -)" \
               "Author-session: datamap-tickets.yml" "Reviewed-by: schedule" "Cost-delta-usd-month: 0" \
               "## Architecture laws" "- LAW 1 zero-gravity: \`science/verdicts.json\`" "- LAW 2 fractal: \`tests/test_incident_crew320_gap_tickets_are_filed_on_a_schedule.py\`" \
               "- LAW 3 nervous system: \`scripts/verify.d/26-datamap-register.sh\`" "- LAW 4 calibration: n/a: no model output")"

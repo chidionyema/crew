@@ -1,0 +1,71 @@
+{
+ "description": "One row per launchd capability run from ~/.claude/scripts/estate/launchd_receipt.py; ended_at is the time field.",
+ "field_docs": {
+  "ended_at": {
+   "description": "epoch seconds when the capability run ended (time_field)",
+   "pii": false
+  },
+  "started_at": {
+   "description": "epoch seconds when the run started",
+   "pii": false
+  }
+ },
+ "fields": {
+  "artifact_count": [
+   "int"
+  ],
+  "artifacts": [
+   "list"
+  ],
+  "attribution": [
+   "str"
+  ],
+  "budget_basis": [
+   "str"
+  ],
+  "budget_s": [
+   "float"
+  ],
+  "duration_s": [
+   "float",
+   "int"
+  ],
+  "ended_at": [
+   "float",
+   "int"
+  ],
+  "error_tail": [
+   "str"
+  ],
+  "exit_code": [
+   "int"
+  ],
+  "label": [
+   "str"
+  ],
+  "log_count": [
+   "int"
+  ],
+  "note": [
+   "str"
+  ],
+  "over_budget": [
+   "bool"
+  ],
+  "script": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "started_at": [
+   "float",
+   "int"
+  ],
+  "stdout_bytes": [
+   "int"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 15
+}

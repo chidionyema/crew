@@ -73,15 +73,16 @@
     },
     {
       "key": "act/revenue",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "money coming in",
-      "why": "2 rows in 5,548 mention revenue. Every efficiency number is a cost over nothing.",
+      "why": "collected since crew#409 (2026-08-27); first row measured=false, reason MEDUSA_ADMIN_TOKEN not set",
       "ticket": "crew#365",
       "measures": [
         "gbp_in_per_day",
         "paying_customers",
         "mrr"
-      ]
+      ],
+      "reader": "science/outcomes.py revenue appends science/revenue.jsonl (source `revenue` in sources.json, crew#409); scripts/estate-snapshot revenue() grades it, NOT RUN until vault entry medusa-admin lets the store answer, never a zero"
     },
     {
       "key": "act/agent_decisions",
@@ -97,15 +98,16 @@
     },
     {
       "key": "act/research",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "what was researched, and what changed because of it",
-      "why": "RESEARCH-LEDGER.jsonl has 8 entries, all hand-written by an agent that remembered, and 0 of 8 record the decision the research fed. LAW 35 has no mechanism.",
+      "why": "collected since crew#410 (2026-08-27)",
       "ticket": "crew#367",
       "measures": [
         "items",
         "decisions_fed",
         "hours_to_decision"
-      ]
+      ],
+      "reader": "science/RESEARCH-LEDGER.jsonl is source `research_ledger` in sources.json (crew#410); scripts/estate-snapshot research() grades the week; tests/test_incident_crew72_research_ledger_records_decisions.py refuses an entry with no decision_fed"
     },
     {
       "key": "act/task_outcome",
@@ -359,6 +361,11 @@
       "verdict": "WIRED_NEVER",
       "why": "Session transcripts per project. Only per-day spend is extracted; tool calls, failures and founder messages are unread (crew#319).",
       "ticket": "crew#319"
+    },
+    {
+      "key": "mac/data/~/.estate/healthchecks/hc.sqlite",
+      "verdict": "EXCLUDED",
+      "why": "0 bytes and no tables, measured 2026-08-27: a stray file beside the real ~/.estate/healthchecks/data/hc.sqlite, which is decided above (crew#320)"
     }
   ]
 }

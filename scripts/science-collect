@@ -46,5 +46,10 @@ fi
 python3 science/collect.py --check
 collect_rc=$?
 
-echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc"
+# crew#319: the transcript store, every byte read once by offset. Its own exit code never
+# gates this job: a transcript that cannot be read is a run row, not a stale source.
+python3 science/transcripts.py
+transcripts_rc=$?
+
+echo "science-collect: ship=$ship_rc attention=$att_rc revenue=$rev_rc collect=$collect_rc transcripts=$transcripts_rc"
 exit "$collect_rc"

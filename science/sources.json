@@ -275,7 +275,7 @@
   "declined": [
     {
       "id": "transcripts",
-      "reason": "6.5 GB of raw session text. It is rows in no sense this can ingest, and copying it would double the largest thing on the disk. It needs summarising into facts by a reader that does not exist yet, which is a ticket and not an exclusion forever."
+      "reason": "6.5 GB of raw session text, so never a facts source: copying it would double the largest thing on the disk. Read instead by science/transcripts.py (crew#319), every byte once by offset, into science/transcripts.db: tool calls, results, errors, sessions."
     },
     {
       "id": "telemetry",

@@ -454,8 +454,14 @@ def row_time(obj: dict, field: str | None) -> str | None:
             try:
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                continue
-            return v
+                #: crew#383: the capability-receipt wrapper writes epochs as strings
+                #: ("1787811578.055679"); a numeric string in the epoch range is an epoch.
+                try:
+                    v = float(v)
+                except ValueError:
+                    continue
+            else:
+                return v
         if isinstance(v, (int, float)) and EPOCH_LO <= v <= EPOCH_HI:
             return iso(float(v))
         if isinstance(v, (int, float)) and EPOCH_MS_LO <= v <= EPOCH_MS_HI:

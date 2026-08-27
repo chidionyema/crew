@@ -1,0 +1,60 @@
+{
+ "field_docs": {},
+ "fields": {
+  "artifact_count": [
+   "int"
+  ],
+  "artifacts": [
+   "list"
+  ],
+  "attribution": [
+   "str"
+  ],
+  "budget_basis": [
+   "str"
+  ],
+  "budget_s": [
+   "float"
+  ],
+  "duration_s": [
+   "float",
+   "int"
+  ],
+  "ended_at": [
+   "float",
+   "int"
+  ],
+  "error_tail": [
+   "str"
+  ],
+  "exit_code": [
+   "int"
+  ],
+  "label": [
+   "str"
+  ],
+  "log_count": [
+   "int"
+  ],
+  "note": [
+   "str"
+  ],
+  "over_budget": [
+   "bool"
+  ],
+  "script": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "started_at": [
+   "float",
+   "int"
+  ],
+  "stdout_bytes": [
+   "int"
+  ]
+ },
+ "undescribed_baseline": 17
+}

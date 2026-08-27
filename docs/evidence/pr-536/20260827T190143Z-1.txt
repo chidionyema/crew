@@ -1,0 +1,6 @@
+python3 science/datamap.py --row mac/*state/pi-bridge-runs*
+datamap --row mac/*state/pi-bridge-runs*: closed
+
+python3 science/datamap.py --check
+
+GATE  GREEN  every producer has a verdict, every gap has a ticket, no domain silently blind

@@ -30,7 +30,7 @@ The cluster (OKE, `idp/clusters/oke`) already holds the platform — Backstage, 
 |---|---|---|---|
 | Dagster schedules (science-collect, idp reconcile, friction relay, cost sentinel, downshift, drills, key escrow, law writer, bundle push, …) | 20 RUNNING | Dagster GraphQL `localhost:3210` this turn | Argo Workflows / CronJobs on OKE — STANDARDS row "Scheduling: partially live"; crew#247 step 1 |
 | launchd daemons: `ai.estate.{cockpit,consultd,deepseek-bridge,kimi-bridge,scheduler,session-timeout,sovereign-worker,temporal}`, `com.founder.{boardserve,estate-awake}` | 10 loaded | `launchctl list` | none named; `ai.estate.temporal` duplicates the OKE Temporal row |
-| colima VM: x86_64, 2 CPU, **5 GiB of 16**, up 20h15m | 14 containers | `colima list`; crew#458 body | crew#458: langfuse-web, litellm-proxy, otel-fallback are second copies of cluster rows; mcp-estate/github/agentgateway, prospector-edge, store-api have no cluster row yet |
+| colima VM: x86_64, 2 CPU, **5 GiB of 16** — **stopped 16:02Z** (was `Running` with docker and ssh dead) | 14 containers | `colima list`; crew#458 body | crew#458: langfuse-web, litellm-proxy, otel-fallback, agentgateway, github-mcp, prospector-edge, store-api all have a cluster row on idp main (`platform/mcp` idp#352); **estate-mcp is the only one without**, and its blocker is data: it serves `catalog/estate.db`, built from `~/.estate/state/inventory.json`, the LAW 39 inventory the Mac produces (crew#458 row 3, crew#392) |
 | Science warehouse + ledgers (`science/warehouse.db`, 40 sources) | written only here | `com.founder.sciencecollect` skipped 4 of last 5 ticks on load ceiling (crew#90) | none; the data lane has no cluster writer |
 | Claude Code sessions themselves (the agents) and their guards (`~/.claude/scripts`) | 4 live | ListAgents | crew#396: KINI as Temporal workflows, "close the laptop" |
 | Hermes stack | see section below | | |
@@ -57,7 +57,7 @@ Recon 2026-08-27 16:05Z (read-only over `hermes-v2`, `idp/platform/hermes-agent`
 
 | Check | Result today | Evidence |
 |---|---|---|
-| Cloud-agnostic gate (R36: provider names only in `platform/oci`, secret-store, clusters) | **1 line leaks**: `platform/access/backend_override.tf:6` names an Oracle S3-compat endpoint | `bin/cloud-agnostic-gate` this turn |
+| Cloud-agnostic gate (R36: provider names only in `platform/oci`, secret-store, clusters) | **0 lines** since idp#416: the single hit was a rendered, untracked `backend_override.tf` from `idp-oci-login`, now skipped and gitignored | `bin/cloud-agnostic-gate` on the live checkout, 16:05Z |
 | Provider mentions outside allowed dirs (`rg -il 'oci\|oracle'` in bin, .github, platform) | 58 files | same run; most are login/bootstrap scripts, needs a sweep against the gate's allow-list |
 | Code portability | 24 repos bundled offsite, restore verified | bundle push 05:50Z |
 | Data portability | DuckDB/Parquet standard, `science/export_drill.py` exists, hand-run only | STANDARDS row "Data"; showcase Capabilities table |
@@ -71,14 +71,16 @@ Recon 2026-08-27 16:05Z (read-only over `hermes-v2`, `idp/platform/hermes-agent`
 
 1. **Durable cluster identity (crew#345).** Until a runner can reach OKE for 24h without a founder login, nothing else can be proved off the Mac. Scoped service principal in Terraform.
 2. **Scheduler off the Mac (crew#247 step 1).** 20 Dagster schedules → Argo Workflows/CronJobs reconciled by Flux; retire `ai.estate.scheduler`, `idp-install-launchd`, `scheduler-migrate`.
-3. **Kill the VM (crew#458).** Repoint `~/.claude.json` MCP entries to the cluster; give mcp-estate/mcp-github/agentgateway, prospector-edge and store-api a cluster row or delete them; `colima stop && colima delete`. Recovers 5 GiB and 2 cores today.
+3. **Kill the VM (crew#458).** Stopped 16:02Z. Left: remove the `estate` MCP entry in `~/.claude.json` (points at the dead VM; `github` already uses `mcp.mumchimp.com`), give the inventory a cluster producer so `/estate/mcp` can answer off the Mac, then `colima delete` (founder call: 40 GiB image and container volumes go with it).
 4. **Hermes gateway to the cluster** (`idp/platform/hermes-agent` exists; see the section above for what is still local).
 5. **Science lane writer on the cluster.** The warehouse is written by a laptop job that skips under load; move `science-collect` with the scheduler, ledgers to object storage.
 6. **Recovery drill (crew#300)** on a clean runner: clone from bundles, boot, run `oke-check`. Never run.
-7. **Portability sweep**: fix `backend_override.tf:6`, grade the 58 provider-named files against the allow-list, make the gate a required check.
+7. ~~Portability sweep~~ gate green and required (idp#416 a934a10, 16:40Z): the one leak was a rendered, untracked login file. The 58 provider-named files are bin/ bootstrap scripts outside the gate's scan and stay as they are.
 8. ~~Delete the 40 dead plists~~ done 16:10Z (CP7); crew#478 still open.
 
 ## Where to check next time
+
+Measure against `origin/main`, not the laptop checkout: on 2026-08-27 `~/dev/code/idp` was 55 commits behind main (c1e6cf1 vs 524b12a) and the first cut of this report read "no cluster row for mcp-*" off that stale tree.
 
 - `bin/cloud-agnostic-gate` (idp) — portability
 - `gh run list -R chidionyema/idp --workflow oke-check.yml` — cluster receipt

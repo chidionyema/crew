@@ -25,3 +25,5 @@ science/dbt/logs/
 # configuration, and committing it means every machine that clones this fights over it.
 science/dbt/.user.yml
 science/showcase-state.json
+science/ci/
+science/foresight-state.json

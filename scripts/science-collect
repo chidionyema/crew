@@ -13,7 +13,8 @@
 #   1. outcomes.py ship   collect what the estate produced (git + gh)
 #   2. outcomes.py attention  collect what it cost the founder (his own words)
 #   3. collect.py --check rebuild the warehouse, exit 1 if a source is stale
-#   4. showcase.py        regenerate docs/science/SHOWCASE.md from the stores just written (crew#403)
+#   4. foresight.py       pull CI history, score yesterday's predictions, predict today's open PRs (crew#405)
+#   5. showcase.py        regenerate docs/science/SHOWCASE.md from the stores just written (crew#403)
 #
 # A non-zero exit is the point, not a failure of this script: it means a source
 # stopped being written and somebody needs to look. It lands in the .err.log and
@@ -40,6 +41,10 @@ fi
 
 python3 science/collect.py --check
 collect_rc=$?
+
+for step in pull train score predict; do
+  python3 science/foresight.py "$step" || echo "science-collect: foresight $step exited $?"
+done
 
 python3 science/showcase.py
 showcase_rc=$?

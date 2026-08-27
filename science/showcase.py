@@ -184,6 +184,14 @@ def predictions(now: dt.datetime) -> dict:
             "hit_rate": round(100 * len(hits) / len(scored)) if scored else None}
 
 
+def foresight(now: dt.datetime) -> dict:
+    """The estate's own predictions about its CI, scored against what happened (crew#405)."""
+    import foresight as fs
+    if not fs.STATE.exists():
+        raise Blind(f"{fs.STATE} absent (python3 science/foresight.py train)")
+    return fs.summary()
+
+
 SECTIONS = [
     ("Capabilities", capabilities, "python3 science/showcase.py  (reads science/*.py, scripts/science-collect, scripts/verify.d, launchd)"),
     ("Warehouse", warehouse, "sqlite3 science/warehouse.db \"select count(*), count(distinct source), max(ingested_at) from facts\""),
@@ -191,6 +199,7 @@ SECTIONS = [
     ("Research ledger", research, "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))\""),
     ("Delivery outcomes", outcomes, "python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7"),
     ("Predictions", predictions, "python3 science/outcomes.py rate"),
+    ("Foresight: will this PR go red?", foresight, "python3 science/foresight.py report"),
 ]
 
 
@@ -208,6 +217,12 @@ def numbers(data: dict) -> dict[str, float]:
     """The scalars the progress section diffs. Flat, named, and stable across runs."""
     n: dict[str, float] = {}
     w, d, r, o, p = (data.get(k) for k in ("Warehouse", "Data map (LAW 50)", "Research ledger", "Delivery outcomes", "Predictions"))
+    f = data.get("Foresight: will this PR go red?")
+    if f and f["state"]:
+        n.update({"foresight labelled PRs": f["state"]["labelled_prs"], "foresight holdout accuracy": f["state"]["holdout_accuracy"],
+                  "foresight predictions scored": f["scored"]})
+        if f["hit_rate"] is not None:
+            n["foresight hit rate %"] = f["hit_rate"]
     if w:
         n.update({"warehouse rows": w["rows"], "warehouse sources": w["sources"], "stale sources": len(w["stale"]),
                   "sources with a contract": w["contracted"]})
@@ -292,6 +307,14 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
         elif title == "Predictions":
             rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored)"
             out += [f"- {d['recorded']} recorded before a repair, {d['scored']} scored after, hit rate {rate}"]
+        elif title.startswith("Foresight"):
+            st = d["state"]
+            rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored yet)"
+            out += [f"- trained {st['trained_at']} on {st['labelled_prs']} labelled PRs; {st['red_rate']:.0%} of first runs were red",
+                    f"- unseen newest {st['holdout']} PRs: accuracy {st['holdout_accuracy']:.0%} against a base rate of {st['holdout_base_rate']:.0%}; Brier {st['brier']}",
+                    f"- {st['verdict']}",
+                    "- strongest signals: " + ", ".join(f"{k} ({v:+.2f})" for k, v in st["top_features"]),
+                    f"- live: {d['recorded']} open PRs predicted before their CI finished, {d['scored']} scored, hit rate {rate}"]
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 

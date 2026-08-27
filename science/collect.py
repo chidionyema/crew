@@ -475,8 +475,10 @@ def schema_verdict(name: str, rows: list[dict]) -> list[str]:
     """
     path = SCHEMAS / f"{name}.json"
     if not path.exists():
-        return [f"{name}: no schema file at science/schemas/{name}.json "
-                f"(run collect.py --write-schemas {name})"] if rows else []
+        #: Printed as a blind spot by --check, never a failure here: a source new to a
+        #: registry has no file yet, and the file's presence in git is graded by
+        #: tests/test_incident_crew74_shape_change_is_named_at_ingest.py (LAW 38).
+        return []
     fields = json.loads(path.read_text())["fields"]
     bad: list[str] = []
     extra = 0
@@ -924,8 +926,11 @@ def main() -> int:
     #: crew#74 row 2: every row against its source's schema file; a shape change is named
     #: by source and line, and a source with no schema file is a failure.
     schema_failures = [f for e in report for f in e.get("schema", [])]
-    print(f"schema: {sum(1 for e in report if e.get('schema') == [])} source(s) on schema, "
-          f"{len({f.split(':')[0] for f in schema_failures})} off")
+    no_file = sorted(e["source"] for e in report if e["status"] == "OK"
+                     and not (SCHEMAS / f"{e['source']}.json").exists())
+    print(f"schema: {sum(1 for e in report if e.get('schema') == []) - len(no_file)} source(s) "
+          f"on schema, {len({f.split(':')[0] for f in schema_failures})} off"
+          + (f", BLIND (no schema file, run --write-schemas): {', '.join(no_file)}" if no_file else ""))
     failures.extend(schema_failures)
 
     #: crew#74 row 3: row counts, null rates and key counts appended per run, and a

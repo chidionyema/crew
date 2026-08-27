@@ -23,8 +23,7 @@ def test_every_collected_source_has_a_schema_file_in_git():
 def test_a_new_field_or_a_new_type_is_named_by_line(tmp_path, monkeypatch):
     monkeypatch.setattr(collect, "SCHEMAS", tmp_path)
     rows = [{"at": "2026-08-27T00:00:00Z", "n": 1}, {"at": "2026-08-27T00:01:00Z", "n": 2}]
-    assert collect.schema_verdict("src", rows) == [
-        "src: no schema file at science/schemas/src.json (run collect.py --write-schemas src)"]
+    assert collect.schema_verdict("src", rows) == []   # no file: blind, never a failure (LAW 38)
     collect.write_schema("src", rows)
     assert json.loads((tmp_path / "src.json").read_text()) == {"fields": {"at": ["str"], "n": ["int"]}}
     assert collect.schema_verdict("src", rows) == []

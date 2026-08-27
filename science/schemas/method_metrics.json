@@ -1,0 +1,38 @@
+{
+ "description": "prospector method metrics snapshot: per-method counts from the store ops directory.",
+ "field_docs": {},
+ "fields": {
+  "compliance": [
+   "dict"
+  ],
+  "efficiency": [
+   "dict"
+  ],
+  "generated_at": [
+   "str"
+  ],
+  "headline": [
+   "dict"
+  ],
+  "mechanisms": [
+   "list"
+  ],
+  "predictions": [
+   "list"
+  ],
+  "project": [
+   "str"
+  ],
+  "sessions": [
+   "list"
+  ],
+  "stops": [
+   "dict"
+  ],
+  "themes": [
+   "list"
+  ]
+ },
+ "owner": "prospector",
+ "undescribed_baseline": 10
+}

@@ -102,7 +102,8 @@ def grade(prods: list[dict], reg: dict) -> list[dict]:
             g.update(verdict="UNEXPLAINED", why="No decision has been recorded about this producer.")
         else:
             g.update(verdict=e["verdict"], why=e.get("why", ""), reader=e.get("reader", ""),
-                     ticket=e.get("ticket", ""), entry=e.get("key", "auto"))
+                     ticket=e.get("ticket", ""), entry=e.get("key", "auto"),
+                     entry_kind=e.get("kind", ""))
         out.append(g)
     return out
 
@@ -143,6 +144,22 @@ def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: lis
     return v
 
 
+# crew#526 CP1 (founder 2026-08-27: "158 unclaimed open how come this never goes down"): guards filed
+# issues with no closing rule, so nothing could ever close them. Every filed body carries the exact
+# command whose exit 0 closes it; the nightly closer (CP2) runs that line and closes with the receipt.
+def closes_when(key: str) -> str:
+    return f"Closes-when: `python3 science/datamap.py --row {key}`"
+
+
+def row_status(reg: dict, key: str) -> int:
+    """Exit code for `--row KEY`: 0 when the register entry is no longer a gap (COLLECTED, EXCLUDED
+    or DECLINED), 1 while it is still a gap, 3 when no such entry exists (BLIND, never argparse's 2)."""
+    for e in reg["entries"]:
+        if e["key"] == key:
+            return 1 if e["verdict"] in GAPS else 0
+    return 3
+
+
 def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
     """One crew issue per unticketed gap entry (crew#320's third box), written back into
     the register so the gate goes green on the same run that filed them."""
@@ -156,6 +173,10 @@ def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
         if e.get("ticket") or e["verdict"] not in GAPS:
             continue
         members = by_entry.get(e["key"], [])
+        if not members:
+            # crew#386: a register entry no producer matched this run is a rule waiting
+            # for a member, not a gap. Ticketing it files an issue nobody can close.
+            continue
         sample = "\n".join(f"- `{m['key']}` ({m['kind']}; can measure: {', '.join(m['measures'][:5])})" for m in members[:15])
         more = f"\n- ... and {len(members) - 15} more" if len(members) > 15 else ""
         body = (f"Filed by `science/datamap.py --file-tickets` (LAW 50, crew#320).\n\n"
@@ -163,7 +184,9 @@ def file_tickets(graded: list[dict], reg: dict, repo: str) -> int:
                 f"{' kind `' + e['kind'] + '`' if e.get('kind') else ''}\n**Members this run:** {len(members)}\n\n"
                 f"**Why it is a gap:** {e.get('why','')}\n\n{sample}{more}\n\n"
                 f"Done when the entry's verdict in `science/verdicts.json` is COLLECTED with a named reader, "
-                f"or EXCLUDED with a reason, and `datamap.py --check` is green.")
+                f"or EXCLUDED with a reason, and `datamap.py --check` is green.\n\n"
+                + closes_when(e["key"]))
+        assert "Closes-when:" in body  # crew#526 CP1: a filed issue names the command that closes it
         title = f"datamap {e['verdict']}: {e['key']}" + (f" [{e['kind']}]" if e.get("kind") else "")
         r = subprocess.run(["gh", "issue", "create", "-R", repo, "--title", title[:200], "--body", body,
                             "--label", "datamap"], capture_output=True, text=True, timeout=60, check=False)
@@ -252,7 +275,13 @@ def collected() -> dict:
         return {}
     db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
     out: dict = {}
-    for (src,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1"):
+    try:
+        sources = [s for (s,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1")]
+    except sqlite3.OperationalError:
+        # crew#320: a fresh checkout or worktree holds an empty warehouse.db that collect.py
+        # never filled. That is the same state as no warehouse, not a crash.
+        return {}
+    for src in sources:
         rows = []
         bad = 0
         for (p,) in db.execute("SELECT payload FROM facts WHERE source = ?", (src,)):
@@ -311,9 +340,15 @@ def main() -> int:
     ap.add_argument("--file-tickets", action="store_true",
                     help="open one crew issue per unticketed gap entry and write it back")
     ap.add_argument("--repo", default="chidionyema/crew")
+    ap.add_argument("--row", default="", metavar="KEY",
+                    help="exit 0 when this register entry is no longer a gap (the Closes-when line of a filed issue)")
     args = ap.parse_args()
 
     reg = register()
+    if args.row:
+        rc = row_status(reg, args.row)
+        print(f"datamap --row {args.row}: {'closed' if rc == 0 else 'still a gap' if rc == 1 else 'BLIND: no such entry'}")
+        return rc
     col = collected()
     changes = drift(col)
     only = set(args.domains.split(",")) - {""} or None
@@ -359,13 +394,16 @@ def main() -> int:
             print(row)
 
         gaps = [g for g in graded if g["verdict"] in GAPS]
-        by_entry = collections.Counter(g["entry"] for g in gaps)
+        # Two register rows may share a key and differ by kind (listener:forward vs
+        # listener:app, crew#375); the table keeps them apart or one ticket hides the other.
+        by_entry = collections.Counter((g["entry"], g.get("entry_kind", "")) for g in gaps)
         print()
         print(f"GAPS  {len(gaps)} producers under {len(by_entry)} register entries; each entry carries a ticket")
         print("-" * 78)
-        for entry, n in by_entry.most_common():
-            g = next(x for x in gaps if x["entry"] == entry)
-            print(f"  {g['verdict']:<14}{entry[-40:]:<40}{n:>6}  {g.get('ticket') or 'NO TICKET'}")
+        for (entry, ekind), n in by_entry.most_common():
+            g = next(x for x in gaps if x["entry"] == entry and x.get("entry_kind", "") == ekind)
+            label = f"{entry} [{ekind}]" if ekind else entry
+            print(f"  {g['verdict']:<14}{label[-40:]:<40}{n:>6}  {g.get('ticket') or 'NO TICKET'}")
 
         unexplained = [g for g in graded if g["verdict"] == "UNEXPLAINED"]
         if unexplained:

@@ -37,21 +37,21 @@
     },
     {
       "key": "mac/*.claude/directives*",
-      "verdict": "WIRED_NEVER",
-      "why": "6,932 of his prompts. Now collected in DERIVED form as the daily `attention` counts, which is a count of his messages and not the messages. The text itself is still unqueryable.",
-      "ticket": "crew#354"
+      "verdict": "COLLECTED",
+      "why": "Every founder prompt (80 files, 8,116 rows on 2026-08-27, writer ~/.claude/scripts/directive-capture.py). Source directives has collected the text since before the register; WIRED_NEVER was a stale grade, the same class as crew#358.",
+      "reader": "science/collect.py source directives (sources.json, jsonl-dir over ~/.claude/directives; declared time_field at, rows carry ts, resolved through TIME_KEYS at collect.py row_time); attention.jsonl is the derived daily count"
     },
     {
       "key": "mac/*state/prompt-ledger*",
-      "verdict": "WIRED_NEVER",
-      "why": "7,046 rows recording the same prompts as `directives`, in a second format, with an open/closed state the other one lacks. Two ledgers of one thing (LAW 39).",
-      "ticket": "crew#355"
+      "verdict": "COLLECTED",
+      "why": "8,414 warehouse rows to 2026-08-27 02:31Z: source prompt_ledger already collects it, so WIRED_NEVER was a stale grade (crew#355). It records the same prompts as directives with an open/closed state the other lacks; folding the two ledgers into one (LAW 39) is a writer change, tracked on crew#355, not a collection gap.",
+      "reader": "science/collect.py source prompt_ledger (sources.json, jsonl-dir over ~/.claude/state/prompt-ledger, time_field at)"
     },
     {
       "key": "mac/*jobs/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Six per-job timeline files, 316 rows. No code refers to any of them, so these are the clearest deletion candidates on the machine.",
-      "ticket": "crew#358"
+      "verdict": "COLLECTED",
+      "why": "Per-job timeline files under ~/.claude/jobs (14 files, 1,315 rows on 2026-08-27); source job_timelines has collected them since before the register was written, so WIRED_NEVER was a stale grade: 1,445 warehouse rows, 2026-08-21 to 2026-08-27.",
+      "reader": "science/collect.py source job_timelines (sources.json, jsonl-dir over ~/.claude/jobs, time_field at)"
     },
     {
       "key": "mac/*estate-board.jsonl*",
@@ -61,27 +61,28 @@
     },
     {
       "key": "mac/*estate-worktr*",
-      "verdict": "WIRED_NEVER",
-      "why": "Worktree cleanup receipts, 2 rows.",
-      "ticket": "crew#361"
+      "verdict": "COLLECTED",
+      "why": "estate_audit.py worktree salvage receipts, 2 rows; collected since crew#361.",
+      "reader": "science/collect.py source worktree_cleanup (sources.json)"
     },
     {
       "key": "mac/*founder-actio*",
-      "verdict": "WIRED_NEVER",
-      "why": "One row. The mechanism was replaced by the prompt ledger.",
-      "ticket": "crew#362"
+      "verdict": "COLLECTED",
+      "why": "founder_actions.py FOUNDER ACTION ledger; 2 rows, written 2026-08-27 01:43Z, so the writer is live; collected since crew#362.",
+      "reader": "science/collect.py source founder_actions (sources.json)"
     },
     {
       "key": "act/revenue",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "money coming in",
-      "why": "2 rows in 5,548 mention revenue. Every efficiency number is a cost over nothing.",
+      "why": "collected since crew#409 (2026-08-27); first row measured=false, reason MEDUSA_ADMIN_TOKEN not set",
       "ticket": "crew#365",
       "measures": [
         "gbp_in_per_day",
         "paying_customers",
         "mrr"
-      ]
+      ],
+      "reader": "science/outcomes.py revenue appends science/revenue.jsonl (source `revenue` in sources.json, crew#409); scripts/estate-snapshot revenue() grades it, NOT RUN until vault entry medusa-admin lets the store answer, never a zero"
     },
     {
       "key": "act/agent_decisions",
@@ -97,15 +98,16 @@
     },
     {
       "key": "act/research",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "what was researched, and what changed because of it",
-      "why": "RESEARCH-LEDGER.jsonl has 8 entries, all hand-written by an agent that remembered, and 0 of 8 record the decision the research fed. LAW 35 has no mechanism.",
+      "why": "collected since crew#410 (2026-08-27)",
       "ticket": "crew#367",
       "measures": [
         "items",
         "decisions_fed",
         "hours_to_decision"
-      ]
+      ],
+      "reader": "science/RESEARCH-LEDGER.jsonl is source `research_ledger` in sources.json (crew#410); scripts/estate-snapshot research() grades the week; tests/test_incident_crew72_research_ledger_records_decisions.py refuses an entry with no decision_fed"
     },
     {
       "key": "act/task_outcome",
@@ -121,25 +123,24 @@
     },
     {
       "key": "act/run_duration",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "how long each scheduled job takes",
-      "why": "launchd runs 43 jobs and records exit codes in log files. No series of durations exists, so 'is anything getting slower' is unanswerable.",
+      "why": "collected since crew#376 (2026-08-27): launchd was retired to Dagster (crew#85) and Dagster's run store is source dagster-runs, one row per run with start_time and end_time. Measured 2026-08-27T08:25Z: 1246 rows in the warehouse, 2026-08-24T20:06Z..2026-08-27T07:40Z; 24h by job: ai_aiden_watch 43 runs avg 47.0s, com_founder_stuckdetector 35 avg 19.6s. trend_7d is a query over those rows, not a new writer.",
       "ticket": "crew#369",
       "measures": [
         "duration_s_per_job",
         "trend_7d"
-      ]
+      ],
+      "reader": "science/collect.py source dagster-runs (idp/run/dagster/history/runs.db, query carries start_time and end_time per run); duration = end_time - start_time"
     },
     {
       "key": "act/guard_outcome",
       "verdict": "NEVER_EMITTED",
       "what": "what a guard refused, and whether the refusal was correct",
-      "why": "LAW 38 grades a guard by whether it allows correct work. Refusals are counted; false refusals are not recorded at all, so the law cannot be measured.",
+      "why": "refusals and refusal_rate are collected since claude-guards#122 (hook_outcomes source, crew#391); false_refusals still has no writer: nothing records that a refusal was wrong, so LAW 38 is half measured",
       "ticket": "crew#370",
       "measures": [
-        "refusals",
-        "false_refusals",
-        "refusal_rate"
+        "false_refusals"
       ]
     },
     {
@@ -182,13 +183,34 @@
     {
       "key": "mac/guard/*",
       "verdict": "NEVER_EMITTED",
-      "why": "Every refusal a guard makes vanishes when the hook exits; false refusals are not recorded, so LAW 38 cannot be measured. Same act as act/guard_outcome.",
+      "why": "Measured 2026-08-27 (crew#374) over the 46 inventory guards: 19 are settings hooks with rows in the hook-outcomes ledger and producers.py grades them COLLECTED from the ledger (source hook_outcomes), not from this row. The 27 this row still covers emit nothing: 13 git-side hooks under ~/.estate/guards/hooks (_router and its symlinks, ticket-default, config-syntax-default, law32-default), 5 scripts no settings hook wraps (hook-run.py, guard_report.py, assertion-guard.py, skill-staleness-guard.py, tool-drip-guard.py), and 9 test_incident_*.py files the inventory lists as guards. false_refusals has no writer for any of them (act/guard_outcome).",
       "ticket": "crew#374"
     },
     {
+      "key": "mac/listener/port-3210",
+      "kind": "listener:app",
+      "verdict": "COLLECTED",
+      "reader": "science/collect.py source dagster-runs (~/dev/code/idp/run/dagster/history/runs.db)",
+      "why": "The Dagster webserver: every launch it receives is a row in runs.db, which source dagster-runs ingests (crew#369)."
+    },
+    {
       "key": "mac/listener/*",
+      "kind": "listener:forward",
       "verdict": "NEVER_EMITTED",
-      "why": "Listeners receive events and no ledger counts what arrived, what was dropped or when the last event came.",
+      "why": "Measured 2026-08-27 (crew#375): 9 ssh port forwards (3000, 3200, 3310, 4000, 4318, 5291, 8080, 8443, 8611) into the colima VM, where 14 containers run (langfuse-web, langfuse-otel-fallback on 4318, mcp-estate, mcp-agentgateway, mcp-github, prospector-edge, litellm-proxy, prospector-store-api and their stores). The forward is a transport; the container behind it emits to nothing the estate collector reads. The row closes when crew#458 moves each container onto its OKE row and the forward is gone.",
+      "ticket": "crew#458"
+    },
+    {
+      "key": "mac/listener/*",
+      "kind": "listener:system",
+      "verdict": "EXCLUDED",
+      "why": "Measured 2026-08-27 (crew#375): macOS and VM-host daemons the estate does not run (ControlCenter 5000/7000, rapportd, limactl 53/64035). Not an estate workload; nothing here is ours to measure."
+    },
+    {
+      "key": "mac/listener/*",
+      "kind": "listener:app",
+      "verdict": "NEVER_EMITTED",
+      "why": "Measured 2026-08-27 (crew#375): estate processes that own a port on the Mac (backstage 3100, postgres 5432, temporal dev server 7233 and its 5 ephemeral ports, kimi_bridge 8765/8766, consultd 8767, board_serve 8787, sovereign cockpit 8788, hermes gate 9900, ollama 11434). None counts what it received, dropped, or when the last event came.",
       "ticket": "crew#375"
     },
     {
@@ -215,9 +237,10 @@
     },
     {
       "key": "mac/data/*dagster*",
-      "verdict": "WIRED_NEVER",
-      "why": "Dagster's own run and schedule history. Whether any scheduled asset ran, or how long, is answerable only inside Dagster's UI.",
-      "ticket": "crew#376"
+      "verdict": "COLLECTED",
+      "why": "Dagster's own run and schedule history. The tick table is the only record of whether a scheduled job ran or skipped, and why (crew#85: 3836 skipped ticks in 24h). Collected from the live store under the idp checkout; the ~/.estate/dagster copy is stale and declined.",
+      "ticket": "crew#376",
+      "reader": "crew science/collect.py sources dagster-ticks and dagster-runs (science/sources.json), read into warehouse.db facts"
     },
     {
       "key": "mac/data/*healthchecks/data/hc.sqlite",
@@ -227,21 +250,24 @@
     },
     {
       "key": "mac/data/*temporal/dev.db",
-      "verdict": "WIRED_NEVER",
-      "why": "Temporal's dev-server history. Workflow durations and failures are in it and nothing extracts them.",
-      "ticket": "crew#377"
+      "verdict": "COLLECTED",
+      "why": "Temporal dev-server visibility: workflow executions with start, close, status and duration; 12 rows on 2026-08-27, collected since crew#377.",
+      "ticket": "crew#377",
+      "reader": "science/collect.py source temporal_dev_executions (sources.json, sqlite query over executions_visibility), time_field at (start_time)"
     },
     {
       "key": "mac/data/*sovereign/budget.db",
-      "verdict": "WIRED_NEVER",
-      "why": "The sovereign worker's spend ledger. Nothing joins it to spend_daily in the warehouse.",
-      "ticket": "crew#378"
+      "verdict": "COLLECTED",
+      "why": "The sovereign worker's per-session spend ledger; 5 rows on 2026-08-27, no time column, collected as a snapshot since crew#378.",
+      "ticket": "crew#378",
+      "reader": "science/collect.py source sovereign_budget (sources.json, sqlite query over budget)"
     },
     {
       "key": "mac/ledger/*capability_receipts.jsonl",
-      "verdict": "WIRED_NEVER",
-      "why": "24,953 capability receipts, 10 MB. The largest ledger under ~/.estate and no collector names it.",
-      "ticket": "crew#383"
+      "verdict": "COLLECTED",
+      "why": "24,953 capability receipts on 2026-08-26; every launchd/cron wrapper run with its exit code, duration and budget. Collected since crew#383.",
+      "ticket": "crew#383",
+      "reader": "science/collect.py source capability_receipts (sources.json), time_field ended_at"
     },
     {
       "key": "warehouse/*",
@@ -308,9 +334,10 @@
     },
     {
       "key": "cluster/*/ExternalSecret/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Sync failures are a condition on the object; nothing scrapes or alerts on it, so a rotated upstream secret fails silently.",
-      "ticket": "crew#387"
+      "verdict": "COLLECTED",
+      "why": "",
+      "ticket": "crew#387",
+      "reader": "idp platform/state/cluster-state.yaml collect.py rows every ExternalSecret (Ready, last_sync); bin/idp-cluster-state fails the receipt on an errored sync (idp#311, crew#406) or one stale past 2x refreshInterval (idp#315)"
     },
     {
       "key": "cluster/*",
@@ -320,8 +347,8 @@
     },
     {
       "key": "cluster_live/*",
-      "verdict": "WIRED_NEVER",
-      "why": "The running cluster is the same producers as cluster/*, read live; graded under the same ticket.",
+      "verdict": "EXCLUDED",
+      "why": "Same producers as cluster/*, graded on crew#388. The Mac is blind to the cluster by design (blind_allowed, crew#345): the live cluster is read by oke-check receipts (idp bin/idp-cluster-state), never from a laptop credential. One ticket per producer set.",
       "ticket": "crew#389"
     },
     {
@@ -332,9 +359,10 @@
     },
     {
       "key": "hook/*",
-      "verdict": "NEVER_EMITTED",
-      "why": "34 hook commands run on every session start, prompt, tool use and stop; none records its verdict, so refusal rate and latency are unmeasurable. Same act as act/guard_outcome.",
-      "ticket": "crew#391"
+      "verdict": "COLLECTED",
+      "why": "collected since claude-guards#122 (2026-08-27): hook-run.py wraps all 36 settings hooks",
+      "ticket": "crew#391",
+      "reader": "~/.claude/state/hook-outcomes.jsonl is source `hook_outcomes` in sources.json; scripts/estate-snapshot hooks() prints runs, refusals, the hook that refused most and the slowest run; tests/test_incident_crew391_hook_outcomes_reach_the_snapshot.py"
     },
     {
       "key": "mcp/*",
@@ -350,15 +378,58 @@
     },
     {
       "key": "github/workflow/*",
-      "verdict": "NEVER_EMITTED",
-      "why": "Workflow runs have durations, queue waits and pass rates in the Actions API; nothing pulls them, so 'is CI getting slower' is unanswerable. Same act as act/run_duration.",
-      "ticket": "crew#393"
+      "verdict": "COLLECTED",
+      "why": "collected since crew#393 (2026-08-27): .github/workflows/ci-runs.yml runs `outcomes.py ci` daily and commits one row per (repo, workflow) to science/ci-runs.jsonl: runs, pass rate, median duration, median queue wait, minutes",
+      "ticket": "crew#393",
+      "measures": [
+        "runs_per_day",
+        "run_duration_s",
+        "pass_rate",
+        "queue_wait_s",
+        "cost_minutes"
+      ],
+      "reader": "science/ci-runs.jsonl is source `ci_runs` in sources.json; scripts/estate-snapshot ci() prints workflows, runs, pass count and the slowest median as the STATE.md `ci runs` row"
     },
     {
       "key": "transcript/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Session transcripts per project. Only per-day spend is extracted; tool calls, failures and founder messages are unread (crew#319).",
+      "verdict": "COLLECTED",
+      "reader": "science/transcripts.py reads every transcript byte once by offset (manifest table) into science/transcripts.db: tool calls, tool results, error first lines, sessions, timestamps; scripts/science-collect runs it four times a day (crew#432)",
+      "why": "collected since crew#432 (2026-08-27); message text is not copied, the JSONL stays the system of record",
       "ticket": "crew#319"
+    },
+    {
+      "key": "mac/*science/transcripts.db*",
+      "verdict": "EXCLUDED",
+      "why": "Derived, not a source: science/transcripts.py rebuilds it from transcript/* (delete the file to replay from offset zero), the same way science/dbt/warehouse.duckdb is derived from warehouse.db (crew#432)."
+    },
+    {
+      "key": "mac/data/~/.estate/healthchecks/hc.sqlite",
+      "verdict": "EXCLUDED",
+      "why": "0 bytes and no tables, measured 2026-08-27: a stray file beside the real ~/.estate/healthchecks/data/hc.sqlite, which is decided above (crew#320)"
+    },
+    {
+      "key": "mac/ledger/~/.claude/state/hook-outcomes.jsonl",
+      "verdict": "COLLECTED",
+      "reader": "source `hook_outcomes` in sources.json; scripts/estate-snapshot hooks() (crew#391)"
+    },
+    {
+      "key": "mac/ledger/*runaway-reaper*",
+      "verdict": "COLLECTED",
+      "reader": "science/datamap.py collected() via sources.json source runaway-reaper; crew#85 row 2 counts reaps per rule from it",
+      "why": ""
+    },
+    {
+      "key": "mac/*.claude/logs/consult.jsonl*",
+      "verdict": "WRITER_DEAD",
+      "why": "78 rows, the newest 2026-08-23T15:55Z (a groq success); nothing written in the 4 days since, because ai.estate.consultd has no backend configured on this machine \u2014 the `consult` id in science/sources.json records the same (crew#265, closed as STALE; the open tracker is crew#320, the LAW ticket for every WRITER_DEAD row). Not collected and not excluded: when consultd writes again the verdict flips to COLLECTED with a reader.",
+      "ticket": "crew#320"
+    },
+    {
+      "key": "mac/*state/pi-bridge-runs*",
+      "verdict": "COLLECTED",
+      "why": "One row per pi_execute run (model, rc, elapsed, touched) written by ~/.claude/mcp/pi_bridge.py since 2026-08-27 18:42Z (claude-estate#8). It is the only record of the MiniMax trials; crew#533 grades the speed-up hypothesis from it.",
+      "reader": "science/collect.py source pi_bridge_runs (sources.json, jsonl over ~/.claude/state/pi-bridge-runs.jsonl, time_field ts); `python3 ~/.claude/mcp/pi_bridge.py --runs` is the per-model table",
+      "ticket": "crew#533"
     }
   ]
 }

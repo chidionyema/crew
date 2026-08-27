@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -43,6 +45,10 @@ SHIPS = SCIENCE / "ships.jsonl"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
 ATTENTION = SCIENCE / "attention.jsonl"
 REVENUE = SCIENCE / "revenue.jsonl"
+CI_RUNS = SCIENCE / "ci-runs.jsonl"
+#: crew#508 CP2, lane `code`: what stale closed and wake-blocked reopened, per repo per day.
+PR_HYGIENE = SCIENCE / "pr-hygiene.jsonl"
+GITHUB_OWNER = os.environ.get("ESTATE_GITHUB_OWNER", "chidionyema")
 
 #: The only place a customer can pay this estate is the store, and its backend answers here.
 #: crew#70: every efficiency number was a cost divided by nothing because no series held what
@@ -254,6 +260,15 @@ def cmd_attention(args) -> int:
     return 0
 
 
+def payer_id(email: str, key: str) -> str:
+    """A stable 12-hex identifier for a customer that cannot be turned back into the address.
+
+    HMAC-SHA256 under `REVENUE_PAYER_KEY`, never a bare hash: the series is public, and a bare
+    sha256 of a guessed address reproduces the published value (09cd04a6 review of crew#417).
+    """
+    return hmac.new(key.encode(), email.strip().lower().encode(), hashlib.sha256).hexdigest()[:12]
+
+
 def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     """One row: has this estate ever been paid, by whom, how much, when.
 
@@ -267,7 +282,7 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     token = os.environ.get("MEDUSA_ADMIN_TOKEN", "")
     url = f"{STORE_API}/admin/orders?payment_status=captured&limit=50&fields=id,email,total,currency_code,created_at"
     row = {"at": at, "source": url, "measured": False, "paid_orders": 0, "total": 0.0,
-           "currency": None, "payers": 0, "first_paid_at": None, "last_paid_at": None, "reason": ""}
+           "currency": None, "payers": [], "first_paid_at": None, "last_paid_at": None, "reason": ""}
     if not token:
         row["reason"] = "MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin)"
         return row
@@ -285,12 +300,186 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     row["paid_orders"] = int(body.get("count", len(orders)))
     row["total"] = round(sum(float(o.get("total") or 0) for o in orders), 2)
     row["currency"] = next((o.get("currency_code") for o in orders if o.get("currency_code")), None)
-    # crew#70 REWORK (crew#409 review): the count only. revenue.jsonl is tracked in a public
-    # repository, so an address must never be written into it; the store keeps who paid.
-    row["payers"] = len({o.get("email") for o in orders if o.get("email")})
+    # crew#70: the repo is public, so a payer is a keyed HMAC of the email, never the address
+    # (a0d64ea4 review of crew#409, 09cd04a6 review of crew#417). Without the key the series
+    # keeps the distinct count and names nobody.
+    emails = {str(o["email"]).strip().lower() for o in orders if o.get("email")}
+    key = os.environ.get("REVENUE_PAYER_KEY", "")
+    row["payer_count"] = len(emails)
+    row["payers"] = sorted(payer_id(e, key) for e in emails) if key else []
     whens = sorted(o.get("created_at") for o in orders if o.get("created_at"))
     row["first_paid_at"], row["last_paid_at"] = (whens[0], whens[-1]) if whens else (None, None)
     return row
+
+
+def _iso(s: str | None) -> dt.datetime | None:
+    try:
+        return dt.datetime.strptime(str(s), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.UTC) if s else None
+    except ValueError:
+        return None
+
+
+def _median(xs: list[float]) -> float | None:
+    xs = sorted(xs)
+    return None if not xs else round(xs[len(xs) // 2], 1)
+
+
+def collect_ci(now: dt.datetime | None = None, fetch=None, hours: int = 24) -> list[dict]:
+    """One row per (repo, workflow) that ran in the last `hours`: runs, pass rate, median
+    duration, median queue wait, billed-shape minutes. crew#393: the Actions API held every
+    number that answers "is CI getting slower" and nothing pulled them.
+
+    `fetch(path)` returns the parsed JSON of `gh api <path>`; the default shells out to gh.
+    A repo the API refuses is skipped and named in the row list as measured=false, never
+    silently (LAW 30).
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    since = (now - dt.timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    fetch = fetch or _gh_json
+    rows: list[dict] = []
+    try:
+        repos = [r["name"] for r in fetch(f"users/{GITHUB_OWNER}/repos?per_page=100&type=owner")]
+    except Exception as exc:                                    # noqa: BLE001
+        return [{"at": at, "repo": None, "workflow": None, "measured": False,
+                 "reason": f"repo list: {type(exc).__name__}: {exc}"[:200]}]
+    for repo in sorted(repos):
+        try:
+            body = fetch(f"repos/{GITHUB_OWNER}/{repo}/actions/runs?created=>={since}&per_page=100")
+        except Exception as exc:                                # noqa: BLE001
+            rows.append({"at": at, "repo": repo, "workflow": None, "measured": False,
+                         "reason": f"{type(exc).__name__}: {exc}"[:200]})
+            continue
+        by_wf: dict[str, list[dict]] = {}
+        for run in body.get("workflow_runs", []) if isinstance(body, dict) else []:
+            by_wf.setdefault(str(run.get("path", "")).rsplit("/", 1)[-1], []).append(run)
+        for wf, runs in sorted(by_wf.items()):
+            done = [r for r in runs if r.get("status") == "completed"]
+            durs, waits = [], []
+            for r in done:
+                c, st, up = _iso(r.get("created_at")), _iso(r.get("run_started_at")), _iso(r.get("updated_at"))
+                if st and up:
+                    durs.append((up - st).total_seconds())
+                if c and st:
+                    waits.append((st - c).total_seconds())
+            passed = sum(1 for r in done if r.get("conclusion") == "success")
+            rows.append({"at": at, "repo": repo, "workflow": wf, "measured": True, "window_h": hours,
+                         "runs": len(runs), "completed": len(done), "passed": passed,
+                         "pass_rate": round(passed / len(done), 3) if done else None,
+                         "median_duration_s": _median(durs), "median_queue_wait_s": _median(waits),
+                         "minutes": round(sum(durs) / 60, 1)})
+    return rows
+
+
+def collect_pr_hygiene(now: dt.datetime | None = None, fetch=None, hours: int = 24) -> list[dict]:
+    """One row per repo: pull requests closed by the stale workflow and pull requests reopened
+    by wake-blocked in the last `hours` (crew#504 shipped both, crew#508 CP2 asks the lane to
+    land its facts in the warehouse). A closed-by-stale PR is closed, unmerged, closed inside
+    the window and carries the `stale` label. A reopened-by-wake PR has a `reopened` event by
+    `github-actions[bot]` inside the window. A repo the API refuses is a measured=false row,
+    named, never dropped (LAW 30).
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    at = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    since = now - dt.timedelta(hours=hours)
+    fetch = fetch or _gh_json
+    rows: list[dict] = []
+    try:
+        repos = [r["name"] for r in fetch(f"users/{GITHUB_OWNER}/repos?per_page=100&type=owner")]
+    except Exception as exc:                                    # noqa: BLE001
+        return [{"at": at, "repo": None, "measured": False,
+                 "reason": f"repo list: {type(exc).__name__}: {exc}"[:200]}]
+    for repo in sorted(repos):
+        try:
+            prs = fetch(f"repos/{GITHUB_OWNER}/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100")
+        except Exception as exc:                                # noqa: BLE001
+            rows.append({"at": at, "repo": repo, "measured": False,
+                         "reason": f"{type(exc).__name__}: {exc}"[:200]})
+            continue
+        closed_by_stale, reopened_by_wake = [], []
+        for pr in prs if isinstance(prs, list) else []:
+            updated = _iso(pr.get("updated_at"))
+            if not updated or updated < since:
+                continue
+            labels = {str(lb.get("name", "")).lower() for lb in pr.get("labels") or []}
+            closed = _iso(pr.get("closed_at"))
+            if pr.get("state") == "closed" and not pr.get("merged_at") and closed and closed >= since and "stale" in labels:
+                closed_by_stale.append(pr["number"])
+            if pr.get("state") == "open":
+                try:
+                    events = fetch(f"repos/{GITHUB_OWNER}/{repo}/issues/{pr['number']}/events?per_page=100")
+                except Exception:                               # noqa: BLE001
+                    events = []
+                for ev in events if isinstance(events, list) else []:
+                    when = _iso(ev.get("created_at"))
+                    if (ev.get("event") == "reopened" and when and when >= since
+                            and str((ev.get("actor") or {}).get("login", "")).startswith("github-actions")):
+                        reopened_by_wake.append(pr["number"])
+                        break
+        rows.append({"at": at, "repo": repo, "measured": True, "window_h": hours,
+                     "closed_by_stale": len(closed_by_stale), "reopened_by_wake": len(reopened_by_wake),
+                     "closed_prs": sorted(closed_by_stale), "reopened_prs": sorted(reopened_by_wake)})
+    return rows
+
+
+def cmd_pr_hygiene(args) -> int:
+    rows = collect_pr_hygiene(hours=args.hours)
+    with PR_HYGIENE.open("a") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+    print(f"{PR_HYGIENE}")
+    good = [r for r in rows if r.get("measured")]
+    for r in rows:
+        if not r.get("measured"):
+            print(f"NOT RUN  {r.get('repo') or 'repo list'}: {r.get('reason')}")
+    if not good:
+        return 1
+    print(f"{len(good)} repos  closed by stale {sum(r['closed_by_stale'] for r in good)}  "
+          f"reopened by wake {sum(r['reopened_by_wake'] for r in good)} in {args.hours}h")
+    return 0
+
+
+def _gh_json(path: str) -> dict | list:
+    """`gh api --paginate --slurp`: one JSON array holding every page. Without --slurp gh
+    concatenates page objects and json.loads fails with "Extra data" on any repo with more than
+    100 runs a day, which on the first live run was crew, idp and prospector (crew#393)."""
+    r = subprocess.run(["gh", "api", "--paginate", "--slurp", path], capture_output=True, text=True, timeout=180, check=False)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip()[:200])
+    return _merge_pages(json.loads(r.stdout))
+
+
+def _merge_pages(pages) -> dict | list:
+    """Pages of a list endpoint become one list; pages of a {workflow_runs: [...]} endpoint become
+    one dict whose lists are concatenated."""
+    if not isinstance(pages, list) or not pages or not all(isinstance(pg, (dict, list)) for pg in pages):
+        return pages
+    if all(isinstance(pg, list) for pg in pages):
+        return [x for pg in pages for x in pg]
+    out: dict = {}
+    for pg in pages:
+        for k, val in pg.items():
+            out[k] = out.get(k, []) + val if isinstance(val, list) else val
+    return out
+
+
+def cmd_ci(args) -> int:
+    rows = collect_ci(hours=args.hours)
+    with CI_RUNS.open("a") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, separators=(",", ":")) + "\n")
+    print(f"{CI_RUNS}")
+    good = [r for r in rows if r.get("measured")]
+    bad = [r for r in rows if not r.get("measured")]
+    for r in bad:
+        print(f"NOT RUN  {r.get('repo') or 'repo list'}: {r.get('reason')}")
+    if not good:
+        return 1
+    runs = sum(r["runs"] for r in good)
+    slow = max(good, key=lambda r: r["median_duration_s"] or 0)
+    print(f"{len(good)} workflows  {runs} runs in {args.hours}h  slowest median {slow['median_duration_s']}s "
+          f"({slow['repo']}/{slow['workflow']})  minutes {round(sum(r['minutes'] for r in good), 1)}")
+    return 0
 
 
 def _http_json(url: str, token: str) -> dict:
@@ -308,7 +497,7 @@ def cmd_revenue(args) -> int:
         print(f"NOT RUN  revenue not measured at {row['at']}: {row['reason']}")
         return 1
     print(f"paid orders {row['paid_orders']}  total {row['total']} {row['currency'] or ''}  "
-          f"payers {row['payers']}  first {row['first_paid_at']}  last {row['last_paid_at']}  "
+          f"payers {len(row['payers'])}  first {row['first_paid_at']}  last {row['last_paid_at']}  "
           f"measured {row['at']}")
     return 0
 
@@ -406,6 +595,12 @@ def main() -> int:
 
     v = sub.add_parser("revenue", help="has this estate ever been paid: measured from the store, never assumed")
     v.set_defaults(fn=cmd_revenue)
+    w = sub.add_parser("ci", help="every workflow run of the last day: runs, pass rate, duration, queue wait (crew#393)")
+    w.add_argument("--hours", type=int, default=24)
+    w.set_defaults(fn=cmd_ci)
+    h = sub.add_parser("pr-hygiene", help="PRs closed by stale and reopened by wake-blocked, per repo (crew#508 CP2, lane code)")
+    h.add_argument("--hours", type=int, default=24)
+    h.set_defaults(fn=cmd_pr_hygiene)
 
     p = sub.add_parser("predict", help="record a causal prediction BEFORE the repair")
     p.add_argument("--issue", required=True, help="the issue or PR this is about")

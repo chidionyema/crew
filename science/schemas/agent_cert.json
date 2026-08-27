@@ -1,0 +1,41 @@
+{
+ "description": "Agent certification history: one snapshot per certification run with per-test rows.",
+ "field_docs": {},
+ "fields": {
+  "agent": [
+   "str"
+  ],
+  "at": [
+   "str"
+  ],
+  "blocked": [
+   "int"
+  ],
+  "error": [
+   "NoneType"
+  ],
+  "failed": [
+   "int"
+  ],
+  "graded": [
+   "int"
+  ],
+  "home": [
+   "str"
+  ],
+  "passed": [
+   "int"
+  ],
+  "rows": [
+   "dict"
+  ],
+  "score": [
+   "float"
+  ],
+  "timed_out": [
+   "int"
+  ]
+ },
+ "owner": "claude-guards/agent-cert",
+ "undescribed_baseline": 11
+}

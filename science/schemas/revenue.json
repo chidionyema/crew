@@ -1,0 +1,38 @@
+{
+ "description": "Revenue snapshot from the store API, one row per collection.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "currency": [
+   "NoneType"
+  ],
+  "first_paid_at": [
+   "NoneType"
+  ],
+  "last_paid_at": [
+   "NoneType"
+  ],
+  "measured": [
+   "bool"
+  ],
+  "paid_orders": [
+   "int"
+  ],
+  "payers": [
+   "list"
+  ],
+  "reason": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "total": [
+   "float"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 10
+}

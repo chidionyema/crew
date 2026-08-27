@@ -1,0 +1,120 @@
+{
+ "description": "Sovereign worker receipts: one row per workflow activity the worker completed.",
+ "field_docs": {},
+ "fields": {
+  "backend": [
+   "str"
+  ],
+  "budget_remaining": [
+   "int"
+  ],
+  "by": [
+   "str"
+  ],
+  "channel": [
+   "str"
+  ],
+  "commit": [
+   "NoneType",
+   "str"
+  ],
+  "counter": [
+   "int"
+  ],
+  "destructive": [
+   "bool"
+  ],
+  "file": [
+   "str"
+  ],
+  "fsm_state": [
+   "str"
+  ],
+  "hash": [
+   "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "losers": [
+   "list"
+  ],
+  "model": [
+   "str"
+  ],
+  "node": [
+   "str"
+  ],
+  "op": [
+   "str"
+  ],
+  "parent_hash": [
+   "str"
+  ],
+  "policy_violations": [
+   "list"
+  ],
+  "prev_hash": [
+   "str"
+  ],
+  "proposal": [
+   "str"
+  ],
+  "quorum": [
+   "dict"
+  ],
+  "reason": [
+   "NoneType",
+   "str"
+  ],
+  "repo": [
+   "NoneType",
+   "str"
+  ],
+  "runner": [
+   "str"
+  ],
+  "savings": [
+   "int"
+  ],
+  "session_id": [
+   "str"
+  ],
+  "sig": [
+   "str"
+  ],
+  "state_hash": [
+   "str"
+  ],
+  "status": [
+   "str"
+  ],
+  "step": [
+   "int"
+  ],
+  "tags": [
+   "list"
+  ],
+  "task": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "tokens": [
+   "int"
+  ],
+  "ts": [
+   "float",
+   "str"
+  ],
+  "votes": [
+   "list"
+  ],
+  "winner": [
+   "str"
+  ]
+ },
+ "owner": "idp/sovereign",
+ "undescribed_baseline": 36
+}

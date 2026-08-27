@@ -1,0 +1,38 @@
+{
+ "description": "Operator alerts inbox: every alert sent to the founder's disk inbox.",
+ "field_docs": {},
+ "fields": {
+  "dag_hash": [
+   "str"
+  ],
+  "key": [
+   "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "legacy_hash": [
+   "str"
+  ],
+  "query": [
+   "dict"
+  ],
+  "rowid": [
+   "int"
+  ],
+  "source": [
+   "str"
+  ],
+  "table": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "ts": [
+   "float"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 10
+}

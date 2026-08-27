@@ -1,0 +1,63 @@
+{
+ "description": "Research ledger: each research task, its question, sources and conclusion.",
+ "field_docs": {
+  "session": {
+   "description": "Short id of the agent session that wrote the row.",
+   "pii": false
+  },
+  "verdict": {
+   "description": "The one-line answer the research reached (crew#227 added it, 2026-08-27).",
+   "pii": false
+  }
+ },
+ "fields": {
+  "class_of_error": [
+   "str"
+  ],
+  "date": [
+   "str"
+  ],
+  "decision_fed": [
+   "str"
+  ],
+  "findings": [
+   "list"
+  ],
+  "metric": [
+   "str"
+  ],
+  "metric_after": [
+   "NoneType",
+   "str"
+  ],
+  "metric_before": [
+   "str"
+  ],
+  "owner": [
+   "str"
+  ],
+  "question": [
+   "str"
+  ],
+  "session": [
+   "str"
+  ],
+  "sources": [
+   "list"
+  ],
+  "ticket": [
+   "str"
+  ],
+  "verdict": [
+   "str"
+  ],
+  "what_this_costs": [
+   "str"
+  ],
+  "why": [
+   "str"
+  ]
+ },
+ "owner": "crew/science",
+ "undescribed_baseline": 13
+}

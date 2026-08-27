@@ -1,0 +1,32 @@
+{
+ "description": "Drill runs recorded by the scripts tree's own drill runner.",
+ "field_docs": {},
+ "fields": {
+  "id": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "log": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "rc": [
+   "int"
+  ],
+  "seconds": [
+   "float"
+  ],
+  "status": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 8
+}

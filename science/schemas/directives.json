@@ -1,0 +1,29 @@
+{
+ "description": "Founder directives captured from sessions, one file per directive.",
+ "field_docs": {},
+ "fields": {
+  "cwd": [
+   "str"
+  ],
+  "event": [
+   "str"
+  ],
+  "id": [
+   "str"
+  ],
+  "prompt": [
+   "str"
+  ],
+  "session": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 7
+}

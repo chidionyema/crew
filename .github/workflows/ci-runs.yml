@@ -1,0 +1,37 @@
+# crew#393: the estate measures its own CI daily, off the laptop (R31). `science/outcomes.py ci`
+# appends one row per (repo, workflow) that ran in the last 24h to science/ci-runs.jsonl, from
+# the Actions API only; the STATE.md `ci runs` row reads it and says NOT RUN when the day is missing.
+name: ci-runs
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: ci-runs
+  cancel-in-progress: false
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: measure
+        env:
+          GH_TOKEN: ${{ secrets.ESTATE_ACTIONS_READ_TOKEN || github.token }}
+        run: python3 science/outcomes.py ci
+      - name: pr hygiene (crew#508 CP2, lane code)
+        env:
+          GH_TOKEN: ${{ secrets.ESTATE_ACTIONS_READ_TOKEN || github.token }}
+        run: python3 science/outcomes.py pr-hygiene
+      - name: commit the rows
+        run: |
+          git config user.name "estate-ci-runs"
+          git config user.email "estate-ci-runs@users.noreply.github.com"
+          git add science/ci-runs.jsonl science/pr-hygiene.jsonl
+          git diff --cached --quiet && { echo "no new row"; exit 0; }
+          git commit -m "science: ci runs measured $(date -u +%Y-%m-%d) (crew#393)"
+          git push origin HEAD:main

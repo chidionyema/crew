@@ -1,0 +1,25 @@
+{
+ "ticket": "crew#508",
+ "cp": "CP3",
+ "at": "2026-08-27T14:21Z",
+ "status": "TRAINED",
+ "entrypoint": "python3 science/foresight.py train",
+ "rows_used": 565,
+ "rows_source": "science/ci/prs-{crew,idp}.jsonl + runs-{crew,idp}.jsonl, written by `python3 science/foresight.py pull` (gitignored, .gitignore:28)",
+ "red_rate": 0.407,
+ "holdout": 113,
+ "holdout_accuracy": 0.602,
+ "holdout_base_rate": 0.593,
+ "brier": 0.246,
+ "red_precision": 0.512,
+ "red_recall": 0.478,
+ "beats_base_rate": true,
+ "verdict": "beats the base rate on unseen PRs by 0.9 points (0.602 vs 0.593) - a thin edge, not a claim",
+ "state_file": "science/foresight-state.json (gitignored, .gitignore:29; this file is the committed record)",
+ "blockers_cleared": [
+  "science/ci/ absent on a fresh checkout: `train` exited 2, 'BLIND: no history in science/ci'. Cleared by `python3 science/foresight.py pull`.",
+  "System python3 has no sklearn: `train` raised ModuleNotFoundError: No module named 'sklearn'. Cleared by running the estate venv interpreter (Python 3.11.15, scikit-learn 1.9.0)."
+ ],
+ "open_blocker": "pull returned history for crew and idp only; claude-guards and prospector wrote no files, so two of the four declared repos are unlabelled.",
+ "not_trained_on_warehouse": "science/warehouse.db is not a foresight input. foresight.py reads only science/ci/*.jsonl pulled from the GitHub API; no warehouse table feeds it."
+}

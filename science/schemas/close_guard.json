@@ -1,0 +1,37 @@
+{
+ "description": "close-guard observations: each reply the guard saw and what it decided.",
+ "field_docs": {},
+ "fields": {
+  "after_head": [
+   "str"
+  ],
+  "after_marker": [
+   "NoneType",
+   "str"
+  ],
+  "at": [
+   "str"
+  ],
+  "before_head": [
+   "str"
+  ],
+  "before_marker": [
+   "NoneType",
+   "str"
+  ],
+  "changed": [
+   "bool"
+  ],
+  "kind": [
+   "str"
+  ],
+  "session": [
+   "str"
+  ],
+  "waited_ms": [
+   "int"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 9
+}

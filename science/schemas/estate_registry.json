@@ -1,0 +1,23 @@
+{
+ "description": "Estate registry: the machines, sessions and services that registered themselves.",
+ "field_docs": {},
+ "fields": {
+  "estate_dir": [
+   "str"
+  ],
+  "event": [
+   "str"
+  ],
+  "mode": [
+   "str"
+  ],
+  "root": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 5
+}

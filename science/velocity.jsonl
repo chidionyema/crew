@@ -1,0 +1,8 @@
+{"at": "2026-08-27T17:19:11Z", "closed": 5, "day": "2026-08-27", "half_done": 1, "lane": "lane:agents", "median_age_d": 1.9, "no_checklist": 19, "open": 26, "opened": 9, "ticked": 6}
+{"at": "2026-08-27T17:19:11Z", "closed": 0, "day": "2026-08-27", "half_done": 2, "lane": "lane:money", "median_age_d": 1.9, "no_checklist": 9, "open": 12, "opened": 2, "ticked": 3}
+{"at": "2026-08-27T17:19:11Z", "closed": 38, "day": "2026-08-27", "half_done": 2, "lane": "lane:observability", "median_age_d": 0.8, "no_checklist": 18, "open": 26, "opened": 54, "ticked": 3}
+{"at": "2026-08-27T17:19:11Z", "closed": 8, "day": "2026-08-27", "half_done": 5, "lane": "lane:platform", "median_age_d": 1.6, "no_checklist": 18, "open": 35, "opened": 14, "ticked": 18}
+{"at": "2026-08-27T17:19:11Z", "closed": 14, "day": "2026-08-27", "half_done": 3, "lane": "lane:process", "median_age_d": 2.0, "no_checklist": 26, "open": 39, "opened": 18, "ticked": 10}
+{"at": "2026-08-27T17:19:11Z", "closed": 3, "day": "2026-08-27", "half_done": 1, "lane": "lane:science", "median_age_d": 0.7, "no_checklist": 1, "open": 5, "opened": 5, "ticked": 2}
+{"at": "2026-08-27T17:19:11Z", "closed": 1, "day": "2026-08-27", "half_done": 0, "lane": "lane:security", "median_age_d": 2.3, "no_checklist": 3, "open": 4, "opened": 2, "ticked": 0}
+{"at": "2026-08-27T17:19:11Z", "closed": 14, "day": "2026-08-27", "half_done": 2, "lane": "lane:unsorted", "median_age_d": 3.2, "no_checklist": 29, "open": 42, "opened": 11, "ticked": 10}

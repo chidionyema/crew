@@ -57,10 +57,11 @@ def test_incident_crew70_measured_zero_is_green_with_a_date(monkeypatch, tmp_pat
 
 def test_incident_crew70_a_payment_names_who_how_much_when(monkeypatch, tmp_path):
     monkeypatch.setenv("MEDUSA_ADMIN_TOKEN", "x")
+    monkeypatch.setenv("REVENUE_PAYER_KEY", "k")
     orders = [{"id": "o1", "email": "a@x.io", "total": 12.5, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"},
               {"id": "o2", "email": "b@x.io", "total": 7.5, "currency_code": "gbp", "created_at": "2026-08-26T10:00:00Z"}]
     row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 2})
-    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", 2)
+    assert (row["paid_orders"], row["total"], row["currency"], row["payers"]) == (2, 20.0, "gbp", sorted([outcomes.payer_id("a@x.io", "k"), outcomes.payer_id("b@x.io", "k")]))
     assert (row["first_paid_at"], row["last_paid_at"]) == ("2026-08-20T10:00:00Z", "2026-08-26T10:00:00Z")
     line = _row(tmp_path, row)
     assert "GREEN" in line and "2 paid order(s)" in line and "20.0 gbp" in line
@@ -79,10 +80,14 @@ def test_incident_crew70_revenue_is_a_declared_source():
 
 
 def test_incident_crew409_no_customer_address_reaches_the_tracked_row(monkeypatch):
-    """crew#409 review: science/revenue.jsonl is tracked in a public repository. A payer's
-    address must never appear in the row; the count is enough for the founder's number."""
+    """crew#409 review (crew#414): science/revenue.jsonl is tracked in a public repository. A
+    payer's address must never appear in the row, with or without REVENUE_PAYER_KEY; the count
+    and the keyed ids are enough for the founder's number."""
     monkeypatch.setenv("MEDUSA_ADMIN_TOKEN", "x")
     orders = [{"id": "o1", "email": "a@x.io", "total": 1.0, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"}]
-    row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 1})
-    assert "@" not in json.dumps(row)
-    assert row["payers"] == 1
+    for key in ("", "k"):
+        monkeypatch.setenv("REVENUE_PAYER_KEY", key)
+        row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 1})
+        assert "a@x.io" not in json.dumps(row) and "@" not in json.dumps(row)
+        assert row["payer_count"] == 1
+        assert row["payers"] == ([] if not key else [outcomes.payer_id("a@x.io", "k")])

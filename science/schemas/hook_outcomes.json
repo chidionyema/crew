@@ -1,0 +1,29 @@
+{
+ "description": "One row per hook invocation outcome recorded by the guards.",
+ "field_docs": {},
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "event": [
+   "str"
+  ],
+  "exit": [
+   "int"
+  ],
+  "hook": [
+   "str"
+  ],
+  "ms": [
+   "int"
+  ],
+  "refused": [
+   "bool"
+  ],
+  "session": [
+   "str"
+  ]
+ },
+ "owner": "claude-guards",
+ "undescribed_baseline": 7
+}

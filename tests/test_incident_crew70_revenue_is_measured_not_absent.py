@@ -16,10 +16,12 @@ sys.path.insert(0, str(ROOT / "science"))
 import outcomes  # noqa: E402
 
 _loader = importlib.machinery.SourceFileLoader("snap", str(ROOT / "scripts" / "estate-snapshot"))
-snap = importlib.util.module_from_spec(importlib.util.spec_from_loader("snap", _loader))
+_spec = importlib.util.spec_from_loader("snap", _loader)
+assert _spec is not None
+snap = importlib.util.module_from_spec(_spec)
 _loader.exec_module(snap)
 
-NOW = dt.datetime(2026, 8, 27, 2, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 8, 27, 2, 0, tzinfo=dt.UTC)
 
 
 def _row(tmp_path, row):

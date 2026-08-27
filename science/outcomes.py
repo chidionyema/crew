@@ -170,6 +170,8 @@ def friction_words() -> tuple:
     try:
         import importlib.util
         spec = importlib.util.spec_from_file_location("_fb", FOUNDER_BOARD)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"no loadable module at {FOUNDER_BOARD}")
         fb = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fb)
         words = tuple(getattr(fb, "FRICTION", ()))
@@ -389,7 +391,7 @@ def cmd_rate(args) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("ship", help="collect delivery outcomes from git and gh")

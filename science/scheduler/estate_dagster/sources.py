@@ -1,3 +1,5 @@
+# Standard: scheduling row, docs/STANDARDS.md -- one scheduler, idp/scheduler; this is a code location it loads
+# Rejected: a cron or a standalone `dagster dev` -- a second scheduler; the freshness policies must live where the one daemon evaluates them
 """The estate's fact files (every source in sources.json), as Dagster assets that go stale when their
 producer dies.
 

@@ -1,3 +1,5 @@
+# Standard: scheduling row, docs/STANDARDS.md -- one scheduler, idp/scheduler; this is a code location it loads
+# Rejected: a cron or a standalone `dagster dev` -- a second scheduler; the freshness policies must live where the one daemon evaluates them
 """The estate's fact files as one Dagster code location, registered in the one
 scheduler: ``idp/scheduler/workspace.yaml`` names this file as location
 ``estate-facts`` and ``idp/bin/scheduler-up`` loads it beside the schedule.yml

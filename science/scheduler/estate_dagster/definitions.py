@@ -1,3 +1,5 @@
+# Standard: scheduling row, docs/STANDARDS.md -- one scheduler, idp/scheduler; this is a code location it loads
+# Rejected: a cron or a standalone `dagster dev` -- a second scheduler; the freshness policies must live where the one daemon evaluates them
 """The fact assets plus the dbt warehouse, for an interpreter that carries dagster-dbt.
 
 The registered code location is facts.py (idp/scheduler/workspace.yaml, name

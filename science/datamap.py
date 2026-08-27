@@ -253,7 +253,13 @@ def collected() -> dict:
         return {}
     db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
     out: dict = {}
-    for (src,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1"):
+    try:
+        sources = [s for (s,) in db.execute("SELECT DISTINCT source FROM facts ORDER BY 1")]
+    except sqlite3.OperationalError:
+        # crew#320: a fresh checkout or worktree holds an empty warehouse.db that collect.py
+        # never filled. That is the same state as no warehouse, not a crash.
+        return {}
+    for src in sources:
         rows = []
         bad = 0
         for (p,) in db.execute("SELECT payload FROM facts WHERE source = ?", (src,)):

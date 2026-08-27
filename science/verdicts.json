@@ -123,14 +123,15 @@
     },
     {
       "key": "act/run_duration",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "how long each scheduled job takes",
-      "why": "launchd runs 43 jobs and records exit codes in log files. No series of durations exists, so 'is anything getting slower' is unanswerable.",
+      "why": "collected since crew#376 (2026-08-27): launchd was retired to Dagster (crew#85) and Dagster's run store is source dagster-runs, one row per run with start_time and end_time. Measured 2026-08-27T08:25Z: 1246 rows in the warehouse, 2026-08-24T20:06Z..2026-08-27T07:40Z; 24h by job: ai_aiden_watch 43 runs avg 47.0s, com_founder_stuckdetector 35 avg 19.6s. trend_7d is a query over those rows, not a new writer.",
       "ticket": "crew#369",
       "measures": [
         "duration_s_per_job",
         "trend_7d"
-      ]
+      ],
+      "reader": "science/collect.py source dagster-runs (idp/run/dagster/history/runs.db, query carries start_time and end_time per run); duration = end_time - start_time"
     },
     {
       "key": "act/guard_outcome",

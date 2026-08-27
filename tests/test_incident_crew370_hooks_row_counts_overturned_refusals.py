@@ -19,6 +19,7 @@ HERE = Path(__file__).resolve().parent.parent
 def _mod():
     loader = importlib.machinery.SourceFileLoader("snap370", str(HERE / "scripts" / "estate-snapshot"))
     spec = importlib.util.spec_from_loader("snap370", loader)
+    assert spec is not None
     m = importlib.util.module_from_spec(spec)
     loader.exec_module(m)
     return m

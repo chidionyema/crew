@@ -414,8 +414,7 @@ def transcript_evidence(body: str) -> int:
     # transcript was refused. Headings are searched with the fences masked; indices are kept.
     # idp#17, 2026-08-24 (crew#187): a sub-heading under the section does not end it; only a
     # heading at the section's own level or shallower does.
-    masked = FENCE.sub(lambda f: " " * len(f.group(0)), tail)
-    end = section_end(masked, level)
+    end = section_end(tail, level)  # section_end masks the fences itself (mask_fences)
     section = tail[:end] if end is not None else tail
     return sum(1 for block in FENCE.findall(section)
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)

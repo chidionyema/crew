@@ -6,14 +6,14 @@ and the progress section diffs the previous run's numbers rather than re-describ
 """
 import datetime as dt
 import json
-import sys
 import pathlib
+import sys
 
 SCIENCE = pathlib.Path(__file__).resolve().parents[1] / "science"
 sys.path.insert(0, str(SCIENCE))
 import showcase  # noqa: E402
 
-NOW = dt.datetime(2026, 8, 27, 0, 0)
+NOW = dt.datetime(2026, 8, 27, 0, 0, tzinfo=dt.UTC).replace(tzinfo=None)  # naive UTC, as showcase.main() builds it
 
 
 def test_absent_ledger_renders_blind_with_its_path(monkeypatch, tmp_path):

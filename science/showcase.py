@@ -47,7 +47,7 @@ class Blind(Exception):
 def _jsonl(path: pathlib.Path) -> list[dict]:
     if not path.exists():
         raise Blind(f"{path} absent")
-    return [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
 def _docstring_line(path: pathlib.Path) -> str:
@@ -107,9 +107,17 @@ def warehouse(now: dt.datetime) -> dict:
             "declared": len(reg["sources"]), "contracted": contracted}
 
 
+def _contract_violations(dm) -> list | str:
+    """datamap.contract_violations lands with crew#71 (crew#402); until then the row is BLIND."""
+    fn = getattr(dm, "contract_violations", None)
+    if not callable(fn):
+        return "BLIND (crew#71 not merged)"
+    return list(fn())
+
+
 def datamap(now: dt.datetime) -> dict:
     sys.path.insert(0, str(SCIENCE))
-    import datamap as dm  # noqa: E402
+    import datamap as dm
     if not dm.REGISTER.exists():
         raise Blind(f"{dm.REGISTER} absent")
     reg = json.load(dm.REGISTER.open())
@@ -121,7 +129,7 @@ def datamap(now: dt.datetime) -> dict:
             "producers": sum(census.get("domains", {}).values()),
             "blind": sorted(census.get("blind", {})),
             "field_paths": sum(len(v.get("fields", {})) for v in shapes.values()),
-            "contract_violations": dm.contract_violations() if hasattr(dm, "contract_violations") else "BLIND (crew#71 not merged)"}
+            "contract_violations": _contract_violations(dm)}
 
 
 def research(now: dt.datetime) -> dict:
@@ -151,7 +159,7 @@ def outcomes(now: dt.datetime) -> dict:
     if WAREHOUSE.exists():
         db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
         per_day: dict[str, float] = {}
-        for at, payload in db.execute("select at, payload from facts where source='spend' order by at"):
+        for (payload,) in db.execute("select payload from facts where source='spend' order by at"):
             p = json.loads(payload)
             if p.get("day", "") >= since and isinstance(p.get("total"), (int, float)):
                 per_day[p["day"]] = p["total"]        # newest sample of the day wins
@@ -224,7 +232,7 @@ def numbers(data: dict) -> dict[str, float]:
 
 
 def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
-    out = [f"# Science lane showcase", "",
+    out = ["# Science lane showcase", "",
            f"Generated {now.strftime('%Y-%m-%dT%H:%MZ')} by `python3 science/showcase.py`. Every number is read at generation",
            "time; the command under each heading reproduces it. A section that cannot see its source says BLIND.", ""]
     cur = numbers(data)
@@ -290,7 +298,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--print", action="store_true", dest="dry", help="write nothing, show the page")
     args = ap.parse_args()
-    now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0, tzinfo=None)
+    now = dt.datetime.now(dt.UTC).replace(microsecond=0, tzinfo=None)
     data, blind = build(now)
     prev = json.load(STATE.open()) if STATE.exists() else {}
     page = render(now, data, blind, prev)

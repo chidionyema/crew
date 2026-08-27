@@ -308,9 +308,10 @@
     },
     {
       "key": "cluster/*/ExternalSecret/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Sync failures are a condition on the object; nothing scrapes or alerts on it, so a rotated upstream secret fails silently.",
-      "ticket": "crew#387"
+      "verdict": "COLLECTED",
+      "why": "",
+      "ticket": "crew#387",
+      "reader": "idp platform/state/cluster-state.yaml collect.py rows every ExternalSecret (Ready, last_sync); bin/idp-cluster-state fails the receipt on an errored sync (idp#311, crew#406) or one stale past 2x refreshInterval (idp#315)"
     },
     {
       "key": "cluster/*",

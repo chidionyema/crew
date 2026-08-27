@@ -47,7 +47,7 @@ def test_every_guard_the_map_names_is_a_file_or_a_workflow_in_this_repo():
         for g in x.get("guards") or []:
             if g.startswith(".github/workflows/"):
                 ok = os.path.exists(os.path.join(root, g))
-            elif g.startswith("hooks/") or g.endswith(".py"):
+            elif g.startswith("hooks/") or g.endswith(".py") or g.endswith(".rego"):
                 ok = True  # lives in ~/.claude/scripts, graded by law_enforcement itself
             else:
                 ok = os.path.exists(os.path.join(root, g))

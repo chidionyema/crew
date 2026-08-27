@@ -330,6 +330,26 @@
       "time_field": "at",
       "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
       "receiver": "otlp"
+    },
+    {
+      "name": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "kind": "jsonl",
+      "time_field": "iso",
+      "stale_after_hours": 720,
+      "why": "crew#361: one row per estate_audit.py worktree salvage (salvaged, kept, kb, applied); 2 rows, last 2026-08-23. Runs only when a sweep salvages, so stale after 30 days, not 24 h.",
+      "receiver": "otlp"
+    },
+    {
+      "name": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "kind": "jsonl",
+      "time_field": "opened",
+      "stale_after_hours": 720,
+      "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
+      "receiver": "otlp"
     }
   ],
   "declined": [

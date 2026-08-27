@@ -734,6 +734,33 @@ def staleness(entry: dict) -> str:
     return f"STALE {age_h:.0f}h" if age_h > limit else f"fresh {age_h:.0f}h"
 
 
+def _through_worktree(p: Path) -> Path | None:
+    """The same path under the main checkout, when ``p`` lies inside a linked git worktree.
+
+    crew#465: five worktrees of ~/.claude/scripts (.wt-crew325, .wt-crew331, ...) each carry
+    a copy of state/drills.jsonl, and the crawl named every copy as a store the registry had
+    never heard of. A linked worktree marks its root with a ``.git`` *file* whose one line is
+    ``gitdir: <main>/.git/worktrees/<name>``; the copy is covered by whatever declaration
+    covers the main checkout's path. A directory that merely looks like a checkout (no
+    ``.git`` file, or one that does not point into a ``worktrees`` dir) is left alone.
+    """
+    for d in (p, *p.parents):
+        marker = d / ".git"
+        try:
+            if not marker.is_file():
+                continue
+            line = marker.read_text().strip()
+        except OSError:
+            return None
+        if not line.startswith("gitdir:"):
+            return None
+        gitdir = Path(line.split(":", 1)[1].strip())
+        if gitdir.parent.name != "worktrees" or gitdir.parent.parent.name != ".git":
+            return None
+        return gitdir.parents[2] / p.relative_to(d)
+    return None
+
+
 def reconcile() -> tuple[list[dict], list[str], list[str], str]:
     """Compare the machine's crawl against this registry.
 
@@ -860,6 +887,10 @@ def reconcile() -> tuple[list[dict], list[str], list[str], str]:
         if (str(p.resolve()) if p.exists() else str(p)) in declared_paths:
             continue
         if p.exists() and inside_declared_dir(p):
+            continue
+        main = _through_worktree(p) if p.exists() else None
+        if main is not None and (str(main.resolve() if main.exists() else main) in declared_paths
+                                 or inside_declared_dir(main)):
             continue
         #: A shard is only covered when its parent is. member_of is the crawl's own
         #: grouping, so this trusts it rather than re-deriving the grouping from paths.

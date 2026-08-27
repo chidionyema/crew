@@ -8,6 +8,7 @@ import os
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location("pr_evidence", os.path.join(HERE, "scripts", "pr-evidence.py"))
+assert spec is not None and spec.loader is not None
 pe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pe)
 

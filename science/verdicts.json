@@ -204,7 +204,7 @@
       "key": "mac/listener/*",
       "kind": "listener:system",
       "verdict": "EXCLUDED",
-      "why": "Measured 2026-08-27 (crew#375): macOS and VM-host daemons the estate does not run (ControlCenter 5000/7000, rapportd, limactl 53/64035, Ollama.app). Not an estate workload; nothing here is ours to measure."
+      "why": "Measured 2026-08-27 (crew#375): macOS and VM-host daemons the estate does not run (ControlCenter 5000/7000, rapportd, limactl 53/64035). Not an estate workload; nothing here is ours to measure."
     },
     {
       "key": "mac/listener/*",

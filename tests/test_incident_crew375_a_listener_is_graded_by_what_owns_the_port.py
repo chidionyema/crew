@@ -25,6 +25,8 @@ ROWS = [
     {"kind": "listener", "id": "port-49211", "port": 49211, "process": "rapportd", "path": "/usr/libexec/rapportd"},
     {"kind": "listener", "id": "port-9900", "port": 9900, "process": "python", "path": f"{HOME}/dev/code/hermes-v2/.venv/bin/python"},
     {"kind": "listener", "id": "port-3210", "port": 3210, "process": "python", "path": "/usr/local/bin/python3.14"},
+    {"kind": "listener", "id": "port-11434", "port": 11434, "process": "ollama",
+     "path": "/Applications/Ollama.app/Contents/Resources/ollama"},
 ]
 
 
@@ -47,6 +49,8 @@ def test_incident_crew375_each_listener_class_has_its_own_verdict(tmp_path):
     assert g["mac/listener/port-5000"]["verdict"] == "EXCLUDED"
     assert g["mac/listener/port-9900"]["kind"] == "listener:app"
     assert g["mac/listener/port-9900"]["verdict"] == "NEVER_EMITTED"
+    # crew#460 review: Ollama.app lives under /Applications but is the estate's model server, not a daemon
+    assert g["mac/listener/port-11434"]["kind"] == "listener:app"
     assert g["mac/listener/port-3210"]["verdict"] == "COLLECTED"
     assert "dagster-runs" in g["mac/listener/port-3210"]["reader"]
 

@@ -193,6 +193,8 @@ def _listener_class(row: dict) -> str:
     proc = str(row.get("process") or "")
     if path == "ssh:" or proc == "ssh":
         return "forward"
+    if proc == "ollama":  # Ollama.app ships under /Applications but is an estate model server (crew#460 review)
+        return "app"
     if path.startswith(("/System/", "/usr/libexec/", "/Applications/")) or proc in ("limactl", "rapportd", "ControlCenter"):
         return "system"
     return "app"

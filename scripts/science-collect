@@ -48,8 +48,32 @@ if [ "$rev_rc" -ne 0 ]; then
   echo "science-collect: outcomes.py revenue exited $rev_rc (NOT RUN is recorded, not hidden)"
 fi
 
-python3 science/collect.py --check
+# crew#90: the check runs main's collect.py and main's contract (sources.json, schemas/)
+# from a detached worktree at origin/main, against the ledgers in this checkout. On
+# 2026-08-27 the live checkout sat at 838ec8f with an uncommitted registry while main
+# carried the schema the ledger needed, and every scheduled run exited 1 for a contract
+# main had already fixed. The worktree holds no ledgers: SCIENCE_DATA and SCIENCE_WAREHOUSE
+# keep every read and write here, and the snapshot commit (crew#479) still sees them.
+WT="${CREW_SCIENCE_WORKTREE:-$HOME/.claude/state/crew-science-worktree}"
+COLLECT="science/collect.py"
+if git fetch -q origin main 2>/dev/null; then
+  if [ ! -e "$WT/.git" ]; then
+    git worktree prune
+    git worktree add --detach -q "$WT" origin/main 2>/dev/null
+  fi
+  if git -C "$WT" checkout -q --detach origin/main 2>/dev/null; then
+    COLLECT="$WT/science/collect.py"
+    echo "science-collect: collect.py from origin/main $(git -C "$WT" rev-parse --short HEAD) (checkout at $(git rev-parse --short HEAD))"
+  else
+    echo "science-collect: worktree at $WT could not move to origin/main; running this checkout's copy"
+  fi
+else
+  echo "science-collect: origin unreachable; running this checkout's copy of collect.py"
+fi
+export SCIENCE_DATA="$CREW/science" SCIENCE_WAREHOUSE="$CREW/science/warehouse.db"
+python3 "$COLLECT" --check
 collect_rc=$?
+unset SCIENCE_DATA SCIENCE_WAREHOUSE
 
 # crew#319: the transcript store, every byte read once by offset. Its own exit code never
 # gates this job: a transcript that cannot be read is a run row, not a stale source.

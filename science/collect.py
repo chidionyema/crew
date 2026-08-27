@@ -173,7 +173,10 @@ def load_registry(path: Path = REGISTRY) -> dict:
 
     #: `code` is where every checkout lives (LAW 46: the registry never spells the
     #: path; ESTATE_CODE moves it on another machine).
-    roots = {"home": HOME, "science": Path(__file__).parent,
+    #: `science` is where the ledgers this job writes live. SCIENCE_DATA moves it so the
+    #: scheduled run can execute main's copy of this file from a detached worktree while the
+    #: ledgers stay in the live checkout, where the snapshot commits them (crew#90, crew#479).
+    roots = {"home": HOME, "science": _env_path("SCIENCE_DATA", Path(__file__).parent),
              "code": _env_path("ESTATE_CODE", HOME / "dev" / "code")}
     for name, raw in (reg.get("roots") or {}).items():
         if name not in roots:

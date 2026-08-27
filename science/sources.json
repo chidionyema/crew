@@ -310,6 +310,16 @@
       "query": "SELECT session_id, total, remaining, version FROM budget",
       "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
       "receiver": "otlp"
+    },
+    {
+      "name": "runaway-reaper",
+      "root": "home",
+      "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 168,
+      "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
+      "receiver": "otlp"
     }
   ],
   "declined": [

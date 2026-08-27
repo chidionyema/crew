@@ -39,3 +39,12 @@ def test_last_matching_row_wins_like_github():
     assert docsmap.codeowner_of("docs/x.md", rows) == "@c"
     assert docsmap.codeowner_of("docs/x.txt", rows) == "@b"
     assert docsmap.codeowner_of("bin/run", rows) == "@a"
+
+
+def test_a_trailing_slash_only_pattern_matches_at_any_depth() -> None:
+    # crew#477 REWORK: GitHub matches `docs/` under any parent, the same as `docs`
+    rows = [("docs/", "@u")]
+    assert docsmap.codeowner_of("a/docs/x.md", rows) == "@u"
+    assert docsmap.codeowner_of("docs/x.md", rows) == "@u"
+    assert docsmap.codeowner_of("docs/x.md", [("/docs/", "@r")]) == "@r"
+    assert docsmap.codeowner_of("a/docs/x.md", [("/docs/", "@r")]) is None

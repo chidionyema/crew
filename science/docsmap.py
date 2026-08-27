@@ -104,7 +104,8 @@ def codeowner_of(rel: str, rows: list[tuple[str, str]]) -> str | None:
         pat = pat.lstrip("/")
         if pat.endswith("/"):
             pat += "**"
-        if not anchored and "/" not in pat.rstrip("*"):
+        # GitHub: a pattern with no slash other than a trailing one matches at any depth
+        if not anchored and "/" not in pattern.rstrip("/*"):
             pat = "**/" + pat
         rx = "^" + re.escape(pat).replace(r"\*\*/", "(?:.*/)?").replace(r"\*\*", ".*").replace(r"\*", "[^/]*") + "$"
         if re.match(rx, rel) or re.match(rx, rel + "/"):

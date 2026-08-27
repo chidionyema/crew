@@ -9,6 +9,7 @@ import pathlib
 
 HERE = pathlib.Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location("pr_evidence", HERE / "scripts" / "pr-evidence.py")
+assert spec is not None and spec.loader is not None
 pe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pe)
 

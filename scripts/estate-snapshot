@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -642,6 +643,37 @@ def research_row(path: pathlib.Path, now: dt.datetime | None = None, window_days
             f"{len(rows)} total, {decided} with a decision fed, last {last:%Y-%m-%d} (`{path.name}`) |"]
 
 
+def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: int = 24) -> list[str]:
+    """crew#391: every hook run is a row in ~/.claude/state/hook-outcomes.jsonl (hook-run.py in
+    claude-guards). GREEN when hooks ran inside the window, and the row says how many refused and
+    which hook refused most, because LAW 38 grades a guard by what it refuses. RED when the ledger
+    exists and the window is silent: 36 hooks fire on every event, so a silent day means the
+    wrapper is unwired. NOT RUN when there is no ledger or a row cannot be read.
+    """
+    now = now or dt.datetime.now(dt.UTC)
+    if not path.exists():
+        return [f"| hooks | NOT RUN | no ledger at `{path.name}` (claude-guards hook-run.py not wired) |"]
+    try:
+        rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        recent = [r for r in rows if (now - dt.datetime.fromisoformat(str(r["at"]).replace("Z", "+00:00"))).total_seconds() < window_hours * 3600]
+    except (ValueError, KeyError, TypeError) as exc:
+        return [f"| hooks | NOT RUN | ledger row unreadable: {type(exc).__name__} |"]
+    if not recent:
+        return [f"| hooks | RED | no hook run in {window_hours}h, {len(rows)} rows total (`{path.name}`) |"]
+    refused = [r for r in recent if r.get("refused")]
+    by_hook: dict[str, int] = {}
+    for r in refused:
+        by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
+    top = max(by_hook, key=by_hook.get) if by_hook else "none"
+    slow = max((int(r.get("ms") or 0) for r in recent), default=0)
+    return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
+            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]
+
+
+def hooks() -> list[str]:
+    return hooks_row(pathlib.Path(os.path.expanduser("~/.claude/state/hook-outcomes.jsonl")))
+
+
 def research() -> list[str]:
     return research_row(ROOT / "science" / "RESEARCH-LEDGER.jsonl")
 
@@ -659,7 +691,7 @@ def main() -> int:
 
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, delivery, founder, collectors,
-        datamap, science_plane, research, github_actions, crew_p1,
+        datamap, science_plane, research, hooks, github_actions, crew_p1,
                runtime):
         try:
             rows += fn()

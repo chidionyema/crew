@@ -136,12 +136,10 @@
       "key": "act/guard_outcome",
       "verdict": "NEVER_EMITTED",
       "what": "what a guard refused, and whether the refusal was correct",
-      "why": "LAW 38 grades a guard by whether it allows correct work. Refusals are counted; false refusals are not recorded at all, so the law cannot be measured.",
+      "why": "refusals and refusal_rate are collected since claude-guards#122 (hook_outcomes source, crew#391); false_refusals still has no writer: nothing records that a refusal was wrong, so LAW 38 is half measured",
       "ticket": "crew#370",
       "measures": [
-        "refusals",
-        "false_refusals",
-        "refusal_rate"
+        "false_refusals"
       ]
     },
     {
@@ -334,9 +332,10 @@
     },
     {
       "key": "hook/*",
-      "verdict": "NEVER_EMITTED",
-      "why": "34 hook commands run on every session start, prompt, tool use and stop; none records its verdict, so refusal rate and latency are unmeasurable. Same act as act/guard_outcome.",
-      "ticket": "crew#391"
+      "verdict": "COLLECTED",
+      "why": "collected since claude-guards#122 (2026-08-27): hook-run.py wraps all 36 settings hooks",
+      "ticket": "crew#391",
+      "reader": "~/.claude/state/hook-outcomes.jsonl is source `hook_outcomes` in sources.json; scripts/estate-snapshot hooks() prints runs, refusals, the hook that refused most and the slowest run; tests/test_incident_crew391_hook_outcomes_reach_the_snapshot.py"
     },
     {
       "key": "mcp/*",
@@ -366,6 +365,11 @@
       "key": "mac/data/~/.estate/healthchecks/hc.sqlite",
       "verdict": "EXCLUDED",
       "why": "0 bytes and no tables, measured 2026-08-27: a stray file beside the real ~/.estate/healthchecks/data/hc.sqlite, which is decided above (crew#320)"
+    },
+    {
+      "key": "mac/ledger/~/.claude/state/hook-outcomes.jsonl",
+      "verdict": "COLLECTED",
+      "reader": "source `hook_outcomes` in sources.json; scripts/estate-snapshot hooks() (crew#391)"
     }
   ]
 }

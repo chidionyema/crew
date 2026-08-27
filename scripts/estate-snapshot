@@ -585,6 +585,20 @@ SNAP_KEY = pathlib.Path.home() / ".claude" / "state" / "crew-snapshot-deploy-key
 TICKET = "crew#391"
 
 
+#: crew#479: science/outcomes.py and science/datamap.py write these five tracked files into
+#: the shared checkout four times a day and nothing committed them, so the checkout sat
+#: 4,079 lines dirty and the showcase graded it GAP. They ride the hourly snapshot commit,
+#: from the same detached worktree, with the same deploy key. Only files that exist on disk
+#: are published, so a ledger not yet written never breaks the STATE.md commit.
+SCIENCE_LEDGERS = ("science/ships.jsonl", "science/attention.jsonl", "science/revenue.jsonl",
+                   "science/shapes.json", "science/census.json")
+
+
+def published_ledgers(root: pathlib.Path | None = None) -> list[str]:
+    root = root or ROOT
+    return [rel for rel in SCIENCE_LEDGERS if (root / rel).is_file()]
+
+
 def ready_to_commit() -> str:
     """"" when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
     rc, out = sh(f"cd '{ROOT}' && git fetch -q origin {BRANCH}", timeout=60)
@@ -624,7 +638,9 @@ def commit(now: str) -> int:
     """
     steps = [
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
-        ("stage STATE.md", "git add STATE.md"),
+        ("copy the science ledgers into the worktree",
+         " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers())),
+        ("stage STATE.md and the ledgers", "git add STATE.md " + " ".join(published_ledgers())),
         ("commit", f"git commit -q -m 'chore(state): estate snapshot {now} ({TICKET})'"),
         ("push", f"GIT_SSH_COMMAND='ssh -i {SNAP_KEY} -o IdentitiesOnly=yes' "
                  f"git push -q {push_url()} HEAD:{BRANCH}"),

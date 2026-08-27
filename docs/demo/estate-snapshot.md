@@ -53,3 +53,13 @@ If `bin/verify` produces no verdict line, or the INTENT directory is empty, or `
 row says `NOT RUN` and names why. It never says PASS. A checker that has died and an estate
 that is healthy must never produce the same output, because a green board nobody can distrust
 is how four days of broken coordination went unnoticed.
+
+## Science ledgers ride the snapshot commit (crew#479, 2026-08-27)
+
+```
+$ scripts/estate-snapshot | tail -1
+committed and pushed to main: 1a2b3c4 chore(state): estate snapshot 2026-08-27 12:00 UTC (crew#227)
+$ git show --stat HEAD | grep science/
+ science/ships.jsonl | 40 +
+ science/census.json | 12 +-
+```

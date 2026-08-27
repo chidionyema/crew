@@ -1,14 +1,14 @@
 # Science lane showcase
 
-Generated 2026-08-27T00:53Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-27T08:47Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-27T00:52Z.
+Previous run: 2026-08-27T08:45Z.
 
-- research entries: 23 -> 24
-- research entries with a decision: 23 -> 24
+- producers discovered: 8206 -> 8261
+- field paths: 0 -> 915
 
 ## Capabilities
 
@@ -22,28 +22,32 @@ Previous run: 2026-08-27T00:52Z.
 | dbt_build | Generate the dbt project's `facts` model from the one registry | `python3 science/dbt_build.py` | hand-run |
 | docsmap | Inventory every document this estate owns, and say which ones fail the standard | `python3 science/docsmap.py` | CI: scripts/verify.d/95-docs.sh |
 | duckdb_differential | Does DuckDB's `read_json_auto` read this estate's stores the same way collect.py does? | `python3 science/duckdb_differential.py` | hand-run |
+| export_drill | crew#74 row 1: the warehouse exit drill | `python3 science/export_drill.py` | hand-run |
 | foresight | Foresight: predict a red CI run before the push, and score the prediction after (crew#405) | `python3 science/foresight.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | friction | What the founder has had to say twice, measured over every transcript on this machine | `python3 science/friction.py` | hand-run |
 | law_enforcement | Law enforcement coverage: which laws are machine-enforced, which are prose | `python3 science/law_enforcement.py` | launchd com.founder.lawenforcement |
+| ledger | Writer for the research ledger (crew#72 row 1) | `python3 science/ledger.py` | hand-run |
 | map_covers_laws | Every law in AGENTS.md has a check written for it in enforcement-map.json | `python3 science/map_covers_laws.py` | hand-run |
 | outcomes | Collect what the estate produced, so spend can be divided by something | `python3 science/outcomes.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | producers | Every producer of data in the estate, discovered by class rather than typed by hand | `python3 science/producers.py` | hand-run |
+| self_grade | Weekly self-grade of the research loop (LAW 35, crew#72 row 4) | `python3 science/self_grade.py` | hand-run |
+| transcripts | Read Claude Code session transcripts incrementally, by byte offset (crew#319, crew#74 row 4) | `python3 science/transcripts.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 
 
 ## Warehouse
 
 `sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"`
 
-- 49,265 rows across 27 sources; last ingest 2026-08-27T00:39:40+00:00
-- 0 of 28 declared sources carry owner, method, retention and sensitivity
-- stale past their SLA: decisions (48h), predictions (73h)
+- 99,657 rows across 39 sources; last ingest 2026-08-27T08:24:21+00:00
+- 0 of 40 declared sources carry owner, method, retention and sensitivity
+- stale past their SLA: predictions (81h)
 
 ## Data map (LAW 50)
 
 `python3 science/datamap.py --check`
 
-- 51 register entries (COLLECTED 10, EXCLUDED 5, NEVER_EMITTED 13, WIRED_NEVER 23); 8152 producers discovered at the last census
-- 755 field paths in the last shape walk
+- 58 register entries (COLLECTED 29, EXCLUDED 9, NEVER_EMITTED 9, WIRED_NEVER 11); 8261 producers discovered at the last census
+- 915 field paths in the last shape walk
 - domains blind at the last census: cluster_live
 - contract violations now: BLIND (crew#71 not merged)
 
@@ -69,7 +73,7 @@ Previous run: 2026-08-27T00:52Z.
 
 - last 7 days: 795 commits across 6 repos
 - founder messages 2005, complaints 103 (5.1%)
-- spend USD 7119.33, USD per commit 8.96
+- spend USD 7798.59, USD per commit 9.81
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 
 ## Predictions
@@ -86,4 +90,4 @@ Previous run: 2026-08-27T00:52Z.
 - unseen newest 216 PRs: accuracy 68% against a base rate of 63%; Brier 0.209
 - model beats the base rate on unseen PRs
 - strongest signals: r_crew (+0.64), log_files (+0.43), log_add (+0.34), log_del (-0.33), f_workflow (+0.30)
-- live: 11 open PRs predicted before their CI finished, 0 scored, hit rate n/a (none scored yet)
+- live: 10 open PRs predicted before their CI finished, 0 scored, hit rate n/a (none scored yet)

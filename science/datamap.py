@@ -128,6 +128,7 @@ def census_check(graded: list[dict], blind: dict[str, str]) -> list[str]:
 
 
 CONTRACT_FIELDS = ("owner", "method", "retention_days", "sensitivity")
+HOME_SCRIPTS = pathlib.Path.home() / ".claude" / "scripts"   # absent in CI: owner check is BLIND there
 METHODS = ("push", "poll", "hand")
 SENSITIVITIES = ("public", "internal", "restricted")
 
@@ -154,6 +155,10 @@ def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -
         owner = pathlib.Path(str(s["owner"]).replace("~", str(pathlib.Path.home()), 1))
         if not owner.is_absolute():
             owner = sources_file.parent.parent / owner
+        if str(s["owner"]).startswith("~") and not HOME_SCRIPTS.exists():
+            #: CI has no ~/.claude/scripts, so a home-rooted owner cannot be checked there.
+            #: A guard that loses its evidence says BLIND, never a verdict (LAW 45).
+            continue
         if not owner.exists():
             v.append(f"source {name}: owner {s['owner']} does not exist")
     return v

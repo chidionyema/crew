@@ -61,6 +61,10 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+if str(Path(__file__).parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).parent))
+import emit as otlp
+
 
 #: Every path this program uses is overridable from the environment, and none of the
 #: three defaults is baked into the registry file. code-84, on the estate's kubernetes
@@ -625,8 +629,13 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         )
         conn.execute("INSERT INTO ingest_log VALUES (?,?,?,?,?,?)",
                      (name, now, len(rows), bad, mtime, "OK"))
+        #: LAW 50 (crew#516 CP5): the same rows go to the estate collector, tagged
+        #: `science.source`, so `bin/idp-science-facts` can count them from ClickHouse.
+        #: With no endpoint configured this is one word in the report and no network.
+        emitted = otlp.emit(name, [(row_time(r, tfield), r) for r in rows])
         report.append({"source": name, "status": "OK", "rows": len(rows),
-                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows)})
+                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows),
+                       "emit": emitted})
 
     #: A source that moves from collected to declined leaves its old rows behind, because
     #: nothing in this loop visits a name the registry no longer mentions. Found 2026-08-24

@@ -17,10 +17,15 @@ def _sources_and_verdicts():
 
 
 def _covered_by_source(key, sources):
-    # register keys look like mac/*jobs/* ; a source path .claude/jobs covers keys whose glob
-    # tail names its last directory component.
-    tail = key.split("*")[-2] if key.count("*") >= 2 else key.rsplit("/", 1)[-1]
-    return [s for s in sources if tail and Path(s["path"]).name == tail.strip("/")]
+    # register keys look like mac/*jobs/* or mac/*.claude/directives* ; a source covers a key
+    # when the literal text between the key's globs is a suffix of the source path.
+    # crew#354: the first matcher compared only the last path component and missed
+    # ".claude/directives", so a second stale grade sat under a registered source.
+    parts = [p.strip("/") for p in key.split("*") if p.strip("/") and not p.startswith("mac")]
+    if not parts:
+        return []
+    needle = parts[-1]
+    return [s for s in sources if s["path"].rstrip("/").endswith(needle)]
 
 
 def test_no_register_entry_under_a_registered_source_is_graded_wired_never():
@@ -35,4 +40,5 @@ def test_the_jobs_entry_names_its_source_and_the_matcher_still_fires_on_a_stale_
     jobs = next(e for e in verdicts if e["key"] == "mac/*jobs/*")
     assert jobs["verdict"] == "COLLECTED" and "job_timelines" in jobs["reader"]
     assert [s["name"] for s in _covered_by_source("mac/*jobs/*", sources)] == ["job_timelines"]
+    assert [s["name"] for s in _covered_by_source("mac/*.claude/directives*", sources)] == ["directives"]  # crew#354
     assert _covered_by_source("mac/*nothing-registered/*", sources) == []

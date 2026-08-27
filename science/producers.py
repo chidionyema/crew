@@ -149,7 +149,10 @@ def _sources_decision(row: dict) -> dict | None:
     if rid in collect.DECLINED:
         return {"verdict": "DECLINED", "why": collect.DECLINED[rid], "entry": f"sources.json declined {rid}"}
     for did, d in collect.DECLINED_DIRS.items():
-        if path and str(path).startswith(str(d) + "/"):
+        # crew#320: a decline may name one file (consult.jsonl) as well as a directory. The
+        # inventory ids a file by its relative path, not the decline's id, so the path is
+        # the only thing the two have in common.
+        if path and (path == d or str(path).startswith(str(d) + "/")):
             return {"verdict": "DECLINED", "why": collect.DECLINED[did], "entry": f"sources.json declined {did}"}
     for name, (src, _k, _t) in collect.SOURCES.items():
         if path and path == src:

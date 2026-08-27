@@ -293,6 +293,15 @@
       "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
       "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
       "receiver": "otlp"
+    },
+    {
+      "name": "runaway-reaper",
+      "root": "home",
+      "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 168,
+      "receiver": "otlp"
     }
   ],
   "declined": [

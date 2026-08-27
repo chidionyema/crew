@@ -322,8 +322,8 @@
     },
     {
       "key": "cluster_live/*",
-      "verdict": "WIRED_NEVER",
-      "why": "The running cluster is the same producers as cluster/*, read live; graded under the same ticket.",
+      "verdict": "EXCLUDED",
+      "why": "Same producers as cluster/*, graded on crew#388. The Mac is blind to the cluster by design (blind_allowed, crew#345): the live cluster is read by oke-check receipts (idp bin/idp-cluster-state), never from a laptop credential. One ticket per producer set.",
       "ticket": "crew#389"
     },
     {
@@ -386,6 +386,12 @@
       "key": "mac/ledger/~/.claude/state/hook-outcomes.jsonl",
       "verdict": "COLLECTED",
       "reader": "source `hook_outcomes` in sources.json; scripts/estate-snapshot hooks() (crew#391)"
+    },
+    {
+      "key": "mac/ledger/*runaway-reaper*",
+      "verdict": "COLLECTED",
+      "reader": "science/datamap.py collected() via sources.json source runaway-reaper; crew#85 row 2 counts reaps per rule from it",
+      "why": ""
     }
   ]
 }

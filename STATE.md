@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-27 07:45 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-27 10:33 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,31 +8,31 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 3.21s |
-| &nbsp;&nbsp;failing | | FAIL  README describes what ships        .github/workflows/build-agent-image.yml is in the repo, and the README never says why |
-| maestro | GREEN | last cycle 4 min ago (`INTENT-20260827-073619-0d20f3e7.json`) |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 5.33s |
+| &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 11 links, pinned msg 14008 |
+| maestro | GREEN | last cycle 6 min ago (`INTENT-20260827-102218-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
 | revenue | NOT RUN | store not measured at 2026-08-27T01:23:38Z: MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin) |
 | ci runs | GREEN | 49 workflows, 2479 runs/24h, 1876/2469 passed, slowest median 819.0s (haworks-platform/codeql.yml), measured 2026-08-27T03:28:24Z (`outcomes.py ci`) |
-| delivery | RED | 37 commits on no remote (oldest 2.8d), 37 dirty files, 6 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 742 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | scripts | 22 commits no remote holds, oldest 2.8d, 7 dirty |
-| &nbsp;&nbsp;stranded | .idp-state | 12 commits no remote holds, oldest 0.6d, 2 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 3 commits no remote holds, oldest 0.5d, 0 dirty |
+| delivery | RED | 26 commits on no remote (oldest 2.9d), 37 dirty files, 6 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 799 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
+| &nbsp;&nbsp;stranded | scripts | 22 commits no remote holds, oldest 2.9d, 7 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 3 commits no remote holds, oldest 0.6d, 0 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 1 commits no remote holds, oldest 0.7d, 2 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | NOT RUN | `science/datamap.py --check --json` did not answer |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 62h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 39 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 65h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 5 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
-| science plane: forecast ledger | RED | 2 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
+| science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 40 | `science/sources.json` |
-| research | GREEN | 23 entries in 7d, 23 total, 23 with a decision fed, last 2026-08-25 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 5081 runs in 24h, 39 refused (most: auto-objective.py 18), slowest 13470 ms (`hook-outcomes.jsonl`) |
+| research | GREEN | 25 entries in 7d, 25 total, 25 with a decision fed, last 2026-08-27 (`RESEARCH-LEDGER.jsonl`) |
+| hooks | GREEN | 17911 runs in 24h, 157 refused (most: rule-guard.py 61), slowest 17077 ms (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
-| crew P1 | 25 open | the fires nobody has put out |
+| crew P1 | 24 open | the fires nobody has put out |
 | &nbsp;&nbsp;#407 SECURITY INCIDENT: a credential was sent over Telegram (crew#400 login, session a0d64ea4, 2026-08-27); tr | | |
 | &nbsp;&nbsp;#396 LAW: KINI checkpoints run as durable workflows on the estate's Temporal; 'Finish KINI' then close the lap | | |
 | &nbsp;&nbsp;#395 LAW: a founder directive rewrites every live session's goal by itself; no session reads a transcript and  | | |
@@ -45,7 +45,6 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#318 P0: MacBook load average 555/530/336 — machine is in genuine distress, not "feels slow" | | |
 | &nbsp;&nbsp;#313 LiteLLM proxy down: colima not running, blocking CP1 photo intake and every LLM call routed through it | | |
 | &nbsp;&nbsp;#311 Class: the estate-operators policy lives outside tofu, so every new statement needs a founder browser sig | | |
-| &nbsp;&nbsp;#301 oke-rebuild --check red: tofu-plan and flux rows broken (drill 2026-08-26T10:42Z) | | |
 | &nbsp;&nbsp;#290 Continuity: reach Otto/the estate through any single loss — phone, laptop, or one cloud provider | | |
 | &nbsp;&nbsp;#283 Science & ML: close the 3 measured gaps before adding capability (readerless metrics, unrun experiments,  | | |
 | &nbsp;&nbsp;#279 Estate MCP needs a write-side ledger tool: architecture changes reach agents hours late | | |
@@ -61,3 +60,4 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | laptop VM (R26) | RED | 51871 /usr/local/bin/limactl; stop it, do not restart it |
 | OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
 | OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
+| elite grade | 31 GAP, 49 BLIND | 287 ELITE of 367 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |

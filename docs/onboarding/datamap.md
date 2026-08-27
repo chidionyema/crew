@@ -1,71 +1,38 @@
-# Onboarding — the data map
+# Onboarding — the data map (LAW 50)
 
-## What it is for
+**What it is.** A closed-world register of every producer of data in the estate. Three files
+in `science/`:
 
-It answers three questions about the estate's data that nobody could answer before, and
-it answers them by measurement rather than by description, so the answer cannot drift
-away from the truth while still reading as current.
+| File | Role |
+|------|------|
+| `producers.py` | One function per domain. Each enumerates every producer of its kind from the world itself. A domain raises when its world is missing; it never returns an empty list. |
+| `verdicts.json` | The register. Each entry: `key` glob, optional `kind` glob, `verdict`, and either `reader` (COLLECTED), `why` (EXCLUDED) or `ticket` (a gap). First match wins. `blind_allowed` names domains allowed to be BLIND, each with a ticket. |
+| `datamap.py` | Grades every producer against the register and prints the map. `--check` exits 1 on one UNEXPLAINED producer, one gap without a ticket, one BLIND domain not allowed, or one domain that shrank by more than half against `census.json`. |
 
-1. What do we collect, and what is actually inside it?
-2. What exists on this machine that nothing collects, and why not?
-3. What does the estate do every day and keep no record of at all?
-
-The third list is the one that matters most. A gap you have written down is a decision.
-A gap nobody has written down is a surprise waiting for whoever needs the number.
-
-## What it costs
-
-Nothing recurring. It is one Python file with no dependencies outside the standard
-library. It reads the warehouse that already exists and the inventory that already runs,
-and it holds both in memory for about a second. It writes one small file,
-`science/shapes.json`, roughly 30 KB, which is the record of what the data looked like
-last time so the next run can tell you what moved.
-
-## What it watches or changes
-
-It reads `science/warehouse.db` and `~/.estate/state/inventory.json`. It changes
-nothing anywhere. The only file it writes is `science/shapes.json`, and that file exists
-solely so the drift comparison has something to compare against.
-
-It does not read the contents of your transcripts, your credentials or anything under
-`~/.claude/telemetry`. It reads the sizes and row counts the inventory already recorded
-for those, and nothing more.
-
-## Where it lives
-
-`science/datamap.py` in the crew repository. The reasons a store is uncollected are a
-table at the top of that file, `WHY_UNCOLLECTED`, so adding a reason is one line and the
-reason travels with the code rather than living in a document that rots.
-
-## How to turn it off
-
-It is not scheduled and it changes nothing, so there is nothing running to stop. If it
-is later wired into the hourly collection and you want it out:
+**Run it.**
 
 ```
-launchctl unload ~/Library/LaunchAgents/com.founder.sciencecollect.plist
+python3 science/datamap.py --check                 # the full gate, about a minute
+python3 science/datamap.py --check --domains act   # one domain, seconds
+python3 science/datamap.py --check --file-tickets  # open a crew ticket per unticketed gap entry
+python3 science/datamap.py --json                  # machine-readable, used by estate-snapshot
 ```
 
-## How to turn it back on
+**When the gate goes red.**
 
-```
-launchctl load ~/Library/LaunchAgents/com.founder.sciencecollect.plist
-```
+1. `UNEXPLAINED` rows: a producer appeared that no entry matches. Add an entry to
+   `verdicts.json`. COLLECTED needs `reader`; EXCLUDED needs `why`; a gap needs `ticket`
+   (run `--file-tickets` to open it).
+2. `BLIND`: a domain cannot read its world. Fix the world, or add the domain to
+   `blind_allowed` with the ticket that restores sight. Never catch the exception inside the
+   domain.
+3. `SHAPE CHANGED`: a domain returned less than half of what `census.json` recorded. Either
+   the world shrank (commit the new census) or the discoverer broke (fix it).
 
-## What goes wrong
+**When you add a new kind of world** (a scheduler, a store, a cloud account, a listener class):
+add a domain function to `producers.py` and register it in `DOMAINS` in the same PR. This is
+the one residual the gate cannot see for you; LAW 50 rule 4 binds the PR.
 
-**It says the warehouse is missing.** The collector has not run. `python3
-science/collect.py` builds it from the sources on disk in a few seconds.
-
-**It says a store is `UNEXPLAINED`.** That is the tool working, not failing. Something
-exists on this machine that nothing reads and nobody has recorded a decision about. Add
-a line to `WHY_UNCOLLECTED` saying what it is and why it is not collected, or wire a
-collector to it.
-
-**`--check` exits 1 and reports fields appearing or vanishing.** A producer changed its
-output. That is not automatically a problem, but nothing else on the estate would have
-told you, so look at what changed before accepting it into `shapes.json`.
-
-**The counts disagree with a number you remember.** Trust the run. The numbers here are
-computed from the rows that exist at the moment you ask, which is the whole reason the
-map is generated rather than written.
+**Where it is enforced.** `scripts/verify.d/26-datamap-register.sh` in CI;
+`scripts/estate-snapshot` writes the `data map` row into `STATE.md` hourly. Incident tests:
+`tests/test_incident_datamap_was_a_hand_typed_list.py`. Law text: `~/AGENTS.md`, LAW 50.

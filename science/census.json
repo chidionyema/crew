@@ -1,0 +1,16 @@
+{
+ "domains": {
+  "mac": 573,
+  "warehouse": 32,
+  "cluster": 105,
+  "endpoint": 5,
+  "hook": 35,
+  "mcp": 3,
+  "github": 93,
+  "transcript": 7345,
+  "act": 8
+ },
+ "blind": {
+  "cluster_live": "RuntimeError: Unable to connect to the server: getting credentials: exec: executable oci failed with exit code 1"
+ }
+}

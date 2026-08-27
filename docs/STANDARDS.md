@@ -22,7 +22,6 @@ online with sources on the record in `science/RESEARCH-LEDGER.jsonl` (entries da
 | Notifications | Apprise (BSD-2) | to adopt | Provider-agnostic send path (~100 services incl. Telegram); delivery proof stays on the caller (LAW 28) |
 | Backups | restic, with a monthly restore drill | to adopt | Closest 1:1 for the custom backup scripts; `restic check` is the drill |
 | Secrets | sops+age directory vault (founder ruling 2026-08-24, crew#119 comment 5393502867): one file per secret, env-segregated `secrets/<env>/<name>.yaml`, ingress `secret-add` reading the value from stdin — never argv — egress `secret-load`, k8s path via secrets-as-files with rotation-safe precedence (file wins); the vault lives in a PRIVATE repo — crew, prospector and hermes-v2 are public and no ciphertext lands in them (default home `estate-secrets`, founder may override) | ruled; vault not yet built — migrating | Ruled the same day this row was measured adrift. The previous cell said "sops + age … live" while nothing sops-shaped existed (no `.sops.yaml` anywhere under ~/dev/code; a probe for it finds an age store never, which misled three sessions in one day) — "live" was the drift; the shape survived by founder ruling. Live today is the migration SOURCE: `prospector-main/deploy/secrets.env.age` (age X25519 whole-file, disk-local and untracked on purpose — prospector commit b5060a15 — identity `~/.config/prospector/age-key.txt` mode 600, 25 keys incl. MINIMAX_API_KEY); it stays live until the vault holds all 25, then is deleted per the ruling. Carried-over handling rulings: no private key is ever committed; any CI secret-scan ships report-mode first scoped past prospector's 152 legitimate matches (LAW 38). prospector#701 (recipients file, S5) is transitional — it protects the migration source and merges only if migration is not immediate; escrow (S1) remains founder action. Today's risk is LOSS, not exposure; residual: anything ever pushed to a public repo may stay fetchable by SHA, unenumerable from here |
-| Container images | multi-arch, `linux/amd64,linux/arm64` under one tag (founder ruling R24, 2026-08-25) | gated in idp | Built by `docker buildx` in GitHub Actions, pushed as one manifest list to GHCR; the Mac pulls amd64, OKE pulls arm64. `idp/bin/build-image` is the one build path, `idp/bin/multiarch-gate` refuses a single-arch push (idp#35). Estate sweep 2026-08-25: 8 single-arch builds outside idp, crew#195 |
 | LLM providers | prospector `operator.py` factory today; LiteLLM (MIT core) is a CANDIDATE, not a component | live (factory) | Measured 2026-08-24: litellm is importable in 0 venvs and imported by 0 files on this estate — its CVE record is adoption cost, not live exposure. Routing today is one `Operator` ABC with 10 subclasses (8 in `operator.py`, plus `ClaudeCliOperator` and `GeminiCliOperator`), config-driven factory. Count: `grep -rhc '^class .*(Operator):' prospector/{operator,claude_cli,gemini_cli}.py`. Adopting LiteLLM needs its own reviewed PR; flags on record: enterprise split; open issues: `gh api repos/BerriAI/litellm --jq .open_issues_count` → 4,909 on 2026-08-24 |
 | Agent traces | OpenTelemetry GenAI semconv → Langfuse (MIT core, self-hosted) | partially live | The single largest lock-in escape available; Langfuse containers already run |
 | Agent board / sync | GitHub Issues (crew repo) | live | No mature OSS agent board exists (researched); do not build one |
@@ -46,7 +45,6 @@ a kept custom piece needs the mature tool named that was rejected, and why.
 | Custom alerting loops → Gotify / Telegram Bot API | Apprise row above stays: it is the mature OSS send path (BSD-2, ~100 providers incl. Telegram) and needs zero daemon; Gotify would add a server to run. Any custom polling/alerting daemon grades REWORK to a launchd job + Apprise send | ledger 2026-08-24 notifications entry |
 | Custom data pipeline wrappers → Dagster native | ADOPT: Dagster used natively, wrapper layer deleted. Dagster's own docs run schedules via `dagster-daemon` supervised as a service — launchd here; `dagster dev` is development-only. Probe: the daemon must tick schedules across a reboot. Owned by the platform-engineering session as crew#126 | crew#126; ledger 2026-08-24 founder-table entry |
 | Code quality gates → pre-commit + ruff + mypy | **DONE for the CI side (crew#134): ruff + pyright live and blocking, plus shellcheck and actionlint for the other two languages this estate writes.** pre-commit (the git-side half) remains open as crew#130 and must register these same three tools, not pick different ones. ADOPT pre-commit + ruff (drop-in for flake8+black+isort; PyPI Warehouse migrated to it Apr 2026). Typing gate: pyright --strict is the estate testing law's named tool for the same slot and the 2026 strict-gate consensus; mypy is the stated deviation only where a plugin no stub covers is demonstrably needed | ledger 2026-08-24 founder-table entry; measured: `ruff` installed, `pre-commit` not yet |
-| Definition of done → DoD Hard v2.1 (founder, 2026-08-25) | **live.** Done means the founder used it end to end and confirmed it; merged code, green CI and passing tests are INVENTORY. Reply line 1 is `DONE:` (carries `Founder receipt:`), `INVENTORY:` (carries exactly `Built:` `Use:` `Expect:` `Not done:` `Evidence:`), `WORKING:` or `BLOCKED:`. Evidence is a URL, commit, path or command, never a sentence. Enforced on every Claude session by `~/.claude/scripts/dod-guard.py` (Stop hook) and relayed as ruling R27; Codex, Gemini and Hermes read the same rule from `~/AGENTS.md`. Gates the policy names (security scan, coverage, demo, bootstrap, receipt) are tracked on crew#229; the security-scan gate is merge-blocking on idp since 2026-08-25 (ruleset idp-required-checks #21473806) | policy text: `idp/docs/policy/definition-of-done.md`; source PDF `~/Downloads/AGENTS_md_DoD_v2_1.pdf`; guard selftest `python3 ~/.claude/scripts/dod-guard.py --selftest` |
 
 ## What stays custom, on purpose
 
@@ -134,27 +132,3 @@ to strict when its owner has annotated it; that is a per-lane ratchet, not a pag
    tiers, GitHub-hosted runners, and local k3d/k3s; "self-hosted on a small rented box" is
    not one of them. However mature the tool, a paid requirement parks it until the local
    proof is done and the founder reopens the spend question.
-
-## Definition of done (every tracked item, every lane)
-
-Founder, 2026-08-25: "what does done mean? what are the deliverables, what assets did it
-produce? we need more standard." LAW 33 says define done in commands; this section says
-which assets those commands must find. An item is DONE when every row below exists and its
-check passes. A row that does not apply is stated as `n/a: <why>` in the PR body, never
-skipped silently. `DONE:` on a reply with a missing row is the incident.
-
-| # | Asset | Where it lives | Check |
-|---|---|---|---|
-| 1 | Tracked item | crew issue, `security`/lane label, owner named | `gh issue view N` shows owner and `Closes #N` on the PR |
-| 2 | Code or config | a merged PR, squash, branch deleted | `git log --oneline -1 main` names the PR |
-| 3 | Gate proved both ways | `bin/<name>-gate` + `tests/fixtures/<name>/{good,bad}` + a row in the repo's CI script | CI script prints `ok <name>`; in one run the good fixture exits 0 and the bad fixture exits non-zero |
-| 4 | Reference doc | `docs/reference/` or an ADR, one page, Diátaxis quadrant named | page in `idp/mkdocs.yml` nav; docs build green |
-| 5 | How-to and demo (LAW 32) | `docs/how-to/<verb>-<thing>.md` with a `Demo:` line naming one command | the demo command runs on main and prints its receipt |
-| 6 | Catalog entity | Backstage entity or annotation generated from the source file, never typed twice | `idp/bin/catalog-refcheck` ok; entity visible in the portal |
-| 7 | Operational proof (R9) | the thing running: scheduled job green, service serving, or gate deciding on a real PR | `Operational:` line in the REVIEW comment quoting command and output |
-| 8 | Scheduled re-grade (LAW 28) | a Dagster job or CI schedule that re-runs the gate and notifies on red | job listed by `idp/bin/scheduler-status`; last run green |
-| 9 | Standard row | `crew/docs/STANDARDS.md` names the tool, or the PR carries `Deviation:` | `crew/scripts/pr-evidence.py check --pr N` sees `Standard:` or `Deviation:` |
-| 10 | Evidence block | `## Verification evidence` in the PR body with the exact commands and output | present; every number in the reply traces to a line in it |
-
-Ten rows is the whole list. A feature that produced assets 1, 2 and 10 only is a merged
-patch, not a deliverable; say `WORKING:` and name the rows still missing.

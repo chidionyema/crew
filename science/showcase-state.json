@@ -1,0 +1,22 @@
+{
+ "generated": "2026-08-27T00:23Z",
+ "numbers": {
+  "warehouse rows": 47399,
+  "warehouse sources": 27,
+  "stale sources": 4,
+  "sources with a contract": 0,
+  "register entries": 67,
+  "producers discovered": 8191,
+  "field paths": 755,
+  "research entries": 23,
+  "research entries with a decision": 23,
+  "commits, 7d": 927,
+  "complaints, 7d": 162,
+  "spend USD, 7d": 6602.54,
+  "USD per commit": 7.12,
+  "predictions recorded": 1,
+  "predictions scored": 1,
+  "capabilities": 11,
+  "capabilities scheduled": 5
+ }
+}

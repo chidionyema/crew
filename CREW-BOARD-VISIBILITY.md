@@ -153,7 +153,7 @@ The Architect | RED | bin/verify: 16 passed, 1 failed
 maestro       | GREEN | last cycle 2 min ago
               └─ skills: 1 skill it can heal with
 
-Fly           | 2 deployed, 12 suspended
+Fly           | NOT RUN — account empty, `fly apps list` returns "No apps found" (2026-08-26)
 
 crew P1       | 5 open (all fires)
 ```

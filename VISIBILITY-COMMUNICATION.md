@@ -71,7 +71,7 @@ tail -f ~/dev/code/crew/STATE.md
 | The Architect | GREEN | `bin/verify`: 17 passed, 0 failed |
 | maestro | GREEN | last cycle 2 min ago (INTENT-20260823-210335-0d20f3e7.json) |
 | &nbsp;&nbsp;skills | GREEN | 1 skill(s) it can heal with |
-| Fly | 2 deployed, 12 suspended | `flyctl apps list` |
+| Fly | NOT RUN — account empty (2026-08-26) | `flyctl apps list` -> "No apps found" |
 | crew P1 | 5 open | the fires nobody has put out |
 ```
 

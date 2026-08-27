@@ -49,9 +49,9 @@
     },
     {
       "key": "mac/*jobs/*",
-      "verdict": "WIRED_NEVER",
-      "why": "Six per-job timeline files, 316 rows. No code refers to any of them, so these are the clearest deletion candidates on the machine.",
-      "ticket": "crew#358"
+      "verdict": "COLLECTED",
+      "why": "Per-job timeline files under ~/.claude/jobs (14 files, 1,315 rows on 2026-08-27); source job_timelines has collected them since before the register was written, so WIRED_NEVER was a stale grade: 1,445 warehouse rows, 2026-08-21 to 2026-08-27.",
+      "reader": "science/collect.py source job_timelines (sources.json, jsonl-dir over ~/.claude/jobs, time_field at)"
     },
     {
       "key": "mac/*estate-board.jsonl*",

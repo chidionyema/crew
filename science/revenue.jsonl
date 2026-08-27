@@ -1,0 +1,1 @@
+{"at":"2026-08-27T01:23:38Z","source":"https://api.mumchimp.com/admin/orders?payment_status=captured&limit=50&fields=id,email,total,currency_code,created_at","measured":false,"paid_orders":0,"total":0.0,"currency":null,"payers":[],"first_paid_at":null,"last_paid_at":null,"reason":"MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin)"}

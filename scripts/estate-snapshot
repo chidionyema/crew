@@ -28,6 +28,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 
 #: bin/verify colours its rows. Colour codes in a markdown table render as literal
 #: escape bytes on GitHub, which makes the snapshot look broken to the one reader
@@ -174,6 +175,49 @@ def spend() -> list[str]:
     state = "GREEN" if rate <= cap else "RED"
     return [f"| estate spend | {state} | ${rate:.0f}/day 7-day mean against a ${cap:.0f} cap "
             f"(`spend_daily`, {db.name}) |"]
+
+
+def revenue() -> list[str]:
+    """The other side of every efficiency number (crew#70).
+
+    Read from `science/revenue.jsonl`, the series `outcomes.py revenue` appends to. GREEN
+    only when the store answered inside the staleness bar; a row the store did not answer
+    is NOT RUN, never a zero, because an unmeasured zero and a measured zero look the same
+    on a page and only one of them is true.
+    """
+    path = pathlib.Path(__file__).resolve().parent.parent / "science" / "revenue.jsonl"
+    return revenue_row(path)
+
+
+def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 24) -> list[str]:
+    if not path.exists():
+        return ["| revenue | NOT RUN | no `science/revenue.jsonl`: run `science/outcomes.py revenue` |"]
+    last = None
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line:
+            try:
+                last = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+    if not last:
+        return ["| revenue | NOT RUN | `science/revenue.jsonl` holds no row |"]
+    at = last.get("at", "")
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| revenue | NOT RUN | last row has no readable `at` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    if age_h > stale_hours:
+        return [f"| revenue | NOT RUN | last measurement {at} is {age_h:.0f}h old (bar {stale_hours}h) |"]
+    if not last.get("measured"):
+        return [f"| revenue | NOT RUN | store not measured at {at}: {str(last.get('reason', ''))[:90]} |"]
+    n = int(last.get("paid_orders", 0))
+    cur = last.get("currency") or ""
+    if n == 0:
+        return [f"| revenue | GREEN | 0 paid orders, measured {at} from the store (`outcomes.py revenue`) |"]
+    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {len(last.get('payers', []))} payer(s), "
+            f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
 
 
 def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
@@ -614,7 +658,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, delivery, founder, collectors,
+    for fn in (architect, maestro, fly, spend, revenue, delivery, founder, collectors,
         datamap, science_plane, research, github_actions, crew_p1,
                runtime):
         try:

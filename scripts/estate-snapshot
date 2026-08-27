@@ -25,10 +25,10 @@ from __future__ import annotations
 import datetime as dt
 import json
 import pathlib
-import time
 import re
 import subprocess
 import sys
+import time
 
 #: bin/verify colours its rows. Colour codes in a markdown table render as literal
 #: escape bytes on GitHub, which makes the snapshot look broken to the one reader

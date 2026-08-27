@@ -8,7 +8,7 @@ import sys
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "science"))
-import producers  # noqa: E402
+import producers
 
 
 def test_a_dagster_job_is_monitored_and_a_bare_launchd_job_is_not(tmp_path, monkeypatch):

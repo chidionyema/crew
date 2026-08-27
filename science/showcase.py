@@ -320,7 +320,7 @@ def lanes(now: dt.datetime) -> dict:
         ).fetchall()
     except sqlite3.Error as e:
         raise Blind(f"{rel(WAREHOUSE)} has no readable facts table ({e})") from e
-    per_lane: dict[str, int] = {lane: 0 for lane in LANE_SOURCES}
+    per_lane: dict[str, int] = dict.fromkeys(LANE_SOURCES, 0)
     unmapped: dict[str, int] = {}
     for source, n in pairs:
         lane = _lane_of(source or "")

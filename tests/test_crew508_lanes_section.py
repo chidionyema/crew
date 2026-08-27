@@ -27,7 +27,7 @@ def _showcase():
 def warehouse(tmp_path, monkeypatch):
     """A facts table with one fresh row per lane under test, plus one older than the window."""
     m = _showcase()
-    now = dt.datetime(2026, 8, 27, 12, 0, 0)
+    now = dt.datetime(2026, 8, 27, 12, 0, 0, tzinfo=dt.UTC)
     db_path = tmp_path / "warehouse.db"
     db = sqlite3.connect(db_path)
     db.execute("create table facts (source text, ingested_at text, at text, payload text)")
@@ -110,7 +110,7 @@ def test_a_missing_warehouse_is_blind_never_a_row_of_zeroes(tmp_path, monkeypatc
     m = _showcase()
     monkeypatch.setattr(m, "WAREHOUSE", tmp_path / "gone.db")
     with pytest.raises(m.Blind):
-        m.lanes(dt.datetime(2026, 8, 27, 12, 0, 0))
+        m.lanes(dt.datetime(2026, 8, 27, 12, 0, 0, tzinfo=dt.UTC))
 
 
 def test_an_empty_file_where_the_warehouse_should_be_is_blind(tmp_path, monkeypatch):
@@ -120,7 +120,7 @@ def test_an_empty_file_where_the_warehouse_should_be_is_blind(tmp_path, monkeypa
     empty.touch()
     monkeypatch.setattr(m, "WAREHOUSE", empty)
     with pytest.raises(m.Blind, match="no readable facts table"):
-        m.lanes(dt.datetime(2026, 8, 27, 12, 0, 0))
+        m.lanes(dt.datetime(2026, 8, 27, 12, 0, 0, tzinfo=dt.UTC))
 
 
 def test_a_source_named_by_the_lane_convention_maps_by_name():

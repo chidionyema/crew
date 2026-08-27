@@ -178,8 +178,15 @@ def _ledger_hooks() -> frozenset[str]:
                     names.add(json.loads(line)["hook"])
                 except (ValueError, KeyError, TypeError):
                     continue
-    except OSError:
+    except FileNotFoundError:
+        # No ledger at all: hook-run.py has never written one here, so no guard has a
+        # measured run and the register's verdict stands. That is an honest empty.
         return frozenset()
+    except OSError as e:
+        # A ledger that exists and cannot be read is not an empty ledger. Returning
+        # frozenset() here graded all 46 guards NEVER_EMITTED with no signal (crew#453
+        # residual, 2026-08-27); raising makes the mac domain BLIND, which the gate fails.
+        raise RuntimeError(f"hook-outcomes ledger unreadable at {path}: {type(e).__name__}: {e}") from e
     return frozenset(names)
 
 

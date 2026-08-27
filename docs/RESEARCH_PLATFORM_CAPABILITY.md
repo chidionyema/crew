@@ -127,12 +127,12 @@ engine's own forecasts, resolved forward from the day it makes them, not backfil
 ledger. Step 1 of the DoD becomes: pick 5 targets at three scales, let the engine generate, and put
 the old dossier beside it.
 
-## Founder ruling R35 (2026-08-25): the research crew is a platform layer for every product
+## Founder ruling R33 (2026-08-25): the research crew is a platform layer for every product
 
 Founder: "they are here to exponentially improve all parts of the estate including prospector,
 the capabilities need to be world class on their own and can be purposed to any part of platform
 and beyond as we add new product and capabilities." Full text and the drift guard:
-`docs/rulings/R35-research-crew-is-a-platform-layer-for-every-product.md`.
+`docs/rulings/R33-research-crew-is-a-platform-layer-for-every-product.md`.
 
 How it engages the rest of the platform: in through a `research` issue, a `research generate
 <target>` call, or a scheduled sweep over the Backstage catalog; out as a doc in the owning repo,

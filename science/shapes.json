@@ -1,6 +1,6 @@
 {
  "agent_cert": {
-  "rows": 14,
+  "rows": 75,
   "unparseable": 0,
   "fields": {
    "agent": {
@@ -35,30 +35,6 @@
     "type": "int",
     "coverage": 100
    },
-   "rows": {
-    "type": "map",
-    "coverage": 100
-   },
-   "rows.*.blocked_reason": {
-    "type": "NoneType",
-    "coverage": 100
-   },
-   "rows.*.detail": {
-    "type": "str",
-    "coverage": 100
-   },
-   "rows.*.phase": {
-    "type": "str",
-    "coverage": 100
-   },
-   "rows.*.state": {
-    "type": "str",
-    "coverage": 100
-   },
-   "rows.*.statement": {
-    "type": "str",
-    "coverage": 100
-   },
    "score": {
     "type": "float",
     "coverage": 100
@@ -66,11 +42,135 @@
    "timed_out": {
     "type": "int",
     "coverage": 100
+   },
+   "rows": {
+    "type": "map",
+    "coverage": 77
+   },
+   "rows.*.blocked_reason": {
+    "type": "NoneType",
+    "coverage": 77
+   },
+   "rows.*.detail": {
+    "type": "str",
+    "coverage": 77
+   },
+   "rows.*.phase": {
+    "type": "str",
+    "coverage": 77
+   },
+   "rows.*.state": {
+    "type": "str",
+    "coverage": 77
+   },
+   "rows.*.statement": {
+    "type": "str",
+    "coverage": 77
+   },
+   "rows.MON-1.blocked_reason": {
+    "type": "NoneType",
+    "coverage": 23
+   },
+   "rows.MON-1.detail": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-1.phase": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-1.state": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-1.statement": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-2.blocked_reason": {
+    "type": "NoneType",
+    "coverage": 23
+   },
+   "rows.MON-2.detail": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-2.phase": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-2.state": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-2.statement": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-3.blocked_reason": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-3.detail": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-3.phase": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-3.state": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-3.statement": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-4.blocked_reason": {
+    "type": "NoneType",
+    "coverage": 23
+   },
+   "rows.MON-4.detail": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-4.phase": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-4.state": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-4.statement": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-5.blocked_reason": {
+    "type": "NoneType",
+    "coverage": 23
+   },
+   "rows.MON-5.detail": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-5.phase": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-5.state": {
+    "type": "str",
+    "coverage": 23
+   },
+   "rows.MON-5.statement": {
+    "type": "str",
+    "coverage": 23
    }
   }
  },
  "aiden_ticks": {
-  "rows": 78,
+  "rows": 645,
   "unparseable": 0,
   "fields": {
    "alerts": {
@@ -95,32 +195,32 @@
    },
    "delivery.why": {
     "type": "str",
-    "coverage": 95
+    "coverage": 99
    },
    "took_s": {
     "type": "float",
-    "coverage": 55
+    "coverage": 87
    },
    "delivery.message_id": {
     "type": "str",
-    "coverage": 31
+    "coverage": 44
    },
    "delivery.out": {
     "type": "str",
-    "coverage": 6
+    "coverage": 1
    },
    "delivery.rc": {
     "type": "int",
-    "coverage": 6
+    "coverage": 1
    },
    "delivery.chat_id": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    }
   }
  },
  "attention": {
-  "rows": 24,
+  "rows": 28,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -150,7 +250,7 @@
   }
  },
  "board": {
-  "rows": 124,
+  "rows": 712,
   "unparseable": 0,
   "fields": {
    "kind": {
@@ -163,124 +263,136 @@
    },
    "note": {
     "type": "str",
-    "coverage": 73
+    "coverage": 68
    },
    "at": {
     "type": "str",
-    "coverage": 72
+    "coverage": 68
    },
    "error": {
     "type": "str",
-    "coverage": 72
+    "coverage": 67
    },
    "frame": {
     "type": "list",
-    "coverage": 72
+    "coverage": 67
    },
    "guard": {
     "type": "str",
-    "coverage": 72
+    "coverage": 67
    },
    "from": {
     "type": "str",
-    "coverage": 27
+    "coverage": 32
    },
    "text": {
     "type": "str",
-    "coverage": 19
+    "coverage": 20
    },
    "message": {
     "type": "str",
-    "coverage": 9
+    "coverage": 12
    },
    "priority": {
     "type": "str",
-    "coverage": 9
+    "coverage": 12
    },
    "detail.expect": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.purpose": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_1_drills.blockers": {
     "type": "list",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_1_drills.estimate_left": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_1_drills.next_step": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_1_drills.progress": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_1_drills.working_on": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_2_prospector_dr.blockers": {
     "type": "list",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_2_prospector_dr.estimate_left": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_2_prospector_dr.next_step": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_2_prospector_dr.progress": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_2_prospector_dr.working_on": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_3_this_session_coordinator.blockers": {
     "type": "list",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_3_this_session_coordinator.estimate_left": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_3_this_session_coordinator.next_step": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_3_this_session_coordinator.progress": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "detail.session_3_this_session_coordinator.working_on": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "founder_priority_alignment.active_sessions_aligned": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "founder_priority_alignment.no_duplication": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "founder_priority_alignment.p1_fires_order": {
     "type": "list",
-    "coverage": 1
+    "coverage": 0
+   },
+   "lane": {
+    "type": "str",
+    "coverage": 0
+   },
+   "msg": {
+    "type": "str",
+    "coverage": 0
+   },
+   "to": {
+    "type": "str",
+    "coverage": 0
    }
   }
  },
  "bundle_push": {
-  "rows": 120,
+  "rows": 810,
   "unparseable": 0,
   "fields": {
    "ts": {
@@ -289,64 +401,64 @@
    },
    "bytes": {
     "type": "int",
-    "coverage": 98
+    "coverage": 100
    },
    "commits": {
     "type": "int",
-    "coverage": 98
+    "coverage": 100
    },
    "contents_scanned": {
     "type": "bool",
-    "coverage": 98
+    "coverage": 100
    },
    "iso": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "mode": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "remote": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "repo": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "restore": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "sha256": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "slug": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "tip": {
     "type": "str",
-    "coverage": 98
+    "coverage": 100
    },
    "at": {
     "type": "str",
-    "coverage": 2
+    "coverage": 0
    },
    "event": {
     "type": "str",
-    "coverage": 2
+    "coverage": 0
    },
    "reason": {
     "type": "str",
-    "coverage": 2
+    "coverage": 0
    }
   }
  },
  "ci_reach": {
-  "rows": 75,
+  "rows": 256,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -372,7 +484,7 @@
   }
  },
  "close_guard": {
-  "rows": 911,
+  "rows": 2240,
   "unparseable": 0,
   "fields": {
    "after_head": {
@@ -456,7 +568,7 @@
   }
  },
  "decisions": {
-  "rows": 118,
+  "rows": 132,
   "unparseable": 0,
   "fields": {
    "id": {
@@ -485,72 +597,110 @@
    },
    "angles": {
     "type": "list",
-    "coverage": 95
+    "coverage": 90
    },
    "confidence": {
     "type": "NoneType",
-    "coverage": 95
+    "coverage": 90
    },
    "finding": {
     "type": "NoneType",
-    "coverage": 95
+    "coverage": 90
    },
    "gaps": {
     "type": "list",
-    "coverage": 95
+    "coverage": 90
    },
    "searches": {
     "type": "list",
-    "coverage": 95
+    "coverage": 90
    },
    "sources": {
     "type": "list",
-    "coverage": 95
+    "coverage": 90
    },
    "updated": {
     "type": "str",
-    "coverage": 84
+    "coverage": 79
+   },
+   "chosen": {
+    "type": "str",
+    "coverage": 10
+   },
+   "options": {
+    "type": "list",
+    "coverage": 10
+   },
+   "rests_on": {
+    "type": "list",
+    "coverage": 10
+   },
+   "reversible": {
+    "type": "bool",
+    "coverage": 10
+   },
+   "revisit_when": {
+    "type": "str",
+    "coverage": 10
+   },
+   "superseded_by": {
+    "type": "NoneType",
+    "coverage": 10
+   },
+   "undo": {
+    "type": "str",
+    "coverage": 10
+   },
+   "why": {
+    "type": "str",
+    "coverage": 10
    },
    "alternatives": {
     "type": "list",
     "coverage": 9
-   },
-   "chosen": {
+   }
+  }
+ },
+ "directives": {
+  "rows": 8062,
+  "unparseable": 0,
+  "fields": {
+   "_shard": {
     "type": "str",
-    "coverage": 5
+    "coverage": 100
    },
-   "options": {
-    "type": "list",
-    "coverage": 5
-   },
-   "rests_on": {
-    "type": "list",
-    "coverage": 5
-   },
-   "reversible": {
-    "type": "bool",
-    "coverage": 5
-   },
-   "revisit_when": {
+   "cwd": {
     "type": "str",
-    "coverage": 5
+    "coverage": 100
    },
-   "superseded_by": {
-    "type": "NoneType",
-    "coverage": 5
-   },
-   "undo": {
+   "session": {
     "type": "str",
-    "coverage": 5
+    "coverage": 100
    },
-   "why": {
+   "ts": {
     "type": "str",
-    "coverage": 5
+    "coverage": 100
+   },
+   "prompt": {
+    "type": "str",
+    "coverage": 100
+   },
+   "event": {
+    "type": "str",
+    "coverage": 0
+   },
+   "id": {
+    "type": "str",
+    "coverage": 0
+   },
+   "text": {
+    "type": "str",
+    "coverage": 0
    }
   }
  },
  "drills": {
-  "rows": 44,
+  "rows": 123,
   "unparseable": 0,
   "fields": {
    "id": {
@@ -583,7 +733,45 @@
    },
    "log": {
     "type": "str",
-    "coverage": 7
+    "coverage": 24
+   }
+  }
+ },
+ "drills_scripts": {
+  "rows": 123,
+  "unparseable": 0,
+  "fields": {
+   "id": {
+    "type": "str",
+    "coverage": 100
+   },
+   "iso": {
+    "type": "str",
+    "coverage": 100
+   },
+   "note": {
+    "type": "str",
+    "coverage": 100
+   },
+   "rc": {
+    "type": "int",
+    "coverage": 100
+   },
+   "seconds": {
+    "type": "float",
+    "coverage": 100
+   },
+   "status": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ts": {
+    "type": "int",
+    "coverage": 100
+   },
+   "log": {
+    "type": "str",
+    "coverage": 24
    }
   }
  },
@@ -629,11 +817,87 @@
    }
   }
  },
- "ledger": {
-  "rows": 658,
+ "estate_push": {
+  "rows": 49,
   "unparseable": 0,
   "fields": {
-   "kind": {
+   "bytes": {
+    "type": "int",
+    "coverage": 100
+   },
+   "critical": {
+    "type": "str",
+    "coverage": 100
+   },
+   "day": {
+    "type": "str",
+    "coverage": 100
+   },
+   "iso": {
+    "type": "str",
+    "coverage": 100
+   },
+   "sha256": {
+    "type": "str",
+    "coverage": 100
+   },
+   "stamp": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ts": {
+    "type": "int",
+    "coverage": 100
+   },
+   "verified": {
+    "type": "str",
+    "coverage": 100
+   }
+  }
+ },
+ "founder_actions": {
+  "rows": 3,
+  "unparseable": 0,
+  "fields": {
+   "done_when": {
+    "type": "NoneType",
+    "coverage": 100
+   },
+   "id": {
+    "type": "str",
+    "coverage": 100
+   },
+   "opened": {
+    "type": "str",
+    "coverage": 100
+   },
+   "source": {
+    "type": "str",
+    "coverage": 100
+   },
+   "unblocks": {
+    "type": "str",
+    "coverage": 100
+   },
+   "what": {
+    "type": "str",
+    "coverage": 100
+   },
+   "why_founder": {
+    "type": "str",
+    "coverage": 100
+   }
+  }
+ },
+ "goal_net": {
+  "rows": 3121,
+  "unparseable": 0,
+  "fields": {
+   "at": {
+    "type": "int",
+    "coverage": 100
+   },
+   "event": {
     "type": "str",
     "coverage": 100
    },
@@ -641,37 +905,1679 @@
     "type": "str",
     "coverage": 100
    },
-   "t": {
+   "signals": {
+    "type": "list",
+    "coverage": 58
+   },
+   "tick": {
+    "type": "int",
+    "coverage": 58
+   },
+   "depth": {
+    "type": "int",
+    "coverage": 31
+   },
+   "from": {
+    "type": "str",
+    "coverage": 27
+   },
+   "reason": {
+    "type": "str",
+    "coverage": 27
+   },
+   "to": {
+    "type": "str",
+    "coverage": 27
+   },
+   "node": {
+    "type": "str",
+    "coverage": 15
+   },
+   "text": {
+    "type": "str",
+    "coverage": 11
+   }
+  }
+ },
+ "history": {
+  "rows": 14253,
+  "unparseable": 0,
+  "fields": {
+   "display": {
+    "type": "str",
+    "coverage": 100
+   },
+   "project": {
+    "type": "str",
+    "coverage": 100
+   },
+   "sessionId": {
+    "type": "str",
+    "coverage": 100
+   },
+   "timestamp": {
     "type": "int",
     "coverage": 100
    },
-   "lane": {
+   "pastedContents.1.id": {
+    "type": "int",
+    "coverage": 4
+   },
+   "pastedContents.1.type": {
+    "type": "str",
+    "coverage": 4
+   },
+   "pastedContents.1.contentHash": {
+    "type": "str",
+    "coverage": 2
+   },
+   "pastedContents.2.id": {
+    "type": "int",
+    "coverage": 2
+   },
+   "pastedContents.2.type": {
+    "type": "str",
+    "coverage": 2
+   },
+   "pastedContents.1.content": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.3.id": {
+    "type": "int",
+    "coverage": 1
+   },
+   "pastedContents.3.type": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.2.contentHash": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.4.id": {
+    "type": "int",
+    "coverage": 1
+   },
+   "pastedContents.4.type": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.3.contentHash": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.5.id": {
+    "type": "int",
+    "coverage": 1
+   },
+   "pastedContents.5.type": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.2.content": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.6.id": {
+    "type": "int",
+    "coverage": 1
+   },
+   "pastedContents.6.type": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.3.content": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.4.contentHash": {
+    "type": "str",
+    "coverage": 1
+   },
+   "pastedContents.7.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.7.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.5.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.8.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.8.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.4.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.6.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.9.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.9.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.10.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.10.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.11.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.11.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.7.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.8.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.6.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.12.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.12.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.5.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.7.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.10.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.13.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.13.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.9.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.14.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.14.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.11.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.15.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.15.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.8.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.9.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.11.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.12.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.16.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.16.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.17.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.17.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.12.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.13.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.14.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.15.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.13.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.18.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.18.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.19.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.19.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.21.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.21.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.25.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.25.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.10.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.20.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.20.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.22.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.22.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.24.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.24.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.27.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.27.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.23.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.23.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.14.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.16.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.17.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.18.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.15.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.16.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.17.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.20.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.26.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.26.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.28.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.28.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.19.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.25.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.27.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.30.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.30.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.31.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.31.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.32.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.32.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.33.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.33.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.34.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.34.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.36.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.36.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.37.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.37.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.21.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.21.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.22.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.24.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.29.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.29.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.35.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.35.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.38.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.38.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.18.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.19.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.22.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.23.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.23.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.24.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.25.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.26.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.30.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.32.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.34.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.37.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.40.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.40.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.27.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.28.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.28.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.29.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.31.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.33.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.36.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.38.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.39.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.39.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.40.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.41.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.41.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.42.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.42.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents": {
+    "type": "map",
+    "coverage": 0
+   },
+   "pastedContents.*.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.*.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.*.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.20.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.26.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.31.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.33.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.35.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.35.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.36.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.39.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.42.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.43.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.43.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.44.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.44.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.45.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.45.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.45.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.46.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.46.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.47.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.47.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.50.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.50.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.51.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.51.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.51.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.52.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.52.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.29.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.30.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.32.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.34.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.37.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.38.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.41.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.41.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.43.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.44.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.46.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.47.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.48.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.48.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.49.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.49.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.50.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.52.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.53.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.53.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.54.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.54.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.54.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.55.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.55.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.55.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.56.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.56.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.57.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.57.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.58.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.58.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.58.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.59.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.59.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.59.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.60.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.60.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.61.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.61.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.62.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.62.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.62.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.63.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.63.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.63.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.64.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.64.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.65.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.65.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.66.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.66.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.100.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.100.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.100.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.101.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.101.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.101.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.102.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.102.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.102.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.103.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.103.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.103.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.105.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.105.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.105.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.106.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.106.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.106.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.39.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.40.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.42.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.43.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.44.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.46.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.47.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.48.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.48.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.49.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.49.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.50.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.52.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.53.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.53.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.56.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.56.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.57.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.57.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.60.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.60.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.61.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.61.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.64.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.64.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.65.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.65.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.66.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.66.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.67.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.67.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.67.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.68.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.68.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.68.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.69.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.69.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.69.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.70.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.70.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.70.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.71.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.71.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.71.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.72.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.72.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.72.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.73.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.73.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.73.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.74.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.74.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.74.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.75.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.75.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.75.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.76.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.76.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.76.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.77.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.77.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.77.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.78.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.78.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.78.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.79.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.79.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.79.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.80.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.80.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.80.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.81.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.81.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.81.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.82.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.82.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.82.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.83.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.83.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.83.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.85.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.85.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.85.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.86.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.86.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.86.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.87.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.87.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.87.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.88.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.88.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.88.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.89.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.89.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.89.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.90.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.90.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.90.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.91.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.91.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.91.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.92.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.92.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.92.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.93.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.93.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.93.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.94.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.94.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.94.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.95.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.95.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.95.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.96.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.96.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.96.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.97.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.97.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.97.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.98.contentHash": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.98.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.98.type": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.99.content": {
+    "type": "str",
+    "coverage": 0
+   },
+   "pastedContents.99.id": {
+    "type": "int",
+    "coverage": 0
+   },
+   "pastedContents.99.type": {
+    "type": "str",
+    "coverage": 0
+   }
+  }
+ },
+ "job_timelines": {
+  "rows": 1062,
+  "unparseable": 0,
+  "fields": {
+   "_shard": {
+    "type": "str",
+    "coverage": 100
+   },
+   "at": {
     "type": "str",
     "coverage": 99
+   },
+   "detail": {
+    "type": "str",
+    "coverage": 99
+   },
+   "state": {
+    "type": "str",
+    "coverage": 99
+   },
+   "text": {
+    "type": "str",
+    "coverage": 99
+   },
+   "ID": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Labels": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Names": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Ports": {
+    "type": "str",
+    "coverage": 1
+   }
+  }
+ },
+ "ledger": {
+  "rows": 2744,
+  "unparseable": 0,
+  "fields": {
+   "session": {
+    "type": "str",
+    "coverage": 100
+   },
+   "kind": {
+    "type": "str",
+    "coverage": 92
+   },
+   "t": {
+    "type": "int",
+    "coverage": 92
+   },
+   "lane": {
+    "type": "str",
+    "coverage": 89
    },
    "limit": {
     "type": "int",
-    "coverage": 99
+    "coverage": 68
    },
    "n": {
     "type": "int",
-    "coverage": 54
+    "coverage": 38
    },
    "target": {
     "type": "str",
-    "coverage": 54
+    "coverage": 38
    },
    "has_goal": {
     "type": "bool",
-    "coverage": 45
+    "coverage": 30
    },
    "run": {
     "type": "int",
-    "coverage": 45
+    "coverage": 30
+   },
+   "tool": {
+    "type": "str",
+    "coverage": 20
+   },
+   "event": {
+    "type": "str",
+    "coverage": 8
+   },
+   "guard": {
+    "type": "str",
+    "coverage": 8
+   },
+   "ts": {
+    "type": "str",
+    "coverage": 8
+   },
+   "runs": {
+    "type": "list",
+    "coverage": 5
+   },
+   "unclaimed": {
+    "type": "list",
+    "coverage": 5
    },
    "goal": {
     "type": "str",
-    "coverage": 1
+    "coverage": 4
+   },
+   "item": {
+    "type": "NoneType",
+    "coverage": 2
+   },
+   "quiet_s": {
+    "type": "int",
+    "coverage": 0
+   },
+   "missing": {
+    "type": "list",
+    "coverage": 0
    }
   }
  },
@@ -855,8 +2761,66 @@
    }
   }
  },
+ "prompt_ledger": {
+  "rows": 8385,
+  "unparseable": 0,
+  "fields": {
+   "_shard": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ac": {
+    "type": "list",
+    "coverage": 100
+   },
+   "id": {
+    "type": "str",
+    "coverage": 100
+   },
+   "prev": {
+    "type": "NoneType",
+    "coverage": 100
+   },
+   "session": {
+    "type": "str",
+    "coverage": 100
+   },
+   "source": {
+    "type": "str",
+    "coverage": 100
+   },
+   "spec": {
+    "type": "NoneType",
+    "coverage": 100
+   },
+   "status": {
+    "type": "str",
+    "coverage": 100
+   },
+   "text": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ts": {
+    "type": "str",
+    "coverage": 100
+   },
+   "proof": {
+    "type": "NoneType",
+    "coverage": 98
+   },
+   "proof.at": {
+    "type": "str",
+    "coverage": 2
+   },
+   "proof.results": {
+    "type": "list",
+    "coverage": 2
+   }
+  }
+ },
  "ships": {
-  "rows": 63,
+  "rows": 129,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -871,34 +2835,34 @@
     "type": "str",
     "coverage": 100
    },
-   "commits": {
-    "type": "int",
-    "coverage": 62
-   },
-   "feats": {
-    "type": "int",
-    "coverage": 62
-   },
-   "fixes": {
-    "type": "int",
-    "coverage": 62
-   },
-   "shas": {
-    "type": "list",
-    "coverage": 62
-   },
    "pr": {
     "type": "int",
-    "coverage": 38
+    "coverage": 64
    },
    "title": {
     "type": "str",
-    "coverage": 38
+    "coverage": 64
+   },
+   "commits": {
+    "type": "int",
+    "coverage": 36
+   },
+   "feats": {
+    "type": "int",
+    "coverage": 36
+   },
+   "fixes": {
+    "type": "int",
+    "coverage": 36
+   },
+   "shas": {
+    "type": "list",
+    "coverage": 36
    }
   }
  },
  "spend": {
-  "rows": 935,
+  "rows": 1107,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -919,81 +2883,105 @@
    },
    "by_owner.prospector-daemon (headless claude -p)": {
     "type": "float",
-    "coverage": 80
+    "coverage": 69
    },
    "reqs_by_owner.prospector-daemon (headless claude -p)": {
     "type": "int",
-    "coverage": 80
+    "coverage": 69
    },
    "by_owner.prospector-interactive": {
     "type": "float",
-    "coverage": 79
+    "coverage": 67
    },
    "reqs_by_owner.prospector-interactive": {
     "type": "int",
-    "coverage": 79
-   },
-   "by_owner.hermes": {
-    "type": "float",
-    "coverage": 57
-   },
-   "reqs_by_owner.hermes": {
-    "type": "int",
-    "coverage": 56
-   },
-   "by_owner.Users-chidionyema-Documents-code-the-introduction-exchange": {
-    "type": "float",
-    "coverage": 54
+    "coverage": 67
    },
    "by_owner.Users-chidionyema-Documents-code": {
     "type": "float",
-    "coverage": 53
+    "coverage": 49
    },
    "reqs_by_owner.Users-chidionyema-Documents-code": {
     "type": "int",
-    "coverage": 53
+    "coverage": 49
+   },
+   "by_owner.hermes": {
+    "type": "float",
+    "coverage": 48
+   },
+   "reqs_by_owner.hermes": {
+    "type": "int",
+    "coverage": 47
+   },
+   "by_owner.Users-chidionyema-Documents-code-the-introduction-exchange": {
+    "type": "float",
+    "coverage": 45
    },
    "reqs_by_owner.Users-chidionyema-Documents-code-the-introduction-exchange": {
     "type": "int",
-    "coverage": 53
-   },
-   "by_owner.private-tmp": {
-    "type": "float",
-    "coverage": 22
-   },
-   "reqs_by_owner.private-tmp": {
-    "type": "int",
-    "coverage": 22
+    "coverage": 45
    },
    "by_owner.Users-chidionyema": {
     "type": "float",
-    "coverage": 20
+    "coverage": 31
    },
    "reqs_by_owner.Users-chidionyema": {
     "type": "int",
-    "coverage": 20
-   },
-   "by_owner.Users-chidionyema-Documents-code-haworks-platform": {
-    "type": "float",
-    "coverage": 17
-   },
-   "reqs_by_owner.Users-chidionyema-Documents-code-haworks-platform": {
-    "type": "int",
-    "coverage": 17
-   },
-   "by_owner.private-tmp-haworks-testcov-orders-67248": {
-    "type": "float",
-    "coverage": 5
-   },
-   "reqs_by_owner.private-tmp-haworks-testcov-orders-67248": {
-    "type": "int",
-    "coverage": 5
+    "coverage": 31
    },
    "by_owner.Users-chidionyema-dev-code": {
     "type": "float",
-    "coverage": 4
+    "coverage": 19
    },
    "reqs_by_owner.Users-chidionyema-dev-code": {
+    "type": "int",
+    "coverage": 19
+   },
+   "by_owner.private-tmp": {
+    "type": "float",
+    "coverage": 19
+   },
+   "reqs_by_owner.private-tmp": {
+    "type": "int",
+    "coverage": 19
+   },
+   "by_owner.Users-chidionyema-Documents-code-haworks-platform": {
+    "type": "float",
+    "coverage": 15
+   },
+   "reqs_by_owner.Users-chidionyema-Documents-code-haworks-platform": {
+    "type": "int",
+    "coverage": 14
+   },
+   "by_owner.Users-chidionyema-dev-code-idp": {
+    "type": "float",
+    "coverage": 8
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-idp": {
+    "type": "int",
+    "coverage": 8
+   },
+   "by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-275": {
+    "type": "float",
+    "coverage": 7
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-275": {
+    "type": "int",
+    "coverage": 7
+   },
+   "by_owner.private-tmp-haworks-testcov-orders-67248": {
+    "type": "float",
+    "coverage": 4
+   },
+   "reqs_by_owner.private-tmp-haworks-testcov-orders-67248": {
+    "type": "int",
+    "coverage": 4
+   },
+   "by_owner.private-tmp-claude-501--Users-chidionyema-8ef72725-f30e-4d4b-8cb9-791f03f67fdf-scratchpad": {
+    "type": "float",
+    "coverage": 4
+   },
+   "reqs_by_owner.private-tmp-claude-501--Users-chidionyema-8ef72725-f30e-4d4b-8cb9-791f03f67fdf-scratchpad": {
     "type": "int",
     "coverage": 4
    },
@@ -1005,29 +2993,53 @@
     "type": "float",
     "coverage": 3
    },
+   "by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
+    "type": "float",
+    "coverage": 2
+   },
+   "by_owner.private-tmp-claude-501--Users-chidionyema-130c903b-056b-4580-b5c6-8e80ec1fabdc-scratchpad-claude-runner-repo": {
+    "type": "float",
+    "coverage": 2
+   },
    "by_owner.private-tmp-haworks-review-rulesengine-76501": {
     "type": "float",
-    "coverage": 3
+    "coverage": 2
    },
    "by_owner.private-tmp-haworks-testcov-media-76500": {
     "type": "float",
-    "coverage": 3
+    "coverage": 2
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
+    "type": "int",
+    "coverage": 2
+   },
+   "reqs_by_owner.private-tmp-claude-501--Users-chidionyema-130c903b-056b-4580-b5c6-8e80ec1fabdc-scratchpad-claude-runner-repo": {
+    "type": "int",
+    "coverage": 2
    },
    "reqs_by_owner.private-tmp-haworks-review-rulesengine-76501": {
     "type": "int",
-    "coverage": 3
+    "coverage": 2
    },
    "reqs_by_owner.private-tmp-haworks-testcov-media-76500": {
     "type": "int",
-    "coverage": 3
+    "coverage": 2
+   },
+   "by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
+    "type": "float",
+    "coverage": 2
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
+    "type": "int",
+    "coverage": 2
    },
    "reqs_by_owner.private-tmp-cprobe-elxJ": {
     "type": "int",
-    "coverage": 3
+    "coverage": 2
    },
    "reqs_by_owner.private-tmp-haworks-testcov-bffweb-98325": {
     "type": "int",
-    "coverage": 3
+    "coverage": 2
    },
    "by_owner.private-tmp-haworks-review-shipping-41606": {
     "type": "float",
@@ -1061,6 +3073,14 @@
     "type": "int",
     "coverage": 1
    },
+   "by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-345": {
+    "type": "float",
+    "coverage": 0
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-345": {
+    "type": "int",
+    "coverage": 0
+   },
    "by_owner.private-tmp-haworks-review-webhooks-97500": {
     "type": "float",
     "coverage": 0
@@ -1072,52 +3092,52 @@
   }
  },
  "stuck_detector": {
-  "rows": 2138,
+  "rows": 4687,
   "unparseable": 0,
   "fields": {
    "class": {
     "type": "str",
-    "coverage": 81
+    "coverage": 84
    },
    "cwd": {
     "type": "str",
-    "coverage": 81
+    "coverage": 84
    },
    "evidence": {
     "type": "str",
-    "coverage": 81
+    "coverage": 84
    },
    "idle_s": {
     "type": "int",
-    "coverage": 81
+    "coverage": 84
    },
    "session": {
     "type": "str",
-    "coverage": 81
+    "coverage": 84
    },
    "slug": {
     "type": "str",
-    "coverage": 81
+    "coverage": 84
    },
    "streak": {
     "type": "int",
-    "coverage": 81
+    "coverage": 84
    },
    "would_page": {
     "type": "bool",
-    "coverage": 81
+    "coverage": 84
    },
    "findings": {
     "type": "int",
-    "coverage": 19
+    "coverage": 16
    },
    "rc": {
     "type": "int",
-    "coverage": 19
+    "coverage": 16
    },
    "ts": {
     "type": "str",
-    "coverage": 19
+    "coverage": 16
    }
   }
  },
@@ -1155,41 +3175,41 @@
    }
   }
  },
- "would_have_fired": {
-  "rows": 162,
+ "worktree_cleanup": {
+  "rows": 2,
   "unparseable": 0,
   "fields": {
-   "check": {
-    "type": "str",
-    "coverage": 100
-   },
-   "session": {
-    "type": "str",
-    "coverage": 100
-   },
-   "t": {
+   "applied": {
     "type": "int",
     "coverage": 100
    },
-   "held": {
+   "iso": {
     "type": "str",
-    "coverage": 88
+    "coverage": 100
    },
-   "kind": {
-    "type": "str",
-    "coverage": 70
-   },
-   "cmd": {
-    "type": "str",
-    "coverage": 30
-   },
-   "ref": {
-    "type": "str",
-    "coverage": 2
-   },
-   "age_s": {
+   "kb": {
     "type": "int",
-    "coverage": 1
+    "coverage": 100
+   },
+   "kept": {
+    "type": "int",
+    "coverage": 100
+   },
+   "salvaged": {
+    "type": "int",
+    "coverage": 100
+   },
+   "sha256": {
+    "type": "str",
+    "coverage": 100
+   },
+   "stamp": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ts": {
+    "type": "int",
+    "coverage": 100
    }
   }
  }

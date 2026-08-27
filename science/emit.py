@@ -110,7 +110,25 @@ def emit(source: str, rows: list[tuple[str | None, dict]], base: str | None = No
                     return f"FAIL {url} -> HTTP {resp.status} after {posts} post(s)"
         except urllib.error.HTTPError as exc:
             return f"FAIL {url} -> HTTP {exc.code} after {posts} post(s)"
-        except (urllib.error.URLError, OSError) as exc:
-            return f"FAIL {url} -> {exc.reason if hasattr(exc, 'reason') else exc} after {posts} post(s)"
+        except urllib.error.URLError as exc:
+            return f"FAIL {url} -> {exc.reason} after {posts} post(s)"
+        except OSError as exc:
+            return f"FAIL {url} -> {exc} after {posts} post(s)"
         posts += 1
     return f"ok n={len(rows)} posts={posts}"
+
+
+def main() -> int:
+    """Demo: the exact request one row becomes, and where it would go. Sends nothing."""
+    from datetime import UTC
+
+    at = datetime.now(UTC).isoformat(timespec="seconds")
+    print(f"endpoint : {endpoint() or f'unset ({ENDPOINT_VAR})'}")
+    print(f"headers  : {sorted(k for k in headers() if k != 'Content-Type') or 'none'}")
+    print(f"POST {(endpoint() or '$' + ENDPOINT_VAR)}/v1/logs")
+    print(json.dumps(payload("demo", [(at, {"at": at, "n": 1})]), indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

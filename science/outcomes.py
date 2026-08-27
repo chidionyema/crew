@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -254,6 +256,15 @@ def cmd_attention(args) -> int:
     return 0
 
 
+def payer_id(email: str, key: str) -> str:
+    """A stable 12-hex identifier for a customer that cannot be turned back into the address.
+
+    HMAC-SHA256 under `REVENUE_PAYER_KEY`, never a bare hash: the series is public, and a bare
+    sha256 of a guessed address reproduces the published value (09cd04a6 review of crew#417).
+    """
+    return hmac.new(key.encode(), email.strip().lower().encode(), hashlib.sha256).hexdigest()[:12]
+
+
 def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     """One row: has this estate ever been paid, by whom, how much, when.
 
@@ -285,7 +296,13 @@ def collect_revenue(now: dt.datetime | None = None, fetch=None) -> dict:
     row["paid_orders"] = int(body.get("count", len(orders)))
     row["total"] = round(sum(float(o.get("total") or 0) for o in orders), 2)
     row["currency"] = next((o.get("currency_code") for o in orders if o.get("currency_code")), None)
-    row["payers"] = sorted({o.get("email") for o in orders if o.get("email")})
+    # crew#70: the repo is public, so a payer is a keyed HMAC of the email, never the address
+    # (a0d64ea4 review of crew#409, 09cd04a6 review of crew#417). Without the key the series
+    # keeps the distinct count and names nobody.
+    emails = {str(o["email"]).strip().lower() for o in orders if o.get("email")}
+    key = os.environ.get("REVENUE_PAYER_KEY", "")
+    row["payer_count"] = len(emails)
+    row["payers"] = sorted(payer_id(e, key) for e in emails) if key else []
     whens = sorted(o.get("created_at") for o in orders if o.get("created_at"))
     row["first_paid_at"], row["last_paid_at"] = (whens[0], whens[-1]) if whens else (None, None)
     return row

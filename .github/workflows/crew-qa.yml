@@ -82,7 +82,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: chidionyema/claude-guards
-          ref: bd825a0
+          ref: 7204084
           path: .claude-guards
       - name: Run the vendor lock-in gate
         run: |

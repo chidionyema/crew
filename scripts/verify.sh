@@ -53,8 +53,38 @@ run_all() {
       [ "$want" = yes ] || continue
     fi
     echo "=== ${base%.sh} ==="
-    bash "$check"
+    # A check that cannot parse itself must not be able to report PASS.
+    #
+    # On 2026-08-24 scripts/verify.d/15-code-standard.sh carried a case pattern's closing
+    # paren inside a command substitution. bash 3.2 -- /bin/bash on every Mac here -- cannot
+    # parse that, so it printed a syntax error, skipped the substitution, ran on with the
+    # loop variable unbound, and exited 0. This loop counted that as PASS. Every "python by
+    # shebang" number the gate printed on a Mac was fabricated and nothing said so.
+    #
+    # Nothing upstream of here catches it. Measured that day on bash 3.2.57 and 5.2.32:
+    # `bash -n` returns 0 on such a file under BOTH, because bash defers the body of $( )
+    # to expansion and -n never reaches inside. ShellCheck implements its own parser and
+    # calls it clean. CI runs bash 5 on ubuntu-latest, where it also runs, so CI was green
+    # while the gate was dead on the substrate R14 says we build on.
+    #
+    # So the only evidence that exists is the message bash prints when its own parser gives
+    # up. That is what this reads. It is the real parser failing at the real moment, not a
+    # guess at the shape that caused it -- and the shape is not enumerable anyway; two
+    # unrelated constructs produced it in one day.
+    #
+    # Anchored on the check's own path, so a check that legitimately prints some OTHER
+    # file's parse errors -- 15-code-standard.sh does exactly that -- is not caught by its
+    # own guard. Refusing correct work is the outage (LAW 38).
+    local errf; errf="$(mktemp)"
+    bash "$check" 2>"$errf"
     local rc=$?
+    cat "$errf" >&2
+    if grep -F "$check:" "$errf" 2>/dev/null | grep -qE 'syntax error|unexpected EOF'; then
+      echo "  the check could not parse itself. It exited $rc, which is not the verdict:"
+      grep -F "$check:" "$errf" | grep -E 'syntax error|unexpected EOF' | head -2 | sed 's/^/    /'
+      rc=1
+    fi
+    rm -f "$errf"
     case $rc in
       0) echo "  VERDICT: PASS"; pass=$((pass+1));;
       2) echo "  VERDICT: CANNOT RUN"; skip=$((skip+1)); names_skipped+=("${base%.sh}");;

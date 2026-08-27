@@ -10,10 +10,12 @@ which tier each law is actually on, and whether its guard is still emitting.
 
 Run it. Do not quote it from memory.
 """
+import calendar
 import contextlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -297,6 +299,48 @@ def streams():
         out.append((c,n,age))
     return out
 
+CI_RUNS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci-runs.jsonl")
+
+
+def _repo_name():
+    """The repo as ci-runs.jsonl names it (the GitHub name), not the checkout
+    directory: a worktree named crew423 is still the crew repo."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        url = subprocess.run(["git", "-C", root, "config", "--get", "remote.origin.url"],
+                             capture_output=True, text=True, timeout=5, check=False).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        url = ""
+    name = url.rstrip("/").rsplit("/", 1)[-1] if url else os.path.basename(root)
+    return name[:-4] if name.endswith(".git") else name
+
+
+REPO_NAME = _repo_name()
+
+def workflow_ran(workflow, ci_runs=CI_RUNS, repo=REPO_NAME, now=None, stale_h=30.0):
+    """crew#423: a GitHub Actions gate is live when the estate's own CI record
+    (science/ci-runs.jsonl, written daily by ci-runs.yml, crew#393) shows it
+    completed at least one run for this repo inside the last window. The file
+    existing in .github/workflows is not the question; a workflow that never
+    runs enforces nothing."""
+    try:
+        with open(ci_runs) as fh:
+            rows = [json.loads(line) for line in fh if line.strip()]
+    except (OSError, ValueError):
+        return False
+    now = time.time() if now is None else now
+    for r in rows:
+        if r.get("repo") != repo or r.get("workflow") != workflow or not r.get("measured"):
+            continue
+        try:
+            #: crew#425 review: mktime - timezone is 1h off under DST; timegm is UTC.
+            at = calendar.timegm(time.strptime(r["at"][:19], "%Y-%m-%dT%H:%M:%S"))
+        except (KeyError, ValueError):
+            continue
+        if (now - at) / 3600 <= stale_h and (r.get("completed") or 0) > 0:
+            return True
+    return False
+
 def derive(entry, tiermap):
     """LAW 28: the state field is hand-written, so it drifts, and a map that
     says live about a dead guard is worse than no map. Derive it.
@@ -308,8 +352,15 @@ def derive(entry, tiermap):
     """
     gs = entry.get("guards") or []
     if not gs: return "absent"
+    #: crew#423: the map was renumbered on 2026-08-23 (`was` is the number the
+    #: hook still cites, `law` the effective rank), so a hook citing LAW 32 was
+    #: graded dead against law=9. Either number is the citation.
+    cited = {n for n in (entry.get("law"), entry.get("was")) if n is not None}
     for g in gs:
         name = g[:-3] if g.endswith(".py") else g
+        if g.startswith(".github/workflows/"):
+            if workflow_ran(os.path.basename(g)): return "live"
+            continue
         if name.startswith("hooks/"):
             reached = global_bind() or hook_binds()
             #: A rule retired to a machine has no law number to cite, so the
@@ -321,7 +372,7 @@ def derive(entry, tiermap):
             #: For a rule still attached to a law, the hook must also SAY which
             #: law it enforces. That citation is what lets the map be checked
             #: against the guard instead of against itself.
-            elif entry["law"] in law_refs(name) and reached:
+            elif cited & law_refs(name) and reached:
                 return "live"
         elif tiermap.get(os.path.basename(name)) in ("PREVENTIVE", "DETECTIVE"):
             return "live"

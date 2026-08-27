@@ -40,6 +40,7 @@ Each producer is a record:
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import pathlib
@@ -156,6 +157,32 @@ def _sources_decision(row: dict) -> dict | None:
     return None
 
 
+@functools.lru_cache(maxsize=1)
+def _ledger_hooks() -> frozenset[str]:
+    """Every hook name the hook-outcomes ledger has recorded a run for. crew#374 (2026-08-27):
+    `mac/guard/*` was graded NEVER_EMITTED as one block while 19 of its 46 members were the
+    settings hooks `hook-run.py` already writes to the ledger (source `hook_outcomes`). The
+    ledger is the measurement; a guard it has rows for is COLLECTED, whatever the register says.
+    Path: $HOOK_OUTCOMES (what hook-run.py honours) or the `hook_outcomes` source."""
+    try:
+        import collect
+    except ImportError:
+        sys.path.insert(0, str(SCIENCE))
+        import collect
+    path = pathlib.Path(os.environ.get("HOOK_OUTCOMES") or collect.SOURCES["hook_outcomes"][0])
+    names = set()
+    try:
+        with path.open() as fh:
+            for line in fh:
+                try:
+                    names.add(json.loads(line)["hook"])
+                except (ValueError, KeyError, TypeError):
+                    continue
+    except OSError:
+        return frozenset()
+    return frozenset(names)
+
+
 def mac() -> list[Producer]:
     """Every row the Mac inventory found: ledgers, stores, jobs, guards, listeners, repos, drills."""
     doc = json.load(INVENTORY.open())
@@ -191,6 +218,11 @@ def mac() -> list[Producer]:
         # (crew#253). A decline recorded there is a verdict, and it outranks verdicts.json so
         # the same store is never decided in two files.
         decided = _sources_decision(r)
+        # A guard the hook-outcomes ledger has rows for is measured (crew#374); the ledger,
+        # not the register, decides it, the same way sources.json decides a store.
+        if not decided and kind == "guard" and r.get("id") in _ledger_hooks():
+            decided = {"verdict": "COLLECTED", "reader": "science/collect.py source hook_outcomes",
+                       "entry": "hook-outcomes ledger has rows for this hook (crew#374)"}
         if decided:
             prod["decided"] = decided
         out.append(prod)

@@ -182,7 +182,7 @@
     {
       "key": "mac/guard/*",
       "verdict": "NEVER_EMITTED",
-      "why": "Every refusal a guard makes vanishes when the hook exits; false refusals are not recorded, so LAW 38 cannot be measured. Same act as act/guard_outcome.",
+      "why": "Measured 2026-08-27 (crew#374) over the 46 inventory guards: 19 are settings hooks with rows in the hook-outcomes ledger and producers.py grades them COLLECTED from the ledger (source hook_outcomes), not from this row. The 27 this row still covers emit nothing: 13 git-side hooks under ~/.estate/guards/hooks (_router and its symlinks, ticket-default, config-syntax-default, law32-default), 5 scripts no settings hook wraps (hook-run.py, guard_report.py, assertion-guard.py, skill-staleness-guard.py, tool-drip-guard.py), and 9 test_incident_*.py files the inventory lists as guards. false_refusals has no writer for any of them (act/guard_outcome).",
       "ticket": "crew#374"
     },
     {

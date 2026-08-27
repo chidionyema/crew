@@ -222,7 +222,7 @@ def main() -> int:
                 for d in docs if d.failures()}
         pathlib.Path(args.write_baseline).write_text(
             json.dumps({
-                "written": dt.datetime.now(dt.timezone.utc).date().isoformat(),
+                "written": dt.datetime.now(dt.UTC).date().isoformat(),
                 "documents_total": len(docs),
                 "documents_failing": len(base),
                 "note": "Tolerated failures. New documents must have none. "

@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from collect import (  # noqa: E402  the registry has one reader, and this is not a second
+from collect import (
     SOURCES,
     WAREHOUSE,
     read_rows,
@@ -235,6 +235,9 @@ def main() -> int:
 
     rows = []
     for name, (path, kind, _tf) in sorted(SOURCES.items()):
+        #: A sqlite source has no DuckDB oracle to diff against; the oracle is the query.
+        if kind == "sqlite":
+            continue
         if not path.exists():
             #: A declared source whose file is absent is a registry question, not a loader
             #: question. collect.py reports it separately and so does this.

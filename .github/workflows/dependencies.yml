@@ -31,7 +31,7 @@ jobs:
         with:
           repository: chidionyema/claude-guards
           # Full sha, never short and never floating: crew#274 (test_incident_crew274_checkout_ref_is_a_full_sha.py)
-          ref: dc97bcf5ffc174ec371443875b7f785736cbac87
+          ref: df40f207f1ac4e7f4101fbc279142f6b51038c5b
           path: .estate-auditor
 
       - name: every dependency is drilled or dismissed

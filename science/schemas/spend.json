@@ -1,0 +1,22 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "by_owner": [
+   "dict"
+  ],
+  "day": [
+   "str"
+  ],
+  "reqs_by_owner": [
+   "dict"
+  ],
+  "requests": [
+   "int"
+  ],
+  "total": [
+   "float"
+  ]
+ }
+}

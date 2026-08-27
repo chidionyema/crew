@@ -1,0 +1,37 @@
+{
+ "fields": {
+  "agent": [
+   "str"
+  ],
+  "at": [
+   "str"
+  ],
+  "blocked": [
+   "int"
+  ],
+  "error": [
+   "NoneType"
+  ],
+  "failed": [
+   "int"
+  ],
+  "graded": [
+   "int"
+  ],
+  "home": [
+   "str"
+  ],
+  "passed": [
+   "int"
+  ],
+  "rows": [
+   "dict"
+  ],
+  "score": [
+   "float"
+  ],
+  "timed_out": [
+   "int"
+  ]
+ }
+}

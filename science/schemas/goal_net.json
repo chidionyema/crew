@@ -1,0 +1,37 @@
+{
+ "fields": {
+  "at": [
+   "int"
+  ],
+  "depth": [
+   "int"
+  ],
+  "event": [
+   "str"
+  ],
+  "from": [
+   "str"
+  ],
+  "node": [
+   "str"
+  ],
+  "reason": [
+   "str"
+  ],
+  "session": [
+   "str"
+  ],
+  "signals": [
+   "list"
+  ],
+  "text": [
+   "str"
+  ],
+  "tick": [
+   "int"
+  ],
+  "to": [
+   "str"
+  ]
+ }
+}

@@ -438,6 +438,67 @@ def row_time(obj: dict, field: str | None) -> str | None:
     return None
 
 
+#: crew#74 row 2: one schema file per source, under version control. The schema is the
+#: closed set of top-level keys and the type names each one has been seen with.
+SCHEMAS = _env_path("SCIENCE_SCHEMAS", Path(__file__).parent / "schemas")
+#: How many offending lines a source may name per run before the rest are counted.
+SCHEMA_LINES_NAMED = 3
+
+
+def row_shape(row: dict) -> dict[str, str]:
+    return {k: type(v).__name__ for k, v in row.items() if not k.startswith("_")}
+
+
+def schema_from_rows(rows: list[dict]) -> dict:
+    fields: dict[str, set[str]] = {}
+    for r in rows:
+        for k, t in row_shape(r).items():
+            fields.setdefault(k, set()).add(t)
+    return {"fields": {k: sorted(v) for k, v in sorted(fields.items())}}
+
+
+def write_schema(name: str, rows: list[dict]) -> Path:
+    SCHEMAS.mkdir(parents=True, exist_ok=True)
+    out = SCHEMAS / f"{name}.json"
+    out.write_text(json.dumps(schema_from_rows(rows), indent=1, sort_keys=True) + "\n")
+    return out
+
+
+def schema_verdict(name: str, rows: list[dict]) -> list[str]:
+    """Every row of ``name`` against ``science/schemas/<name>.json``, naming the line.
+
+    A source with rows and no schema file is a failure: the row says one per source.
+    A row with a key the schema does not list, or a key whose type the schema has not
+    seen, is named by its 1-based line in the store. After SCHEMA_LINES_NAMED lines the
+    rest are counted, so a producer that changed shape yesterday does not print 8,000
+    lines. Lists and dicts are compared by type name only; their insides are data.
+    """
+    path = SCHEMAS / f"{name}.json"
+    if not path.exists():
+        return [f"{name}: no schema file at science/schemas/{name}.json "
+                f"(run collect.py --write-schemas {name})"] if rows else []
+    fields = json.loads(path.read_text())["fields"]
+    bad: list[str] = []
+    extra = 0
+    for i, r in enumerate(rows, 1):
+        for k, t in row_shape(r).items():
+            seen = fields.get(k)
+            if seen is None:
+                why = f"field {k!r} is not in the schema"
+            elif t not in seen:
+                why = f"field {k!r} is {t}, schema says {'/'.join(seen)}"
+            else:
+                continue
+            if len(bad) < SCHEMA_LINES_NAMED:
+                bad.append(f"{name}: line {i}: {why}")
+            else:
+                extra += 1
+            break
+    if extra:
+        bad.append(f"{name}: {extra} more line(s) off schema")
+    return bad
+
+
 def collect(conn: sqlite3.Connection) -> list[dict]:
     now = iso(time.time())
     report = []
@@ -476,7 +537,7 @@ def collect(conn: sqlite3.Connection) -> list[dict]:
         conn.execute("INSERT INTO ingest_log VALUES (?,?,?,?,?,?)",
                      (name, now, len(rows), bad, mtime, "OK"))
         report.append({"source": name, "status": "OK", "rows": len(rows),
-                       "bad": bad, "mtime": mtime})
+                       "bad": bad, "mtime": mtime, "schema": schema_verdict(name, rows)})
 
     #: A source that moves from collected to declined leaves its old rows behind, because
     #: nothing in this loop visits a name the registry no longer mentions. Found 2026-08-24
@@ -566,7 +627,8 @@ def quality_checks(conn: sqlite3.Connection, now: str | None = None) -> tuple[li
                      (now, source, rows, null_rate, keys))
         if source in prev:
             prows, prate = prev[source]
-            if rows < prows:
+            #: A rewritten snapshot (NO_TIME_SOURCES) shrinks by design; a log does not.
+            if rows < prows and source not in NO_TIME_SOURCES:
                 failures.append(f"{source}: row count fell {prows} -> {rows} since the last run")
             if abs(null_rate - prate) > QUALITY_NULL_RATE_STEP:
                 failures.append(f"{source}: share of rows without a time moved "
@@ -738,6 +800,9 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true",
                     help="exit 1 if any source is absent, unreadable, stale or undeclared")
+    ap.add_argument("--write-schemas", nargs="*", metavar="SOURCE",
+                    help="(re)write science/schemas/<source>.json from the rows on disk "
+                         "for the named sources, or every source when none is named (crew#74)")
     ap.add_argument("--reconcile", action="store_true",
                     help="print what the machine's crawl found that this registry does "
                          "not mention, and exit without rebuilding")
@@ -773,6 +838,18 @@ def main() -> int:
                   f"unmounted volume, a filesystem that timed out. They are not stale and "
                   f"they are not confirmed; nobody should delete them on this evidence.")
         return 1 if undeclared else 0
+
+    if args.write_schemas is not None:
+        names = args.write_schemas or list(SOURCES)
+        for name in names:
+            path, kind, _ = SOURCES[name]
+            if not path.exists():
+                print(f"{name}: ABSENT, no schema written")
+                continue
+            rows, _ = read_rows(path, kind)
+            out = write_schema(name, rows)
+            print(f"{name}: {len(rows)} rows -> {out}")
+        return 0
 
     # Two writers meet here routinely: com.founder.sciencecollect runs hourly and an
     # agent runs the same script by hand. Without a busy timeout the second one dies on
@@ -843,6 +920,13 @@ def main() -> int:
     null_failures, nnote = null_time_verdict(conn)
     print(nnote)
     failures.extend(null_failures)
+
+    #: crew#74 row 2: every row against its source's schema file; a shape change is named
+    #: by source and line, and a source with no schema file is a failure.
+    schema_failures = [f for e in report for f in e.get("schema", [])]
+    print(f"schema: {sum(1 for e in report if e.get('schema') == [])} source(s) on schema, "
+          f"{len({f.split(':')[0] for f in schema_failures})} off")
+    failures.extend(schema_failures)
 
     #: crew#74 row 3: row counts, null rates and key counts appended per run, and a
     #: source that shrank or whose null rate jumped is named by this run.

@@ -1,0 +1,22 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "complaint_rate": [
+   "float"
+  ],
+  "complaints": [
+   "int"
+  ],
+  "day": [
+   "str"
+  ],
+  "lexicon_size": [
+   "int"
+  ],
+  "messages": [
+   "int"
+  ]
+ }
+}

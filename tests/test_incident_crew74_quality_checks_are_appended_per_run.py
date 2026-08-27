@@ -47,6 +47,14 @@ def test_a_null_rate_jump_and_a_shrunk_source_are_named():
                         "a: share of rows without a time moved 0.29 -> 0.00 since the last run"]
 
 
+def test_a_rewritten_snapshot_may_shrink():
+    conn = _db([("enforcement_map", None, '{"x": 1}')] * 5)
+    collect.quality_checks(conn, now="t0")
+    conn.execute("DELETE FROM facts WHERE rowid = (SELECT min(rowid) FROM facts)")
+    failures, _ = collect.quality_checks(conn, now="t1")
+    assert failures == []
+
+
 def test_check_wires_the_quality_row():
     src = (ROOT / "science" / "collect.py").read_text()
     assert "quality_checks(conn)" in src and "failures.extend(q_failures)" in src

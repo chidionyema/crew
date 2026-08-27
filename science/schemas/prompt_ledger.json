@@ -1,0 +1,37 @@
+{
+ "fields": {
+  "ac": [
+   "list"
+  ],
+  "id": [
+   "str"
+  ],
+  "prev": [
+   "NoneType",
+   "str"
+  ],
+  "proof": [
+   "NoneType",
+   "dict"
+  ],
+  "session": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "spec": [
+   "NoneType",
+   "str"
+  ],
+  "status": [
+   "str"
+  ],
+  "text": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ }
+}

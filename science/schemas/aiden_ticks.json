@@ -1,0 +1,23 @@
+{
+ "fields": {
+  "alerts": [
+   "NoneType",
+   "int"
+  ],
+  "at": [
+   "str"
+  ],
+  "board": [
+   "str"
+  ],
+  "delivery": [
+   "dict"
+  ],
+  "sent": [
+   "int"
+  ],
+  "took_s": [
+   "float"
+  ]
+ }
+}

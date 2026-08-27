@@ -1,0 +1,37 @@
+{
+ "fields": {
+  "class": [
+   "str"
+  ],
+  "cwd": [
+   "str"
+  ],
+  "evidence": [
+   "str"
+  ],
+  "findings": [
+   "int"
+  ],
+  "idle_s": [
+   "int"
+  ],
+  "rc": [
+   "int"
+  ],
+  "session": [
+   "str"
+  ],
+  "slug": [
+   "str"
+  ],
+  "streak": [
+   "int"
+  ],
+  "ts": [
+   "str"
+  ],
+  "would_page": [
+   "bool"
+  ]
+ }
+}

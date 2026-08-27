@@ -1,0 +1,62 @@
+{
+ "fields": {
+  "event": [
+   "str"
+  ],
+  "goal": [
+   "str"
+  ],
+  "guard": [
+   "str"
+  ],
+  "has_goal": [
+   "bool"
+  ],
+  "item": [
+   "NoneType",
+   "int"
+  ],
+  "kind": [
+   "str"
+  ],
+  "lane": [
+   "str"
+  ],
+  "limit": [
+   "int"
+  ],
+  "missing": [
+   "list"
+  ],
+  "n": [
+   "int"
+  ],
+  "quiet_s": [
+   "int"
+  ],
+  "run": [
+   "int"
+  ],
+  "runs": [
+   "list"
+  ],
+  "session": [
+   "str"
+  ],
+  "t": [
+   "int"
+  ],
+  "target": [
+   "str"
+  ],
+  "tool": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ],
+  "unclaimed": [
+   "list"
+  ]
+ }
+}

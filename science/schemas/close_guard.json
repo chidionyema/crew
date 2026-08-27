@@ -1,0 +1,27 @@
+{
+ "fields": {
+  "after_head": [
+   "str"
+  ],
+  "after_marker": [
+   "NoneType",
+   "str"
+  ],
+  "before_head": [
+   "str"
+  ],
+  "before_marker": [
+   "NoneType",
+   "str"
+  ],
+  "changed": [
+   "bool"
+  ],
+  "session": [
+   "str"
+  ],
+  "waited_ms": [
+   "int"
+  ]
+ }
+}

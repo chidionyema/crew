@@ -1,0 +1,28 @@
+{
+ "fields": {
+  "id": [
+   "str"
+  ],
+  "iso": [
+   "str"
+  ],
+  "log": [
+   "str"
+  ],
+  "note": [
+   "str"
+  ],
+  "rc": [
+   "int"
+  ],
+  "seconds": [
+   "float"
+  ],
+  "status": [
+   "str"
+  ],
+  "ts": [
+   "int"
+  ]
+ }
+}

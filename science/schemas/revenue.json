@@ -1,0 +1,34 @@
+{
+ "fields": {
+  "at": [
+   "str"
+  ],
+  "currency": [
+   "NoneType"
+  ],
+  "first_paid_at": [
+   "NoneType"
+  ],
+  "last_paid_at": [
+   "NoneType"
+  ],
+  "measured": [
+   "bool"
+  ],
+  "paid_orders": [
+   "int"
+  ],
+  "payers": [
+   "list"
+  ],
+  "reason": [
+   "str"
+  ],
+  "source": [
+   "str"
+  ],
+  "total": [
+   "float"
+  ]
+ }
+}

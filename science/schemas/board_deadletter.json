@@ -1,0 +1,13 @@
+{
+ "fields": {
+  "error": [
+   "str"
+  ],
+  "record": [
+   "dict"
+  ],
+  "ts": [
+   "str"
+  ]
+ }
+}

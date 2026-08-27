@@ -1,0 +1,19 @@
+{
+ "fields": {
+  "estate_dir": [
+   "str"
+  ],
+  "event": [
+   "str"
+  ],
+  "mode": [
+   "str"
+  ],
+  "root": [
+   "str"
+  ],
+  "ts": [
+   "str"
+  ]
+ }
+}

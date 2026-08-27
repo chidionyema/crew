@@ -1,0 +1,19 @@
+{
+ "fields": {
+  "display": [
+   "str"
+  ],
+  "pastedContents": [
+   "dict"
+  ],
+  "project": [
+   "str"
+  ],
+  "sessionId": [
+   "str"
+  ],
+  "timestamp": [
+   "int"
+  ]
+ }
+}

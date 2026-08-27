@@ -53,11 +53,14 @@ def test_every_byte_is_read_once(tmp_path):
     assert (second["files_read"], second["bytes_read"], second["events"]) == (0, 0, 0)
 
     # an appended complete line costs exactly its own length; a half line waits
-    extra = tool_call("t2", "Read")
+    extra = line(type="assistant", timestamp="2026-08-27T04:00:02Z",
+                 message={"content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {}}]})
     with open(f, "a") as fh:
         fh.write(extra + '{"type": "assistant", "half')
     third = T.ingest(conn, root, now=NOW + 120)
     assert third["bytes_read"] == len(extra.encode()) and third["events"] == 1
+    # the appended line names no sessionId; the session it belongs to was consumed last run
+    assert conn.execute("SELECT session_id FROM events WHERE tool='Read'").fetchone() == ("s1",)
     consumed = conn.execute("SELECT bytes_consumed FROM manifest").fetchone()[0]
     assert consumed == f.stat().st_size - len('{"type": "assistant", "half')
 

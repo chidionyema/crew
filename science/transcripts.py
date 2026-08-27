@@ -50,6 +50,10 @@ STORE = _env_path("SCIENCE_TRANSCRIPTS_DB", Path(__file__).parent / "transcripts
 #: is idle for 30 minutes has been compacted, cleared or closed.
 SEAL_SECONDS = 30 * 60
 ERROR_HEAD = 200
+#: events.line_no is line * BLOCKS_PER_LINE + block index, so one line may carry up to this
+#: many content blocks before two events share a key; a message with more is not a shape
+#: the CLI writes (measured max 2026-08-27: 20 blocks) and INSERT OR REPLACE keeps the last.
+BLOCKS_PER_LINE = 1000
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS manifest (
@@ -183,13 +187,19 @@ def ingest(conn: sqlite3.Connection, root: Path = TRANSCRIPTS, now: float | None
                 if sealed and st.st_size == consumed:
                     stats["sealed"] += 1
                     continue
-        line_no = conn.execute("SELECT COALESCE(MAX(line_no), 0) FROM events WHERE path = ?",
-                               (key,)).fetchone()[0] if offset else 0
+        line_no = (conn.execute("SELECT COALESCE(MAX(line_no), 0) FROM events WHERE path = ?",
+                                (key,)).fetchone()[0] // BLOCKS_PER_LINE) if offset else 0
         lines, new_offset = read_forward(path, offset)
         if lines:
             stats["files_read"] += 1
             stats["bytes_read"] += new_offset - offset
+        #: An incremental run starts mid-session: the sessionId sits on an earlier line that
+        #: was consumed last time, so seed it from the last event already stored (crew#432 review).
         session_id: str | None = None
+        if offset:
+            prev = conn.execute("SELECT session_id FROM events WHERE path = ? AND session_id IS NOT NULL "
+                                "ORDER BY line_no DESC LIMIT 1", (key,)).fetchone()
+            session_id = prev[0] if prev else None
         for _end, text in lines:
             line_no += 1
             try:
@@ -206,7 +216,7 @@ def ingest(conn: sqlite3.Connection, root: Path = TRANSCRIPTS, now: float | None
             for i, ev in enumerate(evs):
                 conn.execute(
                     "INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (key, line_no * 100 + i, session_id, at, ev.kind, ev.tool, ev.tool_use_id,
+                    (key, line_no * BLOCKS_PER_LINE + i, session_id, at, ev.kind, ev.tool, ev.tool_use_id,
                      int(ev.is_error), ev.error_head, len(text)),
                 )
                 stats["events"] += 1

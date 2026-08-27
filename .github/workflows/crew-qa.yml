@@ -75,6 +75,22 @@ jobs:
             else echo "MISSING"; exit 1; fi
           done
 
+      # crew#273: no spec, ruling or plan may make a vendor-only channel mandatory (LAW 34).
+      # The guard lives in claude-guards (public) and is checked out at a pinned commit;
+      # --selftest proves it both ways before it is trusted on this tree.
+      - name: Vendor lock-in gate over specs, rulings and plans
+        uses: actions/checkout@v4
+        with:
+          repository: chidionyema/claude-guards
+          ref: dc97bcf5ffc174ec371443875b7f785736cbac87
+          path: .claude-guards
+      - name: Run the vendor lock-in gate
+        run: |
+          set -euo pipefail
+          python3 .claude-guards/vendor-lock-guard.py --selftest
+          find docs policy roles -maxdepth 3 \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
+            | xargs -0 python3 .claude-guards/vendor-lock-guard.py --files
+
       - name: The suite
         run: .venv/bin/python -m pytest -q
 

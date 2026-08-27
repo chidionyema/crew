@@ -1,13 +1,11 @@
 # Science lane showcase
 
-Generated 2026-08-27T08:56Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-27T08:59Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-27T08:56Z.
-
-No number changed.
+First run: nothing to diff yet.
 
 ## Capabilities
 
@@ -37,17 +35,15 @@ No number changed.
 
 `sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"`
 
-- 99,657 rows across 39 sources; last ingest 2026-08-27T08:24:21+00:00
-- 0 of 40 declared sources carry owner, method, retention and sensitivity
-- stale past their SLA: predictions (81h)
+BLIND: /private/tmp/claude-501/-Users-chidionyema-dev-code/09cd04a6-12cd-4d9b-84af-10b1620739d1/scratchpad/wt-403b/science/warehouse.db absent
 
 ## Data map (LAW 50)
 
 `python3 science/datamap.py --check`
 
-- 58 register entries (COLLECTED 29, EXCLUDED 9, NEVER_EMITTED 9, WIRED_NEVER 11); 8261 producers discovered at the last census
-- 915 field paths in the last shape walk
-- domains blind at the last census: cluster_live
+- 58 register entries (COLLECTED 29, EXCLUDED 9, NEVER_EMITTED 9, WIRED_NEVER 11); 8206 producers discovered at the last census
+- 0 field paths in the last shape walk
+- domains blind at the last census: cluster_live, warehouse
 - contract violations now: BLIND (crew#71 not merged)
 
 ## Research ledger
@@ -72,7 +68,7 @@ No number changed.
 
 - last 7 days: 795 commits across 6 repos
 - founder messages 2005, complaints 103 (5.1%)
-- spend USD 7798.59, USD per commit 9.81
+- spend: BLIND (warehouse absent)
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 
 ## Predictions
@@ -85,8 +81,4 @@ No number changed.
 
 `python3 science/foresight.py report`
 
-- trained 2026-08-27T00:51Z on 1078 labelled PRs; 31% of first runs were red
-- unseen newest 216 PRs: accuracy 68% against a base rate of 63%; Brier 0.209
-- model beats the base rate on unseen PRs
-- strongest signals: r_crew (+0.64), log_files (+0.43), log_add (+0.34), log_del (-0.33), f_workflow (+0.30)
-- live: 11 open PRs predicted before their CI finished, 0 scored, hit rate n/a (none scored yet)
+BLIND: /private/tmp/claude-501/-Users-chidionyema-dev-code/09cd04a6-12cd-4d9b-84af-10b1620739d1/scratchpad/wt-403b/science/foresight-state.json absent (python3 science/foresight.py train)

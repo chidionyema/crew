@@ -12,6 +12,7 @@ progress section is the diff against them, so "what changed" is answered by the 
 
     python3 science/showcase.py            # write docs/science/SHOWCASE.md, print section sizes
     python3 science/showcase.py --print    # write nothing, show the page
+    python3 science/showcase.py --check    # exit 1 when a capability cannot describe or demo itself
 
 Wired into `scripts/science-collect`, which launchd runs four times a day.
 """
@@ -83,6 +84,22 @@ def capabilities(now: dt.datetime) -> tuple[list[dict], list[str]]:
     if not LAUNCHD.exists():
         notes.append(f"BLIND to launchd: {LAUNCHD} absent (CI has no home tree)")
     return rows, notes
+
+
+def refusals(rows: Iterable[dict]) -> list[str]:
+    """CP-A (crew#403): a capability the page cannot demonstrate is refused, never listed blank.
+
+    Founder, 2026-08-27: "cant have components that cannot self describe." A row is refused when
+    its module has no docstring line (nothing to say what it answers) or no `__main__` entry
+    (no command a founder demo can run). The same rule as idp's catalog-gen, on this lane."""
+    out = []
+    for r in rows:
+        src = SCIENCE / f"{r['name']}.py"
+        if not r["what"]:
+            out.append(f"{src.name}: no docstring line, the row cannot say what it answers")
+        if src.exists() and 'if __name__ == "__main__"' not in src.read_text():
+            out.append(f"{src.name}: no __main__ entry, `{r['run']}` is not a demo")
+    return out
 
 
 def warehouse(now: dt.datetime) -> dict:
@@ -322,7 +339,14 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--print", action="store_true", dest="dry", help="write nothing, show the page")
+    ap.add_argument("--check", action="store_true", help="refuse a capability with no description or no demo command")
     args = ap.parse_args()
+    if args.check:
+        bad = refusals(capabilities(dt.datetime.now(dt.UTC).replace(tzinfo=None))[0])
+        for line in bad:
+            print(f"refused  {line}")
+        print(f"showcase --check: {len(bad)} refused")
+        return 1 if bad else 0
     now = dt.datetime.now(dt.UTC).replace(microsecond=0, tzinfo=None)
     data, blind = build(now)
     prev = json.load(STATE.open()) if STATE.exists() else {}

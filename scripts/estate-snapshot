@@ -385,6 +385,57 @@ def delivery() -> list[str]:
     return rows
 
 
+def live_checkout() -> list[str]:
+    """The shared checkout the scheduled jobs run from (crew#437). The snapshot commits from
+    its own worktree, so this row is the only thing that moves `~/dev/code/crew` itself."""
+    return live_checkout_row(ROOT)
+
+
+def live_checkout_row(root: pathlib.Path, branch: str = "main") -> list[str]:
+    """One row: where the live checkout stands against origin/<branch>, and a fast-forward when
+    it is safe. 2026-08-27 (crew#437): the checkout sat on feat/research-engine-step1 at a
+    2026-08-25 commit for two days with 50 dirty rows, and every scheduled job ran that. The move
+    is `git merge --ff-only origin/<branch>`: a local edit to a file the update does not touch
+    survives, and a file already holding the target bytes (a published ledger) is staged first
+    so the checkout passes. It is refused when a locally edited file is also changed by the
+    update to different bytes, and when the branch has diverged."""
+    g = f"git -C '{root}'"
+    rc, head = sh(f"{g} symbolic-ref --short -q HEAD")
+    head = head.strip()
+    rc2, behind = sh(f"{g} rev-list --count HEAD..origin/{branch}")
+    behind_n = int(behind.strip()) if rc2 == 0 and behind.strip().isdigit() else None
+    if behind_n is None:
+        return [f"| live checkout | NOT RUN | `git rev-list HEAD..origin/{branch}` failed: {behind.strip()[:80]} |"]
+    if rc or head != branch:
+        return [f"| live checkout | RED | on `{head or 'detached HEAD'}`, {behind_n} commit(s) behind origin/{branch}; "
+                f"the scheduled jobs run that. Path back: `git -C {root} switch {branch}` |"]
+    rc, _ = sh(f"{g} merge-base --is-ancestor HEAD origin/{branch}")
+    if rc:
+        return [f"| live checkout | RED | `{branch}` has diverged from origin/{branch}; not moved |"]
+    _, edited = sh(f"{g} diff-index --name-only HEAD --")
+    dirty = [ln.strip() for ln in edited.splitlines() if ln.strip()]
+    _, changed = sh(f"{g} diff-tree -r --name-only HEAD origin/{branch}")
+    changed_set = set(changed.split())
+    blocked = [f for f in dirty if f in changed_set and sh(f"{g} diff --quiet origin/{branch} -- '{f}'")[0] != 0]
+    if blocked:
+        return [f"| live checkout | RED | {behind_n} commit(s) behind origin/{branch}; not moved: "
+                f"{len(blocked)} edited file(s) the update also changes ({', '.join(blocked[:3])}) |"]
+    if behind_n == 0:
+        return [f"| live checkout | GREEN | at origin/{branch}, {len(dirty)} local edit(s) |"]
+    #: A ledger the collector appended and the last snapshot already published is edited here
+    #: and changed by the update, to the same bytes. Staging the target blob lets the checkout
+    #: through; the file on disk is not touched.
+    for f in dirty:
+        if f in changed_set and f not in blocked:
+            sh(f"{g} restore --source=origin/{branch} --staged -- '{f}'")
+    rc, out = sh(f"{g} merge -q --ff-only origin/{branch}")
+    if rc:
+        return [f"| live checkout | RED | fast-forward failed: {out.strip()[:100]} |"]
+    _, sha = sh(f"{g} rev-parse --short HEAD")
+    return [f"| live checkout | GREEN | fast-forwarded {behind_n} commit(s) to origin/{branch} {sha.strip()}, "
+            f"{len(dirty)} local edit(s) kept |"]
+
+
 def founder() -> list[str]:
     """What the estate cost HIM this week, against last week.
 
@@ -758,7 +809,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, collectors,
+    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
         datamap, science_plane, research, hooks, github_actions, crew_p1,
                runtime):
         try:

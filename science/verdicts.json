@@ -12,6 +12,24 @@
   },
   "entries": [
     {
+      "key": "mac/ledger/*crew/science/velocity.jsonl",
+      "verdict": "NEVER_EMITTED",
+      "why": "Measured 2026-08-28 (crew#556): 16 rows, written by science/velocity.py once per lane per UTC day. No collect.py source reads it, `select distinct source from facts` does not list it, and no reader was found anywhere in the repo -- a writer with no reader at all (LAW 28). Visible for the first time because crew#556 resolves a worktree copy onto its primary instead of dropping it.",
+      "ticket": "crew#557"
+    },
+    {
+      "key": "mac/ledger/*crew/science/RESEARCH-INTAKE.jsonl",
+      "verdict": "NEVER_EMITTED",
+      "why": "Measured 2026-08-28 (crew#556): 24 rows, written by science/research_intake.py. Its one reader is the doc section research_intake.py:138 generates; nothing reaches the warehouse, so no staleness alarm or query can see it. Visible for the first time because crew#556 resolves a worktree copy onto its primary instead of dropping it.",
+      "ticket": "crew#557"
+    },
+    {
+      "key": "mac/ledger/*crew/risk/REGISTER.jsonl",
+      "verdict": "NEVER_EMITTED",
+      "why": "Measured 2026-08-28 (crew#556): 17 rows, the hazard register. Three readers on disk (scripts/hazard-register, scripts/verify.d/85-risk-register.sh, scripts/estate-snapshot:685) and no warehouse source, so the register a buyer's engineer would ask for is not queryable. Visible for the first time because crew#556 resolves a worktree copy onto its primary instead of dropping it.",
+      "ticket": "crew#557"
+    },
+    {
       "key": "mac/*science/warehouse.db*",
       "verdict": "COLLECTED",
       "reader": "science/datamap.py collected() reads every facts row; science/dbt builds on it",

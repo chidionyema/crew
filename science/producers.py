@@ -99,17 +99,144 @@ def _in_worktree(path: str) -> bool:
     of registered rows. The name check is kept -- it still catches a worktree whose `.git` has been
     pruned -- and every ancestor is now asked what it actually is.
     """
+    return _worktree_root(path) is not None
+
+
+def _abs(path: str) -> pathlib.Path:
+    """The filesystem path behind an inventory value. Keys read `mac/ledger/~/...`."""
+    raw = "~/" + path.split("~/")[-1] if "~/" in path else path
+    return pathlib.Path(os.path.expanduser(raw))
+
+
+def _worktree_root(path: str) -> pathlib.Path | None:
+    """The worktree directory `path` is a copy inside, or None when `path` is the real thing."""
     segs = path.split("/")[:-1]
-    if any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in segs):
-        return True
-    raw = "~/" + path.split("~/")[-1] if "~/" in path else path  # keys read `mac/ledger/~/...`
-    here = pathlib.Path(os.path.expanduser(raw)).parent
+    for i, seg in enumerate(segs):
+        # `.wt-crew69` IS the worktree; `.worktrees` is a directory OF them, so the root is the
+        # segment after it. Getting this wrong rewrites a copy onto a path that does not exist.
+        take = i + 2 if seg == ".worktrees" else i + 1
+        if any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) and take <= len(segs):
+            return _abs("/".join(segs[:take]))
+    here = _abs(path).parent
     for anc in (here, *here.parents):
         if _is_linked_worktree(str(anc)):
-            return True
+            return anc
         if (anc / ".git").is_dir():  # the primary checkout: stop, this path is the real producer
-            return False
-    return False
+            return None
+    return None
+
+
+@functools.lru_cache(maxsize=4096)
+def _primary_checkout(worktree: str) -> str | None:
+    """The working tree of the checkout a linked worktree belongs to, asked of git itself."""
+    try:
+        out = subprocess.run(["git", "-C", worktree, "rev-parse", "--path-format=absolute",
+                              "--git-common-dir"], capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    common = pathlib.Path(out.stdout.strip())
+    return str(common.parent) if common.name == ".git" and common.parent.is_dir() else None
+
+
+def _primary_path(path: str) -> str | None:
+    """`path` rewritten into the primary checkout, or None when git cannot say where that is.
+
+    crew#556 review (d5ae1960, 2026-08-28): dropping every copy dropped the LAST row for 23 of
+    them. Eleven science ledgers -- ships, dora, velocity, revenue, predictions, attention,
+    pr-hygiene, ci-runs, RESEARCH-LEDGER, RESEARCH-INTAKE, risk/REGISTER -- exist in the Mac
+    inventory ONLY as copies inside `~/.claude/state/crew-{science,snapshot}-worktree`, because
+    the inventory walk never reaches `~/dev/code/crew` itself (measured: 2 of its 319 rows are
+    under that checkout, both `.db` files). So `continue` did not deduplicate them, it blinded the
+    register to them -- the exact failure this module exists to make impossible. Worse, the copies
+    are stale: `science/ships.jsonl` reads 57 rows in both worktrees and 150 in the real ledger,
+    so every science number reported off ships came off a copy less than half its size.
+
+    A copy therefore resolves to its primary instead of vanishing, and is restated from the file
+    that is actually there.
+    """
+    wt = _worktree_root(path)
+    if wt is None:
+        return None
+    primary = _primary_checkout(str(wt))
+    if primary is None:
+        return None
+    try:
+        rel = _abs(path).relative_to(wt)
+    except ValueError:
+        return None
+    resolved = pathlib.Path(primary) / rel
+    return str(resolved) if resolved.exists() else None
+
+
+def _restat(row: dict, path: str) -> dict:
+    """`row` with its size read off `path`, so a resolved row never carries the copy's number."""
+    out = dict(row)
+    f = pathlib.Path(path)
+    if not f.is_file():
+        return out  # a directory store keeps the size the inventory measured; it walked it, we do not
+    if out.get("rows") is not None:
+        with f.open("rb") as fh:
+            out["rows"] = sum(1 for _ in fh)
+    if out.get("mb") is not None:
+        out["mb"] = round(f.stat().st_size / 1e6, 3)
+    return out
+
+
+def _dedupe_copies(rows: list[dict]) -> list[dict]:
+    """Every inventory row, with each worktree copy resolved onto its primary and deduplicated.
+
+    A copy that resolves onto a path another row already covers is dropped -- that is the
+    deduplication crew#320 wanted. A copy that resolves onto a path NOTHING else covers is kept,
+    rewritten to the primary and restated.
+
+    A copy git cannot place is the third case, and it is not a drop. `~/Documents/code/prospector/
+    .claude/worktrees/agent-aaecfffaa54620133` is a stranded worktree: its `.git` file points into
+    an iCloud path that no longer exists, so `git rev-parse` says "not a git repository", and it
+    holds 130.9 MB of dossiers that no other row covers. Dropping it makes the register blind to
+    130 MB. So an unplaceable copy is dropped only when some other row already covers the same
+    repo-relative file, and kept and marked otherwise.
+    """
+    def where(r: dict) -> str:
+        return str(r.get("path") or r.get("plist") or r.get("id") or r.get("name") or "")
+
+    def tail(p: str) -> str:
+        """`p` relative to the worktree it sits in: the repo-relative file two copies share."""
+        wt = _worktree_root(p)
+        try:
+            return str(_abs(p).relative_to(wt)) if wt else str(_abs(p))
+        except ValueError:
+            return str(_abs(p))
+
+    real = [r for r in rows if where(r) and not _in_worktree(where(r))]
+    covered = {str(_abs(where(r))) for r in real}
+
+    def elsewhere(t: str) -> bool:
+        """True when some row outside a worktree already holds this repo-relative file. A row
+        outside a worktree has no repo root to be relative to, so the suffix is the comparison."""
+        return any(c == t or c.endswith("/" + t) for c in covered)
+
+    out, promoted = list(real), set()
+    for r in rows:
+        p = where(r)
+        if not p or not _in_worktree(p):
+            continue
+        primary = _primary_path(p)
+        if primary is None:
+            # git cannot place it. Drop only when the file is already covered somewhere else.
+            t = tail(p)
+            if elsewhere(t) or t in promoted:
+                continue
+            promoted.add(t)
+            out.append({**r, "stranded_copy": True})
+            continue
+        if primary in covered or primary in promoted:
+            continue
+        promoted.add(primary)
+        promoted.add(tail(p))
+        out.append({**_restat(r, primary), "path": primary, "resolved_from": p})
+    return out
 
 def _p(domain: str, key: str, kind: str, measures: list[str], evidence: str,
        size: float | int | None = None) -> Producer:
@@ -189,8 +316,21 @@ def _sources_decision(row: dict) -> dict | None:
         if path and (path == d or str(path).startswith(str(d) + "/")):
             return {"verdict": "DECLINED", "why": collect.DECLINED[did], "entry": f"sources.json declined {did}"}
     for name, (src, _k, _t) in collect.SOURCES.items():
-        if path and path == src:
+        if not path:
+            break
+        if path == src:
             return {"verdict": "COLLECTED", "reader": f"science/collect.py source {name}", "entry": f"sources.json source {name}"}
+        # crew#556: a source is identified by its path INSIDE the repo, not by which checkout the
+        # inventory happened to walk. The 11 crew ledgers reach the Mac inventory only through the
+        # science/snapshot worktrees, and `_dedupe_copies` resolves them onto ~/dev/code/crew --
+        # a different absolute path from the `src` collect.py computes from its own __file__.
+        try:
+            rel = src.relative_to(SCIENCE.parent)
+        except ValueError:
+            continue
+        if str(path).endswith("/" + str(rel)):
+            return {"verdict": "COLLECTED", "reader": f"science/collect.py source {name}",
+                    "entry": f"sources.json source {name} (matched on the repo-relative path {rel})"}
     return None
 
 
@@ -248,7 +388,7 @@ def mac() -> list[Producer]:
     """Every row the Mac inventory found: ledgers, stores, jobs, guards, listeners, repos, drills."""
     doc = json.load(INVENTORY.open())
     out = []
-    for r in doc.get("rows", []):
+    for r in _dedupe_copies(doc.get("rows", [])):
         kind = r.get("kind") or "unknown"
         ident = r.get("id") or r.get("path") or r.get("name")
         if not ident:
@@ -257,11 +397,13 @@ def mac() -> list[Producer]:
         # jobs, guards, listeners and drills by the id the inventory gave them.
         if kind in ("ledger", "data") and r.get("path"):
             ident = r["path"]
-        # A file inside a git worktree is a copy of a producer, never a producer: the same
-        # SKIP_DIRS rule the yaml walk applies. Measured 2026-08-27 (crew#320): 6 UNEXPLAINED
-        # rows, all `~/.claude/scripts/.wt-crew*/state/drills.jsonl`, held the gate RED.
-        if _in_worktree(str(r.get("path") or r.get("plist") or ident)):
+        # `_dedupe_copies` has already resolved every worktree copy onto its primary and dropped
+        # the duplicates. A row still reading as a copy here is one git could not place AND that
+        # nothing else covers: it is the only record of that data, so it stays a producer.
+        if _in_worktree(str(r.get("path") or r.get("plist") or ident)) and not r.get("stranded_copy"):
             continue
+        if r.get("resolved_from") and kind in ("ledger", "data") and r.get("path"):
+            ident = r["path"]
         ident = str(ident).replace(str(HOME) + "/", "~/")
         size = r.get("mb") or r.get("rows")
         # A scheduled job under hc-wrap pings a dead-man monitor; one without it can stop

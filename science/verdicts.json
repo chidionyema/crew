@@ -7,9 +7,7 @@
     "NEVER_EMITTED",
     "EXCLUDED"
   ],
-  "blind_allowed": {
-    "cluster_live": "OCI session expires every 1-2h and kubectl exec-auth fails from the Mac (crew#345); the same producers are graded from git under cluster/*"
-  },
+  "blind_allowed": {},
   "entries": [
     {
       "key": "mac/*science/warehouse.db*",
@@ -350,7 +348,7 @@
     {
       "key": "cluster_live/*",
       "verdict": "EXCLUDED",
-      "why": "Same producers as cluster/*, graded on crew#388. The Mac is blind to the cluster by design (blind_allowed, crew#345): the live cluster is read by oke-check receipts (idp bin/idp-cluster-state), never from a laptop credential. One ticket per producer set.",
+      "why": "Same producers as cluster/*, graded on crew#388. One ticket per producer set. The discoverer reads the cluster's own 15-minutely receipt through the GitHub API (crew#558), not a laptop kubeconfig, so this domain is answered from any machine with a GitHub token and blind_allowed is now empty.",
       "ticket": "crew#389"
     },
     {

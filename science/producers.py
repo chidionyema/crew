@@ -40,6 +40,7 @@ Each producer is a record:
 """
 from __future__ import annotations
 
+import datetime
 import functools
 import json
 import os
@@ -60,6 +61,23 @@ WAREHOUSE = SCIENCE / "warehouse.db"
 CLAUDE_HOME = pathlib.Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
 OKE_KUBECONFIG = pathlib.Path(os.environ.get("ESTATE_OKE_KUBECONFIG", HOME / ".kube" / "oke-estate"))
 
+#: The cluster's own state receipt, and the door that reaches it from a machine with no OCI
+#: identity. A CronJob in the cluster (idp platform/state/cluster-state.yaml) writes the receipt
+#: to Object Storage every 15 minutes from the node's instance principal; `bin/idp-cluster-state
+#: --json` reads it in the oke-check workflow and prints the body into the job log. A GitHub token
+#: is the only credential needed to read that log, so this works from any machine, and from CI.
+IDP_REPO = os.environ.get("ESTATE_IDP_REPO", "chidionyema/idp")
+CLUSTER_RECEIPT_WORKFLOW = os.environ.get("ESTATE_CLUSTER_RECEIPT_WORKFLOW", "oke-check.yml")
+CLUSTER_RECEIPT_JOB = os.environ.get("ESTATE_CLUSTER_RECEIPT_JOB", "cluster-state")
+#: The receipt is written every 15 min and oke-check runs daily plus on dispatch, so the freshest
+#: readable receipt is usually hours old, not minutes. Past this it is not what the cluster is
+#: running now and the domain says so rather than reporting a stale world as live.
+CLUSTER_RECEIPT_MAX_AGE_H = float(os.environ.get("ESTATE_CLUSTER_RECEIPT_MAX_AGE_H", "36"))
+#: `--json` prints the body on the flux-FAIL path and on the ok path, but a run that failed for a
+#: different reason (a short DaemonSet, no monitoring rules, a stale receipt) exits before it. So
+#: several runs are tried, newest first, rather than assuming the newest one carries a body.
+CLUSTER_RECEIPT_RUNS = int(os.environ.get("ESTATE_CLUSTER_RECEIPT_RUNS", "8"))
+
 #: Directories that hold copies of a repo, never the repo. Walking them reports every
 #: manifest N times and hangs a 16 GB Mac (crew, 2026-08-25: load 236).
 SKIP_DIRS = {".wt-", ".worktrees", "node_modules", ".git", ".venv", "venv", "__pycache__", ".claude"}
@@ -68,14 +86,40 @@ Producer = dict
 
 
 
-#: The SKIP_DIRS entries that mark a git worktree. `.claude` is in SKIP_DIRS for the yaml walk
-#: inside a repo; here every row lives under ~/.claude, so only the worktree markers apply.
+#: The SKIP_DIRS entries that mark a git worktree by name. `.claude` is in SKIP_DIRS for the yaml
+#: walk inside a repo; here every row lives under ~/.claude, so only the worktree markers apply.
+#: These are a fast path for a path that no longer exists on disk -- the name is not the test.
 WORKTREE_DIRS = (".wt-", ".worktrees")
 
 
+@functools.lru_cache(maxsize=4096)
+def _is_worktree_root(d: str) -> bool:
+    """True when `d` is a git worktree: git writes `.git` as a FILE there (`gitdir: ...`), and as
+    a directory in a normal checkout. Asking the filesystem is the test; the name is a proxy."""
+    g = pathlib.Path(d) / ".git"
+    try:
+        return g.is_file()
+    except OSError:
+        return False
+
+
 def _in_worktree(path: str) -> bool:
-    """True when a directory segment of `path` is a git worktree (`.wt-crew69`, `.worktrees`)."""
-    return any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in path.split("/")[:-1])
+    """True when `path` sits inside a git worktree, so its rows are a second copy of a repo's
+    files and not producers of their own.
+
+    crew#320 skipped `.wt-*` and `.worktrees` by name and the gate went GREEN. crew#558,
+    2026-08-28: 11 producers came back UNEXPLAINED from
+    `~/.claude/state/crew-science-worktree` -- a worktree `scripts/science-collect` creates on
+    every run, named nothing like the pattern. A name-matched skip grades the name; this one
+    grades the thing.
+    """
+    segs = path.split("/")[:-1]
+    if any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in segs):
+        return True
+    for i in range(len(segs), 1, -1):
+        if _is_worktree_root("/".join(segs[:i])):
+            return True
+    return False
 
 def _p(domain: str, key: str, kind: str, measures: list[str], evidence: str,
        size: float | int | None = None) -> Producer:
@@ -312,6 +356,7 @@ CLUSTER_MEASURES = {
     "Secret": ["age_days", "rotations"],
     "ConfigMap": ["age_days", "revisions"],
     "Namespace": ["pods", "cpu", "memory"],
+    "Node": ["ready", "kubelet_version", "pods", "cpu", "memory", "disk_pressure"],
 }
 
 
@@ -353,21 +398,121 @@ def cluster() -> list[Producer]:
     return out
 
 
-def cluster_live() -> list[Producer]:
-    """What the cluster is actually running, read through the OKE kubeconfig."""
-    if not OKE_KUBECONFIG.exists():
-        raise FileNotFoundError(f"no kubeconfig at {OKE_KUBECONFIG}")
-    r = subprocess.run(["kubectl", "--kubeconfig", str(OKE_KUBECONFIG), "--request-timeout=15s",
-                        "get", "deploy,sts,ds,cronjob,svc,pvc,helmrelease", "-A", "-o", "json"],
-                       capture_output=True, text=True, timeout=40, check=False)
+def _gh_json(args: list[str], timeout: int = 60):
+    """`gh` with the estate's failure grammar: a non-zero exit names why, it never returns []."""
+    r = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=timeout, check=False)
     if r.returncode != 0:
-        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1][:200])
-    out = []
-    for item in json.loads(r.stdout).get("items", []):
-        kind = item["kind"]
-        md = item["metadata"]
-        out.append(_p("cluster_live", f"{md.get('namespace','-')}/{kind}/{md['name']}", kind,
-                      CLUSTER_MEASURES.get(kind, ["exists"]), "kubectl get -A"))
+        raise RuntimeError((r.stderr or r.stdout).strip().splitlines()[-1][:200] if (r.stderr or r.stdout).strip()
+                           else f"gh {' '.join(args[:3])} exited {r.returncode} with no output")
+    return json.loads(r.stdout)
+
+
+def _receipt_from_log(text: str) -> dict | None:
+    """The one line of a job log that is the receipt body.
+
+    Each log line is `<rfc3339>Z <content>`, and the body is a single line of JSON tens of
+    kilobytes long -- `gh run view --log` drops it, the raw API does not, which is why this reads
+    the API. Matched on a key of the receipt rather than on position, so a step printing JSON
+    before it cannot be mistaken for it.
+    """
+    for line in text.splitlines():
+        if '"flux_not_ready"' not in line:
+            continue
+        start = line.find('{"')
+        if start < 0:
+            continue
+        try:
+            body = json.loads(line[start:])
+        except ValueError:
+            continue
+        if isinstance(body, dict) and "flux" in body and "at" in body:
+            return body
+    return None
+
+
+def cluster_receipt() -> tuple[dict, str]:
+    """The newest readable cluster-state receipt, and the command that produced it.
+
+    Every failure raises with the reason, because a discoverer that returns [] on a bad day is the
+    class that dropped 10 criticals in 18 hours with no test failing.
+    """
+    runs = _gh_json(["run", "list", "--repo", IDP_REPO, "--workflow", CLUSTER_RECEIPT_WORKFLOW,
+                     "--status", "completed", "--limit", str(CLUSTER_RECEIPT_RUNS),
+                     "--json", "databaseId,createdAt"])
+    if not runs:
+        raise RuntimeError(f"no completed {CLUSTER_RECEIPT_WORKFLOW} run in {IDP_REPO}")
+    tried = []
+    for run in runs:
+        try:
+            jobs = _gh_json(["api", f"repos/{IDP_REPO}/actions/runs/{run['databaseId']}/jobs"])
+        except RuntimeError as e:
+            tried.append(f"{run['databaseId']}: jobs unreadable ({e})")
+            continue
+        job = next((j for j in jobs.get("jobs", []) if j.get("name") == CLUSTER_RECEIPT_JOB), None)
+        if job is None:
+            tried.append(f"{run['databaseId']}: no {CLUSTER_RECEIPT_JOB} job")
+            continue
+        cmd = ["api", f"repos/{IDP_REPO}/actions/jobs/{job['id']}/logs"]
+        r = subprocess.run(["gh", *cmd], capture_output=True, text=True, timeout=120, check=False)
+        if r.returncode != 0:
+            tried.append(f"job {job['id']}: log unreadable")
+            continue
+        body = _receipt_from_log(r.stdout)
+        if body is None:
+            # `--json` prints the body on the flux-FAIL and ok paths only; every other FAIL exits
+            # first. Not an error, just a run that carries no receipt: try the one before it.
+            tried.append(f"job {job['id']}: no receipt body in the log")
+            continue
+        return body, f"gh {' '.join(cmd)}"
+    raise RuntimeError(f"no receipt body in the last {len(runs)} {CLUSTER_RECEIPT_WORKFLOW} run(s): "
+                       + "; ".join(tried[:4]))
+
+
+def cluster_live() -> list[Producer]:
+    """What the cluster is actually running, read from its own receipt through the GitHub API.
+
+    This ran `kubectl` against ~/.kube/oke-estate until 2026-08-28 and was BLIND on every machine
+    an agent works on. The kubeconfig execs `oci ce cluster generate-token` with no --profile,
+    ~/.oci/config carries no DEFAULT profile, and both of its profiles authenticate with a browser
+    session that expires in hours -- so the one domain that could say what RUNS was answered by
+    nobody, and all 233 `cluster` producers beside it are what git DECLARES. That is not a broken
+    laptop, it is the estate being operable only from one desk (crew#558).
+
+    The cluster already publishes what it runs, and CI already reads it. The only thing missing was
+    a door that needs no OCI identity: a GitHub token, which every session and every runner has.
+    """
+    body, evidence = cluster_receipt()
+    at = body.get("at") or ""
+    try:
+        age_h = (datetime.datetime.now(datetime.UTC)
+                 - datetime.datetime.fromisoformat(at.replace("Z", "+00:00"))).total_seconds() / 3600
+    except ValueError as e:
+        raise RuntimeError(f"receipt carries no readable timestamp ({at!r}): {e}") from e
+    if age_h > CLUSTER_RECEIPT_MAX_AGE_H:
+        raise RuntimeError(f"the freshest readable receipt is {age_h:.0f}h old "
+                           f"(max {CLUSTER_RECEIPT_MAX_AGE_H:.0f}h): {at}; what it lists is not what runs now")
+    ev = f"{evidence}  # receipt at {at}"
+    out, seen = [], set()
+
+    def add(ns: str, kind: str, name: str) -> None:
+        key = f"{ns or '-'}/{kind}/{name}"
+        if not name or key in seen:
+            return
+        seen.add(key)
+        out.append(_p("cluster_live", key, kind, CLUSTER_MEASURES.get(kind, ["exists"]), ev))
+
+    # Flux owns what is deployed: every Kustomization, HelmRelease, GitRepository and
+    # ExternalSecret the cluster reconciles, each with its own Ready condition.
+    for r in body.get("flux") or []:
+        add(r.get("ns"), r.get("kind") or "FluxObject", r.get("name"))
+    for d in body.get("daemonsets") or []:
+        add(d.get("ns"), "DaemonSet", d.get("name"))
+    for e in body.get("policy_exceptions") or []:
+        add(e.get("ns"), "PolicyException", e.get("name"))
+    for n in body.get("nodes") or []:
+        add("-", "Node", n.get("name"))
+    if not out:
+        raise RuntimeError(f"receipt at {at} lists no flux object, DaemonSet, PolicyException or Node")
     return out
 
 

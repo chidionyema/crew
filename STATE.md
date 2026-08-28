@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-28 15:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-28 17:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,30 +8,30 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 5.96s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.63s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
-| maestro | GREEN | last cycle 6 min ago (`INTENT-20260828-145255-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260828-165959-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-27T01:23:38Z is 38h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 36h old (bar 30h) |
-| delivery | RED | 1441 commits on no remote (oldest 6.2d), 44 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-27T01:23:38Z is 40h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 38h old (bar 30h) |
+| delivery | RED | 1442 commits on no remote (oldest 6.3d), 47 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 673 commits no remote holds, oldest 3.8d, 1 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 370 commits no remote holds, oldest 6.2d, 1 dirty |
-| &nbsp;&nbsp;stranded | scripts | 349 commits no remote holds, oldest 5.0d, 15 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 674 commits no remote holds, oldest 3.9d, 1 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 370 commits no remote holds, oldest 6.3d, 1 dirty |
+| &nbsp;&nbsp;stranded | scripts | 349 commits no remote holds, oldest 5.1d, 18 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | NOT RUN | `science/datamap.py --check --json` did not answer |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 93h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 11 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 95h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 10 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 40 | `science/sources.json` |
 | research | GREEN | 25 entries in 7d, 25 total, 25 with a decision fed, last 2026-08-27 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 127922 runs in 24h, 676 refused (most: idle-guard.py 183), slowest 104612 ms (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 126944 runs in 24h, 671 refused (most: idle-guard.py 178), slowest 104612 ms (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | crew P1 | 25 open | the fires nobody has put out |
 | &nbsp;&nbsp;#567 board: crew#527 CP1 is ticked as scheduled and nothing schedules it, so CP5 can never come true | | |

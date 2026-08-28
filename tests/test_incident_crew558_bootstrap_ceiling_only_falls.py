@@ -84,3 +84,30 @@ def test_the_ceiling_counts_domains_not_rows():
     doc = json.loads(src)
     assert "scan_domains" in doc
     assert doc["scan_domains"] < 100, "a ceiling in the thousands is a row count, not a domain count"
+
+
+def test_a_scan_domain_that_simply_vanishes_cannot_read_as_a_retirement(tmp_path, monkeypatch):
+    """78caaa17's attack on this ratchet, and the right one: a ceiling whose input set can shrink
+    silently rewards deleting a discoverer exactly as much as retiring one.
+
+    `ceiling_violations` alone cannot tell the two apart -- it counts what answered, and a domain
+    that answered nothing did not answer. The census is what tells them apart: it records what
+    each domain found last run, and a domain that drops to zero is reported whether it went
+    BLIND, shrank, or stopped existing. So the pair is the guard, and this test holds the pair
+    together: remove a scan domain's producers and the run is still RED, just under a different
+    line.
+    """
+    monkeypatch.setattr(datamap, "CENSUS", tmp_path / "census.json")
+    (tmp_path / "census.json").write_text(json.dumps({"domains": {"mac": 8000, "hook": 34}}))
+    graded = [{"domain": "hook", "verdict": "COLLECTED", "ticket": "", "entry": "hook/*"}] * 34
+
+    # the ceiling is happy: one fewer domain is scanning, which is what retiring looks like
+    assert datamap.ceiling_violations(_b(["hook"], 7)) == []
+
+    # the census is not: mac found 8000 rows last run and answered nothing this run
+    msgs = datamap.census_check(graded, blind={})
+    assert any(m.startswith("mac: 0 members, was 8000") for m in msgs), msgs
+
+    # and only saying it went BLIND buys silence -- which is a written claim in the diff
+    assert not [m for m in datamap.census_check(graded, blind={"mac": "no inventory"})
+                if m.startswith("mac:")]

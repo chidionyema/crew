@@ -1,9 +1,29 @@
 {
  "description": "Daily model spend per owner directory, written by the spend collector.",
- "field_docs": {},
+ "field_docs": {
+  "by_model": {
+   "description": "usd per model served that day (claude-guards crew#371)",
+   "pii": false
+  },
+  "reqs_by_model": {
+   "description": "requests per model served that day (claude-guards crew#371)",
+   "pii": false
+  },
+  "tokens": {
+   "description": "token counts by driver: raw_input, cache_read (context re-sent unchanged), cache_write, output (claude-guards crew#372)",
+   "pii": false
+  },
+  "reread_pct": {
+   "description": "cache_read as a percent of tokens sent (raw_input+cache_read+cache_write); null when nothing was sent",
+   "pii": false
+  }
+ },
  "fields": {
   "at": [
    "str"
+  ],
+  "by_model": [
+   "dict"
   ],
   "by_owner": [
    "dict"
@@ -11,11 +31,21 @@
   "day": [
    "str"
   ],
+  "reqs_by_model": [
+   "dict"
+  ],
   "reqs_by_owner": [
    "dict"
   ],
   "requests": [
    "int"
+  ],
+  "reread_pct": [
+   "float",
+   "NoneType"
+  ],
+  "tokens": [
+   "dict"
   ],
   "total": [
    "float"

@@ -235,6 +235,10 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
         run(["git", "push", "origin", branch], cwd=root)
 
     body = info.get("body") or ""
+    leaked = secret_in(body)
+    if leaked:
+        return False, (f"#{info['number']} body carries a secret value (R49-no-secrets-in-chat, founder 2026-08-28: "
+                       f"'we dont send password here'): `{leaked}`. Name where it lives, never what it is.")
     # An absolute URL on the head branch, not a relative path. GitHub resolves a
     # relative link in a pull request body against the DEFAULT branch, so it 404s
     # until the branch merges — which is exactly when the reviewer needs to see it.
@@ -324,6 +328,18 @@ def added_evidence(diff: str, number=None) -> set:
 
 
 EVIDENCE_SECTION = re.compile(r"^#{1,4}\s*verification evidence\s*$", re.I | re.M)
+# R49-no-secrets-in-chat (founder 2026-08-28: "we dont send password here"). A key word followed by a
+# value is a secret in a PR body; an env NAME in caps after it is a pointer and passes.
+SECRET_WORD = r"\b(?:password|passwd|pass|token|secret|api[_-]?key|private[_-]?key)\b\s*[:=]\s*[\"']?"
+SECRET_VALUE = re.compile(SECRET_WORD + r"(?!(?-i:[A-Z][A-Z0-9_]{7,})[\"']?(?:\s|$))[^\s\"']{8,}", re.I)
+
+
+def secret_in(text: str) -> str | None:
+    """The first line carrying a secret value, or None. R49."""
+    for line in text.splitlines():
+        if SECRET_VALUE.search(line):
+            return line.strip()[:60]
+    return None
 #: The end of the Verification evidence section is the next heading AT THE SAME OR A
 #: SHALLOWER LEVEL. It used to be the next heading of any level, which meant a body that
 #: organised its evidence under sub-headings -- `## Verification evidence` followed by

@@ -1,11 +1,11 @@
 # Science lane showcase
 
-Generated 2026-08-28T17:18Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-28T19:06Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-28T17:14Z.
+Previous run: 2026-08-28T19:04Z.
 
 No number changed.
 
@@ -43,55 +43,38 @@ No number changed.
 
 `sqlite3 science/warehouse.db "select source, count(*) from facts where ingested_at >= datetime('now','-24 hours') group by source"`
 
-Every lane graded on what it emitted in the last 24h. BLIND rows first:
-a lane that emitted no fact is not healthy, it is unobserved (crew#508).
-
-| Lane | Facts, 24h | Checkpoints, 24h | Grade | Sources counted |
-|---|---:|---:|---|---|
-| code | 160,354 | 0 | GAP | ships, ci_runs, ci_reach, bundle_push, estate_push, worktree_cleanup, hook_outcomes, close_guard, dora |
-| crew | 32,058 | 0 | GAP | board, ledger, decisions, directives, tickets, goal_net, attention, founder_actions, board_deadletter, prompt_ledger |
-| data-ml | 29,008 | 0 | GAP | dagster-ticks, dagster-runs, temporal_dev_executions, job_timelines |
-| hermes-v2 | 8,126 | 0 | GAP | alerts_inbox, sovereign_receipts, sovereign_budget, revenue, agent_cert, runaway-reaper, stuck_detector, aiden_ticks |
-| portal | 25,593 | 0 | GAP | estate_registry, capability_receipts, enforcement_map, drills, drills_scripts |
-| science | 16,260 | 0 | GAP | research_ledger, predictions, method_metrics, history, spend |
-| unmapped | 80 | 0 | GAP | hindsight_recall |
-
-- BLIND: none
-- sources in no lane: hindsight_recall (80) — add them to LANE_SOURCES in science/showcase.py
-- checkpoints 0 for every lane: no `- [x]` line in a ledger written in the last 24h (searched science/RESEARCH-LEDGER.jsonl, science/ships.jsonl, science/attention.jsonl, science/predictions.jsonl; fresh: science/RESEARCH-LEDGER.jsonl, science/ships.jsonl, science/attention.jsonl, science/predictions.jsonl)
+BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 ## Warehouse
 
 `sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"`
 
-- 271,479 rows across 42 sources; last ingest 2026-08-28T12:37:37+00:00
-- 44 of 44 declared sources carry owner, method, retention and sensitivity
-- stale past their SLA: sovereign_receipts (61h), board_deadletter (49h), estate_registry (71h), ci_runs (38h), dagster-ticks (5h), temporal_dev_executions (61h)
+BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 ## Data map (LAW 50)
 
 `python3 science/datamap.py --check`
 
-- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 6999 producers discovered at the last census
-- 1045 field paths in the shape walk of 2026-08-28 17:17Z
-- domains blind at the last census: cluster_live
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 6952 producers discovered at the last census
+- shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
+- domains blind at the last census: none
 - contract violations now: 0
 
 ## Research ledger
 
 `python3 -c "import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))"`
 
-- 30 entries, 2026-08-23 to 2026-08-27; 30 record the decision they fed
+- 31 entries, 2026-08-23 to 2026-08-28; 31 record the decision they fed
 
-- **2026-08-24** What replaces launchd for a single-Mac estate that must survive the Mac dying, weighed on: does it run when the laptop is shut, does a moved
-  - decision: Three-part split, not a product, and it FITS docs/STANDARDS.md rather than deviating from it (the standard already names Healthchecks self-hosted as the job-mon
-  - metric: 32 estate plists: 9 hc-wrapped but the receiver is down so 0 effectively monitored; 4 of 32 in git, of which 3 have drifted; 0 drift checks running. -> None
 - **2026-08-24** Which of the estate's hand-written Claude Code guard hooks (rule-guard, goal-guard, tracked, jargon-guard, context-guard-hook) can be expres
   - decision: Replace one, split one, delete half of one, keep two. (1) jargon-guard.py -> Vale 3.17.1, already installed, already configured in 10+ repos: highest-value swap
   - metric: 269 lines (jargon-guard.py) duplicating Vale 3.17.1, which is installed and used in 10+ repos and referenced 0 times by the guard; plus an unmeasured share of rule-guard.py's 1362 lines duplicating 41 existing permissions.deny rules. -> None
 - **2026-08-24** Is there a proven tool for 'prove this system can be rebuilt from nothing', to replace the hand-written nightly drill runner at ~/.claude/sc
   - decision: KEEP ~/.claude/scripts/drills/run.py. It is a drill REGISTER - 13 entries, 5 named as not yet written, with an orphan check - and no product on the market is th
   - metric: 13 registered, 8 with a command, 5 NOT WRITTEN; ai.estate.drills last exit = 1; its plist is in no git repo. -> None
+- **2026-08-28** Would this market pay at least twice the price of an idea dossier for a five-year survival probability conditioned on industry code and regi
+  - decision: Whether prospector's next price test sells a survival rating beside the dossier (SCALE_market hypothesis 7 test: two checkout pages, 200 visitors each, pass if 
+  - metric: 0 ideas on the ledger; three contract rows FAIL (no data) -> None
 
 ## Delivery outcomes
 
@@ -99,21 +82,29 @@ a lane that emitted no fact is not healthy, it is unobserved (crew#508).
 
 - last 7 days: 968 commits across 6 repos
 - founder messages 2941, complaints 145 (4.9%)
-- spend USD 7642.96, USD per commit 7.9
+- spend: BLIND (warehouse absent)
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 
 ## Predictions
 
 `python3 science/outcomes.py rate`
 
-- 18 recorded before a repair, 4 scored after, hit rate 50%
+- 13 recorded before a repair, 2 scored after, hit rate 50%
+
+## Ideas: the prospector contract (crew#537)
+
+`python3 -c "import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl') if json.loads(l).get('kind')=='idea'))"`
+
+| Row | Value | Grade |
+|---|---|---|
+| ideas generated per week | 1 | ok |
+| ideas graded (forecast with source) | 1 | ok |
+| ideas resolved with Brier | 0 | FAIL (no data) |
+
+- 1 idea rows in the ledger (`kind: idea`, written by `python3 science/ledger.py add --kind idea --forecast P`); resolved with `--outcome 0|1`. Red until the first business idea lands (CP5).
 
 ## Foresight: will this PR go red?
 
 `python3 science/foresight.py report`
 
-- trained 2026-08-28T12:50Z on 1570 labelled PRs; 32% of first runs were red
-- unseen newest 314 PRs: accuracy 73% against a base rate of 72%; Brier 0.184
-- model beats the base rate on unseen PRs
-- strongest signals: log_files (+0.51), r_crew (+0.50), r_prospector (-0.32), log_del (-0.29), f_test (+0.24)
-- live: 16 open PRs predicted before their CI finished, 2 scored, hit rate 50%
+BLIND: science/foresight-state.json absent (python3 science/foresight.py train)

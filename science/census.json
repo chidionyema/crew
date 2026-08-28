@@ -1,16 +1,14 @@
 {
  "domains": {
-  "mac": 544,
-  "warehouse": 53,
+  "mac": 535,
   "cluster": 233,
+  "cluster_live": 158,
   "endpoint": 8,
   "hook": 38,
   "mcp": 3,
   "github": 111,
-  "transcript": 6001,
+  "transcript": 5858,
   "act": 8
  },
- "blind": {
-  "cluster_live": "TimeoutExpired: Command '['kubectl', '--kubeconfig', '/Users/chidionyema/.kube/oke-estate', '--request-timeout=15s', 'get', 'deploy,sts,ds,cronjob,svc,pvc,helmrelease', '-A', '-o', 'json']' timed out "
- }
+ "blind": {}
 }

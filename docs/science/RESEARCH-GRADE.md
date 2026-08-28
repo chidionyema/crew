@@ -4,8 +4,8 @@ Generated 2026-08-28 by `python3 science/research_grade.py`. Two directions, gra
 
 | Direction | Grade | One sentence |
 |---|---|---|
-| Outward | **ELITE** | 30 of 30 questions fed a decision; 0 stale, 0 with no source; intake fresh, 2 candidates (0 late). |
-| Inward | **ELITE** | foresight trained; 2 of 16 predictions scored. |
+| Outward | **ELITE** | 31 of 31 questions fed a decision; 0 stale, 0 with no source; intake fresh, 0 candidates (0 late). |
+| Inward | **GAP** | foresight trained; 0 of 11 predictions scored. |
 
 ## Outward — questions answered from the world
 
@@ -13,14 +13,14 @@ Source: `science/RESEARCH-LEDGER.jsonl`.
 
 | What | Value | How it is counted |
 |---|---|---|
-| Questions asked | 30 | rows in `science/RESEARCH-LEDGER.jsonl` |
-| Decisions fed | 30 (100%) | rows whose `decision_fed` carries text |
+| Questions asked | 31 | rows in `science/RESEARCH-LEDGER.jsonl` |
+| Decisions fed | 31 (100%) | rows whose `decision_fed` carries text |
 | Questions still open | 0 | rows with no `decision_fed` |
 | Median question to decision | 0.0h | `decided_at` - `asked_at`, else day granularity |
-| Sources cited | 339 total, median 9.5 per question (min 1, max 40) | `len(row['sources'])` |
+| Sources cited | 342 total, median 9 per question (min 1, max 40) | `len(row['sources'])` |
 | Questions with no source | 0 | `sources` empty |
 
-30 of 30 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
+31 of 31 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
 
 ### Stale questions (>7 days, no decision fed)
 
@@ -32,16 +32,14 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-28T05:12:06+00:00 (fresh, 0.5d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-27T14:51:47+00:00 (fresh, 1.2d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
-| Releases filed | 24 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
-| Candidates unanswered | 2 (0 RED, >7d) | `status == candidate` |
+| Releases filed | 22 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
+| Candidates unanswered | 0 (0 RED, >7d) | `status == candidate` |
 | Adopted / declined | 0 / 0 | `status` with a ticket |
 
 | Seen | Row | Release | Status |
 |---|---|---|---|
-| 2026-08-28 | Scheduling | [dagster-io/dagster 1.13.20](https://github.com/dagster-io/dagster/releases/tag/1.13.20) | candidate |
-| 2026-08-28 | Code quality | [astral-sh/ruff 0.16.5](https://github.com/astral-sh/ruff/releases/tag/0.16.5) | candidate |
 | 2026-08-27 | GitOps (at k8s time) | [fluxcd/flux2 v2.9.4](https://github.com/fluxcd/flux2/releases/tag/v2.9.4) | baseline |
 | 2026-08-27 | Admission policy | [kyverno/kyverno v1.19.0](https://github.com/kyverno/kyverno/releases/tag/v1.19.0) | baseline |
 | 2026-08-27 | Data | [duckdb/duckdb v1.5.5](https://github.com/duckdb/duckdb/releases/tag/v1.5.5) | baseline |
@@ -50,16 +48,18 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 | 2026-08-27 | Notifications | [caronc/apprise v1.13.0](https://github.com/caronc/apprise/releases/tag/v1.13.0) | baseline |
 | 2026-08-27 | Backups | [restic/restic v0.19.1](https://github.com/restic/restic/releases/tag/v0.19.1) | baseline |
 | 2026-08-27 | Secrets | [getsops/sops v3.13.3](https://github.com/getsops/sops/releases/tag/v3.13.3) | baseline |
+| 2026-08-27 | Secrets | [FiloSottile/age v1.3.1](https://github.com/FiloSottile/age/releases/tag/v1.3.1) | baseline |
+| 2026-08-27 | Identity | [spiffe/spire v1.15.3](https://github.com/spiffe/spire/releases/tag/v1.15.3) | baseline |
 
 
 ## Inward — what the estate knows about itself
 
 | What | Value | Evidence |
 |---|---|---|
-| Foresight model | TRAINED on 1570 labelled PRs; holdout accuracy 0.726 vs base rate 0.723 (model beats the base rate on unseen PRs) | `science/foresight-state.json` |
-| Predictions recorded | 16 | `science/predictions.jsonl`, `model == foresight` |
-| Predictions scored | 2 | rows carrying `scored_at` |
-| Hit rate | 50% | 1 correct of 2 scored |
+| Foresight model | TRAINED on 565 labelled PRs; holdout accuracy 0.602 vs base rate 0.593 (beats the base rate on unseen PRs by 0.9 points (0.602 vs 0.593) - a thin edge, not a claim) | `science/foresight-model.json` |
+| Predictions recorded | 11 | `science/predictions.jsonl`, `model == foresight` |
+| Predictions scored | 0 | rows carrying `scored_at` |
+| Hit rate | n/a, nothing scored | 0 correct of 0 scored |
 
 ## Re-run this page
 

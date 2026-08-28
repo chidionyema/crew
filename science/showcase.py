@@ -49,7 +49,7 @@ LANE_HOURS = 24
 # new source is unmapped-and-visible rather than silently absorbed into a lane that looks healthy.
 LANE_SOURCES: dict[str, tuple[str, ...]] = {
     "code": ("ships", "ci_runs", "ci_reach", "bundle_push", "estate_push", "worktree_cleanup",
-             "hook_outcomes", "close_guard"),
+             "hook_outcomes", "close_guard", "dora"),
     "crew": ("board", "ledger", "decisions", "directives", "tickets", "goal_net", "attention",
              "founder_actions", "board_deadletter", "prompt_ledger"),
     "hermes-v2": ("alerts_inbox", "sovereign_receipts", "sovereign_budget", "revenue", "agent_cert",

@@ -36,6 +36,9 @@ def _p(values: list[float], q: float) -> float:
 
 
 _REVERT_RE = re.compile(r'^\s*revert\s*[:"“]?\s*"?(.*?)"?\s*$', re.IGNORECASE)
+# d5ae1960 on crew#547: a hand-written revert names the PR by number (`revert: ... (idp#505)`),
+# not by its title; the number counts too, so the undone change is not read as held.
+_NUM_RE = re.compile(r"#(\d+)")
 
 
 def reverted_title(title: str) -> str | None:
@@ -60,9 +63,11 @@ def four_keys(prs: list[dict], p1s: list[dict], since: datetime, days: int, now:
     merged = [p for p in prs if p.get("mergedAt") and p.get("baseRefName") == "main" and _ts(p["mergedAt"]) >= since]
     reverts = [p for p in merged if reverted_title(p.get("title", ""))]
     named = {reverted_title(p.get("title", "")) for p in reverts}
+    undone = {int(n) for p in reverts for n in _NUM_RE.findall(reverted_title(p.get("title", "")) or "")}
     held = [p for p in merged
             if _ts(p["mergedAt"]) <= now - timedelta(days=7)
-            and not reverted_title(p.get("title", "")) and (p.get("title") or "") not in named]
+            and not reverted_title(p.get("title", "")) and (p.get("title") or "") not in named
+            and p.get("number") not in undone]
     lead = [(_ts(p["mergedAt"]) - _ts(p["createdAt"])).total_seconds() / 3600 for p in merged]
     opened = [i for i in p1s if _ts(i["createdAt"]) >= since]
     closed = [i for i in p1s if i.get("closedAt") and _ts(i["closedAt"]) >= since]
@@ -105,7 +110,7 @@ def fetch(repo: str, since: datetime) -> tuple[list[dict], list[dict]]:
         if _ts(p["updated_at"]) < since:
             break
         prs.append({"createdAt": p["created_at"], "mergedAt": p.get("merged_at"), "baseRefName": p["base"]["ref"],
-                    "title": p.get("title") or ""})
+                    "title": p.get("title") or "", "number": p.get("number")})
     p1s = [{"createdAt": i["created_at"], "closedAt": i.get("closed_at")}
            for i in _gh(f"repos/{repo}/issues", state="all", labels="P1", since=since.strftime("%Y-%m-%dT%H:%M:%SZ"), per_page="100")
            if "pull_request" not in i]

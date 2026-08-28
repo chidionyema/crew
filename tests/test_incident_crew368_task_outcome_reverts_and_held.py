@@ -35,6 +35,16 @@ def test_revert_counts_and_unreverts_the_change_it_names():
     assert k["held_7d"] == 1  # only "fix: collect exits 0": reverted one out, revert itself out, young one out
 
 
+def test_revert_by_number_unholds_the_pr_it_names():
+    # d5ae1960 on crew#547: idp#514 is titled `revert: Cilium chained ... (idp#505)`; the title it
+    # undoes is not quoted, the number is. Without the number rule idp#505 reads as held in a week.
+    prs = [dict(_pr(10, "crew#539 CP12: Cilium chained after OKE's flannel"), number=505),
+           dict(_pr(9, "revert: Cilium chained over flannel took the pod network down (idp#505)"), number=514),
+           dict(_pr(8, "fix: unrelated, still held"), number=506)]
+    k = dora.four_keys(prs, [], SINCE, 14, NOW)
+    assert k["reverts"] == 1 and k["held_7d"] == 1
+
+
 def test_short_window_holds_nothing():
     prs = [_pr(3, "fix: a"), _pr(1, "fix: b")]
     k = dora.four_keys(prs, [], NOW - timedelta(days=7), 7, NOW)

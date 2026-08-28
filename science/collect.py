@@ -317,6 +317,22 @@ CREATE TABLE IF NOT EXISTS emit_watermark (
 # Spend is the estate's only money series, so it gets a typed view rather than
 # living as opaque JSON. Every other source stays generic until something asks.
 SPEND_VIEW = """
+-- crew#366 act/agent_decisions: what each session chose and what it rejected. Rows come from
+-- decision-log.py --decide and from decisions_intake.py (one per merged PR's Options block).
+DROP VIEW IF EXISTS decisions_by_session;
+CREATE VIEW decisions_by_session AS
+SELECT
+    json_extract(payload, '$.session') AS session,
+    COUNT(*) AS decisions,
+    SUM(json_array_length(json_extract(payload, '$.options'))) AS options_rejected,
+    SUM(CASE WHEN json_extract(payload, '$.status') = 'superseded' THEN 1 ELSE 0 END) AS reversals,
+    MIN(json_extract(payload, '$.ts')) AS first_at,
+    MAX(json_extract(payload, '$.ts')) AS last_at
+FROM facts
+WHERE source = 'decisions' AND json_extract(payload, '$.kind') = 'decision'
+GROUP BY session
+ORDER BY decisions DESC;
+
 DROP VIEW IF EXISTS spend_daily;
 CREATE VIEW spend_daily AS
 SELECT

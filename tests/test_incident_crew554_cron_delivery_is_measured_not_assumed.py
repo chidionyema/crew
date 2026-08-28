@@ -38,6 +38,10 @@ checked. `scripts/cron-delivery` is the instrument; these are the rules it must 
      `run-name:` line silently zeroes a workflow's deliveries and turns every occurrence it
      promised into a miss -- a false alarm, which rule 6 forbids. `.path` is the same string on
      both sides and is present on every run.
+  8. The frequency bands cover every count with no gap and no overlap, and a band nobody is in
+     is omitted rather than printed as 0%. The bands are the CP1 finding -- share falls from
+     92% to 1% as a cron asks more often, while delivered-per-workflow stays inside 0.7-2.1 --
+     so a workflow that falls between two of them is a row quietly missing from the answer.
 """
 import datetime as dt
 import importlib.machinery
@@ -418,3 +422,67 @@ def test_the_join_key_is_the_workflow_file_on_both_sides(cd, monkeypatch):
     assert 'out.append((r.get("path")' in src, "the run half of the join left `path`"
     assert 'fired.get(w["path"]' in src, "the workflow half of the join left `path`"
     assert 'fired.get(w["name"]' not in src, "keyed on run name again; `run-name:` breaks it"
+
+
+# --- crew#554 CP1: the bands, and the gap they must not have -------------------------------
+
+
+def test_every_row_lands_in_exactly_one_band(cd):
+    """Rule 8. The first draft read (12, 48) and (2, 11) and dropped every workflow due exactly
+    12 times a day: no error, no row, a smaller `due` total than the estate really asked for.
+    An allow-list with a silent miss case is this estate's own listed failure, so the bounds are
+    checked across the whole range rather than at the four values someone thought of.
+    """
+    for due in range(0, 400):
+        hit = cd.bands([{"due": due, "got": 0}])
+        assert len(hit) == 1, f"due={due} landed in {len(hit)} bands"
+
+
+def test_a_band_nobody_is_in_is_omitted_rather_than_printed_as_zero(cd):
+    """"No workflow asks that often" and "every workflow that asks that often was dropped" are
+    opposite findings, and a 0% row cannot be read as either. The band is left out."""
+    assert [b["band"] for b in cd.bands([{"due": 1, "got": 1}])] == ["asks <=1/day"]
+    assert all(b["wfs"] for b in cd.bands([{"due": d, "got": 0} for d in (1, 5, 24, 288)]))
+
+
+def test_the_bands_separate_a_ration_per_workflow_from_a_share_of_what_was_asked(cd):
+    """The CP1 finding itself. Two workflows handed the SAME number of runs, one asking 288 times
+    a day and one asking once: report only a share and they read as a catastrophe and a success,
+    when what happened is one ration handed out twice.
+    """
+    out = {b["band"]: b for b in cd.bands([{"due": 288, "got": 1}, {"due": 1, "got": 1}])}
+    assert out["asks >48/day (<=30m apart)"]["per_wf"] == 1.0
+    assert out["asks <=1/day"]["per_wf"] == 1.0
+    assert out["asks >48/day (<=30m apart)"]["share"] < 1
+    assert out["asks <=1/day"]["share"] == 100
+
+
+def test_measure_repo_hands_back_the_per_workflow_rows_it_already_built(cd, monkeypatch):
+    """--per-workflow costs no extra API call: measure_repo already expands the crons and joins
+    the runs per workflow, then summed them away. Each row must carry its own workflow's due and
+    got, or the bands are graded on an average of a */30 cron and a daily one -- the ecological
+    inference the repo table could not escape, which is why this flag exists.
+    """
+    now = dt.datetime(2026, 8, 28, 12, 0, tzinfo=cd.UTC)
+    monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [{"workflows": [
+        {"state": "active", "name": "fast", "path": ".github/workflows/fast.yml"},
+        {"state": "active", "name": "slow", "path": ".github/workflows/slow.yml"}]}])
+    monkeypatch.setattr(cd, "crons_of",
+                        lambda repo, path: ["*/30 * * * *"] if "fast" in path else ["0 6 * * *"])
+    monkeypatch.setattr(cd, "scheduled_runs", lambda *a, **k: [
+        (".github/workflows/fast.yml", now - dt.timedelta(minutes=10))])
+    out = cd.measure_repo("acme/repo", now, 24)
+    rows = {r["path"].split("/")[-1]: r for r in out["rows"]}
+    # 49, not 48: a 24h window that includes both endpoints holds 49 half-hour marks.
+    assert rows["fast.yml"]["due"] == 49 and rows["fast.yml"]["got"] == 1
+    assert rows["slow.yml"]["due"] == 1 and rows["slow.yml"]["got"] == 0
+    assert sum(r["due"] for r in out["rows"]) == out["promised"], "rows must sum to the total"
+    assert sum(r["got"] for r in out["rows"]) == out["delivered"]
+
+
+def test_the_per_workflow_flag_exists_and_is_off_by_default(cd):
+    """The census's default answer is the repo table; --per-workflow is the CP1 detail behind it.
+    A flag that turned itself on would put 42 rows in front of every reader of the summary."""
+    src = (ROOT / "scripts/cron-delivery").read_text()
+    assert '"--per-workflow", action="store_true"' in src
+    assert "if a.per_workflow and rows:" in src

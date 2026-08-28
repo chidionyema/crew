@@ -267,16 +267,22 @@ def measure_repo(repo, now, hours):
         return None
     for path, at in runs:
         fired[path].append(at)
-    promised, delivered, lates, wfs = 0, 0, [], 0
+    promised, delivered, lates, wfs, rows = 0, 0, [], 0, []
     for w in [x for pg in pages for x in pg.get("workflows", [])
               if x.get("state") == "active"]:
         crons = crons_of(repo, w["path"])
         if not crons:
             continue
         wfs += 1
-        promised += len(occurrences(crons, start, now, f'{repo} {w["name"]}'))
+        due_here = len(occurrences(crons, start, now, f'{repo} {w["name"]}'))
+        promised += due_here
         got = sorted(fired.get(w["path"], []))
         delivered += len(got)
+        # crew#554 CP1: the repo aggregate cannot tell a per-REPOSITORY cap from a
+        # per-WORKFLOW ration, because it averages a */5 cron with a daily one. The row is
+        # kept so --per-workflow can separate them; it costs nothing, the work is already done.
+        rows.append({"repo": repo, "path": w["path"], "crons": crons,
+                     "due": due_here, "got": len(got)})
         # widen the search back a day: a run late by hours must still find the minute it was
         # due, or lateness is silently recorded as a drop -- the error this instrument made
         # once already, and the reason the retraction on crew#554 exists.
@@ -285,7 +291,8 @@ def measure_repo(repo, now, hours):
             prior = [t for t in due if t <= g]
             if prior:
                 lates.append((g - max(prior)).total_seconds() / 60)
-    return {"repo": repo, "wfs": wfs, "promised": promised, "delivered": delivered, "lates": lates}
+    return {"repo": repo, "wfs": wfs, "promised": promised, "delivered": delivered,
+            "lates": lates, "rows": rows}
 
 
 def measure_heartbeat(spec, owner, now, hours):
@@ -349,11 +356,51 @@ def soundness(say):
     return 0
 
 
+# (label, exclusive low, inclusive high). The bounds are written to abut exactly: 48 is the
+# top of one band and the bottom of the next, so no `due` can fall between two of them. The
+# first draft of this list read (12, 48) and (2, 11) and silently dropped every workflow due
+# exactly 12 times a day -- an allow-list with a miss case, which is how ten criticals went
+# missing for 18 hours once and no test failed. test_every_row_lands_in_exactly_one_band is
+# the thing that refuses it, not this comment.
+BANDS = [("asks >48/day (<=30m apart)", 48, None),
+         ("asks 12-48/day", 11, 48),
+         ("asks 2-11/day", 1, 11),
+         ("asks <=1/day", None, 1)]
+
+
+def bands(rows):
+    """Group per-workflow rows by how often their cron asks, and answer with share per band.
+
+    This is the CP1 measurement (crew#554). Share collapses from 92% to 1% as the requested
+    frequency rises while delivered-per-workflow stays inside 0.7-2.1, which is a ration per
+    workflow per day rather than a percentage of what was asked for -- so a cron moved from
+    hourly to */15 receives no more runs and a worse share. Measured 2026-08-28, 42 active
+    scheduled workflows across 9 repositories, 1,683 due, 62 delivered.
+
+    A band with no workflows in it is omitted rather than printed as 0%, because "no workflow
+    asks that often" and "every workflow that asks that often was dropped" are opposite
+    findings and a 0% row cannot be read as either.
+    """
+    out = []
+    for label, lo, hi in BANDS:
+        b = [r for r in rows if (lo is None or r["due"] > lo) and (hi is None or r["due"] <= hi)]
+        if not b:
+            continue
+        due = sum(r["due"] for r in b)
+        got = sum(r["got"] for r in b)
+        out.append({"band": label, "wfs": len(b), "due": due, "got": got,
+                    "share": (100.0 * got / due) if due else None,
+                    "per_wf": got / len(b)})
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--owner", help="default: the authenticated gh login")
     ap.add_argument("--repos", help="comma list of names; default: every repo the owner has")
     ap.add_argument("--hours", type=int, default=24)
+    ap.add_argument("--per-workflow", action="store_true",
+                    help="one row per scheduled workflow, and share by how often its cron asks")
     ap.add_argument("--heartbeat", default="",
                     help="comma list of repo:workflow.yml to grade for clock coverage")
     a = ap.parse_args()
@@ -366,7 +413,7 @@ def main():
     print(f"# window: the {a.hours}h to {now.strftime(STAMP)}, owner {owner}")
 
     print(f'\n{"repo":<34} {"sched wf":>7} {"due":>10} {"delivered":>10} {"share":>8}')
-    lates = []
+    lates, rows = [], []
     for repo in repos_of(owner, a.repos):
         m = measure_repo(repo, now, a.hours)
         if m is None:
@@ -375,6 +422,7 @@ def main():
         if not m["wfs"]:
             continue
         lates += m["lates"]
+        rows += m["rows"]
         share = f'{100.0 * m["delivered"] / m["promised"]:.0f}%' if m["promised"] else "n/a"
         print(f'{repo:<34} {m["wfs"]:>7} {m["promised"]:>10} {m["delivered"]:>10} {share:>8}')
 
@@ -387,6 +435,20 @@ def main():
               f"late >30m {sum(1 for x in lates if x > 30)}   "
               f"late >2h {sum(1 for x in lates if x > 120)}")
         print(f"#   a bar of max_age_hours=N is safe only while N exceeds {p90 / 60.0:.1f}h")
+
+    if a.per_workflow and rows:
+        rows.sort(key=lambda r: -r["due"])
+        print(f'\n{"repo":<24} {"workflow":<28} {"cron":<22} {"due":>5} {"got":>4} {"share":>6}')
+        for r in rows:
+            share = f'{100.0 * r["got"] / r["due"]:.0f}%' if r["due"] else "n/a"
+            print(f'{r["repo"].split("/")[-1]:<24} {r["path"].split("/")[-1]:<28} '
+                  f'{",".join(r["crons"])[:22]:<22} {r["due"]:>5} {r["got"]:>4} {share:>6}')
+        print(f'\n{"how often the cron asks":<28} {"wfs":>4} {"due":>6} {"got":>5} '
+              f'{"share":>6} {"got per wf":>11}')
+        for b in bands(rows):
+            share = f'{b["share"]:.0f}%' if b["share"] is not None else "n/a"
+            print(f'{b["band"]:<28} {b["wfs"]:>4} {b["due"]:>6} {b["got"]:>5} '
+                  f'{share:>6} {b["per_wf"]:>11.2f}')
 
     if a.heartbeat:
         print(f'\n{"workflow":<34} {"hours":>6} {"any run":>8} {"clock":>6} '

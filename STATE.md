@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-28 01:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-28 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,32 +8,32 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.81s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.88s |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 44 links, pinned msg 14008 |
 | &nbsp;&nbsp;failing | | FAIL  launchd runs the plist on disk     no plist at /Users/chidionyema/Library/LaunchAgents/ai.architect.gateway.plist |
 | &nbsp;&nbsp;failing | | FAIL  one launchd label runs the gateway no gateway label is loaded |
-| maestro | GREEN | last cycle 7 min ago (`INTENT-20260828-005048-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260828-025514-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | store not measured at 2026-08-27T01:23:38Z: MEDUSA_ADMIN_TOKEN not set (vault entry medusa-admin) |
+| revenue | NOT RUN | last measurement 2026-08-27T01:23:38Z is 26h old (bar 24h) |
 | ci runs | GREEN | 49 workflows, 2479 runs/24h, 1876/2469 passed, slowest median 819.0s (haworks-platform/codeql.yml), measured 2026-08-27T03:28:24Z (`outcomes.py ci`) |
-| delivery | RED | 1471 commits on no remote (oldest 5.6d), 37 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| delivery | RED | 1471 commits on no remote (oldest 5.7d), 38 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
 | &nbsp;&nbsp;stranded | .idp-state | 688 commits no remote holds, oldest 3.3d, 1 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 380 commits no remote holds, oldest 5.6d, 1 dirty |
-| &nbsp;&nbsp;stranded | scripts | 346 commits no remote holds, oldest 4.4d, 8 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 380 commits no remote holds, oldest 5.7d, 1 dirty |
+| &nbsp;&nbsp;stranded | scripts | 346 commits no remote holds, oldest 4.5d, 9 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | NOT RUN | `science/datamap.py --check --json` did not answer |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 79h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 13 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 81h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 9 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 40 | `science/sources.json` |
 | research | GREEN | 25 entries in 7d, 25 total, 25 with a decision fed, last 2026-08-27 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 97254 runs in 24h, 636 refused (most: rule-guard.py 200), slowest 47605 ms (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 105768 runs in 24h, 682 refused (most: rule-guard.py 203), slowest 47605 ms (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | crew P1 | 24 open | the fires nobody has put out |
 | &nbsp;&nbsp;#539 Nothing watched the estate: langfuse 503 for ≥5 min found by a PR link checker; no PrometheusRule, no HTT | | |

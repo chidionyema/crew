@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-28 11:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-28 15:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,40 +8,38 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 6.04s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 5.96s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
-| maestro | GREEN | last cycle 1 min ago (`INTENT-20260828-105942-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 6 min ago (`INTENT-20260828-145255-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-27T01:23:38Z is 34h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 32h old (bar 30h) |
-| delivery | RED | 1434 commits on no remote (oldest 6.1d), 44 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-27T01:23:38Z is 38h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 36h old (bar 30h) |
+| delivery | RED | 1441 commits on no remote (oldest 6.2d), 44 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 671 commits no remote holds, oldest 3.7d, 1 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 365 commits no remote holds, oldest 6.1d, 1 dirty |
-| &nbsp;&nbsp;stranded | scripts | 349 commits no remote holds, oldest 4.8d, 15 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 673 commits no remote holds, oldest 3.8d, 1 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 370 commits no remote holds, oldest 6.2d, 1 dirty |
+| &nbsp;&nbsp;stranded | scripts | 349 commits no remote holds, oldest 5.0d, 15 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | NOT RUN | `science/datamap.py --check --json` did not answer |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 89h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 10 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 93h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 11 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 40 | `science/sources.json` |
 | research | GREEN | 25 entries in 7d, 25 total, 25 with a decision fed, last 2026-08-27 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 125818 runs in 24h, 690 refused (most: rule-guard.py 169), slowest 47605 ms (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 127922 runs in 24h, 676 refused (most: idle-guard.py 183), slowest 104612 ms (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
-| crew P1 | 27 open | the fires nobody has put out |
+| crew P1 | 25 open | the fires nobody has put out |
 | &nbsp;&nbsp;#567 board: crew#527 CP1 is ticked as scheduled and nothing schedules it, so CP5 can never come true | | |
 | &nbsp;&nbsp;#566 science: a --domains run skips the census but still grades the ceiling, so a filtered --check always pass | | |
 | &nbsp;&nbsp;#565 science: the bootstrap ceiling states its own measurement three different ways (crew#558) | | |
-| &nbsp;&nbsp;#539 Nothing watched the estate: langfuse 503 for ≥5 min found by a PR link checker; no PrometheusRule, no HTT | | |
 | &nbsp;&nbsp;#529 Independent certification: The Architect's hermes-v2 gateway self-audit (founder ask, 2026-08-27) | | |
 | &nbsp;&nbsp;#527 The board applies science: lanes, measured velocity, finish-first rank, and the board assigns the ticket | | |
 | &nbsp;&nbsp;#526 Open count never goes down: guard-filed issues carry a Closes-when command and a nightly closer | | |
-| &nbsp;&nbsp;#516 Mac exit: plan and execute the move of every estate workload off the founder MacBook (founder 2026-08-27) | | |
 | &nbsp;&nbsp;#508 Science is every lane at once: one page shows progress across all lanes, every lane feeds the warehouse,  | | |
 | &nbsp;&nbsp;#503 Founder dashboard and every surface polished: no broken link, no unstyled UI (high alert, last mile) | | |
 | &nbsp;&nbsp;#345 Platform-level: OCI session expires every ~1-2h, blocking all live verification — durable identity, not r | | |

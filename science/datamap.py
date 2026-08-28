@@ -171,6 +171,59 @@ def contract_violations(sources_file: pathlib.Path = SCIENCE / "sources.json") -
     return contract_audit(sources_file)[0]
 
 
+CEILING = SCIENCE / "bootstrap-ceiling.json"
+
+
+def bootstrap(graded: list[dict], blind: dict[str, str]) -> dict:
+    """How much of this register is still the bootstrap, and how much has retired.
+
+    crew#558. LAW 50: coverage is proved by querying the backend, never by scanning files, and
+    this program is the temporary bootstrap that "retires surface by surface as the query takes
+    over". Nothing measured that until now, so nothing retired: on 2026-08-28, 8162 of 8324
+    producers came from walking one laptop's disk and every domain that could was still doing it.
+
+    The share is reported because it is the honest size of the problem. The GATE is the count of
+    scan domains, because that is the number a person moves on purpose. See PROVENANCE in
+    producers.py for why rows would be the wrong unit.
+    """
+    scan = producers.scan_domains()
+    seen = {g["domain"] for g in graded} | set(blind)
+    rows = collections.Counter(g["domain"] for g in graded)
+    n_scan = sum(n for d, n in rows.items() if producers.PROVENANCE.get(d) == "scan")
+    total = sum(rows.values())
+    return {
+        "scan_domains": sorted(d for d in scan if d in seen),
+        "query_domains": sorted(d for d in seen if producers.PROVENANCE.get(d) == "query"),
+        "untagged": producers.untagged_domains(),
+        "scan_producers": n_scan,
+        "producers": total,
+        "share": (100.0 * n_scan / total) if total else 0.0,
+        "ceiling": json.loads(CEILING.read_text())["scan_domains"] if CEILING.exists() else None,
+    }
+
+
+def ceiling_violations(b: dict) -> list[str]:
+    """A ceiling only ever falls. Raising it is adding a surface to the thing the founder refused.
+
+    This is the guard that would have refused crew#556: 163 lines teaching the scanner about git
+    worktrees, which only exist in the register because it scans a filesystem at all.
+    """
+    v = []
+    if b["untagged"]:
+        v.append(f"{len(b['untagged'])} domain(s) declare no provenance in producers.PROVENANCE: "
+                 f"{', '.join(b['untagged'])} -- scan or query, the register is closed-world (crew#558)")
+    if b["ceiling"] is None:
+        v.append(f"no {CEILING.name}: the LAW 50 bootstrap has no ceiling, so nothing stops it growing (crew#558)")
+        return v
+    now = len(b["scan_domains"])
+    if now > b["ceiling"]:
+        v.append(f"{now} domain(s) answer by scanning files, up from the ceiling of {b['ceiling']}: "
+                 f"{', '.join(b['scan_domains'])}. LAW 50 retires these surface by surface; a new one "
+                 f"is the custom discovery the founder refused (crew#394). If a surface really did "
+                 f"retire, lower scan_domains in {CEILING.name} in the same pull request (crew#558)")
+    return v
+
+
 def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: list[str]) -> list[str]:
     """The gate. Every line here is one thing the founder's law forbids."""
     v, contract_blind = contract_audit()
@@ -187,6 +240,7 @@ def violations(graded: list[dict], blind: dict[str, str], reg: dict, census: lis
         if d not in allowed:
             v.append(f"domain {d} BLIND and not allowed: {why}")
     v.extend(census)
+    v.extend(ceiling_violations(bootstrap(graded, blind)))
     return v
 
 
@@ -462,6 +516,17 @@ def main() -> int:
             row += "".join(f"{counts.get((d, v), 0):>11}" for v in VERDICTS)
             row += f"{counts.get((d, 'UNEXPLAINED'), 0):>8}"
             print(row)
+
+        b = bootstrap(graded, blind)
+        print()
+        print(f"BOOTSTRAP  {len(b['scan_domains'])} of "
+              f"{len(b['scan_domains']) + len(b['query_domains'])} domains still answer by reading "
+              f"files: {b['scan_producers']} of {b['producers']} producers ({b['share']:.1f}%)")
+        print("-" * 78)
+        print(f"  scans files   {', '.join(b['scan_domains']) or '(none)'}")
+        print(f"  queries       {', '.join(b['query_domains']) or '(none)'}")
+        print(f"  ceiling       {b['ceiling']} scan domain(s); LAW 50 retires these one at a time "
+              f"and this number only ever falls")
 
         gaps = [g for g in graded if g["verdict"] in GAPS]
         # Two register rows may share a key and differ by kind (listener:forward vs

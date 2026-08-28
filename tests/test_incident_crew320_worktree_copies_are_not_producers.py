@@ -31,3 +31,21 @@ def test_incident_crew320_a_worktree_copy_is_skipped_and_the_original_is_kept(tm
         {"kind": "ledger", "path": f"{home}/dev/code/idp/.worktrees/x/state/a.jsonl", "rows": 1},
     ])
     assert keys == ["mac/ledger/~/.claude/scripts/state/drills.jsonl"], keys
+
+
+def test_crew558_a_worktree_named_nothing_like_the_pattern_is_still_skipped(tmp_path):
+    """2026-08-28: the gate went RED with 11 UNEXPLAINED producers, every one of them a ledger
+    inside `~/.claude/state/crew-science-worktree` -- a git worktree `scripts/science-collect`
+    creates on every run, and a name the `.wt-`/`.worktrees` list never matched. The name was a
+    proxy for the thing. Git marks a worktree by writing `.git` as a FILE; that is the test now.
+    """
+    wt = tmp_path / "state" / "some-checkout"
+    wt.mkdir(parents=True)
+    (wt / ".git").write_text("gitdir: /Users/x/dev/code/crew/.git/worktrees/some-checkout\n")
+    real = tmp_path / "dev" / "crew"
+    (real / ".git").mkdir(parents=True)          # a normal checkout: .git is a directory
+    keys = _mac(tmp_path, [
+        {"kind": "ledger", "path": str(wt / "science" / "ships.jsonl"), "rows": 3},
+        {"kind": "ledger", "path": str(real / "science" / "ships.jsonl"), "rows": 3},
+    ])
+    assert len(keys) == 1 and keys[0].endswith("dev/crew/science/ships.jsonl"), keys

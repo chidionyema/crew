@@ -32,6 +32,12 @@ checked. `scripts/cron-delivery` is the instrument; these are the rules it must 
      because a false alarm is the one thing this instrument may not raise. The `gh run list
      -L 400` cap that used to cause that is gone: the window is now a `created=>=` filter the
      server applies, so old runs never crowd the window's own deliveries off the list.
+  7. Deliveries join to workflows by FILE PATH, never by name (review finding, session 78caaa17
+     on crew#574). A run object's `name` is the name of the run, which `run-name:` can set to
+     anything; the workflows API answers with the name of the workflow. Key on those and one
+     `run-name:` line silently zeroes a workflow's deliveries and turns every occurrence it
+     promised into a miss -- a false alarm, which rule 6 forbids. `.path` is the same string on
+     both sides and is present on every run.
 """
 import datetime as dt
 import importlib.machinery
@@ -290,7 +296,8 @@ def test_a_run_list_cut_short_is_reported_and_is_not_a_conservative_drop(cd, mon
     """Fewer rows than GitHub matched removes DELIVERIES, so it invents misses: exit-2 territory."""
     cd.TRUNCATED.clear()
     page = {"total_count": 900,
-            "workflow_runs": [{"created_at": "2026-08-28T00:00:00Z", "name": "nightly"}] * 100}
+            "workflow_runs": [{"created_at": "2026-08-28T00:00:00Z",
+                               "path": ".github/workflows/nightly.yml"}] * 100}
     monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [page])
     cd.scheduled_runs("acme/repo", "2026-08-27T00:00:00Z")
     assert len(cd.TRUNCATED) == 1
@@ -301,12 +308,12 @@ def test_a_complete_run_list_reports_nothing_and_still_bounds_the_window(cd, mon
     """The server filters by day; the run from the day before the window is still not a delivery."""
     cd.TRUNCATED.clear()
     page = {"total_count": 2, "workflow_runs": [
-        {"created_at": "2026-08-28T00:00:00Z", "name": "nightly"},
-        {"created_at": "2026-08-27T00:00:00Z", "name": "older"}]}
+        {"created_at": "2026-08-28T00:00:00Z", "path": ".github/workflows/nightly.yml"},
+        {"created_at": "2026-08-27T00:00:00Z", "path": ".github/workflows/older.yml"}]}
     monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [page])
     out = cd.scheduled_runs("acme/repo", "2026-08-27T13:00:00Z")
     assert cd.TRUNCATED == []
-    assert [n for n, _ in out] == ["nightly"]
+    assert [n for n, _ in out] == [".github/workflows/nightly.yml"]
 
 
 def test_the_window_is_asked_of_the_server_not_carved_out_of_a_row_cap(cd, monkeypatch):
@@ -378,3 +385,36 @@ def test_a_long_drop_list_is_capped_and_says_how_many_it_did_not_print(cd):
     assert rc == 0
     assert "... and 15 more" in out
     assert out.count("#   drop ") == 10
+
+
+def test_a_run_renamed_by_run_name_is_still_counted_as_delivered(cd, monkeypatch):
+    """Rule 7. The join key is the workflow FILE, because a run's name is not the workflow's.
+
+    `run-name:` lets a run call itself anything. Keyed on name, such a run does not join to the
+    workflow that promised it: its deliveries vanish, every occurrence becomes a miss, and the
+    census raises a false alarm -- the one direction this instrument may not fail in (rule 6).
+    Here the workflow is `nightly` and its run calls itself "nightly for main @ abc123"; the
+    delivery must still land.
+    """
+    now = dt.datetime(2026, 8, 28, 12, 0, tzinfo=cd.UTC)
+    monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [{"workflows": [
+        {"state": "active", "name": "nightly", "path": ".github/workflows/nightly.yml"}]}])
+    monkeypatch.setattr(cd, "crons_of", lambda *a, **k: ["0 * * * *"])
+    monkeypatch.setattr(cd, "scheduled_runs", lambda *a, **k: [
+        (".github/workflows/nightly.yml", now - dt.timedelta(minutes=60))])
+    out = cd.measure_repo("acme/repo", now, 2)
+    assert out["promised"] >= 1
+    assert out["delivered"] == 1, "a renamed run stopped joining: the census now invents misses"
+
+
+def test_the_join_key_is_the_workflow_file_on_both_sides(cd, monkeypatch):
+    """Rule 7, stated against the code rather than one scenario, so a revert cannot be silent.
+
+    Both halves of the join must read `path`: the run list that builds `fired`, and the workflow
+    row that looks into it. A run object whose `path` is absent joins to nothing -- which is why
+    the live check that every run carries one is recorded in `scheduled_runs`' docstring.
+    """
+    src = (ROOT / "scripts/cron-delivery").read_text()
+    assert 'out.append((r.get("path")' in src, "the run half of the join left `path`"
+    assert 'fired.get(w["path"]' in src, "the workflow half of the join left `path`"
+    assert 'fired.get(w["name"]' not in src, "keyed on run name again; `run-name:` breaks it"

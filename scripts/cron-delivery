@@ -215,7 +215,16 @@ def repos_of(owner, only):
 
 
 def scheduled_runs(repo, since):
-    """Every `schedule` run created since `since`, as (workflow name, created minute).
+    """Every `schedule` run created since `since`, as (workflow file path, created minute).
+
+    Keyed on the workflow's file path, not its name. A run object's `name` is the name of the RUN,
+    which `run-name:` in a workflow is free to make anything at all; the workflows API answers with
+    the name of the WORKFLOW. Key on those and the day someone adds a `run-name:` the join returns
+    [], every occurrence that workflow promised is counted as a miss, and the census raises a false
+    alarm -- the exact direction this PR exists to close. `.path` is the same string on both sides:
+    measured 20/20 live scheduled runs on the platform repo carry it, 0 missing (peer review,
+    session 78caaa17 on crew#574). Latent rather than live -- zero `run-name:` in any repo this
+    census reads today -- but the unambiguous key was already sitting there.
 
     The window is applied by GitHub, not by a row cap. `gh run list -L 400` asked for the newest
     400 runs of any age and filtered locally, so on the first live run three repositories came
@@ -240,7 +249,7 @@ def scheduled_runs(repo, since):
     out = []
     for r in rows:
         if r.get("created_at", "") >= since:
-            out.append((r.get("name"),
+            out.append((r.get("path"),
                         dt.datetime.strptime(r["created_at"][:19] + "Z", STAMP)
                           .replace(tzinfo=UTC, second=0, microsecond=0)))
     return out
@@ -256,8 +265,8 @@ def measure_repo(repo, now, hours):
     runs = scheduled_runs(repo, start.strftime(STAMP))
     if runs is None:
         return None
-    for name, at in runs:
-        fired[name].append(at)
+    for path, at in runs:
+        fired[path].append(at)
     promised, delivered, lates, wfs = 0, 0, [], 0
     for w in [x for pg in pages for x in pg.get("workflows", [])
               if x.get("state") == "active"]:
@@ -266,7 +275,7 @@ def measure_repo(repo, now, hours):
             continue
         wfs += 1
         promised += len(occurrences(crons, start, now, f'{repo} {w["name"]}'))
-        got = sorted(fired.get(w["name"], []))
+        got = sorted(fired.get(w["path"], []))
         delivered += len(got)
         # widen the search back a day: a run late by hours must still find the minute it was
         # due, or lateness is silently recorded as a drop -- the error this instrument made

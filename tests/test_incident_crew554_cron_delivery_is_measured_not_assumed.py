@@ -27,9 +27,17 @@ checked. `scripts/cron-delivery` is the instrument; these are the rules it must 
      percentage. Three paths used to drop one without a word: a cron with the wrong field
      count, a cron field that does not parse, and a `schedule:` block whose entries the line
      reader cannot see. Each is now named under the table, with the direction stated, and the
-     one drop that bends the other way -- the `gh run list` cap, which removes DELIVERIES and
-     so invents misses -- is exit 2 beside a refusal, because a false alarm is the one thing
-     this instrument may not raise.
+     one omission that bends the other way -- a run list that came back short of what GitHub
+     matched, which removes DELIVERIES and so invents misses -- is exit 2 beside a refusal,
+     because a false alarm is the one thing this instrument may not raise. The `gh run list
+     -L 400` cap that used to cause that is gone: the window is now a `created=>=` filter the
+     server applies, so old runs never crowd the window's own deliveries off the list.
+  7. Deliveries join to workflows by FILE PATH, never by name (review finding, session 78caaa17
+     on crew#574). A run object's `name` is the name of the run, which `run-name:` can set to
+     anything; the workflows API answers with the name of the workflow. Key on those and one
+     `run-name:` line silently zeroes a workflow's deliveries and turns every occurrence it
+     promised into a miss -- a false alarm, which rule 6 forbids. `.path` is the same string on
+     both sides and is present on every run.
 """
 import datetime as dt
 import importlib.machinery
@@ -284,22 +292,55 @@ def test_a_workflow_with_no_schedule_at_all_is_not_reported_as_a_drop(cd, monkey
     assert cd.DROPPED == []
 
 
-def test_the_run_list_cap_is_reported_and_is_not_a_conservative_drop(cd, monkeypatch):
-    """Hitting the cap removes DELIVERIES, so it invents misses. That is exit-2 territory."""
+def test_a_run_list_cut_short_is_reported_and_is_not_a_conservative_drop(cd, monkeypatch):
+    """Fewer rows than GitHub matched removes DELIVERIES, so it invents misses: exit-2 territory."""
     cd.TRUNCATED.clear()
-    rows = [{"createdAt": "2026-08-28T00:00:00Z", "workflowName": "nightly"}] * cd.RUN_CAP
-    monkeypatch.setattr(cd, "gh", lambda *a, **k: __import__("json").dumps(rows))
+    page = {"total_count": 900,
+            "workflow_runs": [{"created_at": "2026-08-28T00:00:00Z",
+                               "path": ".github/workflows/nightly.yml"}] * 100}
+    monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [page])
     cd.scheduled_runs("acme/repo", "2026-08-27T00:00:00Z")
     assert len(cd.TRUNCATED) == 1
-    assert str(cd.RUN_CAP) in cd.TRUNCATED[0] and "acme/repo" in cd.TRUNCATED[0]
+    assert all(x in cd.TRUNCATED[0] for x in ("acme/repo", "900", "100"))
 
 
-def test_a_run_list_under_the_cap_reports_nothing(cd, monkeypatch):
+def test_a_complete_run_list_reports_nothing_and_still_bounds_the_window(cd, monkeypatch):
+    """The server filters by day; the run from the day before the window is still not a delivery."""
     cd.TRUNCATED.clear()
-    rows = [{"createdAt": "2026-08-28T00:00:00Z", "workflowName": "nightly"}] * (cd.RUN_CAP - 1)
-    monkeypatch.setattr(cd, "gh", lambda *a, **k: __import__("json").dumps(rows))
-    cd.scheduled_runs("acme/repo", "2026-08-27T00:00:00Z")
+    page = {"total_count": 2, "workflow_runs": [
+        {"created_at": "2026-08-28T00:00:00Z", "path": ".github/workflows/nightly.yml"},
+        {"created_at": "2026-08-27T00:00:00Z", "path": ".github/workflows/older.yml"}]}
+    monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [page])
+    out = cd.scheduled_runs("acme/repo", "2026-08-27T13:00:00Z")
     assert cd.TRUNCATED == []
+    assert [n for n, _ in out] == [".github/workflows/nightly.yml"]
+
+
+def test_the_window_is_asked_of_the_server_not_carved_out_of_a_row_cap(cd, monkeypatch):
+    """The cap that invented misses is gone: the event and the day are in the query GitHub answers."""
+    seen = []
+    monkeypatch.setattr(cd, "gh_pages",
+                        lambda path, **k: (seen.append(path), [{"total_count": 0,
+                                                                "workflow_runs": []}])[1])
+    cd.scheduled_runs("acme/repo", "2026-08-27T13:00:00Z")
+    assert "event=schedule" in seen[0]
+    assert "created=%3E%3D2026-08-27" in seen[0]
+    assert not hasattr(cd, "RUN_CAP"), "a newest-N row cap is back; the window must stay server-side"
+
+
+def test_a_paginated_path_that_already_carries_a_query_keeps_it(cd, monkeypatch):
+    """`?per_page=` onto a path that already has `?` drops the filter, and the window with it."""
+    seen = []
+    monkeypatch.setattr(cd, "gh", lambda args, **k: (seen.append(list(args)), "{}")[1])
+    cd.gh_pages("repos/acme/repo/actions/runs?event=schedule")
+    assert seen[0][2] == "repos/acme/repo/actions/runs?event=schedule&per_page=100"
+
+
+def test_a_paginated_path_with_no_query_still_opens_one(cd, monkeypatch):
+    seen = []
+    monkeypatch.setattr(cd, "gh", lambda args, **k: (seen.append(list(args)), "{}")[1])
+    cd.gh_pages("repos/acme/repo/actions/workflows")
+    assert seen[0][2] == "repos/acme/repo/actions/workflows?per_page=100"
 
 
 def _sound(cd, dropped=(), refused=(), truncated=()):
@@ -324,7 +365,7 @@ def test_a_refusal_still_fails_the_run(cd):
 
 def test_a_truncated_run_list_fails_the_run_the_same_way_a_refusal_does(cd):
     """It removes deliveries, so it invents misses. Direction is the whole reason for exit 2."""
-    rc, out = _sound(cd, truncated=["acme/repo: `gh run list -L 400` returned 400 rows, the cap."])
+    rc, out = _sound(cd, truncated=["acme/repo: the runs API matched 900 but 100 arrived."])
     assert rc == 2
     assert "acme/repo" in out
 
@@ -344,3 +385,36 @@ def test_a_long_drop_list_is_capped_and_says_how_many_it_did_not_print(cd):
     assert rc == 0
     assert "... and 15 more" in out
     assert out.count("#   drop ") == 10
+
+
+def test_a_run_renamed_by_run_name_is_still_counted_as_delivered(cd, monkeypatch):
+    """Rule 7. The join key is the workflow FILE, because a run's name is not the workflow's.
+
+    `run-name:` lets a run call itself anything. Keyed on name, such a run does not join to the
+    workflow that promised it: its deliveries vanish, every occurrence becomes a miss, and the
+    census raises a false alarm -- the one direction this instrument may not fail in (rule 6).
+    Here the workflow is `nightly` and its run calls itself "nightly for main @ abc123"; the
+    delivery must still land.
+    """
+    now = dt.datetime(2026, 8, 28, 12, 0, tzinfo=cd.UTC)
+    monkeypatch.setattr(cd, "gh_pages", lambda *a, **k: [{"workflows": [
+        {"state": "active", "name": "nightly", "path": ".github/workflows/nightly.yml"}]}])
+    monkeypatch.setattr(cd, "crons_of", lambda *a, **k: ["0 * * * *"])
+    monkeypatch.setattr(cd, "scheduled_runs", lambda *a, **k: [
+        (".github/workflows/nightly.yml", now - dt.timedelta(minutes=60))])
+    out = cd.measure_repo("acme/repo", now, 2)
+    assert out["promised"] >= 1
+    assert out["delivered"] == 1, "a renamed run stopped joining: the census now invents misses"
+
+
+def test_the_join_key_is_the_workflow_file_on_both_sides(cd, monkeypatch):
+    """Rule 7, stated against the code rather than one scenario, so a revert cannot be silent.
+
+    Both halves of the join must read `path`: the run list that builds `fired`, and the workflow
+    row that looks into it. A run object whose `path` is absent joins to nothing -- which is why
+    the live check that every run carries one is recorded in `scheduled_runs`' docstring.
+    """
+    src = (ROOT / "scripts/cron-delivery").read_text()
+    assert 'out.append((r.get("path")' in src, "the run half of the join left `path`"
+    assert 'fired.get(w["path"]' in src, "the workflow half of the join left `path`"
+    assert 'fired.get(w["name"]' not in src, "keyed on run name again; `run-name:` breaks it"

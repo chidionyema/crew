@@ -5,6 +5,11 @@ Fly, and the open P1 fires. Every row is a command and its output, rebuilt hourl
 row that could not be measured says NOT RUN rather than PASS. Read it before you measure
 anything yourself and before you ask the founder anything.
 
+**Who we are to each other:** [`docs/ROAD-TO-9D.md`](docs/ROAD-TO-9D.md) is the two-stage road
+from the [depth-psychology audit](docs/audits/depth-psychology-founder-and-crew-2026-08-28.md)
+of the founder and the crew to one organism; [`roles/founder.md`](roles/founder.md) is who he
+is. Pinned as crew#596. Read them when you wonder why a rule exists.
+
 A conversation becomes a tracked, verified build. The GitHub issue is the shared
 brain, and this tool is the only thing that writes to it.
 

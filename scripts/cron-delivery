@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Does GitHub run this estate's crons? Measure it; do not assume it (crew#554).
+
+Every `max_age_hours` bar in `drills/catalogue.yaml`, and every "runs nightly" sentence in
+the estate's docs, rests on GitHub delivering a `schedule` event near the minute the cron
+asks for. Over the 24h to 2026-08-28T12:00Z it delivered 31 of 1,457 due occurrences, and
+the 31 it did deliver were a median of 10 minutes and a p90 of 675 minutes late. Neither
+number was visible anywhere: a workflow that never fires produces no failure, only silence,
+and a workflow that fires 11 hours late still reports success.
+
+This is the instrument for that (LAW 28). It answers three questions in one pass:
+
+  share     -- of the occurrences each repo's crons were due, how many became runs
+  lateness  -- of the runs that did arrive, how far past their due minute
+  heartbeat -- for the workflows named on the command line, how many of the last N hours
+               had a CLOCK run (a `schedule`, or a `workflow_dispatch` by a `[bot]`) as
+               opposed to only somebody's push. A push proves the drill passes on that
+               commit and stops when the person stops; it is not a heartbeat, and idp#579
+               taught the drill dispatcher the same distinction.
+
+Nothing here is hardcoded to an account (LAW 46): the owner comes from the authenticated
+`gh` login unless `--owner` says otherwise, and the repositories are discovered, not listed.
+
+  scripts/cron-delivery                                  # every repo the owner has
+  scripts/cron-delivery --hours 24 --heartbeat idp:login-drill.yml,idp:trace-drill.yml
+  scripts/cron-delivery --owner someone-else --repos idp,crew
+
+Exit status is 0 when the measurement ran, 2 when a `gh` call refused, so a caller can tell
+"the estate is healthy" apart from "we did not look" -- the failure this file exists to end.
+"""
+import argparse, json, subprocess, sys, datetime as dt, statistics as st
+from collections import defaultdict
+
+UTC = dt.timezone.utc
+STAMP = "%Y-%m-%dT%H:%M:%SZ"
+REFUSED = []          # every gh call that failed, so the report can say so out loud
+
+
+def gh(args, jq=None, absent_ok=False):
+    """One `gh api`/`gh` call. Returns stdout, or None having recorded the refusal.
+
+    `absent_ok` means a 404 is an ANSWER, not a refusal. GitHub's workflows API lists
+    dynamic workflows -- dependabot's, and the default security scan -- that have no file
+    in the repository, so reading their path 404s by design. Counting those as refusals
+    put 67 lines under "the rows above are incomplete" on the first live run and would
+    have exited 2 on a perfectly good measurement. An instrument that cries wolf is one
+    nobody reads (LAW 28), and a guard that refuses correct work is an outage (LAW 38).
+    """
+    cmd = list(args) + (["--jq", jq] if jq else [])
+    p = subprocess.run(cmd, capture_output=True, text=True)
+    if p.returncode:
+        if absent_ok and "404" in p.stderr:
+            return None
+        REFUSED.append("%s -> exit %d %s" % (" ".join(cmd[:4]), p.returncode,
+                                             p.stderr.strip().splitlines()[:1]))
+        return None
+    return p.stdout
+
+
+def gh_pages(path, per_page=100):
+    """`gh api --paginate` concatenates JSON documents; decode them into a list of pages."""
+    txt = gh(["gh", "api", "%s?per_page=%d" % (path, per_page), "--paginate"])
+    if txt is None:
+        return None
+    pages, dec, i, txt = [], json.JSONDecoder(), 0, txt.strip()
+    while i < len(txt):
+        obj, i = dec.raw_decode(txt, i)
+        pages.append(obj)
+        while i < len(txt) and txt[i] in " \n\r\t":
+            i += 1
+    return pages
+
+
+def field(expr, lo, hi):
+    """Expand one cron field to the values it matches: *, a, a-b, */n, a-b/n, comma lists."""
+    out = set()
+    for part in expr.split(","):
+        step = 1
+        if "/" in part:
+            part, s = part.split("/", 1)
+            step = int(s)
+        if part == "*":
+            a, b = lo, hi
+        elif "-" in part:
+            a, b = (int(x) for x in part.split("-", 1))
+        else:
+            a = b = int(part)
+            if step != 1:
+                b = hi
+        out |= set(range(a, b + 1, step))
+    return out
+
+
+def parse(crons):
+    """Cron strings -> matchable field sets. Five integer fields is not worth a dependency."""
+    out = []
+    for c in crons:
+        f = c.split()
+        if len(f) != 5:
+            continue
+        try:
+            out.append((field(f[0], 0, 59), field(f[1], 0, 23), field(f[2], 1, 31),
+                        field(f[3], 1, 12), field(f[4], 0, 6)))
+        except ValueError:
+            continue
+    return out
+
+
+def occurrences(crons, start, end):
+    """Every minute in [start, end] at which one of these crons was due."""
+    parsed, out, t = parse(crons), [], start.replace(second=0, microsecond=0)
+    while t <= end:
+        for mins, hrs, dom, mon, dow in parsed:
+            if (t.minute in mins and t.hour in hrs and t.day in dom
+                    and t.month in mon and (t.weekday() + 1) % 7 in dow):
+                out.append(t)
+                break
+        t += dt.timedelta(minutes=1)
+    return out
+
+
+def crons_of(repo, wf_path):
+    """The cron expressions a workflow file declares, read from the repo's default branch."""
+    txt = gh(["gh", "api", "repos/%s/contents/%s" % (repo, wf_path),
+              "-H", "Accept: application/vnd.github.raw"], absent_ok=True)
+    if txt is None:
+        return []
+    out, inside = [], False
+    for line in txt.splitlines():
+        s = line.strip()
+        if s.startswith("schedule:"):
+            inside = True
+        elif inside:
+            if s.startswith("- cron:"):
+                #: a cron expression never contains '#', so a trailing comment is safe to cut
+                out.append(s.split(":", 1)[1].split("#")[0].strip().strip("'\""))
+            elif s and not s.startswith("#") and not s.startswith("-"):
+                inside = False
+    return out
+
+
+def by_the_clock(event, actor):
+    """Is this run the heartbeat itself? The same predicate the drill dispatcher and
+    `bin/idp-drills-row` use, so the three cannot drift into disagreeing (idp#579)."""
+    if event == "schedule":
+        return True
+    return event == "workflow_dispatch" and str(actor or "").endswith("[bot]")
+
+
+def repos_of(owner, only):
+    if only:
+        return ["%s/%s" % (owner, r.strip()) for r in only.split(",") if r.strip()]
+    txt = gh(["gh", "repo", "list", owner, "-L", "200", "--json", "nameWithOwner",
+              "-q", ".[].nameWithOwner"])
+    return sorted(txt.split()) if txt else []
+
+
+def scheduled_runs(repo, since):
+    """Every `schedule` run created since `since`, as (workflow name, created minute)."""
+    txt = gh(["gh", "run", "list", "-R", repo, "--event", "schedule", "-L", "400",
+              "--json", "createdAt,workflowName"])
+    if txt is None:
+        return None
+    out = []
+    for r in json.loads(txt or "[]"):
+        if r.get("createdAt", "") >= since:
+            out.append((r.get("workflowName"),
+                        dt.datetime.strptime(r["createdAt"][:19] + "Z", STAMP)
+                          .replace(tzinfo=UTC, second=0, microsecond=0)))
+    return out
+
+
+def measure_repo(repo, now, hours):
+    """Per workflow: what its crons promised, what arrived, and how late each arrival was."""
+    pages = gh_pages("repos/%s/actions/workflows" % repo)
+    if pages is None:
+        return None
+    start = now - dt.timedelta(hours=hours)
+    fired = defaultdict(list)
+    runs = scheduled_runs(repo, start.strftime(STAMP))
+    if runs is None:
+        return None
+    for name, at in runs:
+        fired[name].append(at)
+    promised, delivered, lates, wfs = 0, 0, [], 0
+    for w in [x for pg in pages for x in pg.get("workflows", [])
+              if x.get("state") == "active"]:
+        crons = crons_of(repo, w["path"])
+        if not crons:
+            continue
+        wfs += 1
+        promised += len(occurrences(crons, start, now))
+        got = sorted(fired.get(w["name"], []))
+        delivered += len(got)
+        # widen the search back a day: a run late by hours must still find the minute it was
+        # due, or lateness is silently recorded as a drop -- the error this instrument made
+        # once already, and the reason the retraction on crew#554 exists.
+        due = occurrences(crons, start - dt.timedelta(hours=24), now)
+        for g in got:
+            prior = [t for t in due if t <= g]
+            if prior:
+                lates.append((g - max(prior)).total_seconds() / 60)
+    return dict(repo=repo, wfs=wfs, promised=promised, delivered=delivered, lates=lates)
+
+
+def measure_heartbeat(spec, owner, now, hours):
+    """For `repo:workflow.yml`, how many of the last `hours` hours had a clock run."""
+    repo, wf = spec.split(":", 1)
+    if "/" not in repo:
+        repo = "%s/%s" % (owner, repo)
+    top = now.replace(minute=0, second=0, microsecond=0)
+    since = (top - dt.timedelta(hours=hours)).strftime(STAMP)
+    txt = gh(["gh", "api", "--paginate",
+              "repos/%s/actions/workflows/%s/runs?created=>=%s&per_page=100" % (repo, wf, since),
+              "--jq", "[.workflow_runs[] | {at: .created_at, event: .event, "
+                      "actor: .triggering_actor.login}]"])
+    if txt is None:
+        return None
+    got = []
+    for page in txt.splitlines():
+        try:
+            got.extend(json.loads(page))
+        except ValueError:
+            pass
+    by_hour, events = defaultdict(set), defaultdict(int)
+    for r in got:
+        t = dt.datetime.strptime(r["at"], STAMP).replace(tzinfo=UTC)
+        if t < top - dt.timedelta(hours=hours):
+            continue
+        events[r["event"]] += 1
+        mark = "clock" if by_the_clock(r["event"], r.get("actor")) else r["event"]
+        by_hour[t.replace(minute=0, second=0, microsecond=0)].add(mark)
+    return dict(spec=spec, hours=hours, any=len(by_hour),
+                clock=sum(1 for v in by_hour.values() if "clock" in v),
+                pushonly=sum(1 for v in by_hour.values() if "clock" not in v),
+                events=", ".join("%s:%d" % kv for kv in sorted(events.items())))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--owner", help="default: the authenticated gh login")
+    ap.add_argument("--repos", help="comma list of names; default: every repo the owner has")
+    ap.add_argument("--hours", type=int, default=24)
+    ap.add_argument("--heartbeat", default="",
+                    help="comma list of repo:workflow.yml to grade for clock coverage")
+    a = ap.parse_args()
+
+    owner = a.owner or (gh(["gh", "api", "user", "-q", ".login"]) or "").strip()
+    if not owner:
+        print("NOT RUN: no --owner and `gh api user` refused; is gh logged in?")
+        return 2
+    now = dt.datetime.now(UTC).replace(second=0, microsecond=0)
+    print("# window: the %dh to %s, owner %s" % (a.hours, now.strftime(STAMP), owner))
+
+    print("\n%-34s %7s %10s %10s %8s" % ("repo", "sched wf", "due", "delivered", "share"))
+    lates = []
+    for repo in repos_of(owner, a.repos):
+        m = measure_repo(repo, now, a.hours)
+        if m is None:
+            print("%-34s NOT RUN: the API refused; see the refusals below" % repo)
+            continue
+        if not m["wfs"]:
+            continue
+        lates += m["lates"]
+        share = "%.0f%%" % (100.0 * m["delivered"] / m["promised"]) if m["promised"] else "n/a"
+        print("%-34s %7d %10d %10d %8s" % (repo, m["wfs"], m["promised"], m["delivered"], share))
+
+    if lates:
+        lates.sort()
+        p90 = lates[int(0.9 * (len(lates) - 1))]
+        print("\n# lateness of the runs that DID arrive, n=%d" % len(lates))
+        print("#   median %.0fm   p90 %.0fm   max %.0fm" % (st.median(lates), p90, max(lates)))
+        print("#   on time (<=5m) %d   late >30m %d   late >2h %d"
+              % (sum(1 for x in lates if x <= 5), sum(1 for x in lates if x > 30),
+                 sum(1 for x in lates if x > 120)))
+        print("#   a bar of max_age_hours=N is safe only while N exceeds %.1fh" % (p90 / 60.0))
+
+    if a.heartbeat:
+        print("\n%-34s %6s %8s %6s %10s  %s"
+              % ("workflow", "hours", "any run", "clock", "push-only", "events in window"))
+        for spec in [s for s in a.heartbeat.split(",") if s.strip()]:
+            h = measure_heartbeat(spec.strip(), owner, now, a.hours)
+            if h is None:
+                print("%-34s NOT RUN: the API refused" % spec)
+                continue
+            print("%-34s %6d %8d %6d %10d  %s"
+                  % (h["spec"], h["hours"], h["any"], h["clock"], h["pushonly"], h["events"]))
+        print("\n# a push-only hour is an hour with activity but no heartbeat: the drill passed")
+        print("# on somebody's commit and nothing checked the estate once they stopped.")
+
+    if REFUSED:
+        print("\n# %d gh call(s) refused, so the rows above are incomplete:" % len(REFUSED))
+        for r in REFUSED[:10]:
+            print("#   %s" % r)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

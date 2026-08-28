@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""law-vocab — count the vocabulary of the estate's law text (crew#595 CP1, road Stage 1.4).
+
+The depth-psychology audit (crew#593) reported: never 118, fail 42, refuse 32, must 31,
+incident 28, mistake 23 — praise 0, thank 0. Those were counted once, by hand, and then
+quoted. This prints them from the live files so the number is never quoted from memory
+(LAW 2, hard rule 2) and Stage 1.4's gate (praise > 0) has a command.
+
+    bin/law-vocab            # table over the default files
+    bin/law-vocab --json     # machine shape for estate-snapshot
+
+Files come from $LAW_FILES (colon-separated) or the defaults below; a missing file is
+reported as NOT RUN for that row, never skipped silently (LAW 46: no hardcoded home).
+"""
+import json, os, re, sys
+
+DEFAULTS = ["~/.claude/AGENTS.md", "~/AGENTS-FULL.md", "~/.claude/LAWS-INCIDENTS.md"]
+PUNISH = ["never", "fail", "refuse", "must", "incident", "mistake"]
+REWARD = ["praise", "thank", "well done", "good work"]
+
+
+def count(text: str, word: str) -> int:
+    return len(re.findall(r"\b" + re.escape(word) + r"\w*", text, re.I))
+
+
+def main(argv):
+    files = os.environ.get("LAW_FILES", ":".join(DEFAULTS)).split(":")
+    rows, missing = {}, []
+    text = ""
+    for f in files:
+        p = os.path.expanduser(f)
+        if not os.path.exists(p):
+            missing.append(f)
+            continue
+        text += open(p, encoding="utf-8", errors="replace").read() + "\n"
+    for w in PUNISH + REWARD:
+        rows[w] = count(text, w)
+    out = {"files": files, "missing": missing, "punish": {w: rows[w] for w in PUNISH},
+           "reward": {w: rows[w] for w in REWARD},
+           "ratio": (sum(rows[w] for w in REWARD) / max(1, sum(rows[w] for w in PUNISH)))}
+    if "--json" in argv:
+        print(json.dumps(out, indent=1)); return 0
+    for f in missing:
+        print(f"NOT RUN  {f}: file missing")
+    print("punish   " + "  ".join(f"{w} {rows[w]}" for w in PUNISH))
+    print("reward   " + "  ".join(f"{w} {rows[w]}" for w in REWARD))
+    print(f"ratio    reward/punish {out['ratio']:.3f}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

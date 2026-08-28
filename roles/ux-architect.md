@@ -24,7 +24,7 @@ Re-measure before you change anything; a baseline you did not produce is a lead.
 
 | What | Number | Command (run in `idp` at origin/main b426a4d) |
 |---|---|---|
-| Founder-surface cards on home | 15, one flat alphabetical grid | `grep -c 'type: founder-surface' backstage/founder/catalog-info.yaml`; `EstateHome.tsx:130` sorts by title |
+| Founder-surface cards on home | 18, one flat alphabetical grid | `grep -c 'type: founder-surface' backstage/founder/catalog-info.yaml`; `EstateHome.tsx:130` sorts by title |
 | Cards that show a health state | 0 | `grep -c status backstage/packages/app/src/modules/home/EstateHome.tsx` |
 | Status colours in the theme | 0 (accent `#e0762a` on navy `#141a26` exists; no red, no green) | `grep -ciE '#c62828\|#2e7d32\|error:\|success:' backstage/packages/app/src/modules/theme/index.tsx` |
 | Stock Backstage copy in the app | 0 | `git grep -ci 'welcome to backstage\|how to edit this card' -- backstage/packages/app/src` |
@@ -34,7 +34,7 @@ Re-measure before you change anything; a baseline you did not produce is a lead.
 
 The ten defects ranked on 2026-08-29, each with its file, are on crew#612 (comment: UX audit).
 The first three are the ones the founder feels from a phone: no triage order among the
-15 cards, no health state on any card, a stat strip that counts kinds instead of reds.
+18 cards, no health state on any card, a stat strip that counts kinds instead of reds.
 
 ## The loop
 

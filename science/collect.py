@@ -332,6 +332,27 @@ ORDER BY day;
 -- crew#371 act/model_routing: which model served the calls and what each cost, per day.
 -- The history row carries by_model (usd) and reqs_by_model (calls) since claude-guards
 -- crew#371; rows written before that yield nothing here rather than a zero.
+-- crew#372 act/context_waste: how much of what was sent to the model was the same context
+-- again. The history row carries tokens by driver and reread_pct since claude-guards
+-- crew#372; cache_read is the prefix the model re-read unchanged from the previous call.
+-- Rows written before that yield nothing here, never a zero.
+DROP VIEW IF EXISTS context_waste;
+CREATE VIEW context_waste AS
+SELECT
+    json_extract(payload, '$.day')                       AS day,
+    MAX(json_extract(payload, '$.tokens.raw_input')
+        + json_extract(payload, '$.tokens.cache_read')
+        + json_extract(payload, '$.tokens.cache_write')) AS tokens_sent,
+    MAX(json_extract(payload, '$.tokens.cache_read'))    AS tokens_reread,
+    MAX(json_extract(payload, '$.reread_pct'))           AS tokens_reread_pct,
+    MAX(json_extract(payload, '$.tokens.output'))        AS tokens_output
+FROM facts
+WHERE source = 'spend'
+  AND json_extract(payload, '$.tokens.cache_read') IS NOT NULL
+  AND json_extract(payload, '$.day') >= '2020-01-01'
+GROUP BY day
+ORDER BY day;
+
 DROP VIEW IF EXISTS spend_by_model;
 CREATE VIEW spend_by_model AS
 SELECT

@@ -10,7 +10,9 @@ from the [depth-psychology audit](docs/audits/depth-psychology-founder-and-crew-
 of the founder and the crew to one organism; [`roles/founder.md`](roles/founder.md) is who he
 is. Pinned as crew#596. Read them when you wonder why a rule exists. The
 [clinical note on one session](docs/audits/operator-clinical-note-14ed6c8b-2026-08-28.md)
-(crew#598) is the same reading applied to a single bad day, from the inside.
+(crew#598) is the same reading applied to a single bad day, from the inside, and the
+[whole-estate depth audit](docs/audits/depth-audit-the-whole-estate-2026-08-28.md)
+covers what crew#593 also asked for: the guards, services, platform, idp, apps and science.
 
 A conversation becomes a tracked, verified build. The GitHub issue is the shared
 brain, and this tool is the only thing that writes to it.

@@ -14,7 +14,7 @@ sys.path.insert(0, str(SCIENCE))
 import ledger  # noqa: E402
 import showcase  # noqa: E402
 
-NOW = dt.datetime(2026, 8, 28, 0, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 8, 28, 0, 0, tzinfo=dt.UTC)
 TITLE = "Ideas: the prospector contract (crew#537)"
 
 

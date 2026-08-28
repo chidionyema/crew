@@ -13,8 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "science"))
-import collect  # noqa: E402
-import decisions_intake as di  # noqa: E402
+import collect
+import decisions_intake as di
 
 BODY = """No-Issue: tracked in chidionyema/crew#1
 Author-session: 09cd04a6
@@ -51,7 +51,7 @@ def test_pull_dedups_by_pr_and_records_state(tmp_path):
     fetched = lambda repo, since: [PR] if repo.endswith("/crew") else []  # noqa: E731
     di.pull(log=log, fetcher=fetched, state=state, now=NOW)
     di.pull(log=log, fetcher=fetched, state=state, now=NOW)
-    rows = [json.loads(l) for l in log.read_text().splitlines()]
+    rows = [json.loads(line) for line in log.read_text().splitlines()]
     assert len(rows) == 1 and rows[0]["pr"] == PR["html_url"]
     assert json.loads(state.read_text())["since"] == "2026-08-27T00:00:00Z"
 

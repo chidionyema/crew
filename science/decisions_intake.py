@@ -91,7 +91,7 @@ def known_prs(log: pathlib.Path = LOG) -> set[str]:
     for ln in log.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             r = json.loads(ln)
-        except Exception:
+        except json.JSONDecodeError:
             continue
         if r.get("kind") == "decision" and r.get("pr"):
             out.add(r["pr"])
@@ -141,7 +141,7 @@ def table(log: pathlib.Path = LOG) -> str:
     for ln in (log.read_text(encoding="utf-8", errors="replace").splitlines() if log.exists() else []):
         try:
             r = json.loads(ln)
-        except Exception:
+        except json.JSONDecodeError:
             continue
         if r.get("kind") != "decision":
             continue

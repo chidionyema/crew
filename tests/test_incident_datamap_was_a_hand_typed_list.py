@@ -79,6 +79,14 @@ def test_every_domain_raises_rather_than_answering_partially_when_its_world_is_m
     monkeypatch.setattr(producers, "OKE_KUBECONFIG", tmp_path / "no-kube")
     monkeypatch.setattr(producers, "CLAUDE_HOME", tmp_path / "no-claude")
     monkeypatch.setattr(producers, "HOME", tmp_path)
+
+    # crew#558: cluster_live's world stopped being the kubeconfig on 2026-08-28 -- it reads the
+    # cluster's own receipt out of a GitHub job log, so taking `gh` away is how you take its world
+    # away. No domain in this list may answer from a shell that has nothing to shell out to.
+    def _no_tools(cmd, *a, **k):
+        raise FileNotFoundError(f"no {cmd[0]} on this host")
+    monkeypatch.setattr(producers.subprocess, "run", _no_tools)
+
     for name in ("mac", "warehouse", "cluster", "cluster_live", "endpoint", "hook", "transcript"):
         with pytest.raises((OSError, RuntimeError, KeyError, ValueError, StopIteration)):
             producers.DOMAINS[name]()

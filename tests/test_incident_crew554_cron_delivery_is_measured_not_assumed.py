@@ -24,6 +24,7 @@ checked. `scripts/cron-delivery` is the instrument; these are the rules it must 
      `a-b/n` and comma lists, on all five fields.
 """
 import datetime as dt
+import importlib.machinery
 import importlib.util
 import os
 import pathlib
@@ -33,15 +34,16 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TOOL = ROOT / "scripts" / "cron-delivery"
-UTC = dt.timezone.utc
+UTC = dt.UTC
 
 
 def _mod():
     """Load the extensionless script as a module."""
-    spec = importlib.util.spec_from_loader(
-        "cron_delivery", importlib.machinery.SourceFileLoader("cron_delivery", str(TOOL)))
+    loader = importlib.machinery.SourceFileLoader("cron_delivery", str(TOOL))
+    spec = importlib.util.spec_from_loader("cron_delivery", loader)
+    assert spec is not None, f"could not build a module spec for {TOOL}"
     m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
+    loader.exec_module(m)
     return m
 
 
@@ -102,11 +104,10 @@ def test_a_refused_call_is_named_and_changes_the_exit_status(tmp_path):
     fake = tmp_path / "gh"
     fake.write_text("#!/bin/sh\necho 'refused: no token' >&2\nexit 1\n")
     fake.chmod(0o755)
-    env = dict(os.environ, PATH="%s:%s" % (tmp_path, os.environ["PATH"]))
+    env = dict(os.environ, PATH=f'{tmp_path}:{os.environ["PATH"]}')
     p = subprocess.run(["python3", str(TOOL), "--owner", "nobody", "--repos", "a,b"],
-                       capture_output=True, text=True, env=env)
-    assert p.returncode == 2, "a report built on refused calls exited %d: %s" % (
-        p.returncode, p.stdout)
+                       capture_output=True, text=True, env=env, check=False)
+    assert p.returncode == 2, f"a report built on refused calls exited {p.returncode}: {p.stdout}"
     assert "refused" in p.stdout, p.stdout
     assert "NOT RUN" in p.stdout, p.stdout
 
@@ -117,8 +118,8 @@ def test_a_missing_owner_is_not_an_empty_healthy_report(tmp_path):
     fake = tmp_path / "gh"
     fake.write_text("#!/bin/sh\nexit 1\n")
     fake.chmod(0o755)
-    env = dict(os.environ, PATH="%s:%s" % (tmp_path, os.environ["PATH"]))
-    p = subprocess.run(["python3", str(TOOL)], capture_output=True, text=True, env=env)
+    env = dict(os.environ, PATH=f'{tmp_path}:{os.environ["PATH"]}')
+    p = subprocess.run(["python3", str(TOOL)], capture_output=True, text=True, env=env, check=False)
     assert p.returncode == 2, p.stdout
     assert "NOT RUN" in p.stdout, p.stdout
 
@@ -126,10 +127,11 @@ def test_a_missing_owner_is_not_an_empty_healthy_report(tmp_path):
 def test_no_owner_repo_or_account_is_a_literal(cd):
     """Rule 4, LAW 46."""
     src = TOOL.read_text()
-    body = "\n".join(l for l in src.splitlines()
-                     if not l.strip().startswith("#") and "chidionyema" not in l.split("--")[0])
+    body = "\n".join(line for line in src.splitlines()
+                     if not line.strip().startswith("#")
+                     and "chidionyema" not in line.split("--")[0])
     for literal in ["haworks-platform", "prospector", "hermes-v2"]:
-        assert literal not in body, "%s is hardcoded; discover it instead" % literal
+        assert literal not in body, f"{literal} is hardcoded; discover it instead"
     assert 'gh", "api", "user", "-q", ".login"' in src, "the owner is no longer discovered"
     assert '"gh", "repo", "list"' in src, "the repositories are no longer discovered"
 
@@ -161,7 +163,8 @@ def test_a_malformed_cron_is_skipped_not_crashed_on(cd):
 
 def test_the_tool_runs_and_explains_itself(cd):
     """--help works without touching the network, so the instrument is discoverable."""
-    p = subprocess.run(["python3", str(TOOL), "--help"], capture_output=True, text=True)
+    p = subprocess.run(["python3", str(TOOL), "--help"],
+                       capture_output=True, text=True, check=False)
     assert p.returncode == 0, p.stderr
     assert "--heartbeat" in p.stdout and "--owner" in p.stdout
 
@@ -198,3 +201,26 @@ def test_a_real_refusal_is_still_recorded(cd, monkeypatch):
     assert cd.crons_of("owner/repo", ".github/workflows/real.yml") == []
     assert len(cd.REFUSED) == 1, "a 403 was swallowed by the 404 exemption"
     cd.REFUSED.clear()
+
+
+@pytest.mark.parametrize("values,q,expected", [
+    ([6, 12], 0.9, 12),          # the live n=2 run that printed a p90 BELOW the median
+    ([1], 0.9, 1),
+    ([1, 2], 0.5, 1),
+    (list(range(1, 11)), 0.9, 9),
+    (list(range(1, 101)), 0.9, 90),
+])
+def test_the_percentile_is_nearest_rank_not_a_floored_index(cd, values, q, expected):
+    """`int(q * (n - 1))` floors to the FIRST element on a small sample. A live run with
+    two data points printed `median 9m  p90 6m` -- a p90 under the median. It agrees with
+    nearest-rank at n=61, so the 670m published on crew#554 stands, but it is wrong on
+    exactly the thin sample a first look at a new repository produces."""
+    assert cd.percentile(sorted(values), q) == expected
+
+
+def test_the_p90_is_never_below_the_median(cd):
+    """The property the floored index broke, over every sample size the tool can meet."""
+    import statistics
+    for n in range(1, 40):
+        vals = sorted(x * 7 % 23 for x in range(n))
+        assert cd.percentile(vals, 0.9) >= statistics.median(vals), n

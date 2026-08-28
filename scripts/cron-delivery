@@ -28,10 +28,16 @@ Nothing here is hardcoded to an account (LAW 46): the owner comes from the authe
 Exit status is 0 when the measurement ran, 2 when a `gh` call refused, so a caller can tell
 "the estate is healthy" apart from "we did not look" -- the failure this file exists to end.
 """
-import argparse, json, subprocess, sys, datetime as dt, statistics as st
+import argparse
+import datetime as dt
+import json
+import math
+import statistics as st
+import subprocess
+import sys
 from collections import defaultdict
 
-UTC = dt.timezone.utc
+UTC = dt.UTC
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
 REFUSED = []          # every gh call that failed, so the report can say so out loud
 
@@ -47,19 +53,19 @@ def gh(args, jq=None, absent_ok=False):
     nobody reads (LAW 28), and a guard that refuses correct work is an outage (LAW 38).
     """
     cmd = list(args) + (["--jq", jq] if jq else [])
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if p.returncode:
         if absent_ok and "404" in p.stderr:
             return None
-        REFUSED.append("%s -> exit %d %s" % (" ".join(cmd[:4]), p.returncode,
-                                             p.stderr.strip().splitlines()[:1]))
+        REFUSED.append(f'{" ".join(cmd[:4])} -> exit {p.returncode} '
+                       f"{p.stderr.strip().splitlines()[:1]}")
         return None
     return p.stdout
 
 
 def gh_pages(path, per_page=100):
     """`gh api --paginate` concatenates JSON documents; decode them into a list of pages."""
-    txt = gh(["gh", "api", "%s?per_page=%d" % (path, per_page), "--paginate"])
+    txt = gh(["gh", "api", f"{path}?per_page={per_page}", "--paginate"])
     if txt is None:
         return None
     pages, dec, i, txt = [], json.JSONDecoder(), 0, txt.strip()
@@ -121,7 +127,7 @@ def occurrences(crons, start, end):
 
 def crons_of(repo, wf_path):
     """The cron expressions a workflow file declares, read from the repo's default branch."""
-    txt = gh(["gh", "api", "repos/%s/contents/%s" % (repo, wf_path),
+    txt = gh(["gh", "api", f"repos/{repo}/contents/{wf_path}",
               "-H", "Accept: application/vnd.github.raw"], absent_ok=True)
     if txt is None:
         return []
@@ -147,9 +153,24 @@ def by_the_clock(event, actor):
     return event == "workflow_dispatch" and str(actor or "").endswith("[bot]")
 
 
+def percentile(sorted_values, q):
+    """The nearest-rank percentile: the smallest value at or above q of the sample.
+
+    `int(q * (n - 1))` floors, and on a small sample it floors all the way to the first
+    element -- a live run with n=2 printed `median 9m  p90 6m`, a p90 below the median,
+    which is not a percentile at all. It happens to agree with nearest-rank at n=61, so
+    the 670m already published is unaffected; it is wrong wherever the sample is thin,
+    which is exactly the case a first look at a new repository produces.
+    """
+    if not sorted_values:
+        raise ValueError("no values")
+    i = max(0, math.ceil(q * len(sorted_values)) - 1)
+    return sorted_values[min(i, len(sorted_values) - 1)]
+
+
 def repos_of(owner, only):
     if only:
-        return ["%s/%s" % (owner, r.strip()) for r in only.split(",") if r.strip()]
+        return [f"{owner}/{r.strip()}" for r in only.split(",") if r.strip()]
     txt = gh(["gh", "repo", "list", owner, "-L", "200", "--json", "nameWithOwner",
               "-q", ".[].nameWithOwner"])
     return sorted(txt.split()) if txt else []
@@ -172,7 +193,7 @@ def scheduled_runs(repo, since):
 
 def measure_repo(repo, now, hours):
     """Per workflow: what its crons promised, what arrived, and how late each arrival was."""
-    pages = gh_pages("repos/%s/actions/workflows" % repo)
+    pages = gh_pages(f"repos/{repo}/actions/workflows")
     if pages is None:
         return None
     start = now - dt.timedelta(hours=hours)
@@ -200,18 +221,18 @@ def measure_repo(repo, now, hours):
             prior = [t for t in due if t <= g]
             if prior:
                 lates.append((g - max(prior)).total_seconds() / 60)
-    return dict(repo=repo, wfs=wfs, promised=promised, delivered=delivered, lates=lates)
+    return {"repo": repo, "wfs": wfs, "promised": promised, "delivered": delivered, "lates": lates}
 
 
 def measure_heartbeat(spec, owner, now, hours):
     """For `repo:workflow.yml`, how many of the last `hours` hours had a clock run."""
     repo, wf = spec.split(":", 1)
     if "/" not in repo:
-        repo = "%s/%s" % (owner, repo)
+        repo = f"{owner}/{repo}"
     top = now.replace(minute=0, second=0, microsecond=0)
     since = (top - dt.timedelta(hours=hours)).strftime(STAMP)
     txt = gh(["gh", "api", "--paginate",
-              "repos/%s/actions/workflows/%s/runs?created=>=%s&per_page=100" % (repo, wf, since),
+              f"repos/{repo}/actions/workflows/{wf}/runs?created=>={since}&per_page=100",
               "--jq", "[.workflow_runs[] | {at: .created_at, event: .event, "
                       "actor: .triggering_actor.login}]"])
     if txt is None:
@@ -230,10 +251,10 @@ def measure_heartbeat(spec, owner, now, hours):
         events[r["event"]] += 1
         mark = "clock" if by_the_clock(r["event"], r.get("actor")) else r["event"]
         by_hour[t.replace(minute=0, second=0, microsecond=0)].add(mark)
-    return dict(spec=spec, hours=hours, any=len(by_hour),
-                clock=sum(1 for v in by_hour.values() if "clock" in v),
-                pushonly=sum(1 for v in by_hour.values() if "clock" not in v),
-                events=", ".join("%s:%d" % kv for kv in sorted(events.items())))
+    return {"spec": spec, "hours": hours, "any": len(by_hour),
+                "clock": sum(1 for v in by_hour.values() if "clock" in v),
+                "pushonly": sum(1 for v in by_hour.values() if "clock" not in v),
+                "events": ", ".join(f"{k}:{v}" for k, v in sorted(events.items()))}
 
 
 def main():
@@ -250,48 +271,48 @@ def main():
         print("NOT RUN: no --owner and `gh api user` refused; is gh logged in?")
         return 2
     now = dt.datetime.now(UTC).replace(second=0, microsecond=0)
-    print("# window: the %dh to %s, owner %s" % (a.hours, now.strftime(STAMP), owner))
+    print(f"# window: the {a.hours}h to {now.strftime(STAMP)}, owner {owner}")
 
-    print("\n%-34s %7s %10s %10s %8s" % ("repo", "sched wf", "due", "delivered", "share"))
+    print(f'\n{"repo":<34} {"sched wf":>7} {"due":>10} {"delivered":>10} {"share":>8}')
     lates = []
     for repo in repos_of(owner, a.repos):
         m = measure_repo(repo, now, a.hours)
         if m is None:
-            print("%-34s NOT RUN: the API refused; see the refusals below" % repo)
+            print(f"{repo:<34} NOT RUN: the API refused; see the refusals below")
             continue
         if not m["wfs"]:
             continue
         lates += m["lates"]
-        share = "%.0f%%" % (100.0 * m["delivered"] / m["promised"]) if m["promised"] else "n/a"
-        print("%-34s %7d %10d %10d %8s" % (repo, m["wfs"], m["promised"], m["delivered"], share))
+        share = f'{100.0 * m["delivered"] / m["promised"]:.0f}%' if m["promised"] else "n/a"
+        print(f'{repo:<34} {m["wfs"]:>7} {m["promised"]:>10} {m["delivered"]:>10} {share:>8}')
 
     if lates:
         lates.sort()
-        p90 = lates[int(0.9 * (len(lates) - 1))]
-        print("\n# lateness of the runs that DID arrive, n=%d" % len(lates))
-        print("#   median %.0fm   p90 %.0fm   max %.0fm" % (st.median(lates), p90, max(lates)))
-        print("#   on time (<=5m) %d   late >30m %d   late >2h %d"
-              % (sum(1 for x in lates if x <= 5), sum(1 for x in lates if x > 30),
-                 sum(1 for x in lates if x > 120)))
-        print("#   a bar of max_age_hours=N is safe only while N exceeds %.1fh" % (p90 / 60.0))
+        p90 = percentile(lates, 0.9)
+        print(f"\n# lateness of the runs that DID arrive, n={len(lates)}")
+        print(f"#   median {st.median(lates):.0f}m   p90 {p90:.0f}m   max {max(lates):.0f}m")
+        print(f"#   on time (<=5m) {sum(1 for x in lates if x <= 5)}   "
+              f"late >30m {sum(1 for x in lates if x > 30)}   "
+              f"late >2h {sum(1 for x in lates if x > 120)}")
+        print(f"#   a bar of max_age_hours=N is safe only while N exceeds {p90 / 60.0:.1f}h")
 
     if a.heartbeat:
-        print("\n%-34s %6s %8s %6s %10s  %s"
-              % ("workflow", "hours", "any run", "clock", "push-only", "events in window"))
+        print(f'\n{"workflow":<34} {"hours":>6} {"any run":>8} {"clock":>6} '
+              f'{"push-only":>10}  events in window')
         for spec in [s for s in a.heartbeat.split(",") if s.strip()]:
             h = measure_heartbeat(spec.strip(), owner, now, a.hours)
             if h is None:
-                print("%-34s NOT RUN: the API refused" % spec)
+                print(f"{spec:<34} NOT RUN: the API refused")
                 continue
-            print("%-34s %6d %8d %6d %10d  %s"
-                  % (h["spec"], h["hours"], h["any"], h["clock"], h["pushonly"], h["events"]))
+            print(f'{h["spec"]:<34} {h["hours"]:>6} {h["any"]:>8} {h["clock"]:>6} '
+                  f'{h["pushonly"]:>10}  {h["events"]}')
         print("\n# a push-only hour is an hour with activity but no heartbeat: the drill passed")
         print("# on somebody's commit and nothing checked the estate once they stopped.")
 
     if REFUSED:
-        print("\n# %d gh call(s) refused, so the rows above are incomplete:" % len(REFUSED))
+        print(f"\n# {len(REFUSED)} gh call(s) refused, so the rows above are incomplete:")
         for r in REFUSED[:10]:
-            print("#   %s" % r)
+            print(f"#   {r}")
         return 2
     return 0
 

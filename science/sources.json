@@ -134,10 +134,10 @@
    "root": "home",
    "path": ".claude/DECISIONS.jsonl",
    "kind": "jsonl",
-   "time_field": "at",
+   "time_field": "ts",
    "receiver": "otlp",
-   "owner": "~/.claude/scripts/decision-log.py",
-   "method": "hand",
+   "owner": "scripts/science-collect",
+   "method": "poll",
    "retention_days": 3650,
    "sensitivity": "internal"
   },

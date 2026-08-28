@@ -86,15 +86,16 @@
     },
     {
       "key": "act/agent_decisions",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "what an agent chose, and what it rejected",
-      "why": "The transcripts hold the reasoning and nothing extracts it. The `decisions` source was built for this and its writer has been dead 55 hours.",
+      "why": "collected since crew#366 (2026-08-28): every merged PR's `## Options considered` block is a decision row; first pull filed 422 rows across 7 sessions",
       "ticket": "crew#366",
       "measures": [
         "decisions_per_session",
         "options_rejected",
         "reversals"
-      ]
+      ],
+      "reader": "science/decisions_intake.py pull (hourly, scripts/science-collect) appends kind=decision rows to ~/.claude/DECISIONS.jsonl (source `decisions`); warehouse view decisions_by_session (decisions, options_rejected, reversals); `python3 science/decisions_intake.py --print`"
     },
     {
       "key": "act/research",

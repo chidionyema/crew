@@ -44,6 +44,8 @@ AUTHOR_RE = re.compile(r"^\s*Author-session:\s*([A-Za-z0-9_-]+)", re.I | re.M)
 
 def _grammar():
     spec = importlib.util.spec_from_file_location("pr_evidence", SCIENCE.parent / "scripts" / "pr-evidence.py")
+    if spec is None or spec.loader is None:
+        raise SystemExit("decisions_intake: scripts/pr-evidence.py is not importable; the grammar lives there")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.OPTIONS_HEAD, mod.OPTIONS_CHOSEN
@@ -156,7 +158,7 @@ def table(log: pathlib.Path = LOG) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("verb", nargs="?", choices=["pull"])
     ap.add_argument("--print", action="store_true")
     a = ap.parse_args(argv)

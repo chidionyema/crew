@@ -73,6 +73,42 @@ code and IP ownership incl. contractor assignment; single-model-provider depende
 answers this); regulatory exposure; technical documentation and scalability metrics —
 qubit.capital/blog/ai-startup-due-diligence-documents-metrics, blog.promise.legal/ma-due-diligence-ai-products-checklist, fastdatascience.com/ai-due-diligence.
 
+## Forward-looking: glasses, robots, whatever comes after the phone (founder, 2026-08-28)
+
+Founder: "we also need to be prepared for glasses and robots, always forward looking." The
+hermes personal agent is sold today through a phone (Telegram). The surface is the cheapest
+part to change and the most expensive to be locked into, so:
+
+- **The agent is surface-agnostic by contract.** One agent core; a surface (Telegram, web,
+  voice, smart glasses, a robot body) is an adapter that speaks the same message/tool schema.
+  A feature that only works on one surface is a red row (R-H4). This is LAW 34 applied to the
+  human side instead of the model side.
+- **Horizon ledger, owned jointly with science.** `docs/product/HORIZONS.md` (CP2 writes the
+  first version): one row per emerging surface — consumer smart glasses, voice-first wearables,
+  home and workplace robots, in-car agents — with the SDK/platform a product would ship on,
+  the earliest date a paying customer could hold it, the evidence, and the one experiment
+  science runs to decide. Science grades the evidence (research ledger id); product grades
+  the readiness (is there a buyer path). A horizon with no experiment is a wish (LAW 44).
+- **First horizon experiment:** hermes on a voice-only surface (no screen) as the proxy for
+  glasses; measured as task-completion on the same ten tasks the Telegram walk uses.
+
+## Collaboration with science and research (founder, 2026-08-28: "needs collab with science and research")
+
+Product and science are two functions on one ledger seam:
+
+| Product asks | Science answers | Where |
+|---|---|---|
+| is there willingness to pay at rung N | a run with a measured conversion, research ledger id | `docs/research-engine/` ledger, `SCALE_market_*.md` |
+| does hermes complete the ten tasks on surface X | task-completion rate per surface, predictions scored | RESEARCH-GRADE inward row |
+| which horizon is real first | one experiment per horizon row, graded | `HORIZONS.md` ↔ research ledger id |
+
+Rules: every product row with a `research_id` is science's to grade and product's to act on;
+science's intake (`docs/science/SHOWCASE.md` questions-fed-a-decision) counts a product
+question as a decision fed only when the ledger row cites the readiness row it moved; a market
+number in this charter that science has not reproduced stays marked as sourced-not-measured.
+CP2's `bin/product-readiness` reads the research ledger for `research_id` rows and prints
+BLIND where the id is missing.
+
 ## Requirements attached to the platform, retrospectively (R-rows)
 
 Every commercial requirement is a row here and a `product.bytesync.io/requirement` annotation
@@ -86,6 +122,7 @@ entity or requirement without its pair).
 | R-H1 | hermes has a named SMB buyer and a named consumer buyer, each with a price inside the $20–50 band or a self-hosted £0+BYO tier | `hermes-v2` | market facts above |
 | R-H2 | hermes multi-tenant: a second person can run it without the founder's Mac | `hermes-v2` | memory `hermes-telegram-is-the-gateway-launchd-job`, LAW 46 |
 | R-H3 | hermes signup → pay → served path is commands or URLs, no step blank | `hermes-v2` | lens B path |
+| R-H4 | hermes is surface-agnostic: the same ten tasks complete on Telegram and on one screenless surface (voice) — the proxy for glasses and robots | `hermes-v2` | forward-looking section |
 | R-A1 | platform has one SKU (what is in the box), a licence and a support tier | `idp` | lens A comparables |
 | R-A2 | platform install path is the portability drill receipt, green | `idp` portability-drill | idp#648 |
 | R-A3 | diligence columns (SOC 2 posture, IP assignment, provider dependency, docs) are graded rows, not prose | `idp` conscience | diligence list above |
@@ -99,7 +136,7 @@ Done-probes are commands; a probe that cannot run is BLIND, not green.
 
 **CP2 · Readiness scorecard, generated.** `bin/product-readiness` reads the prospector proof
 files, the hermes tree, the idp catalog and showcase, and prints one row per asset per lens with
-`green|amber|red|BLIND|stealth-held` and the reason; writes `docs/product/READINESS.md`.
+`green|amber|red|BLIND|stealth-held` and the reason; writes `docs/product/READINESS.md` and the first `docs/product/HORIZONS.md` (glasses, wearables, robots, in-car: one experiment each, `research_id` or BLIND).
 Probe: `bin/product-readiness --check` exits 0 and the page has ≥ 3 asset rows, hermes rows
 first; a row whose source file is missing prints BLIND (mutation test: move
 `store/launch/checkout-proof.md`, expect BLIND).

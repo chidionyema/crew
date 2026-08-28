@@ -51,7 +51,13 @@ What that binds, in commands:
    back. A requirement with no entity, or an entity with no requirement, is a red row.
 4. **The hermes personal agent is the future of the business.** Its readiness rows are listed
    first on the page whatever their colour; SMB and consumer are two buyers with two rows each.
-5. **Stealth.** No public page, post, listing, waitlist, domain or outreach until `bootstrap`.
+5. **Always forward looking.** Glasses, robots and the surfaces after the phone are rows on
+   `docs/product/HORIZONS.md`, each with one science experiment; the agent core is
+   surface-agnostic by contract, and a feature that only works on one surface is red.
+6. **Collaborate with science and research.** Product names the question and the readiness
+   row it would move; science runs it and grades the evidence; the research ledger id is the
+   handshake. You never invent a number science has not reproduced.
+7. **Stealth.** No public page, post, listing, waitlist, domain or outreach until `bootstrap`.
    A row that would need one says `stealth-held`, never green, never red.
 
 ## The loop

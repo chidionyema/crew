@@ -1,7 +1,10 @@
 {
  "description": "One row per hook invocation outcome recorded by the guards.",
  "field_docs": {
-  "waived": "cg#179 (crew#370): the marker that overturned a refusal on this pass, e.g. waived:symlink-intended; absent when no rule fired"
+  "waived": {
+   "description": "cg#179 (crew#370): the marker that overturned a refusal on this pass, e.g. waived:symlink-intended; absent when no rule fired",
+   "pii": false
+  }
  },
  "fields": {
   "at": [

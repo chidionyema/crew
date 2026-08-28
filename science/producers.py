@@ -73,9 +73,43 @@ Producer = dict
 WORKTREE_DIRS = (".wt-", ".worktrees")
 
 
+@functools.lru_cache(maxsize=4096)
+def _is_linked_worktree(dirpath: str) -> bool:
+    """True when `dirpath` is the root of a linked git worktree.
+
+    git's own on-disk shape answers this: a primary checkout's `.git` is a directory, a linked
+    worktree's `.git` is a regular file holding one `gitdir:` line. Measured 2026-08-28:
+    ~/dev/code/crew/.git is a directory, ~/dev/code/crew/.wt-lanes/.git is a 66-byte file,
+    ~/.claude/state/crew-science-worktree/.git is a 78-byte file.
+    """
+    try:
+        return (pathlib.Path(dirpath) / ".git").is_file()
+    except OSError:
+        return False
+
+
 def _in_worktree(path: str) -> bool:
-    """True when a directory segment of `path` is a git worktree (`.wt-crew69`, `.worktrees`)."""
-    return any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in path.split("/")[:-1])
+    """True when `path` sits inside a git worktree: a copy of a producer, never a producer.
+
+    crew#320 (09cd04a6, 2026-08-28): this used to grade the directory NAME against WORKTREE_DIRS,
+    and a name is a proxy. `scripts/science-collect:68` (crew#90) keeps a detached worktree at
+    ~/.claude/state/crew-science-worktree so the contract check runs main's collect.py; that
+    checkout carries the repo's own tracked ledgers, its name starts with neither `.wt-` nor
+    `.worktrees`, and the gate went RED with 11 UNEXPLAINED producers that were all second copies
+    of registered rows. The name check is kept -- it still catches a worktree whose `.git` has been
+    pruned -- and every ancestor is now asked what it actually is.
+    """
+    segs = path.split("/")[:-1]
+    if any(any(seg.startswith(s) or seg == s for s in WORKTREE_DIRS) for seg in segs):
+        return True
+    raw = "~/" + path.split("~/")[-1] if "~/" in path else path  # keys read `mac/ledger/~/...`
+    here = pathlib.Path(os.path.expanduser(raw)).parent
+    for anc in (here, *here.parents):
+        if _is_linked_worktree(str(anc)):
+            return True
+        if (anc / ".git").is_dir():  # the primary checkout: stop, this path is the real producer
+            return False
+    return False
 
 def _p(domain: str, key: str, kind: str, measures: list[str], evidence: str,
        size: float | int | None = None) -> Producer:

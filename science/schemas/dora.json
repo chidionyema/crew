@@ -17,27 +17,43 @@
    "pii": false
   },
   "deploys": {
-   "description": "PRs merged to main in the window (deployment frequency)",
+   "description": "PRs merged to main in the window",
    "pii": false
   },
-  "lead_time_h": {
-   "description": "median hours from first commit to merge",
+  "deploys_per_day": {
+   "description": "deploys / days",
    "pii": false
   },
-  "change_failure_rate": {
-   "description": "reverts / deploys",
+  "lead_time_h_median": {
+   "description": "median hours from PR open to merge",
    "pii": false
   },
-  "restore_h": {
-   "description": "median hours from a revert's target merge to the revert merge",
+  "lead_time_h_p90": {
+   "description": "p90 hours from PR open to merge",
+   "pii": false
+  },
+  "p1_opened": {
+   "description": "P1 issues opened in the window",
+   "pii": false
+  },
+  "p1_closed": {
+   "description": "P1 issues closed in the window",
+   "pii": false
+  },
+  "change_failure_rate_pct": {
+   "description": "100 * p1_opened / deploys",
+   "pii": false
+  },
+  "mttr_h_median": {
+   "description": "median hours a P1 stayed open",
    "pii": false
   },
   "reverts": {
-   "description": "merged PRs whose title matches the revert pattern",
+   "description": "merged PRs whose title reverts an earlier one (crew#368)",
    "pii": false
   },
   "held_7d": {
-   "description": "merged PRs older than 7 days with no revert against them",
+   "description": "merged PRs 7+ days old that no revert names by title or #number (crew#368)",
    "pii": false
   }
  },
@@ -86,6 +102,7 @@
    "int"
   ]
  },
- "undescribed_baseline": 14,
- "description": "DORA four keys per repo per run (crew#495) plus task-outcome fields (crew#368): reverts = merged PRs whose title reverts a prior one, held_7d = merged PRs still open on main after 7 days with no revert."
+ "undescribed_baseline": 0,
+ "description": "DORA four keys per repo per run (crew#495) plus task-outcome fields (crew#368): reverts = merged PRs whose title reverts a prior one, held_7d = merged PRs still open on main after 7 days with no revert.",
+ "owner": "scripts/science-collect (science/dora.py --jsonl)"
 }

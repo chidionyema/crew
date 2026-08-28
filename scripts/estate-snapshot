@@ -431,22 +431,37 @@ def live_checkout() -> list[str]:
 
 
 def live_checkout_row(root: pathlib.Path, branch: str = "main") -> list[str]:
-    """One row: where the live checkout stands against origin/<branch>, and a fast-forward when
-    it is safe. 2026-08-27 (crew#437): the checkout sat on feat/research-engine-step1 at a
-    2026-08-25 commit for two days with 50 dirty rows, and every scheduled job ran that. The move
-    is `git merge --ff-only origin/<branch>`: a local edit to a file the update does not touch
-    survives, and a file already holding the target bytes (a published ledger) is staged first
-    so the checkout passes. It is refused when a locally edited file is also changed by the
-    update to different bytes, and when the branch has diverged."""
+    """One row: where the live checkout stands against origin/<branch>, and a move when it is
+    safe. 2026-08-27 (crew#437): the checkout sat on feat/research-engine-step1 at a 2026-08-25
+    commit for two days with 50 dirty rows, and every scheduled job ran that. On the branch the
+    move is a fast-forward; off it, a detaching checkout of the same commit. A local edit to a
+    file the update does not touch survives, and a file already holding the target bytes (a
+    published ledger) is staged first so the checkout passes. It is refused when a locally
+    edited file is also changed by the update to different bytes, when the branch has diverged,
+    and when HEAD is some other named branch -- that is a person's work, not this row's to move.
+
+    2026-08-28 (crew#437 again, and why the detached case stopped being narration). The cwd
+    `com.founder.estatesnapshot` runs this very script from every two hours is
+    `~/dev/code/.crew-state`. It sat detached at 870a04f for 31 hours and 129 commits;
+    `grep -c "def portability_row" scripts/estate-snapshot` there returned 0, so the row
+    crew#569 landed at 12:37 could not reach the board however many times the job ran. This
+    function was watching that checkout the whole time and printing `RED ... on detached HEAD
+    ... the scheduled jobs run that`, then returning without touching it. A detached HEAD that
+    is an ancestor of origin/<branch> is the safest thing here to move -- no branch to lose,
+    nothing to merge -- and it was the one state the row refused to repair. An instrument that
+    can only narrate the fault it exists to catch is not an instrument (LAW 28)."""
     g = f"git -C '{root}'"
     rc, head = sh(f"{g} symbolic-ref --short -q HEAD")
+    #: `symbolic-ref` fails exactly when HEAD is detached, and that is a different situation
+    #: from HEAD naming a branch other than <branch>: nothing is lost by moving it.
+    detached = rc != 0
     head = head.strip()
     rc2, behind = sh(f"{g} rev-list --count HEAD..origin/{branch}")
     behind_n = int(behind.strip()) if rc2 == 0 and behind.strip().isdigit() else None
     if behind_n is None:
         return [f"| live checkout | NOT RUN | `git rev-list HEAD..origin/{branch}` failed: {behind.strip()[:80]} |"]
-    if rc or head != branch:
-        return [f"| live checkout | RED | on `{head or 'detached HEAD'}`, {behind_n} commit(s) behind origin/{branch}; "
+    if not detached and head != branch:
+        return [f"| live checkout | RED | on `{head}`, {behind_n} commit(s) behind origin/{branch}; "
                 f"the scheduled jobs run that. Path back: `git -C {root} switch {branch}` |"]
     rc, _ = sh(f"{g} merge-base --is-ancestor HEAD origin/{branch}")
     if rc:
@@ -459,19 +474,26 @@ def live_checkout_row(root: pathlib.Path, branch: str = "main") -> list[str]:
     if blocked:
         return [f"| live checkout | RED | {behind_n} commit(s) behind origin/{branch}; not moved: "
                 f"{len(blocked)} edited file(s) the update also changes ({', '.join(blocked[:3])}) |"]
+    at = "detached at" if detached else "at"
     if behind_n == 0:
-        return [f"| live checkout | GREEN | at origin/{branch}, {len(dirty)} local edit(s) |"]
+        return [f"| live checkout | GREEN | {at} origin/{branch}, {len(dirty)} local edit(s) |"]
     #: A ledger the collector appended and the last snapshot already published is edited here
     #: and changed by the update, to the same bytes. Staging the target blob lets the checkout
     #: through; the file on disk is not touched.
     for f in dirty:
         if f in changed_set and f not in blocked:
             sh(f"{g} restore --source=origin/{branch} --staged -- '{f}'")
-    rc, out = sh(f"{g} merge -q --ff-only origin/{branch}")
+    #: Off a branch there is nothing to fast-forward, so the move is a checkout of the same
+    #: commit the fast-forward would have arrived at. Both leave the working tree alone: the
+    #: files still edited here are, by the `blocked` test above, either untouched by the update
+    #: or already holding its bytes.
+    move = f"checkout --detach origin/{branch}" if detached else f"merge -q --ff-only origin/{branch}"
+    rc, out = sh(f"{g} {move}")
     if rc:
-        return [f"| live checkout | RED | fast-forward failed: {out.strip()[:100]} |"]
+        return [f"| live checkout | RED | `git {move}` failed: {out.strip()[:100]} |"]
     _, sha = sh(f"{g} rev-parse --short HEAD")
-    return [f"| live checkout | GREEN | fast-forwarded {behind_n} commit(s) to origin/{branch} {sha.strip()}, "
+    verb = "moved" if detached else "fast-forwarded"
+    return [f"| live checkout | GREEN | {verb} {behind_n} commit(s) to origin/{branch} {sha.strip()}, "
             f"{len(dirty)} local edit(s) kept |"]
 
 

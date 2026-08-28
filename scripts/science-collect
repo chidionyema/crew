@@ -42,6 +42,14 @@ if [ "$att_rc" -ne 0 ]; then
   echo "science-collect: outcomes.py attention exited $att_rc"
 fi
 
+# crew#368: the DORA keys as a source, not a printout. --days 14 so held_7d (merged 7+ days
+# ago and never reverted) has a window to count in; a failure is a run line, not a stale source.
+python3 science/dora.py --days 14 --jsonl science/dora.jsonl
+dora_rc=$?
+if [ "$dora_rc" -ne 0 ]; then
+  echo "science-collect: dora.py exited $dora_rc"
+fi
+
 python3 science/outcomes.py revenue
 rev_rc=$?
 if [ "$rev_rc" -ne 0 ]; then

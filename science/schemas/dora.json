@@ -1,0 +1,61 @@
+{
+  "field_docs": {
+    "at": "ISO-8601 UTC time the row was computed",
+    "day": "UTC date of the run",
+    "repo": "owner/repo the keys were computed for",
+    "days": "window length in days",
+    "deploys": "PRs merged to main in the window (deployment frequency)",
+    "lead_time_h": "median hours from first commit to merge",
+    "change_failure_rate": "reverts / deploys",
+    "restore_h": "median hours from a revert's target merge to the revert merge",
+    "reverts": "merged PRs whose title matches the revert pattern",
+    "held_7d": "merged PRs older than 7 days with no revert against them"
+  },
+  "fields": {
+    "at": [
+      "str"
+    ],
+    "change_failure_rate_pct": [
+      "float"
+    ],
+    "day": [
+      "str"
+    ],
+    "days": [
+      "int"
+    ],
+    "deploys": [
+      "int"
+    ],
+    "deploys_per_day": [
+      "float"
+    ],
+    "held_7d": [
+      "int"
+    ],
+    "lead_time_h_median": [
+      "float"
+    ],
+    "lead_time_h_p90": [
+      "float"
+    ],
+    "mttr_h_median": [
+      "NoneType",
+      "float"
+    ],
+    "p1_closed": [
+      "int"
+    ],
+    "p1_opened": [
+      "int"
+    ],
+    "repo": [
+      "str"
+    ],
+    "reverts": [
+      "int"
+    ]
+  },
+  "undescribed_baseline": 14,
+  "description": "DORA four keys per repo per run (crew#495) plus task-outcome fields (crew#368): reverts = merged PRs whose title reverts a prior one, held_7d = merged PRs still open on main after 7 days with no revert."
+}

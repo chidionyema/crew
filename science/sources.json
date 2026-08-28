@@ -1,682 +1,695 @@
 {
- "version": 1,
- "roots": {
-  "home": "~",
-  "science": ".",
-  "code": "$ESTATE_CODE"
- },
- "default_stale_after_hours": 48,
- "sources": [
-  {
-   "name": "spend",
-   "root": "home",
-   "path": ".claude/estate-spend-history.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 6,
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/estate_cost_sentinel.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "board",
-   "root": "home",
-   "path": ".claude/ESTATE_BOARD.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/board-deliver.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "ledger",
-   "root": "home",
-   "path": ".claude/state/ledger.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/goal-guard.py",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "close_guard",
-   "root": "home",
-   "path": ".claude/state/close-guard-observe.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/close-guard.py",
-   "method": "push",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "drills",
-   "root": "home",
-   "path": ".claude/state/drills.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/drills/run.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "ci_reach",
-   "root": "home",
-   "path": ".claude/state/ci-reach.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/estate_audit.py",
-   "method": "poll",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "aiden_ticks",
-   "root": "home",
-   "path": ".claude/state/aiden-ticks.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/aiden/tick.py",
-   "method": "poll",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "stuck_detector",
-   "root": "home",
-   "path": ".claude/state/logs/stuck-detector.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/stuck_detector_tick.sh",
-   "method": "poll",
-   "retention_days": 30,
-   "sensitivity": "internal",
-   "note": "Two record kinds share this store (crew#71 smell 3): an observation row (class, cwd, evidence, idle_s, session, slug, streak, would_page; 84% of rows) and a run-summary row (findings, rc, ts; 16%). Nothing in the row says which; the writer is stuck_detector_tick.sh."
-  },
-  {
-   "name": "bundle_push",
-   "root": "home",
-   "path": ".claude/state/estate-bundle-push.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/estate_bundle_push.sh",
-   "method": "poll",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "agent_cert",
-   "root": "home",
-   "path": ".claude/agent-cert/history.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/statusline-context.py",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "decisions",
-   "root": "home",
-   "path": ".claude/DECISIONS.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/decision-log.py",
-   "method": "hand",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "method_metrics",
-   "root": "home",
-   "path": "Documents/code/prospector/store/ops/method_metrics.json",
-   "kind": "json",
-   "time_field": "generated_at",
-   "stale_after_hours": 12,
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/reflect.py",
-   "method": "poll",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "enforcement_map",
-   "root": "science",
-   "path": "enforcement-map.json",
-   "kind": "json",
-   "time_field": null,
-   "receiver": "otlp",
-   "owner": "science/law_enforcement.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "ships",
-   "root": "science",
-   "path": "ships.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 26,
-   "receiver": "otlp",
-   "owner": "scripts/science-collect",
-   "method": "poll",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "predictions",
-   "root": "science",
-   "path": "predictions.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "science/outcomes.py",
-   "method": "hand",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "attention",
-   "root": "science",
-   "path": "attention.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 26,
-   "receiver": "otlp",
-   "owner": "science/outcomes.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "restricted"
-  },
-  {
-   "name": "directives",
-   "root": "home",
-   "path": ".claude/directives",
-   "kind": "jsonl-dir",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/directives.py",
-   "method": "push",
-   "retention_days": 3650,
-   "sensitivity": "restricted"
-  },
-  {
-   "name": "prompt_ledger",
-   "root": "home",
-   "path": ".claude/state/prompt-ledger",
-   "kind": "jsonl-dir",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/prompt-ledger.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "restricted"
-  },
-  {
-   "name": "tickets",
-   "root": "home",
-   "path": ".claude/state/tickets",
-   "kind": "jsonl-dir",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/aiden/aiden.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "job_timelines",
-   "root": "home",
-   "path": ".claude/jobs",
-   "kind": "jsonl-dir",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "scripts/admit",
-   "method": "push",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "history",
-   "root": "home",
-   "path": ".claude/history.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/secret-scrub.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "restricted"
-  },
-  {
-   "name": "goal_net",
-   "root": "home",
-   "path": ".claude/state/goal-net.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/goal_graph.py",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "estate_push",
-   "root": "home",
-   "path": ".claude/state/estate-push.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/estate_push.sh",
-   "method": "poll",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "drills_scripts",
-   "root": "home",
-   "path": ".claude/scripts/state/drills.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/drills/run.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "alerts_inbox",
-   "root": "home",
-   "path": ".estate/alerts/inbox.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "stale_after_hours": 6,
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/founder-deliver.py",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "sovereign_receipts",
-   "root": "home",
-   "path": ".estate/sovereign/receipts.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/launchd_receipt.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "board_deadletter",
-   "root": "home",
-   "path": ".claude/state/board-deadletter.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate-broadcast.py",
-   "method": "push",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "estate_registry",
-   "root": "home",
-   "path": ".estate/registry.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "receiver": "otlp",
-   "owner": "~/.estate/registry.jsonl",
-   "method": "hand",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "research_ledger",
-   "root": "science",
-   "path": "RESEARCH-LEDGER.jsonl",
-   "kind": "jsonl",
-   "time_field": "date",
-   "receiver": "otlp",
-   "stale_after_hours": 168,
-   "owner": "science/ledger.py",
-   "method": "hand",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "revenue",
-   "root": "science",
-   "path": "revenue.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 24,
-   "receiver": "otlp",
-   "owner": "science/outcomes.py",
-   "method": "hand",
-   "retention_days": 3650,
-   "sensitivity": "restricted"
-  },
-  {
-   "name": "hook_outcomes",
-   "root": "home",
-   "path": ".claude/state/hook-outcomes.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 24,
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/hook-run.py",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "ci_runs",
-   "root": "science",
-   "path": "ci-runs.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 30,
-   "receiver": "otlp",
-   "owner": "science/outcomes.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "lane.code.pr-hygiene",
-   "root": "science",
-   "path": "pr-hygiene.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 30,
-   "receiver": "otlp",
-   "owner": "science/outcomes.py",
-   "method": "poll",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "dagster-ticks",
-   "root": "code",
-   "path": "idp/run/dagster/schedules/schedules.db",
-   "kind": "sqlite",
-   "time_field": "at",
-   "stale_after_hours": 2,
-   "query": "SELECT id, job_origin_id AS job, status, type, timestamp||'+00:00' AS at, json_extract(tick_body,'$.skip_reason') AS skip_reason, json_extract(tick_body,'$.error.message') AS error FROM job_ticks WHERE timestamp > datetime('now','-30 days')",
-   "why": "crew#376 / crew#85: every schedule skipped for 16 hours on a flat load ceiling and nothing outside Dagster's UI could say so. One row per tick: RUN, SKIPPED (with the reason) or FAILURE.",
-   "receiver": "otlp",
-   "owner": "~/dev/code/idp/bin/scheduler-up",
-   "method": "poll",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "dagster-runs",
-   "root": "code",
-   "path": "idp/run/dagster/history/runs.db",
-   "kind": "sqlite",
-   "time_field": "at",
-   "stale_after_hours": 24,
-   "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
-   "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
-   "receiver": "otlp",
-   "owner": "~/dev/code/idp/bin/scheduler-up",
-   "method": "poll",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "capability_receipts",
-   "root": "home",
-   "path": ".estate/state/capability_receipts.jsonl",
-   "kind": "jsonl",
-   "time_field": "ended_at",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/launchd_receipt.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "sovereign_budget",
-   "root": "home",
-   "path": ".estate/sovereign/budget.db",
-   "kind": "sqlite",
-   "query": "SELECT session_id, total, remaining, version FROM budget",
-   "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
-   "receiver": "otlp",
-   "owner": "~/dev/code/idp/sovereign/engine/budget.py",
-   "method": "push",
-   "retention_days": 30,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "runaway-reaper",
-   "root": "home",
-   "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "stale_after_hours": 168,
-   "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/runaway-reaper.sh",
-   "method": "poll",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "temporal_dev_executions",
-   "root": "home",
-   "path": ".estate/temporal/dev.db",
-   "kind": "sqlite",
-   "query": "SELECT start_time AS at, execution_time, close_time, workflow_id, run_id, workflow_type_name, status, task_queue, execution_duration, history_length, state_transition_count FROM executions_visibility",
-   "time_field": "at",
-   "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/launchagents/ai.estate.temporal.plist",
-   "method": "poll",
-   "retention_days": 90,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "worktree_cleanup",
-   "root": "home",
-   "path": ".claude/state/estate-worktree-cleanup.jsonl",
-   "kind": "jsonl",
-   "time_field": "iso",
-   "stale_after_hours": 720,
-   "why": "crew#361: one row per estate_audit.py worktree salvage (salvaged, kept, kb, applied); 2 rows, last 2026-08-23. Runs only when a sweep salvages, so stale after 30 days, not 24 h.",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/estate/estate_worktree_cleanup.sh",
-   "method": "poll",
-   "retention_days": 180,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "founder_actions",
-   "root": "home",
-   "path": ".claude/state/founder-actions.jsonl",
-   "kind": "jsonl",
-   "time_field": "opened",
-   "stale_after_hours": 720,
-   "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
-   "receiver": "otlp",
-   "owner": "~/.claude/scripts/founder_actions.py",
-   "method": "push",
-   "retention_days": 3650,
-   "sensitivity": "internal"
-  },
-  {
-   "name": "hindsight_recall",
-   "root": "home",
-   "path": ".claude/hindsight-recall-history.jsonl",
-   "kind": "jsonl",
-   "time_field": "at",
-   "stale_after_hours": 24,
-   "receiver": "otlp",
-   "owner": "~/.claude/settings.json",
-   "method": "push",
-   "retention_days": 180,
-   "sensitivity": "internal",
-   "owner_note": "written by the Claude Code harness itself; settings.json is the file that turns the feature on"
-  },
-  {
-   "name": "pi_bridge_runs",
-   "root": "home",
-   "path": ".claude/state/pi-bridge-runs.jsonl",
-   "kind": "jsonl",
-   "time_field": "ts",
-   "receiver": "otlp",
-   "owner": "~/.claude/mcp/pi_bridge.py",
-   "method": "push",
-   "retention_days": 365,
-   "sensitivity": "internal"
-  }
- ],
- "declined": [
-  {
-   "id": "transcripts",
-   "reason": "6.5 GB of raw session text, so never a facts source: copying it would double the largest thing on the disk. Read instead by science/transcripts.py (crew#319), every byte once by offset, into science/transcripts.db: tool calls, results, errors, sessions."
-  },
-  {
-   "id": "telemetry",
-   "reason": "The CLI vendor's own failed event uploads. Not the estate's data, and it tells us nothing about the estate that spend and the ledgers do not say better."
-  },
-  {
-   "id": "toolguard-decisions",
-   "reason": "One file per tool decision, 28.5 MB of them. The rollup is already collected as the `toolguard` source, which is the same information joined."
-  },
-  {
-   "id": "prospector-dossiers",
-   "reason": "Product data belonging to the prospector domain, not estate telemetry. Fowler's point stands: centralising another domain's store here would make this the monolith the split is meant to avoid."
-  },
-  {
-   "id": "prospector-dossiers-worktree",
-   "reason": "The same product data, stranded in an abandoned agent worktree. That it holds 130.9 MB while the live store holds 0.0 MB is a real finding, and it belongs to prospector to fix rather than to this warehouse to absorb."
-  },
-  {
-   "id": "maestro-intents",
-   "reason": "Maestro's own working memory, one file per cycle. Another domain's store."
-  },
-  {
-   "id": ".claude/state/coord/jobs.sqlite",
-   "reason": "SQLite, not append-only rows. Ingesting it needs a reader that understands its schema; the generic jsonl path would produce garbage rows that look like data."
-  },
-  {
-   "id": ".estate/healthchecks/data/hc.sqlite",
-   "reason": "Healthchecks' own database, same reason. The estate reads its verdicts through the Healthchecks API, not by copying its tables."
-  },
-  {
-   "id": "dev/code/crew/science/warehouse.db",
-   "reason": "This is the sink. Collecting the warehouse into the warehouse is the loop LAW 30 warns about, and the row count would grow without bound."
-  },
-  {
-   "id": "crew-issues",
-   "reason": "Not a file. It is a GitHub API count, and it already reaches the estate through the inventory's own ledger row."
-  },
-  {
-   "id": ".maestro/experience_graph.db",
-   "reason": "SQLite, and one half of a duplicate the crawl reports in its own findings: the same graph exists at ~/.estate/knowledge/maestro/experience_graph.db. Which one is authoritative is maestro's call, not this warehouse's, and collecting both would make the duplicate look like twice the evidence."
-  },
-  {
-   "id": ".estate/knowledge/maestro/experience_graph.db",
-   "reason": "The other half of that duplicate. Declined for the same reason and named separately so neither disappears from the registry while the question is open."
-  },
-  {
-   "id": ".claude/state/one-branch/would-have-fired.jsonl",
-   "reason": "Producer (~/.claude/quarantine/2026-08-21-pipeline-workarounds/one-branch-fence.py) was quarantined 2026-08-21 22:42 -- not in ~/.claude/settings.json hooks, mode file ~/.claude/one-branch-fence.mode still reads 'refuse' but nothing calls it. Last write to would-have-fired.jsonl is 2026-08-21 22:38, the same window. This is a decommissioned guard, not a live source going quiet: it will never write again unless someone restores the hook. Declined 2026-08-24 by the on-call attribution (LAW 29) rather than left as a stale-source alert that can never clear itself. If the fence is restored, move this back to sources."
-  },
-  {
-   "id": "dagster-run-store",
-   "root": "home",
-   "path": ".estate/dagster",
-   "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs. 2026-08-27 (crew#376): the tick and run tables are now collected as dagster-ticks and dagster-runs from the live store under the idp checkout (run/dagster); this ~/.estate/dagster copy is stale since 2026-08-24 and stays declined."
-  },
-  {
-   "id": ".estate/REQUIREMENTS.jsonl",
-   "reason": "The id is relative to the 'home' root, so the file is /Users/chidionyema/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file."
-  },
-  {
-   "id": "crew-snapshot-worktree",
-   "root": "home",
-   "path": ".claude/state/crew-snapshot-worktree",
-   "reason": "A git worktree of this repo kept by com.founder.estatesnapshot so the hourly STATE.md rebuild reads a clean checkout. Every jsonl under it (science/ships, science/attention, science/RESEARCH-LEDGER, risk/REGISTER, science/predictions) is a copy of a file tracked in crew and already collected from the science root. Collecting the copies would double-count every row. Declined as a directory because the worktree is re-created whenever the snapshot job resets it."
-  },
-  {
-   "id": ".estate/temporal/dev.db",
-   "reason": "The Temporal dev server's own persistence (SQLite), written by temporal CLI, schema owned upstream and rewritten on upgrade. It holds workflow history for the orchestrator, not a fact about the estate; what the workflows produce is collected from their outputs. Owner: the scheduler row of STANDARDS. When Temporal moves to the cluster (crew#78) this file goes with it."
-  },
-  {
-   "id": ".estate/sovereign/budget.db",
-   "reason": "The sovereign runner's budget counter, a SQLite file it locks and rewrites in place; it carries no rows with a time. The fact stream beside it, .estate/sovereign/receipts.jsonl, is collected as source sovereign_receipts and holds budget_remaining on every receipt, so the counter's history is already in the warehouse."
-  },
-  {
-   "id": "toolguard",
-   "root": "home",
-   "path": ".claude/state/toolguard/events.jsonl",
-   "reason": "emitter tool-drip-guard.py is wired to no hook and no launchd job since 2026-08-23; decommissioned by omission (crew#265)"
-  },
-  {
-   "id": "consult",
-   "root": "home",
-   "path": ".claude/logs/consult.jsonl",
-   "reason": "ai.estate.consultd runs with no backend configured, every consult returns 503, nothing written since 2026-08-23 (crew#265)"
-  },
-  {
-   "id": "founder_actions",
-   "root": "home",
-   "path": ".claude/state/founder-actions.jsonl",
-   "reason": "written only by estate_audit.py, which stopped reaching that write on 2026-08-23; no owner job (crew#265)"
-  },
-  {
-   "id": "worktree_cleanup",
-   "root": "home",
-   "path": ".claude/state/estate-worktree-cleanup.jsonl",
-   "reason": "estate_worktree_cleanup.sh is scheduled by nothing since 2026-08-23 (crew#265)"
-  },
-  {
-   "id": ".estate/healthchecks/hc.sqlite",
-   "reason": "a 0-byte file at the directory root, created 2026-08-27 01:14 beside the real database data/hc.sqlite (declined above); nothing writes it, so there is nothing to collect (crew#465)"
-  },
-  {
-   "id": "transcripts-index",
-   "root": "code",
-   "path": "crew/science/transcripts.db",
-   "reason": "science/transcripts.py's own index of the declined transcripts (every byte read once by offset). A derived store of a declined source, rebuilt four times a day by scripts/science-collect (crew#432); its tool-call and error rows already reach the warehouse through that reader, so collecting the index again would count them twice. crew#90."
-  }
- ],
- "contract": {
-  "owner": "the file that appends to the store; a path under ~ or this repo, and it must exist",
-  "method": [
-   "push",
-   "poll",
-   "hand"
+  "version": 1,
+  "roots": {
+    "home": "~",
+    "science": ".",
+    "code": "$ESTATE_CODE"
+  },
+  "default_stale_after_hours": 48,
+  "sources": [
+    {
+      "name": "spend",
+      "root": "home",
+      "path": ".claude/estate-spend-history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 6,
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/estate_cost_sentinel.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "board",
+      "root": "home",
+      "path": ".claude/ESTATE_BOARD.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/board-deliver.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "ledger",
+      "root": "home",
+      "path": ".claude/state/ledger.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/goal-guard.py",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "close_guard",
+      "root": "home",
+      "path": ".claude/state/close-guard-observe.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/close-guard.py",
+      "method": "push",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "drills",
+      "root": "home",
+      "path": ".claude/state/drills.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/drills/run.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "ci_reach",
+      "root": "home",
+      "path": ".claude/state/ci-reach.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/estate_audit.py",
+      "method": "poll",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "aiden_ticks",
+      "root": "home",
+      "path": ".claude/state/aiden-ticks.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/aiden/tick.py",
+      "method": "poll",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "stuck_detector",
+      "root": "home",
+      "path": ".claude/state/logs/stuck-detector.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/stuck_detector_tick.sh",
+      "method": "poll",
+      "retention_days": 30,
+      "sensitivity": "internal",
+      "note": "Two record kinds share this store (crew#71 smell 3): an observation row (class, cwd, evidence, idle_s, session, slug, streak, would_page; 84% of rows) and a run-summary row (findings, rc, ts; 16%). Nothing in the row says which; the writer is stuck_detector_tick.sh."
+    },
+    {
+      "name": "bundle_push",
+      "root": "home",
+      "path": ".claude/state/estate-bundle-push.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/estate_bundle_push.sh",
+      "method": "poll",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "agent_cert",
+      "root": "home",
+      "path": ".claude/agent-cert/history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/statusline-context.py",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "decisions",
+      "root": "home",
+      "path": ".claude/DECISIONS.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/decision-log.py",
+      "method": "hand",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "method_metrics",
+      "root": "home",
+      "path": "Documents/code/prospector/store/ops/method_metrics.json",
+      "kind": "json",
+      "time_field": "generated_at",
+      "stale_after_hours": 12,
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/reflect.py",
+      "method": "poll",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "enforcement_map",
+      "root": "science",
+      "path": "enforcement-map.json",
+      "kind": "json",
+      "time_field": null,
+      "receiver": "otlp",
+      "owner": "science/law_enforcement.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "ships",
+      "root": "science",
+      "path": "ships.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 26,
+      "receiver": "otlp",
+      "owner": "scripts/science-collect",
+      "method": "poll",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "dora",
+      "root": "science",
+      "path": "dora.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 26,
+      "receiver": "otlp",
+      "owner": "scripts/science-collect",
+      "method": "poll",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "predictions",
+      "root": "science",
+      "path": "predictions.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "science/outcomes.py",
+      "method": "hand",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "attention",
+      "root": "science",
+      "path": "attention.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 26,
+      "receiver": "otlp",
+      "owner": "science/outcomes.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "restricted"
+    },
+    {
+      "name": "directives",
+      "root": "home",
+      "path": ".claude/directives",
+      "kind": "jsonl-dir",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/directives.py",
+      "method": "push",
+      "retention_days": 3650,
+      "sensitivity": "restricted"
+    },
+    {
+      "name": "prompt_ledger",
+      "root": "home",
+      "path": ".claude/state/prompt-ledger",
+      "kind": "jsonl-dir",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/prompt-ledger.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "restricted"
+    },
+    {
+      "name": "tickets",
+      "root": "home",
+      "path": ".claude/state/tickets",
+      "kind": "jsonl-dir",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/aiden/aiden.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "job_timelines",
+      "root": "home",
+      "path": ".claude/jobs",
+      "kind": "jsonl-dir",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "scripts/admit",
+      "method": "push",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "history",
+      "root": "home",
+      "path": ".claude/history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/secret-scrub.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "restricted"
+    },
+    {
+      "name": "goal_net",
+      "root": "home",
+      "path": ".claude/state/goal-net.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/goal_graph.py",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "estate_push",
+      "root": "home",
+      "path": ".claude/state/estate-push.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/estate_push.sh",
+      "method": "poll",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "drills_scripts",
+      "root": "home",
+      "path": ".claude/scripts/state/drills.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/drills/run.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "alerts_inbox",
+      "root": "home",
+      "path": ".estate/alerts/inbox.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 6,
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/founder-deliver.py",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "sovereign_receipts",
+      "root": "home",
+      "path": ".estate/sovereign/receipts.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/launchd_receipt.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "board_deadletter",
+      "root": "home",
+      "path": ".claude/state/board-deadletter.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate-broadcast.py",
+      "method": "push",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "estate_registry",
+      "root": "home",
+      "path": ".estate/registry.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "receiver": "otlp",
+      "owner": "~/.estate/registry.jsonl",
+      "method": "hand",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "research_ledger",
+      "root": "science",
+      "path": "RESEARCH-LEDGER.jsonl",
+      "kind": "jsonl",
+      "time_field": "date",
+      "receiver": "otlp",
+      "stale_after_hours": 168,
+      "owner": "science/ledger.py",
+      "method": "hand",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "revenue",
+      "root": "science",
+      "path": "revenue.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp",
+      "owner": "science/outcomes.py",
+      "method": "hand",
+      "retention_days": 3650,
+      "sensitivity": "restricted"
+    },
+    {
+      "name": "hook_outcomes",
+      "root": "home",
+      "path": ".claude/state/hook-outcomes.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/hook-run.py",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "ci_runs",
+      "root": "science",
+      "path": "ci-runs.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 30,
+      "receiver": "otlp",
+      "owner": "science/outcomes.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "lane.code.pr-hygiene",
+      "root": "science",
+      "path": "pr-hygiene.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 30,
+      "receiver": "otlp",
+      "owner": "science/outcomes.py",
+      "method": "poll",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "dagster-ticks",
+      "root": "code",
+      "path": "idp/run/dagster/schedules/schedules.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 2,
+      "query": "SELECT id, job_origin_id AS job, status, type, timestamp||'+00:00' AS at, json_extract(tick_body,'$.skip_reason') AS skip_reason, json_extract(tick_body,'$.error.message') AS error FROM job_ticks WHERE timestamp > datetime('now','-30 days')",
+      "why": "crew#376 / crew#85: every schedule skipped for 16 hours on a flat load ceiling and nothing outside Dagster's UI could say so. One row per tick: RUN, SKIPPED (with the reason) or FAILURE.",
+      "receiver": "otlp",
+      "owner": "~/dev/code/idp/bin/scheduler-up",
+      "method": "poll",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "dagster-runs",
+      "root": "code",
+      "path": "idp/run/dagster/history/runs.db",
+      "kind": "sqlite",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "query": "SELECT run_id, pipeline_name AS job, status, update_timestamp||'+00:00' AS at, start_time, end_time FROM runs WHERE update_timestamp > datetime('now','-30 days')",
+      "why": "crew#376: the run that a tick launched, its status and its duration; the other half of the tick table.",
+      "receiver": "otlp",
+      "owner": "~/dev/code/idp/bin/scheduler-up",
+      "method": "poll",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "capability_receipts",
+      "root": "home",
+      "path": ".estate/state/capability_receipts.jsonl",
+      "kind": "jsonl",
+      "time_field": "ended_at",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/launchd_receipt.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "sovereign_budget",
+      "root": "home",
+      "path": ".estate/sovereign/budget.db",
+      "kind": "sqlite",
+      "query": "SELECT session_id, total, remaining, version FROM budget",
+      "why": "crew#378: the sovereign worker's per-session token budget (total, remaining). No time column: the table is a live snapshot rewritten per session, so it is a NO_TIME_SOURCES snapshot like enforcement_map, and session_id is the join to spend.",
+      "receiver": "otlp",
+      "owner": "~/dev/code/idp/sovereign/engine/budget.py",
+      "method": "push",
+      "retention_days": 30,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "runaway-reaper",
+      "root": "home",
+      "path": ".estate/logs/maintenance/runaway-reaper.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "stale_after_hours": 168,
+      "why": "crew#389/crew#85: one row per process the runaway reaper (claude-guards#136) killed; crew#85 row 2 counts reaps per rule.",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/runaway-reaper.sh",
+      "method": "poll",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "temporal_dev_executions",
+      "root": "home",
+      "path": ".estate/temporal/dev.db",
+      "kind": "sqlite",
+      "query": "SELECT start_time AS at, execution_time, close_time, workflow_id, run_id, workflow_type_name, status, task_queue, execution_duration, history_length, state_transition_count FROM executions_visibility",
+      "time_field": "at",
+      "why": "crew#377: the Temporal dev server's visibility table, one row per workflow execution with start, close, status and duration. The history tables hold encoded blobs; executions_visibility is the readable record. execution_duration = close_time - execution_time, not close_time - start_time (on 4 of 12 live rows execution_time is ~11 h after start_time).",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/launchagents/ai.estate.temporal.plist",
+      "method": "poll",
+      "retention_days": 90,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "kind": "jsonl",
+      "time_field": "iso",
+      "stale_after_hours": 720,
+      "why": "crew#361: one row per estate_audit.py worktree salvage (salvaged, kept, kb, applied); 2 rows, last 2026-08-23. Runs only when a sweep salvages, so stale after 30 days, not 24 h.",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/estate/estate_worktree_cleanup.sh",
+      "method": "poll",
+      "retention_days": 180,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "kind": "jsonl",
+      "time_field": "opened",
+      "stale_after_hours": 720,
+      "why": "crew#362: one row per FOUNDER ACTION item founder_actions.py opens (id, what, why_founder, done_when, unblocks); 2 rows, last 2026-08-27 01:43Z, so the mechanism is alive, not replaced. Opens only when a session is founder-blocked.",
+      "receiver": "otlp",
+      "owner": "~/.claude/scripts/founder_actions.py",
+      "method": "push",
+      "retention_days": 3650,
+      "sensitivity": "internal"
+    },
+    {
+      "name": "hindsight_recall",
+      "root": "home",
+      "path": ".claude/hindsight-recall-history.jsonl",
+      "kind": "jsonl",
+      "time_field": "at",
+      "stale_after_hours": 24,
+      "receiver": "otlp",
+      "owner": "~/.claude/settings.json",
+      "method": "push",
+      "retention_days": 180,
+      "sensitivity": "internal",
+      "owner_note": "written by the Claude Code harness itself; settings.json is the file that turns the feature on"
+    },
+    {
+      "name": "pi_bridge_runs",
+      "root": "home",
+      "path": ".claude/state/pi-bridge-runs.jsonl",
+      "kind": "jsonl",
+      "time_field": "ts",
+      "receiver": "otlp",
+      "owner": "~/.claude/mcp/pi_bridge.py",
+      "method": "push",
+      "retention_days": 365,
+      "sensitivity": "internal"
+    }
   ],
-  "retention_days": "how long a row is kept; a number, and a source with none is a source nothing may ever delete from",
-  "sensitivity": [
-   "public",
-   "internal",
-   "restricted"
+  "declined": [
+    {
+      "id": "transcripts",
+      "reason": "6.5 GB of raw session text, so never a facts source: copying it would double the largest thing on the disk. Read instead by science/transcripts.py (crew#319), every byte once by offset, into science/transcripts.db: tool calls, results, errors, sessions."
+    },
+    {
+      "id": "telemetry",
+      "reason": "The CLI vendor's own failed event uploads. Not the estate's data, and it tells us nothing about the estate that spend and the ledgers do not say better."
+    },
+    {
+      "id": "toolguard-decisions",
+      "reason": "One file per tool decision, 28.5 MB of them. The rollup is already collected as the `toolguard` source, which is the same information joined."
+    },
+    {
+      "id": "prospector-dossiers",
+      "reason": "Product data belonging to the prospector domain, not estate telemetry. Fowler's point stands: centralising another domain's store here would make this the monolith the split is meant to avoid."
+    },
+    {
+      "id": "prospector-dossiers-worktree",
+      "reason": "The same product data, stranded in an abandoned agent worktree. That it holds 130.9 MB while the live store holds 0.0 MB is a real finding, and it belongs to prospector to fix rather than to this warehouse to absorb."
+    },
+    {
+      "id": "maestro-intents",
+      "reason": "Maestro's own working memory, one file per cycle. Another domain's store."
+    },
+    {
+      "id": ".claude/state/coord/jobs.sqlite",
+      "reason": "SQLite, not append-only rows. Ingesting it needs a reader that understands its schema; the generic jsonl path would produce garbage rows that look like data."
+    },
+    {
+      "id": ".estate/healthchecks/data/hc.sqlite",
+      "reason": "Healthchecks' own database, same reason. The estate reads its verdicts through the Healthchecks API, not by copying its tables."
+    },
+    {
+      "id": "dev/code/crew/science/warehouse.db",
+      "reason": "This is the sink. Collecting the warehouse into the warehouse is the loop LAW 30 warns about, and the row count would grow without bound."
+    },
+    {
+      "id": "crew-issues",
+      "reason": "Not a file. It is a GitHub API count, and it already reaches the estate through the inventory's own ledger row."
+    },
+    {
+      "id": ".maestro/experience_graph.db",
+      "reason": "SQLite, and one half of a duplicate the crawl reports in its own findings: the same graph exists at ~/.estate/knowledge/maestro/experience_graph.db. Which one is authoritative is maestro's call, not this warehouse's, and collecting both would make the duplicate look like twice the evidence."
+    },
+    {
+      "id": ".estate/knowledge/maestro/experience_graph.db",
+      "reason": "The other half of that duplicate. Declined for the same reason and named separately so neither disappears from the registry while the question is open."
+    },
+    {
+      "id": ".claude/state/one-branch/would-have-fired.jsonl",
+      "reason": "Producer (~/.claude/quarantine/2026-08-21-pipeline-workarounds/one-branch-fence.py) was quarantined 2026-08-21 22:42 -- not in ~/.claude/settings.json hooks, mode file ~/.claude/one-branch-fence.mode still reads 'refuse' but nothing calls it. Last write to would-have-fired.jsonl is 2026-08-21 22:38, the same window. This is a decommissioned guard, not a live source going quiet: it will never write again unless someone restores the hook. Declined 2026-08-24 by the on-call attribution (LAW 29) rather than left as a stale-source alert that can never clear itself. If the fence is restored, move this back to sources."
+    },
+    {
+      "id": "dagster-run-store",
+      "root": "home",
+      "path": ".estate/dagster",
+      "reason": "Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs. 2026-08-27 (crew#376): the tick and run tables are now collected as dagster-ticks and dagster-runs from the live store under the idp checkout (run/dagster); this ~/.estate/dagster copy is stale since 2026-08-24 and stays declined."
+    },
+    {
+      "id": ".estate/REQUIREMENTS.jsonl",
+      "reason": "The id is relative to the 'home' root, so the file is /Users/chidionyema/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file."
+    },
+    {
+      "id": "crew-snapshot-worktree",
+      "root": "home",
+      "path": ".claude/state/crew-snapshot-worktree",
+      "reason": "A git worktree of this repo kept by com.founder.estatesnapshot so the hourly STATE.md rebuild reads a clean checkout. Every jsonl under it (science/ships, science/attention, science/RESEARCH-LEDGER, risk/REGISTER, science/predictions) is a copy of a file tracked in crew and already collected from the science root. Collecting the copies would double-count every row. Declined as a directory because the worktree is re-created whenever the snapshot job resets it."
+    },
+    {
+      "id": ".estate/temporal/dev.db",
+      "reason": "The Temporal dev server's own persistence (SQLite), written by temporal CLI, schema owned upstream and rewritten on upgrade. It holds workflow history for the orchestrator, not a fact about the estate; what the workflows produce is collected from their outputs. Owner: the scheduler row of STANDARDS. When Temporal moves to the cluster (crew#78) this file goes with it."
+    },
+    {
+      "id": ".estate/sovereign/budget.db",
+      "reason": "The sovereign runner's budget counter, a SQLite file it locks and rewrites in place; it carries no rows with a time. The fact stream beside it, .estate/sovereign/receipts.jsonl, is collected as source sovereign_receipts and holds budget_remaining on every receipt, so the counter's history is already in the warehouse."
+    },
+    {
+      "id": "toolguard",
+      "root": "home",
+      "path": ".claude/state/toolguard/events.jsonl",
+      "reason": "emitter tool-drip-guard.py is wired to no hook and no launchd job since 2026-08-23; decommissioned by omission (crew#265)"
+    },
+    {
+      "id": "consult",
+      "root": "home",
+      "path": ".claude/logs/consult.jsonl",
+      "reason": "ai.estate.consultd runs with no backend configured, every consult returns 503, nothing written since 2026-08-23 (crew#265)"
+    },
+    {
+      "id": "founder_actions",
+      "root": "home",
+      "path": ".claude/state/founder-actions.jsonl",
+      "reason": "written only by estate_audit.py, which stopped reaching that write on 2026-08-23; no owner job (crew#265)"
+    },
+    {
+      "id": "worktree_cleanup",
+      "root": "home",
+      "path": ".claude/state/estate-worktree-cleanup.jsonl",
+      "reason": "estate_worktree_cleanup.sh is scheduled by nothing since 2026-08-23 (crew#265)"
+    },
+    {
+      "id": ".estate/healthchecks/hc.sqlite",
+      "reason": "a 0-byte file at the directory root, created 2026-08-27 01:14 beside the real database data/hc.sqlite (declined above); nothing writes it, so there is nothing to collect (crew#465)"
+    },
+    {
+      "id": "transcripts-index",
+      "root": "code",
+      "path": "crew/science/transcripts.db",
+      "reason": "science/transcripts.py's own index of the declined transcripts (every byte read once by offset). A derived store of a declined source, rebuilt four times a day by scripts/science-collect (crew#432); its tool-call and error rows already reach the warehouse through that reader, so collecting the index again would count them twice. crew#90."
+    }
   ],
-  "stale_after_hours": "freshness SLA; default_stale_after_hours when absent"
- }
+  "contract": {
+    "owner": "the file that appends to the store; a path under ~ or this repo, and it must exist",
+    "method": [
+      "push",
+      "poll",
+      "hand"
+    ],
+    "retention_days": "how long a row is kept; a number, and a source with none is a source nothing may ever delete from",
+    "sensitivity": [
+      "public",
+      "internal",
+      "restricted"
+    ],
+    "stale_after_hours": "freshness SLA; default_stale_after_hours when absent"
+  }
 }

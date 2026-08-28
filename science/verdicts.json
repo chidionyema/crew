@@ -111,15 +111,15 @@
     },
     {
       "key": "act/task_outcome",
-      "verdict": "NEVER_EMITTED",
+      "verdict": "COLLECTED",
       "what": "did the thing an agent built actually work",
-      "why": "Commits and PRs are counted. Whether the change held, was reverted, or broke something is not, so there is no denominator for quality.",
-      "ticket": "crew#368",
+      "why": "Was: commits and PRs were counted, never whether a change held. Now the `dora` source rows carry deploys (changes_shipped), reverts (changes_reverted) and held_7d (changes_held_7d) per repo per run.",
       "measures": [
         "changes_shipped",
         "changes_reverted",
         "changes_held_7d"
-      ]
+      ],
+      "reader": "science/dora.py --jsonl science/dora.jsonl --days 14 (scripts/science-collect, hourly) -> source `dora` in sources.json (facts source='dora': deploys, reverts, held_7d, change_failure_rate_pct, mttr_h_median per repo per run); reverts by PR title `Revert \"<title>\"`, held = merged >=7d and never named by a revert"
     },
     {
       "key": "act/run_duration",

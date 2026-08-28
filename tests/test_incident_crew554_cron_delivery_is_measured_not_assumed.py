@@ -22,6 +22,14 @@ checked. `scripts/cron-delivery` is the instrument; these are the rules it must 
      authenticated login and the repositories are discovered.
   5. Cron expansion covers the forms the estate actually writes: `*`, `a`, `a-b`, `*/n`,
      `a-b/n` and comma lists, on all five fields.
+  6. Nothing leaves the measurement in silence (review finding, session 78caaa17 on crew#571).
+     The headline is a SHARE, so a workflow dropped from the denominator RAISES the delivered
+     percentage. Three paths used to drop one without a word: a cron with the wrong field
+     count, a cron field that does not parse, and a `schedule:` block whose entries the line
+     reader cannot see. Each is now named under the table, with the direction stated, and the
+     one drop that bends the other way -- the `gh run list` cap, which removes DELIVERIES and
+     so invents misses -- is exit 2 beside a refusal, because a false alarm is the one thing
+     this instrument may not raise.
 """
 import datetime as dt
 import importlib.machinery
@@ -224,3 +232,115 @@ def test_the_p90_is_never_below_the_median(cd):
     for n in range(1, 40):
         vals = sorted(x * 7 % 23 for x in range(n))
         assert cd.percentile(vals, 0.9) >= statistics.median(vals), n
+
+
+# --- rule 6: no silent shrink of the denominator (review 78caaa17 on crew#571) --------------
+
+
+def test_a_cron_with_the_wrong_field_count_is_named_not_dropped(cd):
+    cd.DROPPED.clear()
+    assert cd.parse(["0 3 * *"], where="acme/repo nightly") == []
+    assert len(cd.DROPPED) == 1
+    line = cd.DROPPED[0]
+    assert "acme/repo nightly" in line and "0 3 * *" in line and "not 5" in line
+
+
+def test_a_cron_field_that_does_not_parse_is_named_not_dropped(cd):
+    cd.DROPPED.clear()
+    assert cd.parse(["0 3 * * mon"], where="acme/repo weekly") == []
+    assert len(cd.DROPPED) == 1
+    assert "acme/repo weekly" in cd.DROPPED[0] and "does not parse" in cd.DROPPED[0]
+
+
+def test_a_good_cron_beside_a_bad_one_is_still_counted(cd):
+    """The drop is per-cron. One unreadable expression must not take the workflow with it."""
+    cd.DROPPED.clear()
+    assert len(cd.parse(["0 3 * * *", "nonsense"], where="acme/repo mixed")) == 1
+    assert len(cd.DROPPED) == 1
+
+
+def test_a_readable_cron_records_nothing(cd):
+    """Rule 3's other half: an instrument that cries wolf is one nobody reads."""
+    cd.DROPPED.clear()
+    assert len(cd.parse(["*/15 * * * *"], where="acme/repo quarter")) == 1
+    assert cd.DROPPED == []
+
+
+def test_a_schedule_block_the_reader_cannot_see_is_named_not_silently_empty(cd, monkeypatch):
+    """Flow style is valid YAML the line reader does not handle. It must not vanish."""
+    cd.DROPPED.clear()
+    monkeypatch.setattr(cd, "gh", lambda *a, **k: "on:\n  schedule: [{cron: '0 3 * * *'}]\n")
+    assert cd.crons_of("acme/repo", ".github/workflows/nightly.yml") == []
+    assert len(cd.DROPPED) == 1
+    assert ".github/workflows/nightly.yml" in cd.DROPPED[0]
+    assert "not counted as promising anything" in cd.DROPPED[0]
+
+
+def test_a_workflow_with_no_schedule_at_all_is_not_reported_as_a_drop(cd, monkeypatch):
+    """`schedule:` absent is an ANSWER. Only a declared-but-unreadable block is a drop."""
+    cd.DROPPED.clear()
+    monkeypatch.setattr(cd, "gh", lambda *a, **k: "on:\n  push:\n    branches: [main]\n")
+    assert cd.crons_of("acme/repo", ".github/workflows/ci.yml") == []
+    assert cd.DROPPED == []
+
+
+def test_the_run_list_cap_is_reported_and_is_not_a_conservative_drop(cd, monkeypatch):
+    """Hitting the cap removes DELIVERIES, so it invents misses. That is exit-2 territory."""
+    cd.TRUNCATED.clear()
+    rows = [{"createdAt": "2026-08-28T00:00:00Z", "workflowName": "nightly"}] * cd.RUN_CAP
+    monkeypatch.setattr(cd, "gh", lambda *a, **k: __import__("json").dumps(rows))
+    cd.scheduled_runs("acme/repo", "2026-08-27T00:00:00Z")
+    assert len(cd.TRUNCATED) == 1
+    assert str(cd.RUN_CAP) in cd.TRUNCATED[0] and "acme/repo" in cd.TRUNCATED[0]
+
+
+def test_a_run_list_under_the_cap_reports_nothing(cd, monkeypatch):
+    cd.TRUNCATED.clear()
+    rows = [{"createdAt": "2026-08-28T00:00:00Z", "workflowName": "nightly"}] * (cd.RUN_CAP - 1)
+    monkeypatch.setattr(cd, "gh", lambda *a, **k: __import__("json").dumps(rows))
+    cd.scheduled_runs("acme/repo", "2026-08-27T00:00:00Z")
+    assert cd.TRUNCATED == []
+
+
+def _sound(cd, dropped=(), refused=(), truncated=()):
+    cd.DROPPED[:], cd.REFUSED[:], cd.TRUNCATED[:] = list(dropped), list(refused), list(truncated)
+    said = []
+    rc = cd.soundness(said.append)
+    return rc, "\n".join(said)
+
+
+def test_a_conservative_drop_is_loud_but_does_not_fail_the_run(cd):
+    rc, out = _sound(cd, dropped=["acme/repo nightly: cron '0 3 * *' has 4 fields, not 5"])
+    assert rc == 0
+    assert "acme/repo nightly" in out
+    assert "RAISES the delivered share" in out
+
+
+def test_a_refusal_still_fails_the_run(cd):
+    rc, out = _sound(cd, refused=["gh api repos/acme/repo -> exit 1"])
+    assert rc == 2
+    assert "cannot be trusted" in out
+
+
+def test_a_truncated_run_list_fails_the_run_the_same_way_a_refusal_does(cd):
+    """It removes deliveries, so it invents misses. Direction is the whole reason for exit 2."""
+    rc, out = _sound(cd, truncated=["acme/repo: `gh run list -L 400` returned 400 rows, the cap."])
+    assert rc == 2
+    assert "acme/repo" in out
+
+
+def test_a_clean_measurement_says_nothing_and_exits_zero(cd):
+    assert _sound(cd) == (0, "")
+
+
+def test_a_drop_beside_a_refusal_reports_both_and_still_exits_two(cd):
+    rc, out = _sound(cd, dropped=["d1"], refused=["r1"])
+    assert rc == 2
+    assert "d1" in out and "r1" in out
+
+
+def test_a_long_drop_list_is_capped_and_says_how_many_it_did_not_print(cd):
+    rc, out = _sound(cd, dropped=[f"drop {i}" for i in range(25)])
+    assert rc == 0
+    assert "... and 15 more" in out
+    assert out.count("#   drop ") == 10

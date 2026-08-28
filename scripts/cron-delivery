@@ -39,7 +39,16 @@ from collections import defaultdict
 
 UTC = dt.UTC
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
+RUN_CAP = 400        # `gh run list -L`; hitting it is reported, never assumed to be the whole window
 REFUSED = []          # every gh call that failed, so the report can say so out loud
+# Every workflow or cron this tool declined to count, and which way the omission bends the
+# headline. Review finding, session 78caaa17 on crew#571: the headline is a SHARE, so a
+# workflow dropped from the denominator raises the delivered percentage. The old code dropped
+# silently in three places, and a silent shrink is the shape that turns "97% delivered" into a
+# number nobody can check. Conservative drops are printed; a drop that can INVENT a miss is
+# exit 2, because that one can raise a false alarm and REFUSED already owns that job.
+DROPPED = []
+TRUNCATED = []        # the run-list cap was hit: delivered runs are missing, misses are not
 
 
 def gh(args, jq=None, absent_ok=False):
@@ -97,24 +106,33 @@ def field(expr, lo, hi):
     return out
 
 
-def parse(crons):
-    """Cron strings -> matchable field sets. Five integer fields is not worth a dependency."""
+def parse(crons, where=""):
+    """Cron strings -> matchable field sets. Five integer fields is not worth a dependency.
+
+    A cron this parser cannot read is recorded, never dropped in silence: its occurrences
+    leave the denominator, which raises the delivered share. `where` names the workflow so
+    the line under the table is actionable rather than a count.
+    """
     out = []
     for c in crons:
         f = c.split()
         if len(f) != 5:
+            DROPPED.append(f"{where or '?'}: cron {c!r} has {len(f)} fields, not 5 "
+                           "-- not counted as promised")
             continue
         try:
             out.append((field(f[0], 0, 59), field(f[1], 0, 23), field(f[2], 1, 31),
                         field(f[3], 1, 12), field(f[4], 0, 6)))
-        except ValueError:
+        except ValueError as e:
+            DROPPED.append(f"{where or '?'}: cron {c!r} does not parse ({e}) "
+                           "-- not counted as promised")
             continue
     return out
 
 
-def occurrences(crons, start, end):
+def occurrences(crons, start, end, where=""):
     """Every minute in [start, end] at which one of these crons was due."""
-    parsed, out, t = parse(crons), [], start.replace(second=0, microsecond=0)
+    parsed, out, t = parse(crons, where), [], start.replace(second=0, microsecond=0)
     while t <= end:
         for mins, hrs, dom, mon, dow in parsed:
             if (t.minute in mins and t.hour in hrs and t.day in dom
@@ -131,17 +149,24 @@ def crons_of(repo, wf_path):
               "-H", "Accept: application/vnd.github.raw"], absent_ok=True)
     if txt is None:
         return []
-    out, inside = [], False
+    out, inside, declared = [], False, False
     for line in txt.splitlines():
         s = line.strip()
         if s.startswith("schedule:"):
-            inside = True
+            inside = declared = True
         elif inside:
             if s.startswith("- cron:"):
                 #: a cron expression never contains '#', so a trailing comment is safe to cut
                 out.append(s.split(":", 1)[1].split("#")[0].strip().strip("'\""))
             elif s and not s.startswith("#") and not s.startswith("-"):
                 inside = False
+    if declared and not out:
+        # A `schedule:` block whose entries this line reader cannot see -- flow style
+        # (`schedule: [{cron: "0 3 * * *"}]`), an anchor, a folded scalar. Returning []
+        # here used to be indistinguishable from "this workflow has no schedule", and the
+        # workflow then left the denominator without a word (session 78caaa17 on crew#571).
+        DROPPED.append(f"{repo} {wf_path}: declares `schedule:` but this reader found no "
+                       "`- cron:` line -- the workflow is not counted as promising anything")
     return out
 
 
@@ -178,12 +203,19 @@ def repos_of(owner, only):
 
 def scheduled_runs(repo, since):
     """Every `schedule` run created since `since`, as (workflow name, created minute)."""
-    txt = gh(["gh", "run", "list", "-R", repo, "--event", "schedule", "-L", "400",
+    txt = gh(["gh", "run", "list", "-R", repo, "--event", "schedule", "-L", str(RUN_CAP),
               "--json", "createdAt,workflowName"])
     if txt is None:
         return None
+    rows = json.loads(txt or "[]")
+    if len(rows) >= RUN_CAP:
+        # The cap took the OLDEST runs off the list, so runs that did happen are missing and
+        # the misses are all still there: this direction INVENTS drops. That is a false alarm,
+        # which is the one thing this instrument may not do, so it is exit 2 like a refusal.
+        TRUNCATED.append(f"{repo}: `gh run list -L {RUN_CAP}` returned {len(rows)} rows, the cap. "
+                         "Deliveries older than the newest 400 are missing from this window.")
     out = []
-    for r in json.loads(txt or "[]"):
+    for r in rows:
         if r.get("createdAt", "") >= since:
             out.append((r.get("workflowName"),
                         dt.datetime.strptime(r["createdAt"][:19] + "Z", STAMP)
@@ -210,7 +242,7 @@ def measure_repo(repo, now, hours):
         if not crons:
             continue
         wfs += 1
-        promised += len(occurrences(crons, start, now))
+        promised += len(occurrences(crons, start, now, f'{repo} {w["name"]}'))
         got = sorted(fired.get(w["name"], []))
         delivered += len(got)
         # widen the search back a day: a run late by hours must still find the minute it was
@@ -255,6 +287,34 @@ def measure_heartbeat(spec, owner, now, hours):
                 "clock": sum(1 for v in by_hour.values() if "clock" in v),
                 "pushonly": sum(1 for v in by_hour.values() if "clock" not in v),
                 "events": ", ".join(f"{k}:{v}" for k, v in sorted(events.items()))}
+
+
+def soundness(say):
+    """Say what was not counted, and return the exit status the measurement has earned.
+
+    Two kinds of omission, and they are not the same fact. A DROPPED workflow or cron leaves
+    the denominator, so the delivered share printed above is an OVER-estimate: the truth is at
+    most that good, never better, and an over-estimate cannot raise a false alarm. A REFUSED
+    call or a TRUNCATED run list removes DELIVERIES, which invents misses -- a false alarm, the
+    one thing this instrument may not do -- so those are exit 2 and the rows cannot be trusted.
+    """
+    if DROPPED:
+        say(f"\n# {len(DROPPED)} workflow(s)/cron(s) were NOT counted. Each one leaves the")
+        say("# denominator, which RAISES the delivered share printed above: the real delivery")
+        say("# rate is at most what these rows say, never better. Not exit 2 for that reason.")
+        for d in DROPPED[:10]:
+            say(f"#   {d}")
+        if len(DROPPED) > 10:
+            say(f"#   ... and {len(DROPPED) - 10} more")
+
+    unsound = REFUSED + TRUNCATED
+    if unsound:
+        say(f"\n# {len(unsound)} measurement(s) came back unsound, so the rows above "
+            "cannot be trusted:")
+        for r in unsound[:20]:
+            say(f"#   {r}")
+        return 2
+    return 0
 
 
 def main():
@@ -309,12 +369,7 @@ def main():
         print("\n# a push-only hour is an hour with activity but no heartbeat: the drill passed")
         print("# on somebody's commit and nothing checked the estate once they stopped.")
 
-    if REFUSED:
-        print(f"\n# {len(REFUSED)} gh call(s) refused, so the rows above are incomplete:")
-        for r in REFUSED[:10]:
-            print(f"#   {r}")
-        return 2
-    return 0
+    return soundness(print)
 
 
 if __name__ == "__main__":

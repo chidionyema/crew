@@ -90,7 +90,9 @@ def test_committed_page_carries_no_absolute_path():
 def test_check_exits_one_when_a_question_is_stale(tmp_path):
     ledger = _ledger(tmp_path)
     out = tmp_path / "RESEARCH-GRADE.md"
-    assert rg.main(["--ledger", str(ledger), "--out", str(out), "--check"]) == 1
+    # --today pins the clock: the fixture dates are fixed, and at 2026-08-28T00:00Z the row
+    # aged to 31d and every PR went red (crew#547 qa 33129059210).
+    assert rg.main(["--ledger", str(ledger), "--out", str(out), "--check", "--today", TODAY.isoformat()]) == 1
     assert "RED 30d" in out.read_text()
 
 

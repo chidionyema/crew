@@ -250,6 +250,38 @@ def predictions(now: dt.datetime) -> dict:
             "hit_rate": round(100 * len(hits) / len(scored)) if scored else None}
 
 
+IDEA_KIND = "idea"
+
+
+def _forecast(r: dict):
+    """The idea's forecast as a probability in [0, 1], or None when the row carries none."""
+    f = r.get("forecast")
+    return f if isinstance(f, (int, float)) and not isinstance(f, bool) and 0 <= f <= 1 else None
+
+
+def ideas(now: dt.datetime) -> dict:
+    """The contract between the research capability and prospector (crew#537 CP4): three rows.
+
+    An idea is a research-ledger row with `kind: idea` (science/ledger.py add --kind idea). It is
+    graded when it carries a forecast (a probability) and a source; it is resolved when it carries
+    an outcome (0 or 1), and the Brier score is the mean squared error of every resolved forecast.
+    Every row is red until the ledger holds the data: an empty contract is a red row, never an
+    absent one.
+    """
+    since = (now - dt.timedelta(days=WINDOW_DAYS)).date().isoformat()
+    rows = [r for r in _jsonl(LEDGER) if r.get("kind") == IDEA_KIND]
+    this_week = [r for r in rows if (r.get("date") or "") >= since]
+    graded = [r for r in rows if _forecast(r) is not None and r.get("sources")]
+    resolved = [r for r in graded if r.get("outcome") in (0, 1)]
+    brier = (round(sum((_forecast(r) - r["outcome"]) ** 2 for r in resolved) / len(resolved), 3)
+             if resolved else None)
+    return {"window_days": WINDOW_DAYS, "ideas": len(rows), "this_week": len(this_week),
+            "graded": len(graded), "resolved": len(resolved), "brier": brier,
+            "rows": [("ideas generated per week", len(this_week), len(this_week) > 0),
+                     ("ideas graded (forecast with source)", len(graded), len(graded) > 0),
+                     ("ideas resolved with Brier", f"{len(resolved)}, Brier {brier}" if resolved else 0, brier is not None)]}
+
+
 def foresight(now: dt.datetime) -> dict:
     """The estate's own predictions about its CI, scored against what happened (crew#405)."""
     import foresight as fs
@@ -351,6 +383,8 @@ SECTIONS = [
     ("Research ledger", research, "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))\""),
     ("Delivery outcomes", outcomes, "python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7"),
     ("Predictions", predictions, "python3 science/outcomes.py rate"),
+    ("Ideas: the prospector contract (crew#537)", ideas,
+     "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl') if json.loads(l).get('kind')=='idea'))\""),
     ("Foresight: will this PR go red?", foresight, "python3 science/foresight.py report"),
 ]
 
@@ -393,6 +427,12 @@ def numbers(data: dict) -> dict[str, float]:
             n["USD per commit"] = o["usd_per_commit"]
     if p:
         n.update({"predictions recorded": p["recorded"], "predictions scored": p["scored"]})
+    i = data.get("Ideas: the prospector contract (crew#537)")
+    if i:
+        n.update({f"ideas generated, {i['window_days']}d": i["this_week"], "ideas graded": i["graded"],
+                  "ideas resolved": i["resolved"]})
+        if i["brier"] is not None:
+            n["ideas Brier"] = i["brier"]
     lanes_d = data.get("Lanes")
     if lanes_d:
         for r in lanes_d["rows"]:
@@ -481,6 +521,11 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
         elif title == "Predictions":
             rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored)"
             out += [f"- {d['recorded']} recorded before a repair, {d['scored']} scored after, hit rate {rate}"]
+        elif title.startswith("Ideas"):
+            out += ["| Row | Value | Grade |", "|---|---|---|"]
+            out += [f"| {name} | {value} | {'ok' if green else 'FAIL (no data)'} |" for name, value, green in d["rows"]]
+            out += ["", f"- {d['ideas']} idea rows in the ledger (`kind: idea`, written by `python3 science/ledger.py add --kind idea "
+                        "--forecast P`); resolved with `--outcome 0|1`. Red until the first business idea lands (CP5)."]
         elif title.startswith("Foresight"):
             st = d["state"]
             rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored yet)"

@@ -49,16 +49,19 @@ def _content_lines(text: str) -> list[str]:
 def test_pm_agent_issue_checkpoints_are_visible():
     b = B.parse(CREW537)
     assert [c.id for c in b.checkpoints] == ["CP1", "CP2", "CP3", "CP4", "CP5"]
-    assert b.get("CP4").title == "Three graded ideas rows on SHOWCASE.md"
-    assert b.get("CP1").done and not b.get("CP4").done
-    assert b.get("CP1").title.endswith("(receipt: crew#540)")
+    cp1, cp4 = b.get("CP1"), b.get("CP4")
+    assert cp1 is not None and cp4 is not None
+    assert cp4.title == "Three graded ideas rows on SHOWCASE.md"
+    assert cp1.done and not cp4.done
+    assert cp1.title.endswith("(receipt: crew#540)")
 
 
 def test_colon_and_no_colon_lines_parse_the_same():
     with_colon = B.parse("## Checklist\n\n- [ ] CP7: do the thing\n")
     without = B.parse("## Checklist\n\n- [ ] CP7 do the thing\n")
     assert with_colon.checkpoints == without.checkpoints
-    assert with_colon.get("CP7").title == "do the thing"
+    cp7 = with_colon.get("CP7")
+    assert cp7 is not None and cp7.title == "do the thing"
 
 
 def test_checkpoints_heading_with_parenthetical_is_the_checklist():

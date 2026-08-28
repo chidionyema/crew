@@ -1,350 +1,647 @@
 {
- "_": "Laws compiled to checks. verdict: mechanical = a machine can decide it; partial = a machine can flag a strong smell but not decide; judgement = no check, and saying so is the honest answer. 'guards' names the scripts that would run it. 'state' is live / dead / absent, cross-checked against disk by law_enforcement.py.",
+ "_": "Laws compiled to checks (50 laws, crew#108). verdict: mechanical = a machine can decide it; partial = a machine can flag a strong smell but not decide; judgement = no check, and saying so is the honest answer. 'guards' names the scripts that would run it. 'state' is live / dead / absent, cross-checked against disk by law_enforcement.py.",
  "laws": [
   {
    "rule": "put-the-fire-out-first",
-   "was": 1,
    "law": 1,
    "id": 1,
-   "law_title": "PUT THE FIRE OUT FIRST",
+   "law_title": "Put the fire out first",
    "verdict": "partial",
    "where": "PreToolUse+SessionStart",
    "check": "a numbered restoration objective was declared in an earlier turn and this reply does not reprint the number",
-   "state": "live",
    "guards": [
-    "goal-guard.py"
-   ]
-  },
-  {
-   "rule": "root-out-a-risk-to",
-   "was": 12,
-   "law": 1,
-   "id": 1,
-   "law_title": "PUT THE FIRE OUT FIRST",
-   "verdict": "judgement",
-   "where": null,
-   "check": null,
-   "state": "absent",
-   "guards": []
+    "goal-guard.py",
+    "repeat-guard.py",
+    "scope-guard.py"
+   ],
+   "state": "live"
   },
   {
    "rule": "proof-before-action",
-   "was": 2,
    "law": 2,
    "id": 2,
-   "law_title": "PROOF BEFORE ACTION",
+   "law_title": "Proof before action",
    "verdict": "partial",
    "where": "Stop",
-   "check": "reply contains a hedge (probably, likely, it must be, appears to) and the turn ran zero Bash or Read calls",
-   "state": "absent",
-   "guards": []
+   "check": "reply contains a hedge (probably, likely, it must be, appears to) and the turn ran no command that could settle it",
+   "guards": [
+    "assertion-guard.py"
+   ],
+   "state": "dead"
   },
   {
-   "rule": "evidence-must-converge-from-two",
-   "was": 15,
-   "law": 2,
-   "id": 2,
-   "law_title": "PROOF BEFORE ACTION",
-   "verdict": "partial",
-   "where": "Stop",
-   "check": "reply says proven, confirmed or verified and cites fewer than two distinct sources",
-   "state": "absent",
-   "guards": []
-  },
-  {
-   "rule": "attribute-before-you-repair",
-   "was": 29,
-   "law": 2,
-   "id": 2,
-   "law_title": "PROOF BEFORE ACTION",
-   "verdict": "partial",
-   "where": "scheduled",
-   "check": "repairs shipped exceeds predictions logged and scored",
-   "state": "absent",
-   "guards": []
-  },
-  {
-   "rule": "think-it-through-before-you",
-   "was": 4,
+   "rule": "never-make-the-same-mistake-twice",
    "law": 3,
    "id": 3,
-   "law_title": "THINK IT THROUGH, AND NEVER DECIDE ALONE WHAT YOU CANNOT UNDO ALONE",
-   "verdict": "judgement",
-   "where": null,
-   "check": null,
-   "state": "absent",
-   "guards": []
+   "law_title": "Never make the same mistake twice",
+   "verdict": "mechanical",
+   "where": "PreToolUse",
+   "check": "Write creates a new path whose distinctive symbol never appeared in a prior Grep; a config write that no longer parses is refused",
+   "guards": [
+    "dupe-work-fence.py",
+    "config-syntax-guard.py",
+    "hooks/pre-commit"
+   ],
+   "state": "live"
   },
   {
-   "rule": "never-decide-alone-what-you",
-   "was": 11,
-   "law": 3,
-   "id": 3,
-   "law_title": "THINK IT THROUGH, AND NEVER DECIDE ALONE WHAT YOU CANNOT UNDO ALONE",
+   "rule": "think-it-through-before-you-touch-it",
+   "law": 4,
+   "id": 4,
+   "law_title": "Think it through before you touch it",
    "verdict": "judgement",
    "where": null,
-   "check": null,
-   "state": "absent",
-   "guards": []
+   "check": "",
+   "guards": [],
+   "state": "absent"
   },
   {
    "rule": "unblock-yourself",
-   "was": 5,
-   "law": 4,
-   "id": 4,
-   "law_title": "UNBLOCK YOURSELF, AND TAKE THE SMALLER ROAD",
-   "verdict": "mechanical",
-   "where": "Stop",
-   "check": "reply contains 'founder action' or an ask aimed at him, and no line names a blocker of the three permitted kinds",
-   "state": "live",
-   "guards": [
-    "blocker-guard.py"
-   ]
-  },
-  {
-   "rule": "take-the-smaller-road-when",
-   "was": 23,
-   "law": 4,
-   "id": 4,
-   "law_title": "UNBLOCK YOURSELF, AND TAKE THE SMALLER ROAD",
-   "verdict": "mechanical",
-   "where": "Stop",
-   "check": "reply ends by naming two options and their costs instead of a decision",
-   "state": "live",
-   "guards": ["policy/reply.rego"]
-  },
-  {
-   "rule": "fix-the-trap-where-you",
-   "was": 8,
    "law": 5,
    "id": 5,
-   "law_title": "STAY ON THE JOB",
+   "law_title": "Unblock yourself",
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply contains 'founder action' or an ask aimed at him, and no line names a blocker with Tried/Error/Need/Who",
+   "guards": [
+    "blocker-guard.py",
+    "repeat-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "root-cause-and-the-class-of-mistake",
+   "law": 6,
+   "id": 6,
+   "law_title": "Root cause, and the class of mistake",
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "the same problem is narrated in two consecutive replies and no command between them changed it",
+   "guards": [
+    "repeat-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "refresh-on-main-before-you-ask-for-revie",
+   "law": 7,
+   "id": 7,
+   "law_title": "Refresh on main before you ask for review",
+   "verdict": "mechanical",
+   "where": "pre-push",
+   "check": "git fetch origin main && test $(git rev-list --count HEAD..origin/main) -eq 0",
+   "guards": [
+    "hooks/pre-push"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "fix-the-trap-where-you-found-it",
+   "law": 8,
+   "id": 8,
+   "law_title": "Fix the trap where you found it",
    "verdict": "judgement",
    "where": null,
-   "check": null,
-   "state": "absent",
-   "guards": []
+   "check": "",
+   "guards": [],
+   "state": "absent"
   },
   {
    "rule": "stay-on-the-job",
-   "was": 9,
-   "law": 5,
-   "id": 5,
-   "law_title": "STAY ON THE JOB",
+   "law": 9,
+   "id": 9,
+   "law_title": "Stay on the job",
    "verdict": "partial",
-   "where": "PreToolUse+SessionStart",
-   "check": "the named job's number has not moved across three consecutive turns",
-   "state": "live",
+   "where": "PreToolUse+SessionStart+Stop",
+   "check": "the named job's number has not moved across three consecutive turns; a reply that does not open DONE:/INVENTORY:/WORKING:/WAITING:/BLOCKED: is refused",
    "guards": [
-    "goal-guard.py"
-   ]
+    "goal-guard.py",
+    "close-guard.py",
+    "idle-guard.py"
+   ],
+   "state": "live"
   },
   {
-   "rule": "never-make-the-same-mistake",
-   "was": 3,
-   "law": 6,
-   "id": 6,
-   "law_title": "ROOT CAUSE, THEN CLOSE THE CLASS WITH A MECHANISM SOMEBODY READS",
+   "rule": "say-it-once-on-the-board",
+   "law": 10,
+   "id": 10,
+   "law_title": "Say it once, on the board",
    "verdict": "mechanical",
+   "where": "SessionStart+UserPromptSubmit",
+   "check": "an outbound peer message repeats one already on ESTATE_BOARD.jsonl; unseen board rows are handed to the session at its next prompt",
+   "guards": [
+    "peer-loop-fence.py",
+    "board-deliver.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "never-decide-alone-what-you-cannot-undo",
+   "law": 11,
+   "id": 11,
+   "law_title": "Never decide alone what you cannot undo alone",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "root-out-a-risk-to-the-pipeline-do-not-n",
+   "law": 12,
+   "id": 12,
+   "law_title": "Root out a risk to the pipeline, do not narrate it",
+   "verdict": "partial",
    "where": "PreToolUse",
-   "check": "Write creates a new path whose distinctive symbol never appeared in a prior Grep, Glob or git log in this session",
-   "state": "live",
+   "check": "gh pr create is refused past 20 live open PRs and a merge that strands another PR's base is refused; the risk is capped, not narrated",
    "guards": [
-    "dupe-work-fence.py",
-    "hooks/pre-commit"
-   ]
+    "pr-cap-guard.py"
+   ],
+   "state": "live"
   },
   {
-   "rule": "root-cause-and-the-class",
-   "was": 6,
-   "law": 6,
-   "id": 6,
-   "law_title": "ROOT CAUSE, THEN CLOSE THE CLASS WITH A MECHANISM SOMEBODY READS",
-   "verdict": "partial",
-   "where": "pre-push",
-   "check": "a commit closes an incident and the same push adds no test, hook or CI job",
-   "state": "absent",
-   "guards": []
-  },
-  {
-   "rule": "an-instrument-nobody-reads-is",
-   "was": 28,
-   "law": 6,
-   "id": 6,
-   "law_title": "ROOT CAUSE, THEN CLOSE THE CLASS WITH A MECHANISM SOMEBODY READS",
-   "verdict": "mechanical",
-   "where": "scheduled",
-   "check": "a file under state/ has no reader in the corpus, or a live stream is silent beyond its interval",
-   "state": "live",
-   "guards": [
-    "science/law_enforcement.py",
-    "hooks/pre-commit"
-   ]
-  },
-  {
-   "rule": "experience-accumulates-or-it-is",
-   "was": 30,
-   "law": 6,
-   "id": 6,
-   "law_title": "ROOT CAUSE, THEN CLOSE THE CLASS WITH A MECHANISM SOMEBODY READS",
-   "verdict": "mechanical",
-   "where": "Stop",
-   "check": "a run produced a result and appended nothing to the record",
-   "state": "live",
-   "guards": [
-    "research-capture.py"
-   ]
-  },
-  {
-   "rule": "hold-the-platform-and-the",
-   "was": 13,
-   "law": 7,
-   "id": 7,
-   "law_title": "HOLD THE PLATFORM AND THE STACK, AND PROVE IT IS OPERATIONAL",
+   "rule": "hold-the-platform-and-the-stack-at-once",
+   "law": 13,
+   "id": 13,
+   "law_title": "Hold the platform and the stack at once",
    "verdict": "mechanical",
    "where": "Stop",
    "check": "reply to the founder carries neither a platform line nor a stack line",
-   "state": "absent",
-   "guards": []
+   "guards": [],
+   "state": "absent"
   },
   {
-   "rule": "prove-it-is-operational-before",
-   "was": 17,
-   "law": 7,
-   "id": 7,
-   "law_title": "HOLD THE PLATFORM AND THE STACK, AND PROVE IT IS OPERATIONAL",
+   "rule": "take-the-cost-or-speed-win-when-you-find",
+   "law": 14,
+   "id": 14,
+   "law_title": "Take the cost or speed win when you find one",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "evidence-must-converge-from-two-angles",
+   "law": 15,
+   "id": 15,
+   "law_title": "Evidence must converge from two angles",
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "reply says proven, confirmed or verified and cites fewer than two distinct sources",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "leave-a-path-back-when-you-drop-somethin",
+   "law": 16,
+   "id": 16,
+   "law_title": "Leave a path back when you drop something",
    "verdict": "mechanical",
    "where": "Stop",
-   "check": "reply opens with DONE and contains no command output",
-   "state": "live",
+   "check": "the session dropped a thread and wrote no checkpoints/LATEST.md",
+   "guards": [
+    "policy/reply.rego"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "prove-it-is-operational-before-you-say-i",
+   "law": 17,
+   "id": 17,
+   "law_title": "Prove it is operational before you say it is done",
+   "verdict": "mechanical",
+   "where": "Stop",
+   "check": "reply opens with DONE and carries no Founder receipt:, or INVENTORY without Built/Use/Expect/Not done/Evidence",
    "guards": [
     "dod-guard.py",
     "close-guard.py"
-   ]
+   ],
+   "state": "live"
   },
   {
-   "rule": "show-the-green-run-do",
-   "was": 22,
-   "law": 7,
-   "id": 7,
-   "law_title": "HOLD THE PLATFORM AND THE STACK, AND PROVE IT IS OPERATIONAL",
+   "rule": "every-founder-request-is-a-tracked-item",
+   "law": 18,
+   "id": 18,
+   "law_title": "Every founder request is a tracked item",
    "verdict": "mechanical",
-   "where": "pre-push",
-   "check": "scripts/pr-evidence.py check --pr N",
-   "state": "live",
+   "where": "Stop+UserPromptSubmit",
+   "check": "every founder prompt is written to the ledger; open items whose acceptance commands now exit 0 are closed",
    "guards": [
-    "hooks/pre-push"
-   ]
-  },
-  {
-   "rule": "take-the-cost-or-speed",
-   "was": 14,
-   "law": 8,
-   "id": 8,
-   "law_title": "PORTABILITY OUTRANKS DETECTION, AND COST IS AN AXIS",
-   "verdict": "judgement",
-   "where": null,
-   "check": null,
-   "state": "absent",
-   "guards": []
+    "prompt-ledger.py",
+    "directive-capture.py"
+   ],
+   "state": "live"
   },
   {
    "rule": "portability-outranks-detection",
-   "was": 19,
-   "law": 8,
-   "id": 8,
-   "law_title": "PORTABILITY OUTRANKS DETECTION, AND COST IS AN AXIS",
+   "law": 19,
+   "id": 19,
+   "law_title": "Portability outranks detection",
    "verdict": "partial",
    "where": "CI",
-   "check": "a dependency manifest changed and no exit drill for that dependency ran green in the last 30 days",
-   "state": "absent",
-   "guards": []
+   "check": "a dependency manifest changed and no exit drill for that dependency ran green in the same PR",
+   "guards": [
+    "hooks/pre-push"
+   ],
+   "state": "live"
   },
   {
    "rule": "seamless-is-the-deliverable",
-   "was": 20,
-   "law": 9,
-   "id": 9,
-   "law_title": "SEAMLESS IS THE DELIVERABLE",
+   "law": 20,
+   "id": 20,
+   "law_title": "Seamless is the deliverable",
    "verdict": "judgement",
    "where": null,
-   "check": null,
-   "state": "live",
+   "check": "",
    "guards": [
     "hooks/pre-push"
-   ]
+   ],
+   "state": "live"
   },
   {
-   "rule": "make-the-setup-need-you",
-   "was": 27,
-   "law": 9,
-   "id": 9,
-   "law_title": "SEAMLESS IS THE DELIVERABLE",
+   "rule": "secure-by-default-and-prove-it",
+   "law": 21,
+   "id": 21,
+   "law_title": "Secure by default, and prove it",
+   "verdict": "mechanical",
+   "where": "PreToolUse+Stop+pre-commit",
+   "check": "a secret-shaped value appears in a reply, a gh comment body, a handoff, a PR body, a commit or a screenshot",
+   "guards": [
+    "credential-guard.py",
+    "secret-scrub.py",
+    "policy/feed.rego",
+    "hooks/pre-commit"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "show-the-green-run-do-not-describe-it",
+   "law": 22,
+   "id": 22,
+   "law_title": "Show the green run, do not describe it",
+   "verdict": "mechanical",
+   "where": "pre-push",
+   "check": "scripts/pr-evidence.py check --pr N: a pull request carries an image of its green run",
+   "guards": [
+    "hooks/pre-push"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "take-the-smaller-road-when-both-arrive",
+   "law": 23,
+   "id": 23,
+   "law_title": "Take the smaller road when both arrive",
+   "verdict": "mechanical",
+   "where": "pre-push+Stop",
+   "check": "PR body has '## Options considered' with two real options and a Chosen: line; a reply that ends on a menu instead of a decision is refused",
+   "guards": [
+    "hooks/pre-push",
+    "policy/reply.rego"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "if-it-is-load-bearing-it-is-in-git",
+   "law": 24,
+   "id": 24,
+   "law_title": "If it is load-bearing, it is in git",
+   "verdict": "mechanical",
+   "where": "SessionStart+Stop+scheduled",
+   "check": "a load-bearing file differs from its tracked copy or is untracked; every provider rules file is a symlink to ~/AGENTS.md",
+   "guards": [
+    "laws-link-guard.py",
+    "canonical-root-guard.py",
+    "tracked.py",
+    "hooks/pre-commit"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "checkpoint-before-you-switch",
+   "law": 25,
+   "id": 25,
+   "law_title": "Checkpoint before you switch",
+   "verdict": "mechanical",
+   "where": "PreToolUse",
+   "check": "a switch command (git worktree add, checkout -b, switch -c) runs while the current issue has no checkpoint comment",
+   "guards": [
+    "policy/command.rego",
+    "rule-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "crew-is-the-sync-layer",
+   "law": 26,
+   "id": 26,
+   "law_title": "Crew is the sync layer",
+   "verdict": "partial",
+   "where": "pre-push",
+   "check": "a commit touches a shared path and references no open crew issue",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "make-the-setup-need-you-once-then-never",
+   "law": 27,
+   "id": 27,
+   "law_title": "Make the setup need you once, then never again",
    "verdict": "partial",
    "where": "Stop",
    "check": "a setup step asked of the founder was already asked in an earlier session",
-   "state": "absent",
-   "guards": []
+   "guards": [],
+   "state": "absent"
   },
   {
-   "rule": "the-founder-does-not-run",
-   "was": 31,
-   "law": 9,
-   "id": 9,
-   "law_title": "SEAMLESS IS THE DELIVERABLE",
+   "rule": "an-instrument-nobody-reads-is-not-an-ins",
+   "law": 28,
+   "id": 28,
+   "law_title": "An instrument nobody reads is not an instrument",
+   "verdict": "mechanical",
+   "where": "scheduled+SessionStart+Stop",
+   "check": "a file under state/ has no reader in the corpus, or a live stream is silent beyond its cadence; a session with no handoff in 30 minutes is refused",
+   "guards": [
+    "science/law_enforcement.py",
+    "feed-guard.py",
+    "guard_report.py",
+    "hooks/pre-commit"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "attribute-before-you-repair",
+   "law": 29,
+   "id": 29,
+   "law_title": "Attribute before you repair",
+   "verdict": "partial",
+   "where": "scheduled",
+   "check": "repairs shipped exceeds predictions logged and scored",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "experience-accumulates-or-it-is-not-rese",
+   "law": 30,
+   "id": 30,
+   "law_title": "Experience accumulates, or it is not research",
+   "verdict": "mechanical",
+   "where": "PostToolUse",
+   "check": "a WebSearch/WebFetch happened and nothing was appended to the research record",
+   "guards": [
+    "research-capture.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "the-founder-does-not-run-scripts",
+   "law": 31,
+   "id": 31,
+   "law_title": "The founder does not run scripts",
    "verdict": "mechanical",
    "where": "Stop",
-   "check": "reply to the founder contains an imperative aimed at him: run, type, execute, paste, open a browser",
-   "state": "live",
+   "check": "reply to the founder contains an imperative aimed at him: run, type, execute, paste, click",
    "guards": [
-        "policy/reply.rego"
-      ]
+    "policy/reply.rego"
+   ],
+   "state": "live"
   },
   {
-   "rule": "a-feature-ships-with-a",
-   "was": 32,
-   "law": 9,
-   "id": 9,
-   "law_title": "SEAMLESS IS THE DELIVERABLE",
+   "rule": "a-feature-ships-with-a-demo-and-an-onboa",
+   "law": 32,
+   "id": 32,
+   "law_title": "A feature ships with a demo and an onboarding",
    "verdict": "mechanical",
    "where": "pre-push",
    "check": "a feat: commit or a new top level source directory ships without docs/demo and docs/onboarding",
-   "state": "live",
    "guards": [
     "hooks/pre-push"
-   ]
+   ],
+   "state": "live"
   },
   {
-   "rule": "secure-by-default-and-prove",
-   "was": 21,
-   "law": 10,
-   "id": 10,
-   "law_title": "SECURE BY DEFAULT, AND PROVE IT",
+   "rule": "define-done-before-you-start-in-commands",
+   "law": 33,
+   "id": 33,
+   "law_title": "Define done before you start, in commands",
+   "verdict": "mechanical",
+   "where": "PreToolUse+GitHub Actions: pull_request",
+   "check": "no Bash/Edit runs without an open issue whose body carries acceptance commands; review-gate refuses a PR whose DoD boxes are not commands",
+   "guards": [
+    "ticket-gate.py",
+    ".github/workflows/review-gate.yml"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "provider-agnostic-from-day-0-claude-incl",
+   "law": 34,
+   "id": 34,
+   "law_title": "Provider agnostic from day 0, Claude included",
+   "verdict": "mechanical",
+   "where": "Stop+CI",
+   "check": "a reply, spec, ruling or plan makes a vendor-only channel mandatory",
+   "guards": [
+    "vendor-lock-guard.py",
+    ".github/workflows/crew-qa.yml"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "get-better-at-getting-better",
+   "law": 35,
+   "id": 35,
+   "law_title": "Get better at getting better",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "know-who-the-platform-is-for",
+   "law": 36,
+   "id": 36,
+   "law_title": "Know who the platform is for",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "the-platform-is-a-product-not-a-chore",
+   "law": 37,
+   "id": 37,
+   "law_title": "The platform is a product, not a chore",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "self-service-with-guardrails-and-a-guard",
+   "law": 38,
+   "id": 38,
+   "law_title": "Self-service with guardrails, and a guard that refuses correct work is an outage",
+   "verdict": "mechanical",
+   "where": "PreToolUse+Stop",
+   "check": "every hook run lands in hook-outcomes.jsonl with its verdict; a refusal of correct work is a false_refusal row nobody yet writes",
+   "guards": [
+    "hook-run.py",
+    "opa-hook.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "inventory-every-asset-or-you-will-build",
+   "law": 39,
+   "id": 39,
+   "law_title": "Inventory every asset, or you will build it twice",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "build-it-so-it-could-be-sold",
+   "law": 40,
+   "id": 40,
+   "law_title": "Build it so it could be sold",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "build-for-the-buyer-arriving-tomorrow",
+   "law": 41,
+   "id": 41,
+   "law_title": "Build for the buyer arriving tomorrow",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "the-most-capable-agent-works-only-multip",
+   "law": 42,
+   "id": 42,
+   "law_title": "The most capable agent works only multipliers",
+   "verdict": "judgement",
+   "where": null,
+   "check": "",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "never-reinvent-the-wheel-and-do-a-worse",
+   "law": 43,
+   "id": 43,
+   "law_title": "Never reinvent the wheel and do a worse job",
+   "verdict": "mechanical",
+   "where": "pr-evidence.py check",
+   "check": "pr-evidence.py's Options-considered gate fails a PR body with no '## Options considered' naming the mature tool rejected",
+   "guards": [
+    ".github/workflows/crew-qa.yml"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "a-law-without-a-protocol-is-a-wish",
+   "law": 44,
+   "id": 44,
+   "law_title": "A law without a protocol is a wish",
+   "verdict": "mechanical",
+   "where": "GitHub Actions: pull_request",
+   "check": "science/map_covers_laws.py: every law in AGENTS.md has a row here with a check or an honest judgement verdict; review-gate.yml fails closed",
+   "guards": [
+    "science/map_covers_laws.py",
+    ".github/workflows/crew-qa.yml",
+    ".github/workflows/review-gate.yml"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "your-mistake-ends-as-a-guard-no-session",
+   "law": 45,
+   "id": 45,
+   "law_title": "Your mistake ends as a guard no session can walk past, proved over every instance",
+   "verdict": "mechanical",
+   "where": "PreToolUse+Stop",
+   "check": "a fix that closes an incident ships without a tests/test_incident_* file; a DONE without evidence is refused",
+   "guards": [
+    "dod-guard.py",
+    "config-syntax-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "no-hardcoding-a-file-never-names-where-t",
+   "law": 46,
+   "id": 46,
+   "law_title": "No hardcoding: a file never names where the checkout, the home directory or the machine lives",
+   "verdict": "mechanical",
+   "where": "PreToolUse",
+   "check": "a literal home directory, host, port or checkout path is typed where a lookup should be",
+   "guards": [
+    "rule-guard.py"
+   ],
+   "state": "live"
+  },
+  {
+   "rule": "a-founder-blocker-is-loud-visible-and-on",
+   "law": 47,
+   "id": 47,
+   "law_title": "A founder blocker is loud, visible and one action: push notification plus a `FOUNDER ACTION:` line with the exact URL or word",
    "verdict": "mechanical",
    "where": "Stop",
-   "check": "a secret-shaped value appears in the reply, a log, a commit or a screenshot",
-   "state": "live",
+   "check": "a reply says FOUNDER ACTION: and founder-blocker.py has not delivered it to Telegram in the last 60 minutes",
    "guards": [
-    "secret-scrub.py",
-    "hooks/pre-commit"
-   ]
+    "blocker-guard.py",
+    "founder-blocker.py"
+   ],
+   "state": "live"
   },
   {
-   "rule": "if-it-is-loadbearing-it",
-   "was": 24,
-   "law": 10,
-   "id": 10,
-   "law_title": "SECURE BY DEFAULT, AND PROVE IT",
+   "rule": "continuous-execution-a-broken-state-foun",
+   "law": 48,
+   "id": 48,
+   "law_title": "Continuous execution: a broken state found while answering a question is fixed in the same turn, never reported and parked",
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "a reply reports a P1 or broken state it found and the turn ran no command against it",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "lazy-consensus-a-safe-or-reversible-acti",
+   "law": 49,
+   "id": 49,
+   "law_title": "Lazy consensus: a safe or reversible action is done and announced `STAGED:` with a 60-minute timer, never asked",
+   "verdict": "partial",
+   "where": "Stop",
+   "check": "a reply asks permission for an action the rulings mark reversible",
+   "guards": [],
+   "state": "absent"
+  },
+  {
+   "rule": "every-workload-emits-to-the-central-coll",
+   "law": 50,
+   "id": 50,
+   "law_title": "Every workload emits to the central collector, and coverage is proved by querying the backend, never by scanning files; admission refuses a workload that does not emit",
    "verdict": "mechanical",
-   "where": "scheduled",
-   "check": "a load-bearing file differs from its tracked copy or is untracked; tracked.py --sync commits the live copy to claude-guards main (0d9da69) and reinstalls a copy older than HEAD instead of pushing it (behind_git, #133); residual: that push meets no required check, the ruleset holds deletion and non_fast_forward only",
-   "state": "live",
+   "where": "CI",
+   "check": "idp admission refuses a workload with no OTel exporter; coverage is a backend query, never a file scan",
    "guards": [
-    "estate/in-git.py",
-    "laws-link-guard.py",
-    "hooks/pre-commit",
-   "tracked.py"
-   ]
+    "idp/bin/idp-availability-gate"
+   ],
+   "state": "live"
   },
   {
    "rule": "refresh-on-main-before-you",
@@ -377,21 +674,6 @@
    ]
   },
   {
-   "rule": "leave-a-path-back-when",
-   "was": 16,
-   "law": null,
-   "id": null,
-   "law_title": null,
-   "retired_to": null,
-   "verdict": "mechanical",
-   "where": "Stop",
-   "check": "the session dropped a thread and wrote no checkpoints/LATEST.md",
-   "state": "live",
-   "guards": [
-    "policy/reply.rego"
-   ]
-  },
-  {
    "rule": "every-founder-request-is-a",
    "was": 18,
    "law": null,
@@ -405,74 +687,6 @@
    "guards": [
     "prompt-ledger.py",
     "directive-capture.py"
-   ]
-  },
-  {
-   "rule": "checkpoint-before-you-switch",
-   "was": 25,
-   "law": null,
-   "id": null,
-   "law_title": null,
-   "retired_to": null,
-   "verdict": "mechanical",
-   "where": "PreToolUse",
-   "check": "a switch command (git worktree add, checkout -b, switch -c, gh issue edit --add-assignee) runs while checkpoints/LATEST.md is more than 30 min old",
-   "state": "live",
-   "guards": ["policy/command.rego"]
-  },
-  {
-   "rule": "crew-is-the-sync-layer",
-   "was": 26,
-   "law": null,
-   "id": null,
-   "law_title": null,
-   "retired_to": null,
-   "verdict": "partial",
-   "where": "pre-push",
-   "check": "a commit touches a shared path and references no open crew issue",
-   "state": "absent",
-   "guards": []
-  },
-  {
-   "rule": "define-done-before-you-start",
-   "was": null,
-   "law": 33,
-   "id": 33,
-   "law_title": "DEFINE DONE BEFORE YOU START, IN COMMANDS",
-   "verdict": "mechanical",
-   "where": "GitHub Actions: pull_request",
-   "check": "PR template's DoD boxes are commands (crew qa, pr-evidence check --pr <n>, Author-session/Reviewed-by + REVIEW: comment), and review-gate.yml fails the PR until they resolve",
-   "state": "live",
-   "guards": [
-    ".github/workflows/review-gate.yml"
-   ]
-  },
-  {
-   "rule": "a-law-without-a-protocol",
-   "was": null,
-   "law": 44,
-   "id": 44,
-   "law_title": "A law without a protocol is a wish",
-   "verdict": "mechanical",
-   "where": "GitHub Actions: pull_request",
-   "check": "review-gate.yml is the protocol: it fails closed on any gh api error and refuses a PR with no Author-session/Reviewed-by pair and no matching REVIEW: comment",
-   "state": "live",
-   "guards": [
-    ".github/workflows/review-gate.yml"
-   ]
-  },
-  {
-   "rule": "never-reinvent-the-wheel",
-   "was": null,
-   "law": 43,
-   "id": 43,
-   "law_title": "Never reinvent the wheel and do a worse job",
-   "verdict": "mechanical",
-   "where": "pr-evidence.py check",
-   "check": "pr-evidence.py's Options-considered gate fails a PR body with no '## Options considered' heading, fewer than 2 real bullets, or no Chosen: line naming what was picked over a researched off-the-shelf option",
-   "state": "live",
-   "guards": [
-    ".github/workflows/crew-qa.yml"
    ]
   }
  ],
@@ -522,10 +736,9 @@
  ],
  "_renumber": "2026-08-23: the founder cut 32 laws to 10 ('anything that can be automated shouldn't be a law'). A check was bound to a law by its NUMBER, so the renumber silently re-pointed every check above 2 at a different law and nothing failed. Each entry now carries `was` (the number the check was written for), `law` (the number today, null if the rule retired to a machine) and `law_title` (the heading it must still match). science/map_covers_laws.py fails when a title moves out from under a check.",
  "laws_commit": {
-  "sha": "74beeafb239fcb62612301c82f12b7651b83ba07",
-  "subject": "laws: cut 32 to 10; retired rules become named machinery",
-  "tracked_copy": "~/.claude/AGENTS.snapshot.md",
-  "archive_32": "~/.claude/archive/AGENTS.32-laws.md",
-  "why": "~/AGENTS.md is not inside any git repository, so `git log` on it shows nothing and looks frozen. The tracked copy is the snapshot, and this sha is the version every check below was written against. Recording it turns 'are the laws final?' from a question asked of a peer into a comparison a machine makes."
+  "sha": "715645726057d5c8949833192d65bd20a19645e6",
+  "subject": "laws: 50 laws (LAW 48-50 added 2026-08-27)",
+  "tracked_copy": "~/.claude/scripts/laws/AGENTS.md (claude-guards)",
+  "why": "~/AGENTS.md is a symlink into the claude-guards checkout, so the laws are in git; this sha is the version every row was written against. LAW 44."
  }
 }

@@ -24,7 +24,16 @@ MAP  = os.path.join(HERE, "enforcement-map.json")
 #: exiting 1 with "NO LAW HEADINGS FOUND" and taking G1, the law-coverage metric,
 #: down with it. Naming one path was the defect. Ask which file actually holds the
 #: bodies rather than assuming, and say which one was read.
-LAW_FILES = [os.path.expanduser(p) for p in ("~/AGENTS.md", "~/AGENTS-FULL.md")]
+#: LAWS_FILE wins so CI, which has no home directory laws, can point at the checkout
+#: crew-qa.yml makes of claude-guards (`.claude-guards/laws/AGENTS.md`). On the Mac
+#: ~/AGENTS.md is a symlink into that same checkout, so both read one file (LAW 24).
+LAW_FILES = [p for p in (os.environ.get("LAWS_FILE"),) if p] + \
+            [os.path.expanduser(p) for p in ("~/AGENTS.md", "~/AGENTS-FULL.md")]
+#: The 50-law table in ~/AGENTS.md: `| 12 | Root out a risk ... | fires |`. Since
+#: 2026-08-27 it is the only place every law has a title in one shape; the FULL file
+#: writes LAW 48-50 as `# LAW OF ... — LAW 48`, which the heading form never matched,
+#: so the map sat at 48 laws while the table said 50 (crew#108).
+TABLE = re.compile(r"^\|\s*(\d+)\s*\|\s*([^|]+?)\s*\|", re.M)
 
 HEADING = re.compile(r"^#+\s*LAW (\d+)\s*[—-]\s*(.+)$", re.M)
 
@@ -34,9 +43,13 @@ def titles(path):
     #: this file read zero laws, which made every entry look like an orphan and
     #: buried the real change under the noise.
     try:
-        return dict(HEADING.findall(open(path, encoding="utf-8").read()))
+        text = open(path, encoding="utf-8").read()
     except OSError:
         return {}
+    found = dict(HEADING.findall(text))
+    for num, title in TABLE.findall(text):
+        found.setdefault(num, title)
+    return found
 
 
 def law_source():
@@ -79,9 +92,10 @@ def laws_commit_now():
     were written" without asking a person.
     """
     import subprocess
+    real = os.path.realpath(law_source()[0] or SNAPSHOT)
     try:
-        return subprocess.run(["git", "-C", os.path.dirname(SNAPSHOT), "log", "-1",
-                               "--format=%H", "--", os.path.basename(SNAPSHOT)],
+        return subprocess.run(["git", "-C", os.path.dirname(real), "log", "-1",
+                               "--format=%H", "--", os.path.basename(real)],
                               capture_output=True, text=True, timeout=15).stdout.strip()
     except Exception:
         return ""

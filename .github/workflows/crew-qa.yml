@@ -91,6 +91,13 @@ jobs:
           find docs policy roles -maxdepth 3 \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
             | xargs -0 python3 .claude-guards/vendor-lock-guard.py --files
 
+      # crew#108: LAW 44 measured. Every one of the 50 laws in the laws file has a row in
+      # science/enforcement-map.json naming its check or an honest `judgement` verdict;
+      # a renamed or deleted law fails here. The laws file is the claude-guards checkout
+      # above, the same file ~/AGENTS.md links to on the Mac (LAW 24).
+      - name: Every law has a check or an honest verdict (LAW 44, crew#108)
+        run: LAWS_FILE=.claude-guards/laws/AGENTS.md python3 science/map_covers_laws.py
+
       - name: The suite
         run: .venv/bin/python -m pytest -q
 

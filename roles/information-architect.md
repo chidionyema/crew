@@ -44,7 +44,7 @@ The shape today is one flat bag under one generic System. A buyer's engineer ask
 | Bytesync (parent) | Domain | none | `bytesync` |
 | Company (mumchimp, prospector, hermes-v2) | Domain, `subdomainOf: bytesync` | none | one each |
 | Product (store, prospector app, hermes gateway) | System, `domain:` the company | System `estate` only | one per product |
-| Service (medusa, backstage, otto, ...) | Component, `system:` the product | 31 + 15, all under `estate` | every one re-homed |
+| Service (medusa, backstage, otto, ...) | Component, `system:` the product | 31 + 18, all under `estate` | every one re-homed |
 | Cluster, database, queue | Resource, `dependencyOf` the service | 29 data-store, 32 port, unscoped | scoped, with `dependsOn` from the service |
 | Team | Group | `platform` only | one per company, owners re-pointed |
 

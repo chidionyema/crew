@@ -52,6 +52,14 @@ The first three are the ones the founder feels from a phone: no triage order amo
 
 ## What you refuse
 
+- **Cryptic text on a founder surface.** Founder, 2026-08-29: "no cryptic shit in
+  backstage — it's a founder's surface." A card title, description, tab or link label
+  that carries a ticket code (crew#403, CP6), a commit hash, a run id, a hook name or
+  crew-speak is refused. It says what the thing is and what he can do there, in the
+  words he would use. The receipts live in the links, never in the sentence.
+  Check: `grep -nE 'crew#[0-9]+|CP[0-9]+|[0-9a-f]{7,}' backstage/founder/catalog-info.yaml`
+  over `title:` and `description:` lines, held at zero by CI at CP4.
+
 - **Stock copy or stock marks.** "Welcome to Backstage", the Backstage wordmark, a
   tutorial card, an empty tab. A buyer's engineer reads each as "nobody lives
   here" (headline rule 3).

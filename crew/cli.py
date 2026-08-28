@@ -12,10 +12,12 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from . import __version__, bdd, board as B, config as C, gh
+from . import __version__, bdd, gh
+from . import board as B
+from . import config as C
 from .errors import CrewError
 from .thread import Entry, latest, marker, parse_comments
 
@@ -23,7 +25,7 @@ EVIDENCE_TAIL = 6000
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def say(msg: str) -> None:
@@ -32,7 +34,7 @@ def say(msg: str) -> None:
 
 def head(cfg: C.Config) -> str:
     p = subprocess.run(["git", "-C", str(cfg.root), "rev-parse", "--short", "HEAD"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     return p.stdout.strip() if p.returncode == 0 else "unknown"
 
 
@@ -44,7 +46,7 @@ def load_issue(cfg: C.Config, number: int) -> tuple[dict, B.Board, list[Entry]]:
 def details(title: str, text: str) -> str:
     tail = text[-EVIDENCE_TAIL:]
     if len(text) > EVIDENCE_TAIL:
-        tail = "…(trimmed to the last %d characters)…\n%s" % (EVIDENCE_TAIL, tail)
+        tail = f"…(trimmed to the last {EVIDENCE_TAIL} characters)…\n{tail}"
     return f"<details><summary>{title}</summary>\n\n```\n{tail}\n```\n\n</details>"
 
 
@@ -110,7 +112,7 @@ def cmd_plan(a) -> int:
     spec_dir.mkdir(parents=True, exist_ok=True)
 
     origin = (
-        f"Distilled from conversation with @{a.author} on {datetime.now().date()}.\n"
+        f"Distilled from conversation with @{a.author} on {datetime.now(tz=UTC).date()}.\n"
         f"Spec: `{cfg.specs_dir}/SPEC.md` (replaced with the issue path once the number is known)."
     )
     board = B.Board(
@@ -129,7 +131,7 @@ def cmd_plan(a) -> int:
     spec_path.write_text(
         f"# {title}\n\n"
         f"Issue: https://github.com/{cfg.repo}/issues/{number}\n"
-        f"Written by pm-agent on {datetime.now().date()} from conversation with @{a.author}.\n\n"
+        f"Written by pm-agent on {datetime.now(tz=UTC).date()} from conversation with @{a.author}.\n\n"
         f"## What the founder asked for\n\n{prose}\n\n"
         f"## Checkpoints\n\n"
         + "\n".join(f"### {c}: {t}\n\nVerified by `{_verified_by(cfg, c)}` in `{cfg.features_dir}/`.\n"
@@ -137,7 +139,7 @@ def cmd_plan(a) -> int:
         + "\n"
     )
     board = B.Board(
-        origin=f"Distilled from conversation with @{a.author} on {datetime.now().date()}.\n"
+        origin=f"Distilled from conversation with @{a.author} on {datetime.now(tz=UTC).date()}.\n"
                f"Spec: `{spec_path.relative_to(cfg.root)}`",
         checkpoints=board.checkpoints,
     )
@@ -146,7 +148,7 @@ def cmd_plan(a) -> int:
     C.write_state(cfg, {**C.read_state(cfg), "issue": number})
     if a.assignee:
         subprocess.run(["gh", "issue", "edit", str(number), "--repo", cfg.repo,
-                        "--add-assignee", a.assignee], capture_output=True, text=True)
+                        "--add-assignee", a.assignee], capture_output=True, text=True, check=False)
     gh.issue_comment(cfg.repo, number, (
         f"{marker(role='pm-agent', kind='opened')}\n"
         f"**pm-agent** ({now()}): issue opened from conversation. "
@@ -226,11 +228,12 @@ def cmd_claim(a) -> int:
     role = C.role(a.role, cfg)
     _, board, _ = load_issue(cfg, n)
     cp = a.cp.upper()
-    if board.get(cp) is None:
+    item = board.get(cp)
+    if item is None:
         raise CrewError(f"{cp} is not on the checklist of #{n}")
     gh.issue_comment(cfg.repo, n, (
         f"{marker(role=role, kind='claim', cp=cp)}\n"
-        f"**{role}** ({now()}): starting {cp} — {board.get(cp).title}. HEAD `{head(cfg)}`."
+        f"**{role}** ({now()}): starting {cp} — {item.title}. HEAD `{head(cfg)}`."
     ))
     say(f"{role} claimed {cp} on #{n}")
     return 0
@@ -325,10 +328,10 @@ def cmd_verify(a) -> int:
 
     if board.blockers:
         subprocess.run(["gh", "issue", "edit", str(n), "--repo", cfg.repo, "--add-label", "crew:blocked"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     else:
         subprocess.run(["gh", "issue", "edit", str(n), "--repo", cfg.repo, "--remove-label", "crew:blocked"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
 
     say(f"{cp}: {res.verdict} — issue #{n} updated")
     if board.complete:
@@ -347,7 +350,7 @@ def cmd_block(a) -> int:
     gh.issue_set_body(cfg.repo, n, B.render(board))
     gh.issue_comment(cfg.repo, n, f"{marker(role=role, kind='blocked')}\n**{role}** ({now()}): BLOCKED — {a.reason}")
     subprocess.run(["gh", "issue", "edit", str(n), "--repo", cfg.repo, "--add-label", "crew:blocked"],
-                   capture_output=True, text=True)
+                   capture_output=True, text=True, check=False)
     say(f"#{n} blocked: {a.reason}")
     return 0
 
@@ -363,7 +366,7 @@ def cmd_unblock(a) -> int:
     gh.issue_comment(cfg.repo, n, f"{marker(role=role, kind='unblocked')}\n**{role}** ({now()}): blocker cleared.")
     if not kept:
         subprocess.run(["gh", "issue", "edit", str(n), "--repo", cfg.repo, "--remove-label", "crew:blocked"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, check=False)
     say(f"#{n} blockers now: {kept or 'none'}")
     return 0
 
@@ -397,7 +400,7 @@ def cmd_close(a) -> int:
 def cmd_doctor(a) -> int:
     checks: list[tuple[str, bool, str]] = []
 
-    p = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
+    p = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, check=False)
     checks.append(("gh authenticated", p.returncode == 0, (p.stdout + p.stderr).strip().splitlines()[-1] if (p.stdout or p.stderr) else ""))
 
     try:
@@ -419,7 +422,7 @@ def cmd_doctor(a) -> int:
     if cfg:
         cmd = cfg.bdd_command.format(tag="@none", cp="none", CP="NONE").split()[0]
         exe = (cfg.root / cfg.bdd_cwd / cmd).resolve()
-        found = exe.exists() or subprocess.run(["which", cmd], capture_output=True).returncode == 0
+        found = exe.exists() or subprocess.run(["which", cmd], capture_output=True, check=False).returncode == 0
         checks.append((f"bdd runner `{cmd}`", bool(found), str(exe) if exe.exists() else cmd))
 
         kind = bdd.runner_kind(cfg.bdd_command)
@@ -451,7 +454,7 @@ def cmd_doctor(a) -> int:
 # --------------------------------------------------------------------- main
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="crew", description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(prog="crew", description=(__doc__ or "").splitlines()[0])
     p.add_argument("--version", action="version", version=f"crew {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 

@@ -40,7 +40,7 @@ def rows(path: Path) -> list[dict]:
 def rank(r: dict) -> tuple:
     like = r["likelihood"].lower()
     n = next((v for k, v in RANK.items() if like.startswith(k)), 4)
-    return (0 if r["status"] == "open" else 1, n, int(RID.search(r["id"]).group(1)) if RID.search(r["id"]) else 0)
+    return (0 if r["status"] == "open" else 1, n, int(m.group(1)) if (m := RID.search(r["id"])) else 0)
 
 
 def p1_issues(path: Path | None) -> list[dict]:

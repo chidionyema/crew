@@ -32,5 +32,5 @@ def test_the_listener_does_not_open_an_issue_for_ordinary_conversation():
         pytest.fail("no listener yet")
     for benign in ["what should I read first?", "that fix looks fine", "thanks"]:
         out = subprocess.run([sys.executable, str(listener), "--dry-run"],
-                             input=benign, capture_output=True, text=True)
+                             input=benign, capture_output=True, text=True, check=False)
         assert "OPEN" not in out.stdout, f"the listener would open an issue for: {benign!r}"

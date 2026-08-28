@@ -44,8 +44,7 @@ def find_root(start: str | None = None) -> Path:
 def repo_from_git(root: Path) -> str:
     out = subprocess.run(
         ["git", "-C", str(root), "remote", "get-url", "origin"],
-        capture_output=True, text=True,
-    )
+        capture_output=True, text=True, check=False)
     if out.returncode != 0:
         raise CrewError(
             f"{root} has no git remote 'origin', so there is no repo to hold the issue.\n"

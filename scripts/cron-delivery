@@ -25,8 +25,21 @@ Nothing here is hardcoded to an account (LAW 46): the owner comes from the authe
   scripts/cron-delivery --hours 24 --heartbeat idp:login-drill.yml,idp:trace-drill.yml
   scripts/cron-delivery --owner someone-else --repos idp,crew
 
-Exit status is 0 when the measurement ran, 2 when a `gh` call refused, so a caller can tell
-"the estate is healthy" apart from "we did not look" -- the failure this file exists to end.
+Exit status is 0 when the measurement ran, 2 when the measurement came back unsound -- a `gh`
+call refused, or the run list hit its cap -- so a caller can tell "the estate is healthy" apart
+from "we did not look", the failure this file exists to end. An omission that only makes the
+estate look WORSE than it is stays exit 0 and is printed; `soundness()` holds that distinction.
+
+WHY THIS IS NOT A SECOND MONITORING PLATFORM (LAW 43, and a fair challenge from session
+78caaa17). `platform/healthchecks/` is deployed in this estate, self-hosted, with an
+enrolment job, and "did my scheduled job run, and was it late" is exactly that product. It
+can only answer for checks somebody enrolled. crew#554 is the discovery that 1,457 due
+occurrences across the account ping nothing at all, which is the one question a dead man's
+switch cannot ask, because an unenrolled job is indistinguishable from no job. So this is a
+CENSUS, run to find the gap, not a monitor run to watch it. What it finds gets enrolled in
+healthchecks, and healthchecks owns the alerting from then on. If this file is still the
+thing telling us a nightly stopped firing once the census is acted on, it has become the
+second platform and should be deleted instead of scheduled.
 """
 import argparse
 import datetime as dt

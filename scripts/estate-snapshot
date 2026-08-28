@@ -914,6 +914,11 @@ def research() -> list[str]:
 #: The two lines `bin/idp-portability-drill` prints on the run, verbatim (measured on idp run
 #: 33165807800, 2026-08-28): the hydrate job's ready count and the k3s job's cost line.
 PORTABILITY_READY = re.compile(r"ok\s+portability\s+(ready \d+/\d+ layers[^\n\r|]*)")
+#: How far this machine's clock may sit behind GitHub's before the row refuses to measure an age
+#: at all. Ordinary NTP skew is seconds; a quarter of an hour is generous for it and nowhere near
+#: the years a dead RTC produces.
+CLOCK_DISAGREEMENT_H = 0.25
+
 PORTABILITY_K3S = re.compile(r"ok\s+portability-k3s\s+(provider=\S+ distro=\S+ wall_clock=\d+s cost=[^\n\r|]*)")
 
 
@@ -955,6 +960,16 @@ def portability_row(runs: str, log: str, now: float | None = None,
         return [f"| portability | NOT RUN | last run has no readable `createdAt` ({at[:25]!r}) |"]
     age_h = ((now if now is not None else time.time()) - ts) / 3600
     run_id = last.get("databaseId")
+    #: crew#583. The subtraction above is GitHub's clock taken from this machine's, and the only
+    #: bound below it is one-sided: `age_h > stale_hours`. A Mac whose battery dies comes back at
+    #: the RTC's default epoch, so `now` lands years before `ts`, every age goes negative, and a
+    #: negative number is never greater than 194 -- the row would print GREEN off a drill nobody
+    #: had run since. An age below zero is not a fresh run, it is two clocks that disagree, and
+    #: this says so rather than picking the one that flatters the board.
+    if age_h < -CLOCK_DISAGREEMENT_H:
+        return [f"| portability | NOT RUN | idp run {run_id} is stamped {at} and this machine says "
+                f"it is {abs(age_h):.0f}h earlier than that, so no age can be measured here; the "
+                f"clock grading the drill is behind GitHub's (crew#583) |"]
     where = f"idp run {run_id}, {age_h:.1f}h ago (bar {stale_hours}h)"
 
     #: LAW 29, attribute before you repair (crew#569 review, 78caaa17): `sh()` answers

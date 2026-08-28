@@ -45,7 +45,9 @@ def test_every_guard_the_map_names_is_a_file_or_a_workflow_in_this_repo():
     missing = []
     for x in m["laws"]:
         for g in x.get("guards") or []:
-            if g.startswith(".github/workflows/"):
+            if x.get("repo") and g.startswith(x["repo"] + "/"):
+                ok = True  # crew#108: a gate in another estate repo, named <repo>/<path>; that repo's CI runs it
+            elif g.startswith(".github/workflows/"):
                 ok = os.path.exists(os.path.join(root, g))
             elif g.startswith("hooks/") or g.endswith(".py") or g.endswith(".rego"):
                 ok = True  # lives in ~/.claude/scripts, graded by law_enforcement itself

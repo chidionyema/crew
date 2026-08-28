@@ -9,6 +9,8 @@ Note for crew#553's successor: `crew verify` keys checkpoint tests by CP number 
 (crew/bdd.py find_marker), not by issue, so this file is named by its issue to keep the lookup
 honest until verify learns to read `--issue`.
 """
+# Rejected: a JSON Schema check of science/schemas/research_ledger.json -- it validates shape, not that an idea row exists with sources and a prior
+# Standard: Testing row, docs/STANDARDS.md (pytest marker per checkpoint, run by `crew verify` on the qa runner)
 from __future__ import annotations
 
 import json

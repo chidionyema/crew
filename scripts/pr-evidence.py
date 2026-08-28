@@ -237,8 +237,8 @@ def attach(pr: str, images: list[Path], caption: str, repo: str | None, push: bo
     body = info.get("body") or ""
     leaked = secret_in(body)
     if leaked:
-        return False, (f"#{info['number']} body carries a secret value (R49-no-secrets-in-chat, founder 2026-08-28: "
-                       f"'we dont send password here'): `{leaked}`. Name where it lives, never what it is.")
+        raise Fail(f"#{info['number']} body carries a secret value (R49-no-secrets-in-chat, founder 2026-08-28: "
+                   f"'we dont send password here'): `{leaked}`. Name where it lives, never what it is.")
     # An absolute URL on the head branch, not a relative path. GitHub resolves a
     # relative link in a pull request body against the DEFAULT branch, so it 404s
     # until the branch merges — which is exactly when the reviewer needs to see it.

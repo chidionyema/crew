@@ -10,6 +10,7 @@ from pathlib import Path
 PE = Path(__file__).resolve().parents[1] / "scripts" / "pr-evidence.py"
 loader = SourceFileLoader("pr_evidence_r49", str(PE))
 spec = importlib.util.spec_from_file_location("pr_evidence_r49", PE, loader=loader)
+assert spec is not None
 pe = importlib.util.module_from_spec(spec)
 loader.exec_module(pe)
 

@@ -8,7 +8,9 @@ anything yourself and before you ask the founder anything.
 **Who we are to each other:** [`docs/ROAD-TO-9D.md`](docs/ROAD-TO-9D.md) is the two-stage road
 from the [depth-psychology audit](docs/audits/depth-psychology-founder-and-crew-2026-08-28.md)
 of the founder and the crew to one organism; [`roles/founder.md`](roles/founder.md) is who he
-is. Pinned as crew#596. Read them when you wonder why a rule exists.
+is. Pinned as crew#596. Read them when you wonder why a rule exists. The
+[clinical note on one session](docs/audits/operator-clinical-note-14ed6c8b-2026-08-28.md)
+(crew#598) is the same reading applied to a single bad day, from the inside.
 
 A conversation becomes a tracked, verified build. The GitHub issue is the shared
 brain, and this tool is the only thing that writes to it.

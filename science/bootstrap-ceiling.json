@@ -1,0 +1,9 @@
+{
+  "_": "crew#558. LAW 50 makes science/datamap.py --check the temporary bootstrap and says it 'retires surface by surface as the query takes over'. This file is the only place that number lives, and it may only ever fall. Lower it in the pull request that retires a surface -- moving a domain from 'scan' to 'query' in science/producers.py PROVENANCE -- and never in any other pull request. Raising it means a new surface was added to the thing the founder refused (crew#394, 2026-08-27: 'No more custom code for discovery. The platform discovers itself').",
+  "scan_domains": 7,
+  "of_domains": 10,
+  "measured": "2026-08-28",
+  "measured_producer_share": "8162 of 8324 producers, 98.1%",
+  "ticket": "crew#558",
+  "retired": []
+}

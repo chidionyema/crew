@@ -475,6 +475,54 @@ def acts() -> list[Producer]:
             for e in reg["entries"] if e["key"].startswith("act/")]
 
 
+# crew#558. Where a domain's members come from, and the only number in this file that is
+# supposed to fall.
+#
+# LAW 50 makes `datamap.py --check` the TEMPORARY bootstrap: "what exists and what does not
+# emit yet, every gap a ticket. It retires surface by surface as the query takes over." The
+# founder refused crew#394 as the law on 2026-08-27 -- "No more custom code for discovery. The
+# platform discovers itself ... coverage is verified by querying the backend, not by scanning
+# files" -- and then nothing measured whether any surface ever retired. On 2026-08-28 the answer
+# was none: 8162 of 8324 producers (98.1%) came from walking one laptop's disk.
+#
+# `scan` means the domain answers by reading files on whatever machine happens to run it. That
+# is why the register could see git worktree copies at all (crew#556: science/ships.jsonl read
+# 57 rows in a copy and 150 in the real file, and every ships number the founder was given came
+# off the copy) -- a worktree is an artefact of how agents work, not a thing the estate has. A
+# scanner has to be taught about them; a backend query never hears of them.
+#
+# `query` means the domain asks a live API or backend, and its answer does not depend on this
+# machine's filesystem.
+#
+# THE UNIT IS DOMAINS, NOT ROWS, and that is deliberate. The row count moves every hour on its
+# own -- a new session writes transcripts, an agent adds a ledger -- so a ceiling counted in rows
+# would go red for correct work, which is an outage (LAW 38). A domain moves from `scan` to
+# `query` only when somebody retires it. That is the thing LAW 50 asks for, so that is the thing
+# the ceiling counts.
+PROVENANCE: dict[str, str] = {
+    "mac": "scan",           # ~/.estate/state/inventory.json, a walk of this Mac
+    "warehouse": "query",    # sqlite over the science warehouse
+    "cluster": "scan",       # a yaml walk of the local idp checkout: what git DECLARES
+    "cluster_live": "query", # kubectl against the cluster API: what actually RUNS
+    "endpoint": "scan",      # the same yaml walk
+    "hook": "scan",          # ~/.claude/settings.json
+    "mcp": "scan",           # ~/.claude.json
+    "github": "query",       # gh repo list
+    "transcript": "scan",    # a walk of ~/.claude/projects
+    "act": "scan",           # verdicts.json, the register's own hand-typed rows
+}
+
+
+def scan_domains() -> list[str]:
+    """The domains still answered by reading files. This list is what retires."""
+    return sorted(d for d in DOMAINS if PROVENANCE.get(d) == "scan")
+
+
+def untagged_domains() -> list[str]:
+    """A domain with no provenance. The register is closed-world; so is this."""
+    return sorted(set(DOMAINS) - set(PROVENANCE))
+
+
 DOMAINS: dict[str, Callable[[], list[Producer]]] = {
     "mac": mac,
     "warehouse": warehouse,

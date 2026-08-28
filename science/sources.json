@@ -180,6 +180,19 @@
    "sensitivity": "internal"
   },
   {
+   "name": "dora",
+   "root": "science",
+   "path": "dora.jsonl",
+   "kind": "jsonl",
+   "time_field": "at",
+   "stale_after_hours": 26,
+   "receiver": "otlp",
+   "owner": "scripts/science-collect",
+   "method": "poll",
+   "retention_days": 3650,
+   "sensitivity": "internal"
+  },
+  {
    "name": "predictions",
    "root": "science",
    "path": "predictions.jsonl",

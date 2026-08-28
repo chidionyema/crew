@@ -77,3 +77,17 @@ def test_incident_crew70_revenue_is_a_declared_source():
     reg = json.loads((ROOT / "science" / "sources.json").read_text())
     src = {s["name"]: s for s in reg["sources"]}
     assert src["revenue"]["path"] == "revenue.jsonl" and src["revenue"]["stale_after_hours"] <= 24
+
+
+def test_incident_crew409_no_customer_address_reaches_the_tracked_row(monkeypatch):
+    """crew#409 review (crew#414): science/revenue.jsonl is tracked in a public repository. A
+    payer's address must never appear in the row, with or without REVENUE_PAYER_KEY; the count
+    and the keyed ids are enough for the founder's number."""
+    monkeypatch.setenv("MEDUSA_ADMIN_TOKEN", "x")
+    orders = [{"id": "o1", "email": "a@x.io", "total": 1.0, "currency_code": "gbp", "created_at": "2026-08-20T10:00:00Z"}]
+    for key in ("", "k"):
+        monkeypatch.setenv("REVENUE_PAYER_KEY", key)
+        row = outcomes.collect_revenue(now=NOW, fetch=lambda u, t: {"orders": orders, "count": 1})
+        assert "a@x.io" not in json.dumps(row) and "@" not in json.dumps(row)
+        assert row["payer_count"] == 1
+        assert row["payers"] == ([] if not key else [outcomes.payer_id("a@x.io", "k")])

@@ -32,14 +32,14 @@ jobs:
   qa:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The evidence image is a commit on this branch, so a shallow checkout
           # would hide the thing the gate is here to find.
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
 
@@ -74,6 +74,22 @@ jobs:
             elif command -v "$t" >/dev/null; then "$t" --version | head -1
             else echo "MISSING"; exit 1; fi
           done
+
+      # crew#273: no spec, ruling or plan may make a vendor-only channel mandatory (LAW 34).
+      # The guard lives in claude-guards (public) and is checked out at a pinned commit;
+      # --selftest proves it both ways before it is trusted on this tree.
+      - name: Vendor lock-in gate over specs, rulings and plans
+        uses: actions/checkout@v7
+        with:
+          repository: chidionyema/claude-guards
+          ref: df40f207f1ac4e7f4101fbc279142f6b51038c5b
+          path: .claude-guards
+      - name: Run the vendor lock-in gate
+        run: |
+          set -euo pipefail
+          python3 .claude-guards/vendor-lock-guard.py --selftest
+          find docs policy roles -maxdepth 3 \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
+            | xargs -0 python3 .claude-guards/vendor-lock-guard.py --files
 
       - name: The suite
         run: .venv/bin/python -m pytest -q

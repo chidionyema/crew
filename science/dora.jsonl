@@ -1,0 +1,2 @@
+{"at":"2026-08-28T00:05:42Z","day":"2026-08-28","repo":"chidionyema/idp","days":14,"deploys":460,"deploys_per_day":32.86,"lead_time_h_median":0.16,"lead_time_h_p90":1.3,"p1_opened":2,"change_failure_rate_pct":0.4,"p1_closed":0,"mttr_h_median":null,"reverts":0,"held_7d":0}
+{"at":"2026-08-28T00:05:42Z","day":"2026-08-28","repo":"chidionyema/crew","days":14,"deploys":187,"deploys_per_day":13.36,"lead_time_h_median":0.21,"lead_time_h_p90":8.79,"p1_opened":44,"change_failure_rate_pct":23.5,"p1_closed":20,"mttr_h_median":10.28,"reverts":0,"held_7d":0}

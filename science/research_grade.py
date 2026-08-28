@@ -255,13 +255,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=pathlib.Path, default=PAGE)
     ap.add_argument("--print", dest="show", action="store_true", help="write nothing, print the page")
     ap.add_argument("--check", action="store_true", help="exit 1 when any question is stale")
+    ap.add_argument("--today", type=dt.date.fromisoformat, default=None,
+                    help="grade as of this date (tests); default: now, UTC")
     args = ap.parse_args(argv)
 
     rows = read_ledger(args.ledger)
     if not rows:
         print(f"BLIND: no rows in {rel(args.ledger)}", file=sys.stderr)
         return 2
-    today = dt.datetime.now(dt.UTC).date()
+    today = args.today or dt.datetime.now(dt.UTC).date()
     g = grade(rows, today)
     page = render(g, args.ledger, today)
     if args.show:

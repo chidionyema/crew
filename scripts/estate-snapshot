@@ -140,6 +140,45 @@ def github_actions() -> list[str]:
     return [f"| GitHub Actions | {colour} {st} | githubstatus.com; a red row means pending CI is theirs, not yours |"]
 
 
+VERIFY_WINDOW_H = 24
+VERIFY_MIN_RUNS = 20   # 24 hourly crons minus GitHub's documented scheduling drops; fewer is a dead schedule
+
+
+def verification_identity() -> list[str]:
+    """Can the platform check itself with nobody logged in? (crew#345, 2026-08-26)
+
+    Live verification stopped five times in one night because a laptop's OCI browser session
+    (a 60-minute JWT) had expired. idp's verify-drill.yml now runs every hour on the estate-ci
+    machine identity and reads the cluster's own in-cluster receipt. The ticket's acceptance
+    criterion is 24 hours of that with zero founder interaction, so this row counts the
+    scheduled runs of the last 24 hours: GREEN only when at least VERIFY_MIN_RUNS fired and
+    every one succeeded; RED on any failure; COUNTING while the window is still filling;
+    NOT RUN when GitHub cannot be asked. A person's login is never part of this measurement.
+    """
+    rc, out = sh("gh run list -R chidionyema/idp --workflow verify-drill.yml --event schedule --limit 60 "
+                 "--json conclusion,createdAt,status", timeout=40)
+    if rc or not out:
+        return ["| OCI verification identity | NOT RUN | gh run list verify-drill.yml failed |"]
+    try:
+        runs = json.loads(out)
+    except ValueError as exc:
+        return [f"| OCI verification identity | NOT RUN | {type(exc).__name__} parsing gh run list |"]
+    cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=VERIFY_WINDOW_H)
+    window = [r for r in runs
+              if dt.datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= cutoff
+              and r.get("status") == "completed"]
+    n = len(window)
+    bad = [r for r in window if r.get("conclusion") != "success"]
+    how = "idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345)"
+    if n == 0:
+        return [f"| OCI verification identity | RED 0 scheduled runs in 24h | {how}; the cron never fired |"]
+    if bad:
+        return [f"| OCI verification identity | RED {len(bad)}/{n} scheduled runs failed | {how} |"]
+    if n < VERIFY_MIN_RUNS:
+        return [f"| OCI verification identity | COUNTING {n}/{VERIFY_MIN_RUNS} green, window still filling | {how} |"]
+    return [f"| OCI verification identity | GREEN {n}/{n} scheduled runs green, zero logins | {how} |"]
+
+
 def crew_p1() -> list[str]:
     rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
                  "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
@@ -217,7 +256,7 @@ def revenue_row(path: pathlib.Path, now: float | None = None, stale_hours: int =
     cur = last.get("currency") or ""
     if n == 0:
         return [f"| revenue | GREEN | 0 paid orders, measured {at} from the store (`outcomes.py revenue`) |"]
-    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {len(last.get('payers', []))} payer(s), "
+    return [f"| revenue | GREEN | {n} paid order(s), {last.get('total')} {cur}, {last.get('payer_count', len(last.get('payers', [])))} payer(s), "
             f"first {last.get('first_paid_at')} last {last.get('last_paid_at')}, measured {at} |"]
 
 
@@ -837,8 +876,31 @@ def hooks_row(path: pathlib.Path, now: dt.datetime | None = None, window_hours: 
         by_hook[str(r.get("hook"))] = by_hook.get(str(r.get("hook")), 0) + 1
     top = max(by_hook, key=lambda h: by_hook[h]) if by_hook else "none"
     slow = max((int(r.get("ms") or 0) for r in recent), default=0)
+    overturned = false_refusals(recent)
     return [f"| hooks | GREEN | {len(recent)} runs in {window_hours}h, {len(refused)} refused "
-            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms (`{path.name}`) |"]
+            f"(most: {top} {by_hook.get(top, 0)}), slowest {slow} ms, "
+            f"{overturned} overturned by a marker (`{path.name}`) |"]
+
+
+def false_refusals(rows: list[dict], within_s: int = 600) -> int:
+    """crew#370: the false half of LAW 38. A refusal is counted overturned when the same hook, in
+    the same session, passes a command carrying an override marker (`waived`, written by
+    claude-guards hook-run.py) within `within_s` seconds after it. The agent asserting the work
+    was correct and the guard letting it through is the one recorded signal that the refusal was
+    wrong; a refusal nobody overrides is not counted, so this is a floor, not the rate.
+    """
+    def at(r: dict) -> dt.datetime:
+        return dt.datetime.fromisoformat(str(r["at"]).replace("Z", "+00:00"))
+    waived = [r for r in rows if r.get("waived") and not r.get("refused")]
+    n = 0
+    for r in rows:
+        if not r.get("refused"):
+            continue
+        t = at(r)
+        if any(w.get("hook") == r.get("hook") and w.get("session") == r.get("session")
+               and 0 <= (at(w) - t).total_seconds() <= within_s for w in waived):
+            n += 1
+    return n
 
 
 def hooks() -> list[str]:
@@ -862,7 +924,7 @@ def main() -> int:
 
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
-        datamap, science_plane, research, hooks, github_actions, crew_p1,
+        datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
                runtime, elite_grade):
         try:
             rows += fn()

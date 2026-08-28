@@ -95,6 +95,15 @@ WAREHOUSE = _env_path("SCIENCE_WAREHOUSE", Path(__file__).parent / "warehouse.db
 # not a rewrite.
 REGISTRY = _env_path("SCIENCE_REGISTRY", Path(__file__).parent / "sources.json")
 
+#: The only three shapes anything here can read. This is a closed set on purpose: every
+#: reader in this directory branches on `kind`, and each of them used to treat "not one of
+#: the two I know" as "a single JSON document" rather than as an error. A registry entry
+#: saying `kind: "Jsonl"` was therefore accepted, and its store read as one malformed
+#: document: measured on a real two-row file, 0 rows and 1 bad line, reported as a source
+#: that simply had nothing in it. The estate's own rule for this shape is written down --
+#: do not leave an allow-list with a silent miss case -- and this was one.
+KINDS = ("jsonl", "jsonl-dir", "json", "sqlite")
+
 
 def _default_collector_config() -> Path:
     """idp's collector config, found beside this repo's main checkout, never under a
@@ -194,13 +203,20 @@ def load_registry(path: Path = REGISTRY) -> dict:
         root = roots.get(s.get("root", "home"))
         if root is None:
             sys.exit(f"registry names an unknown root {s.get('root')!r} for {s.get('name')!r}")
+        kind = s.get("kind", "jsonl")
+        #: Refused here rather than at read time, because at read time it is indistinguishable
+        #: from an empty store. A typo in one letter is the likeliest way this file is ever
+        #: wrong, and it is the one mistake that produces a green run over nothing.
+        if kind not in KINDS:
+            sys.exit(f"registry gives {s.get('name')!r} an unknown kind {kind!r}. "
+                     f"It must be one of: {', '.join(KINDS)}.")
         #: A source with no receiver has no way into the one pipeline (R37 req 8).
         if not (s.get("receiver") or "").strip():
             sys.exit(f"registry source {s.get('name')!r} names no receiver. Every source "
                      f"says which collector receiver it arrives through.")
         receivers[s["name"]] = s["receiver"]
-        sources[s["name"]] = (root / s["path"], s.get("kind", "jsonl"), s.get("time_field"))
-        if s.get("kind") == "sqlite":
+        sources[s["name"]] = (root / s["path"], kind, s.get("time_field"))
+        if kind == "sqlite":
             if not s.get("query"):
                 sys.exit(f"registry source {s['name']!r} is sqlite and names no query")
             queries[s["name"]] = s["query"]
@@ -301,6 +317,22 @@ CREATE TABLE IF NOT EXISTS emit_watermark (
 # Spend is the estate's only money series, so it gets a typed view rather than
 # living as opaque JSON. Every other source stays generic until something asks.
 SPEND_VIEW = """
+-- crew#366 act/agent_decisions: what each session chose and what it rejected. Rows come from
+-- decision-log.py --decide and from decisions_intake.py (one per merged PR's Options block).
+DROP VIEW IF EXISTS decisions_by_session;
+CREATE VIEW decisions_by_session AS
+SELECT
+    json_extract(payload, '$.session') AS session,
+    COUNT(*) AS decisions,
+    SUM(json_array_length(json_extract(payload, '$.options'))) AS options_rejected,
+    SUM(CASE WHEN json_extract(payload, '$.status') = 'superseded' THEN 1 ELSE 0 END) AS reversals,
+    MIN(json_extract(payload, '$.ts')) AS first_at,
+    MAX(json_extract(payload, '$.ts')) AS last_at
+FROM facts
+WHERE source = 'decisions' AND json_extract(payload, '$.kind') = 'decision'
+GROUP BY session
+ORDER BY decisions DESC;
+
 DROP VIEW IF EXISTS spend_daily;
 CREATE VIEW spend_daily AS
 SELECT
@@ -312,6 +344,43 @@ WHERE source = 'spend'
   AND json_extract(payload, '$.day') >= '2020-01-01'   -- drops the epoch-zero rows
 GROUP BY day
 ORDER BY day;
+
+-- crew#371 act/model_routing: which model served the calls and what each cost, per day.
+-- The history row carries by_model (usd) and reqs_by_model (calls) since claude-guards
+-- crew#371; rows written before that yield nothing here rather than a zero.
+-- crew#372 act/context_waste: how much of what was sent to the model was the same context
+-- again. The history row carries tokens by driver and reread_pct since claude-guards
+-- crew#372; cache_read is the prefix the model re-read unchanged from the previous call.
+-- Rows written before that yield nothing here, never a zero.
+DROP VIEW IF EXISTS context_waste;
+CREATE VIEW context_waste AS
+SELECT
+    json_extract(payload, '$.day')                       AS day,
+    MAX(json_extract(payload, '$.tokens.raw_input')
+        + json_extract(payload, '$.tokens.cache_read')
+        + json_extract(payload, '$.tokens.cache_write')) AS tokens_sent,
+    MAX(json_extract(payload, '$.tokens.cache_read'))    AS tokens_reread,
+    MAX(json_extract(payload, '$.reread_pct'))           AS tokens_reread_pct,
+    MAX(json_extract(payload, '$.tokens.output'))        AS tokens_output
+FROM facts
+WHERE source = 'spend'
+  AND json_extract(payload, '$.tokens.cache_read') IS NOT NULL
+  AND json_extract(payload, '$.day') >= '2020-01-01'
+GROUP BY day
+ORDER BY day;
+
+DROP VIEW IF EXISTS spend_by_model;
+CREATE VIEW spend_by_model AS
+SELECT
+    json_extract(f.payload, '$.day') AS day,
+    m.key                            AS model,
+    MAX(m.value)                     AS usd,
+    MAX(json_extract(f.payload, '$.reqs_by_model."' || m.key || '"')) AS requests
+FROM facts f, json_each(f.payload, '$.by_model') m
+WHERE f.source = 'spend'
+  AND json_extract(f.payload, '$.day') >= '2020-01-01'
+GROUP BY day, model
+ORDER BY day, usd DESC;
 
 -- What the money bought. Crude on purpose: a commit is not value, and this view
 -- says nothing about whether any of it was worth doing. It is the estate's first
@@ -428,12 +497,19 @@ def read_rows(path: Path, kind: str, query: str | None = None) -> tuple[list[dic
                     bad += 1
                     continue
                 rows.append(obj if isinstance(obj, dict) else {"value": obj})
-    else:
+    elif kind == "json":
         try:
             obj = json.loads(path.read_text(errors="ignore"))
         except json.JSONDecodeError:
             return [], 1
         rows.append(obj if isinstance(obj, dict) else {"value": obj})
+    else:
+        #: `load_registry` refuses an unknown kind before anything gets here, so this is
+        #: unreachable through the registry. It is written anyway because this function is
+        #: called directly by `duckdb_differential.py`, and the branch it replaces used to
+        #: read any unrecognised kind as a single JSON document -- which is the failure
+        #: this raise exists to make loud.
+        raise ValueError(f"read_rows got an unknown kind {kind!r}; expected one of {KINDS}")
     return rows, bad
 
 

@@ -2,7 +2,7 @@
 
 - **Watch list:** `science/research-sources.json` — one entry per STANDARDS.md row and GitHub
   repo. Add a row when a standard names a new tool; `tests/test_crew508_research_intake.py`
-  refuses an entry whose `row` is not on `docs/STANDARDS.md`.
+  refuses an entry whose `row` is not on `docs/reference/STANDARDS.md`.
 - **Ledger:** `science/RESEARCH-INTAKE.jsonl` — `seen`, `row`, `repo`, `tag`, `published_at`,
   `url`, `status` (`baseline` | `candidate` | `adopted` | `declined`), `ticket`.
 - **State:** `science/research-intake-state.json` — `last_pull`, `watched`, `unreachable`, `new`.

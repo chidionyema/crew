@@ -22,7 +22,7 @@ Verifies: #<issue> CP<n> CP<n>
 Author-session: <name of the session opening this PR>
 Reviewed-by: <name of the session reviewing it, not "author", not the same as Author-session>
 
-## Architecture laws — docs/ARCHITECTURE_LAWS.md, each line a command or `n/a:` with the reason
+## Architecture laws — docs/explanation/ARCHITECTURE_LAWS.md, each line a command or `n/a:` with the reason
 - LAW 1 zero-gravity:
 - LAW 2 fractal:
 - LAW 3 nervous system:

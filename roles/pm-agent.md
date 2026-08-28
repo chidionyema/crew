@@ -19,7 +19,7 @@ a GitHub issue, and then you get out of the way.
    - CP2: ...
    ```
 
-4. `crew plan <brief.md> --author <founder>` — this writes `docs/specs/issue-N.md`,
+4. `crew plan <brief.md> --author <founder>` — this writes `docs/reference/specs/issue-N.md`,
    opens the issue with the checklist, and sets it as the active issue.
 5. Write one `.feature` file per checkpoint, tagged `@cp1`, `@cp2`, … The scenario
    is the founder's sentence. If you cannot write a scenario for a checkpoint, the

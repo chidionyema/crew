@@ -17,7 +17,7 @@ currently unmeasured and unowned, and every other layer inherits from them.
 **Measured 2026-08-24T22:27Z.** Every row carries the command that produced it. This estate moves
 by the hour -- `hermes-v2` alone gained 32 markdown files between two readings four hours apart --
 so re-run the command rather than trusting the figure. Where a number here disagrees with
-`ESTATE_STATE.md`, neither is authoritative: the command is.
+`docs/explanation/ESTATE_STATE.md`, neither is authoritative: the command is.
 
 | Measurement | Value | Command |
 |---|---|---|
@@ -68,7 +68,7 @@ in `hermes-v2`, which DOC-4 classifies as vendor, leaving 46 that are ours and u
 Seven of those are `.crew-state/requirements-dev.txt`, which is a git worktree of `crew` and
 therefore the same file counted twice. Three are `@ file:` local path references in
 `prospector-main/requirements-local.txt`, which carry no version at all. That leaves **43 versioned
-dependency lines, 0 pinned**. An earlier draft said 44 and `ESTATE_STATE.md` says 49; both counted
+dependency lines, 0 pinned**. An earlier draft said 44 and `docs/explanation/ESTATE_STATE.md` says 49; both counted
 the worktree, and they differ from each other because the estate moved between the two readings.
 
 Every runtime dependency we have is a floating range. `prospector-main/requirements.txt`, verbatim:

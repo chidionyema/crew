@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-CHARTER = Path(__file__).resolve().parents[1] / "docs" / "research-engine" / "CHARTER.md"
+CHARTER = Path(__file__).resolve().parents[1] / "docs" / "explanation" / "research-engine" / "CHARTER.md"
 MAC_BOUND = re.compile(r"sqlite:///|--backend-store-uri|under launchd")
 
 

@@ -6,7 +6,7 @@ The register already exists, risk/REGISTER.jsonl, and two gates keep its shape h
 (scripts/verify.d/85, 86). What was missing is the forward half: the page a buyer reads,
 generated so it cannot drift, and the link from a hazard to the incident that realised it.
 
-    scripts/hazard-register            render docs/HAZARDS.md from the register
+    scripts/hazard-register            render docs/reference/HAZARDS.md from the register
     scripts/hazard-register --check    also read every open P1 in the estate repos and exit 1
                                        when one names no register row (R<n>): a fire with
                                        no hazard behind it is a hazard nobody wrote down
@@ -27,7 +27,7 @@ from pathlib import Path
 
 ROOT = Path(os.environ.get("CREW_ROOT") or Path(__file__).resolve().parent.parent)
 REG = ROOT / "risk" / "REGISTER.jsonl"
-PAGE = ROOT / "docs" / "HAZARDS.md"
+PAGE = ROOT / "docs" / "reference" / "HAZARDS.md"
 REPOS = os.environ.get("HAZARD_REPOS", "chidionyema/crew,chidionyema/idp").split(",")
 RID = re.compile(r"\bR(\d+)\b")
 RANK = {"certain": 0, "high": 1, "medium": 2, "low": 3}

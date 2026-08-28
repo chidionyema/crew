@@ -1,6 +1,6 @@
 """CP3: engineering claims a checkpoint and posts evidence with no person typing.
 
-Wire B in docs/CLOSING_THE_LOOP.md.
+Wire B in docs/explanation/CLOSING_THE_LOOP.md.
 """
 
 from pathlib import Path

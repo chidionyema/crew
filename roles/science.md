@@ -45,8 +45,8 @@ What that binds, in commands:
    exception for a small thing.
 
 5. **Rigorous docs for everything produced.** A module, gate, page or command ships with its
-   onboarding doc (`docs/onboarding/<name>.md`: what it is for, who reads it, the command, the
-   failure it names) and its demo doc (`docs/demo/<name>.md`); `scripts/verify.d` docs-standard
+   onboarding doc (`docs/how-to/onboarding/<name>.md`: what it is for, who reads it, the command, the
+   failure it names) and its demo doc (`docs/tutorials/demo/<name>.md`); `scripts/verify.d` docs-standard
    refuses the PR otherwise (crew#88). A docstring is the first line the showcase renders.
 
 This section outranks the two questions above only in what it adds: the grade and the horizon

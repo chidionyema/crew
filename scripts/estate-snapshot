@@ -707,7 +707,7 @@ SCIENCE_LEDGERS = ("science/ships.jsonl", "science/attention.jsonl", "science/re
 #: crew#495 CP2: the hazard page is regenerated from risk/REGISTER.jsonl and the open P1s on
 #: every snapshot and committed with STATE.md, so "which fire realises which hazard" is never
 #: older than an hour.
-HAZARD_PAGE = "docs/HAZARDS.md"
+HAZARD_PAGE = "docs/reference/HAZARDS.md"
 #: crew#403: the science page is regenerated from the live checkout's own stores on every
 #: snapshot. A copy generated anywhere else names stores that checkout does not hold and reads
 #: BLIND; copying such a page forward kept it BLIND on main for 4.6 hours on 2026-08-27.

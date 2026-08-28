@@ -576,7 +576,7 @@ def provider_coupling(body: str, diff: str) -> tuple:
 
 
 #: Where a change is infra work and must name its standard. Exactly the paths crew#135 names,
-#: no wider: scripts/, workflows, launchd plists, and docs/STANDARDS.md itself — editing the
+#: no wider: scripts/, workflows, launchd plists, and docs/reference/STANDARDS.md itself — editing the
 #: standard IS infra work. Other docs prose stays exempt for the same reason EXEMPT exists
 #: above: a gate that refuses the page explaining it is a gate that gets deleted.
 INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
@@ -587,7 +587,7 @@ INFRA_PATH = re.compile(r"^(scripts/|\.github/)|\.plist$|^docs/STANDARDS\.md$")
 STANDARDS_MARK = re.compile(r"^\s*(?:[-*+]\s+)?(?:\*\*|__|\*|_)?\s*(standard|deviation)\s*:"
                             r"(?:\*\*|__|\*|_)?\s*(.*)$", re.I | re.M)
 
-#: The ten rows of docs/STANDARDS.md "## Definition of done" (crew#205) -- this is the machine
+#: The ten rows of docs/reference/STANDARDS.md "## Definition of done" (crew#205) -- this is the machine
 #: check that section's own row 3 asks for (crew#207). Exact row names from that table; rename
 #: here only if that table is renamed too.
 DOD_ROWS = (
@@ -627,7 +627,7 @@ def infra_paths(diff: str) -> list:
 def standards_line(body: str, diff: str) -> tuple:
     """(ok, message) for R7 / LAW 44. A pull request that touches infra names its standard.
 
-    docs/STANDARDS.md says a component not on the page needs a stated, reviewed deviation, and
+    docs/reference/STANDARDS.md says a component not on the page needs a stated, reviewed deviation, and
     until crew#135 nothing enforced that — a law without a protocol is a wish (LAW 44). The ask
     is one line in the body: `Standard: <the STANDARDS.md row this uses>` or `Deviation: <what
     and why>`. A deviation is never refused here — stating it is the whole requirement; the
@@ -643,7 +643,7 @@ def standards_line(body: str, diff: str) -> tuple:
             return True, f"{m.group(1).capitalize()} line covers {len(touched)} infra file(s)"
     what = ", ".join(sorted(touched)[:5])
     return False, (f"touches infra ({what}) with no 'Standard:' or 'Deviation:' line. R7/LAW 44: add "
-                   "'Standard: <the docs/STANDARDS.md row this uses>' or 'Deviation: <what and "
+                   "'Standard: <the docs/reference/STANDARDS.md row this uses>' or 'Deviation: <what and "
                    "why>' to the body. A deviation is allowed — stating it is the whole ask")
 
 
@@ -691,7 +691,7 @@ def architecture_laws(body: str) -> tuple:
 
 
 def dod_rows(body: str) -> tuple:
-    """(ok, message) for docs/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
+    """(ok, message) for docs/reference/STANDARDS.md "## Definition of done" (crew#205, crew#207): a PR
     body names all ten rows, or `n/a: <why>` for the ones that do not apply.
 
     "DONE: on a reply with a missing row is the incident" is that section's own last line. A
@@ -721,7 +721,7 @@ def dod_rows(body: str) -> tuple:
             parts.append(f"{len(missing)} row(s) not named at all: {', '.join(missing)}")
         if bare:
             parts.append(f"{len(bare)} row(s) marked bare 'n/a' with no reason: {', '.join(bare)}")
-        return False, ("; ".join(parts) + ". docs/STANDARDS.md 'Definition of done': every row "
+        return False, ("; ".join(parts) + ". docs/reference/STANDARDS.md 'Definition of done': every row "
                        "needs its line, real content, or 'n/a: <why>' -- never dropped silently")
     return True, "all 10 definition-of-done rows present"
 
@@ -998,7 +998,7 @@ def selftest_dod() -> int:
         "6. Catalog entity — n/a: a check flag is not an entity\n"
         "7. Operational proof — Operational: `pr-evidence.py check --pr 205` ran, verdict below\n"
         "8. Scheduled re-grade — n/a: pr-evidence already runs on every PR\n"
-        "9. Standard row — Standard: docs/STANDARDS.md, review acceptance criteria\n"
+        "9. Standard row — Standard: docs/reference/STANDARDS.md, review acceptance criteria\n"
         "10. Evidence block — below\n"
     )
     check_one("all ten rows present passes", dod_rows(good)[0], True)

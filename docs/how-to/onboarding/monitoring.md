@@ -1,6 +1,6 @@
 # Onboarding — the dead-man that is not on the Mac
 
-Tracked item: crew#163. Standard row: Job monitoring (`docs/STANDARDS.md`).
+Tracked item: crew#163. Standard row: Job monitoring (`docs/reference/STANDARDS.md`).
 
 ## What this is for
 
@@ -61,7 +61,7 @@ ages on a schedule. It was a second dead-man with its own threshold, alerting on
 GitHub's failure e-mail, and GitHub disables a schedule after 60 days without commits.
 Healthchecks already answers all of that (grace periods, escalation through Apprise,
 a status page, an API) and is already deployed. LAW 43: never reinvent the wheel and do a
-worse job. The rejected option is recorded in `docs/demo/monitoring.md`.
+worse job. The rejected option is recorded in `docs/tutorials/demo/monitoring.md`.
 
 ## How to prove it yourself
 

@@ -463,7 +463,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--path")
     s.add_argument("--repo")
     s.add_argument("--features-dir", default="features")
-    s.add_argument("--specs-dir", default="docs/specs")
+    s.add_argument("--specs-dir", default="docs/reference/specs")
     s.add_argument("--bdd-command", default=C.Config.bdd_command)
     s.add_argument("--bdd-cwd", default=".")
     s.add_argument("--role")

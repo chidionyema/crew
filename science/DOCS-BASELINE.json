@@ -16,147 +16,147 @@
     "~/.claude/scripts::docs/THE-ARCHITECT.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/aiden.md": [
+    "~/.claude/scripts::docs/tutorials/demo/aiden.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/board-delivery.md": [
+    "~/.claude/scripts::docs/tutorials/demo/board-delivery.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/canonical-root-guard.md": [
+    "~/.claude/scripts::docs/tutorials/demo/canonical-root-guard.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/coverage.md": [
+    "~/.claude/scripts::docs/tutorials/demo/coverage.md": [
       "dated",
       "owned",
       "persisted"
     ],
-    "~/.claude/scripts::docs/demo/drills.md": [
+    "~/.claude/scripts::docs/tutorials/demo/drills.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/founder-actions.md": [
+    "~/.claude/scripts::docs/tutorials/demo/founder-actions.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/friction-relay.md": [
+    "~/.claude/scripts::docs/tutorials/demo/friction-relay.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/healthchecks.md": [
+    "~/.claude/scripts::docs/tutorials/demo/healthchecks.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/in-git.md": [
+    "~/.claude/scripts::docs/tutorials/demo/in-git.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/jobs-not-running.md": [
+    "~/.claude/scripts::docs/tutorials/demo/jobs-not-running.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/jobs.md": [
+    "~/.claude/scripts::docs/tutorials/demo/jobs.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/key-escrow.md": [
+    "~/.claude/scripts::docs/tutorials/demo/key-escrow.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/law-writer.md": [
+    "~/.claude/scripts::docs/tutorials/demo/law-writer.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/law22-gate.md": [
+    "~/.claude/scripts::docs/tutorials/demo/law22-gate.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/law7-gate.md": [
+    "~/.claude/scripts::docs/tutorials/demo/law7-gate.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/no-anthropic.md": [
+    "~/.claude/scripts::docs/tutorials/demo/no-anthropic.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/recovery-posture.md": [
+    "~/.claude/scripts::docs/tutorials/demo/recovery-posture.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/restic-backup.md": [
+    "~/.claude/scripts::docs/tutorials/demo/restic-backup.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/ticket-budget.md": [
+    "~/.claude/scripts::docs/tutorials/demo/ticket-budget.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/demo/ticket-gate.md": [
+    "~/.claude/scripts::docs/tutorials/demo/ticket-gate.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/aiden.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/aiden.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/board-delivery.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/board-delivery.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/canonical-root-guard.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/canonical-root-guard.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/coverage.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/coverage.md": [
       "owned",
       "persisted"
     ],
-    "~/.claude/scripts::docs/onboarding/drills.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/drills.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/estate-repos.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/estate-repos.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/founder-actions.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/founder-actions.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/friction-relay.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/friction-relay.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/healthchecks.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/healthchecks.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/in-git.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/in-git.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/jobs-not-running.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/jobs-not-running.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/jobs.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/jobs.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/key-escrow.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/key-escrow.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/law-writer.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/law-writer.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/law22-gate.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/law22-gate.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/law7-gate.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/law7-gate.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/no-anthropic.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/no-anthropic.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/recovery-posture.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/recovery-posture.md": [
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/restic-backup.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/restic-backup.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/ticket-budget.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/ticket-budget.md": [
       "dated",
       "owned"
     ],
-    "~/.claude/scripts::docs/onboarding/ticket-gate.md": [
+    "~/.claude/scripts::docs/how-to/onboarding/ticket-gate.md": [
       "dated",
       "owned"
     ],
@@ -335,24 +335,24 @@
     "~/.claude::skills/model-routing/SKILL.md": [
       "owned"
     ],
-    "~/.estate::docs/demo/guard-inheritance.md": [
+    "~/.estate::docs/tutorials/demo/guard-inheritance.md": [
       "owned"
     ],
-    "~/.estate::docs/demo/inventory.md": [
+    "~/.estate::docs/tutorials/demo/inventory.md": [
       "owned"
     ],
-    "~/.estate::docs/demo/load-gate.md": [
+    "~/.estate::docs/tutorials/demo/load-gate.md": [
       "owned"
     ],
-    "~/.estate::docs/onboarding/guard-inheritance.md": [
+    "~/.estate::docs/how-to/onboarding/guard-inheritance.md": [
       "dated",
       "owned"
     ],
-    "~/.estate::docs/onboarding/inventory.md": [
+    "~/.estate::docs/how-to/onboarding/inventory.md": [
       "dated",
       "owned"
     ],
-    "~/.estate::docs/onboarding/load-gate.md": [
+    "~/.estate::docs/how-to/onboarding/load-gate.md": [
       "owned"
     ],
     "~/dev/code/crew::.github/ISSUE_TEMPLATE/crew_task.md": [
@@ -363,49 +363,49 @@
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::AGENT-ONBOARDING.md": [
+    "~/dev/code/crew::docs/how-to/AGENT-ONBOARDING.md": [
       "owned"
     ],
-    "~/dev/code/crew::CORRECTIONS.md": [
+    "~/dev/code/crew::docs/decisions/CORRECTIONS.md": [
       "owned"
     ],
-    "~/dev/code/crew::CREW-BOARD-VISIBILITY.md": [
+    "~/dev/code/crew::docs/explanation/CREW-BOARD-VISIBILITY.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::CREW_ORCHESTRATION_SPEC.md": [
+    "~/dev/code/crew::docs/explanation/CREW_ORCHESTRATION_SPEC.md": [
       "owned"
     ],
-    "~/dev/code/crew::DECISIONS.md": [
+    "~/dev/code/crew::docs/decisions/DECISIONS.md": [
       "owned"
     ],
-    "~/dev/code/crew::EXPERIMENTS.md": [
+    "~/dev/code/crew::docs/explanation/EXPERIMENTS.md": [
       "dated",
       "owned"
     ],
     "~/dev/code/crew::FOUNDER.md": [
       "owned"
     ],
-    "~/dev/code/crew::ISSUE_TEMPLATE.md": [
+    "~/dev/code/crew::docs/reference/ISSUE_TEMPLATE.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::MULTI-AGENT-COORDINATION.md": [
+    "~/dev/code/crew::docs/explanation/MULTI-AGENT-COORDINATION.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::PREFERENCES.md": [
+    "~/dev/code/crew::docs/reference/PREFERENCES.md": [
       "owned"
     ],
-    "~/dev/code/crew::PR_TEMPLATE.md": [
+    "~/dev/code/crew::docs/reference/PR_TEMPLATE.md": [
       "dated",
       "owned",
       "substantial"
     ],
-    "~/dev/code/crew::QUICK-START.md": [
+    "~/dev/code/crew::docs/how-to/QUICK-START.md": [
       "owned"
     ],
-    "~/dev/code/crew::README-AGENTS.md": [
+    "~/dev/code/crew::docs/how-to/README-AGENTS.md": [
       "owned"
     ],
     "~/dev/code/crew::README.md": [
@@ -415,96 +415,96 @@
     "~/dev/code/crew::STATE.md": [
       "owned"
     ],
-    "~/dev/code/crew::VISIBILITY-COMMUNICATION.md": [
+    "~/dev/code/crew::docs/explanation/VISIBILITY-COMMUNICATION.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/CLOSING_THE_LOOP.md": [
+    "~/dev/code/crew::docs/explanation/CLOSING_THE_LOOP.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/collect.md": [
+    "~/dev/code/crew::docs/tutorials/demo/collect.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/datamap.md": [
+    "~/dev/code/crew::docs/tutorials/demo/datamap.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/estate-snapshot.md": [
+    "~/dev/code/crew::docs/tutorials/demo/estate-snapshot.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/law-enforcement.md": [
+    "~/dev/code/crew::docs/tutorials/demo/law-enforcement.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/outcomes.md": [
+    "~/dev/code/crew::docs/tutorials/demo/outcomes.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/pr-options.md": [
+    "~/dev/code/crew::docs/tutorials/demo/pr-options.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/provider-coupling.md": [
+    "~/dev/code/crew::docs/tutorials/demo/provider-coupling.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/research-ledger-page.md": [
+    "~/dev/code/crew::docs/tutorials/demo/research-ledger-page.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/risk-policy.md": [
+    "~/dev/code/crew::docs/tutorials/demo/risk-policy.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/risk.md": [
+    "~/dev/code/crew::docs/tutorials/demo/risk.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/science.md": [
+    "~/dev/code/crew::docs/tutorials/demo/science.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/demo/silent-side-effect.md": [
+    "~/dev/code/crew::docs/tutorials/demo/silent-side-effect.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/collect.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/collect.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/datamap.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/datamap.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/estate-snapshot.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/estate-snapshot.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/law-enforcement.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/law-enforcement.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/outcomes.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/outcomes.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/pr-options.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/pr-options.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/provider-coupling.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/provider-coupling.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/research-ledger-page.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/research-ledger-page.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/risk-policy.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/risk-policy.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/risk.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/risk.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/science.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/science.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/crew::docs/onboarding/silent-side-effect.md": [
+    "~/dev/code/crew::docs/how-to/onboarding/silent-side-effect.md": [
       "owned"
     ],
-    "~/dev/code/crew::docs/specs/issue-2.md": [
+    "~/dev/code/crew::docs/reference/specs/issue-2.md": [
       "owned"
     ],
     "~/dev/code/crew::integrations/claude-code/agents/pm-agent.md": [
@@ -565,57 +565,57 @@
       "dated",
       "owned"
     ],
-    "~/dev/code/idp::docs/demo/idp.md": [
+    "~/dev/code/idp::docs/tutorials/demo/idp.md": [
       "owned"
     ],
-    "~/dev/code/idp::docs/onboarding/idp.md": [
+    "~/dev/code/idp::docs/how-to/onboarding/idp.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/idp::docs/onboarding/langfuse.md": [
+    "~/dev/code/idp::docs/how-to/onboarding/langfuse.md": [
       "dated",
       "owned",
       "persisted"
     ],
-    "~/dev/code/idp::docs/onboarding/supply-chain.md": [
+    "~/dev/code/idp::docs/how-to/onboarding/supply-chain.md": [
       "owned",
       "persisted"
     ],
     "~/dev/code/maestro::docs/MAESTRO-DEPUTY-v1.0.md": [
       "owned"
     ],
-    "~/dev/code/maestro::docs/demo/frozen-replay.md": [
+    "~/dev/code/maestro::docs/tutorials/demo/frozen-replay.md": [
       "owned"
     ],
-    "~/dev/code/maestro::docs/demo/learning-receipt.md": [
+    "~/dev/code/maestro::docs/tutorials/demo/learning-receipt.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/maestro::docs/demo/maestro.md": [
+    "~/dev/code/maestro::docs/tutorials/demo/maestro.md": [
       "owned"
     ],
-    "~/dev/code/maestro::docs/demo/self-repair.md": [
+    "~/dev/code/maestro::docs/tutorials/demo/self-repair.md": [
       "owned"
     ],
-    "~/dev/code/maestro::docs/onboarding/frozen-replay.md": [
+    "~/dev/code/maestro::docs/how-to/onboarding/frozen-replay.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/maestro::docs/onboarding/learning-receipt.md": [
+    "~/dev/code/maestro::docs/how-to/onboarding/learning-receipt.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/maestro::docs/onboarding/maestro.md": [
+    "~/dev/code/maestro::docs/how-to/onboarding/maestro.md": [
       "owned"
     ],
-    "~/dev/code/maestro::docs/onboarding/self-repair.md": [
+    "~/dev/code/maestro::docs/how-to/onboarding/self-repair.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/survival-stack::CORRECTIONS.md": [
+    "~/dev/code/survival-stack::docs/decisions/CORRECTIONS.md": [
       "owned"
     ],
-    "~/dev/code/survival-stack::PREFERENCES.md": [
+    "~/dev/code/survival-stack::docs/reference/PREFERENCES.md": [
       "owned"
     ],
     "~/dev/code/survival-stack::README.md": [
@@ -661,14 +661,14 @@
       "dated",
       "owned"
     ],
-    "~/dev/code/survival-stack::docs/demo/cutover.md": [
+    "~/dev/code/survival-stack::docs/tutorials/demo/cutover.md": [
       "owned"
     ],
-    "~/dev/code/survival-stack::docs/onboarding/cutover.md": [
+    "~/dev/code/survival-stack::docs/how-to/onboarding/cutover.md": [
       "dated",
       "owned"
     ],
-    "~/dev/code/survival-stack::docs/specs/issue-1.md": [
+    "~/dev/code/survival-stack::docs/reference/specs/issue-1.md": [
       "owned"
     ]
   },

@@ -277,7 +277,7 @@ if [ -n "$WF_FILES" ]; then
   echo
 fi
 
-# REPORT-ONLY. New coverage lands visible before it lands blocking (docs/STANDARDS.md,
+# REPORT-ONLY. New coverage lands visible before it lands blocking (docs/reference/STANDARDS.md,
 # "Widening a gate"). Widening the selection above and enforcing it in the same change
 # would turn branches red on findings their authors did not write and could not have seen
 # coming, and the estate already knows what happens then: a red check everyone learns to

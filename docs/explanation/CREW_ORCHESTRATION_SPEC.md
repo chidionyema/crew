@@ -53,7 +53,7 @@ Every agent reads and writes one issue, through one tool (`crew`), in one shape.
 ```markdown
 ## Origin
 Distilled from conversation with @founder on 2026-08-22.
-Spec: `docs/specs/issue-44.md`
+Spec: `docs/reference/specs/issue-44.md`
 
 ## Checklist
 

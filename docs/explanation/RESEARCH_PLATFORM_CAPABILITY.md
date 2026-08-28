@@ -132,13 +132,13 @@ the old dossier beside it.
 Founder: "they are here to exponentially improve all parts of the estate including prospector,
 the capabilities need to be world class on their own and can be purposed to any part of platform
 and beyond as we add new product and capabilities." Full text and the drift guard:
-`docs/rulings/R35-research-crew-is-a-platform-layer-for-every-product.md`.
+`docs/decisions/rulings/R35-research-crew-is-a-platform-layer-for-every-product.md`.
 
 How it engages the rest of the platform: in through a `research` issue, a `research generate
 <target>` call, or a scheduled sweep over the Backstage catalog; out as a doc in the owning repo,
 a ticket on the owner's board, traces in the estate collector, and every prior in one estate-wide
 forecast ledger. A new product joins by adding a catalog entity. Step 1 proof at three scales:
-`docs/research-engine/STEP1_2026-08-25.md`.
+`docs/explanation/research-engine/STEP1_2026-08-25.md`.
 
 ## Definition of done, in commands, in order
 

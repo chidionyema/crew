@@ -4,7 +4,7 @@ Scheduled reviews the estate runs on its own clock. Each section is what a job r
 
 ## Sunday review (weekly, `sunday-review` cron)
 
-Most of the job is deleting lessons that did not help. Read `CORRECTIONS.md` and `DECISIONS.md` since the last review. For each entry: has it actually changed behavior since it was written, or is it dead prose nobody checks anymore? Delete what never got used. Keep what did, and say what evidence proves it's still in force.
+Most of the job is deleting lessons that did not help. Read `docs/decisions/CORRECTIONS.md` and `docs/decisions/DECISIONS.md` since the last review. For each entry: has it actually changed behavior since it was written, or is it dead prose nobody checks anymore? Delete what never got used. Keep what did, and say what evidence proves it's still in force.
 
 ## Architecture drift review (weekly, same `sunday-review` slot)
 

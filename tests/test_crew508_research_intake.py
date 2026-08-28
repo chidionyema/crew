@@ -85,6 +85,6 @@ def test_check_exits_one_on_a_stale_pull(tmp_path, monkeypatch, capsys):
 
 
 def test_every_watched_row_names_a_standards_row():
-    rows = {ln.split("|")[1].strip() for ln in (CREW / "docs" / "STANDARDS.md").read_text().splitlines() if ln.startswith("| ")}
+    rows = {ln.split("|")[1].strip() for ln in (CREW / "docs" / "reference" / "STANDARDS.md").read_text().splitlines() if ln.startswith("| ")}
     missing = [w for w in ri.watched() if w["row"] not in rows]
     assert not missing, missing

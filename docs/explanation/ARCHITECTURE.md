@@ -133,7 +133,7 @@ Neither this repository nor `idp` carries a hardcoded home directory. `maestro.p
 single hit and it is a string inside an incident description, not a path the program
 depends on.
 
-**Declared, not re-measured:** `DECISIONS.md` records that hermes-v2 cannot be moved with
+**Declared, not re-measured:** `docs/decisions/DECISIONS.md` records that hermes-v2 cannot be moved with
 a plain `mv`, because its virtualenv bakes an absolute interpreter path into the shebang
 and `./bin/hermes` breaks on relocation. That is a real trap in that repository and it
 belongs in any rebuild drill.

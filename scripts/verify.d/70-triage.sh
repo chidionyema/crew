@@ -13,7 +13,7 @@ set -uo pipefail
 cd "${CREW_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}" || exit 2
 fail=0
 
-for f in FOUNDER.md DECISIONS.md PREFERENCES.md CORRECTIONS.md \
+for f in FOUNDER.md docs/decisions/DECISIONS.md docs/reference/PREFERENCES.md docs/decisions/CORRECTIONS.md \
          scripts/crew-triage .github/ISSUE_TEMPLATE/crew_task.md \
          .github/pull_request_template.md scripts/install-crew; do
     if [[ -f "$f" ]]; then echo "PASS  $f"; else echo "FAIL  $f is missing"; fail=1; fi
@@ -30,10 +30,10 @@ if [[ "${n:-0}" -eq 0 ]]; then echo "  0 doubled checkboxes"; else echo "  FAIL 
 
 # One template, not two. A copy at the repo root drifts from the one GitHub serves.
 echo "\$ diff the root pointer against the real template"
-if grep -q '.github/ISSUE_TEMPLATE/crew_task.md' ISSUE_TEMPLATE.md; then
-    echo "  ISSUE_TEMPLATE.md points at the real one"
+if grep -q '.github/ISSUE_TEMPLATE/crew_task.md' docs/reference/ISSUE_TEMPLATE.md; then
+    echo "  docs/reference/ISSUE_TEMPLATE.md points at the real one"
 else
-    echo "  FAIL ISSUE_TEMPLATE.md is a second copy"; fail=1
+    echo "  FAIL docs/reference/ISSUE_TEMPLATE.md is a second copy"; fail=1
 fi
 
 exit $fail

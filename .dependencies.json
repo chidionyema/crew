@@ -9,8 +9,8 @@
       "science/research-ledger.html",
       "science/revenue.jsonl",
       "roles/*",
-      "ESTATE_STATE.md",
-      "DECISIONS.md",
+      "docs/explanation/ESTATE_STATE.md",
+      "docs/decisions/DECISIONS.md",
       "mkdocs.yml",
       "tests/*"
     ],
@@ -87,7 +87,7 @@
       "covered_by": "github-gone"
     },
     "MINIMAX_API_KEY": {
-      "is": "a substrate rail named on docs/STANDARDS.md",
+      "is": "a substrate rail named on docs/reference/STANDARDS.md",
       "dismissed": "no scheduled job in this repository calls it; the router that does is graded in idp"
     },
     "SNAP_KEY": {

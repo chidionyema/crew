@@ -5,7 +5,7 @@ Founder, 2026-08-25: "how is this capability going to improve our platform, lane
 about the charge and expectations for this crew, get up to speed and bootstrap."
 
 Rulings that bind this file: R31, R32, R34, R35. Role file: `roles/science.md`. Method:
-`EXPERIMENTS.md`. Goals ledger: `science/PLAN.md`.
+`docs/explanation/EXPERIMENTS.md`. Goals ledger: `science/PLAN.md`.
 
 ## The charge, one sentence
 
@@ -60,7 +60,7 @@ nothing load-bearing. `crew/science/` is the backfill and the baseline until the
 receives its first row, then it is read-only history. Dagster on launchd stays the scheduler
 only until #78 lands; Argo Workflows replaces it in the PR that brings the cluster. Risk: while
 #78 is open the pipeline has no cluster to run on, so steps 1 to 3 below wait on it; steps 4 to
-6 do not. Standards rows Scheduling, Experiments and Agent traces (docs/STANDARDS.md) are the
+6 do not. Standards rows Scheduling, Experiments and Agent traces (docs/reference/STANDARDS.md) are the
 single source for what is live.
 
 ## Bootstrap, in commands, in order

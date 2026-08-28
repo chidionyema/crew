@@ -11,7 +11,7 @@ issue, no checkpoint and no independent verification. The tool that exists to
 stop that was sitting in the same directory.
 
 This build points the crew at the crew, then closes the three wires in
-docs/CLOSING_THE_LOOP.md so a conversation reaches a merged pull request without
+docs/explanation/CLOSING_THE_LOOP.md so a conversation reaches a merged pull request without
 a person typing each command.
 
 The runner here is pytest, not behave. crew/bdd.py reads both, chosen off the

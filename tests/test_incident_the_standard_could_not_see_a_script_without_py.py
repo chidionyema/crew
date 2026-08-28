@@ -148,7 +148,7 @@ def test_a_clean_shebang_python_file_is_not_reported(repo):
 
 @needs_tools
 def test_the_new_coverage_reports_and_does_not_yet_block(repo):
-    """Report-only, per docs/STANDARDS.md "Widening a gate".
+    """Report-only, per docs/reference/STANDARDS.md "Widening a gate".
 
     Widening the selection and enforcing it in one change turns branches red on findings
     their authors did not write, and a red check everyone learns to ignore is no gate.

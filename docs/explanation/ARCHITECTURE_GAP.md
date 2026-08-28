@@ -3,7 +3,7 @@
 Measured 2026-08-25 by session fable-4e5b5e8f (haiku Explore agent af3e8f4d, 55 commands over
 crew, idp, prospector-main, hermes-v2). Every value below came from the command in its receipt
 column, run that day. Not a generator yet: crew#260 replaces this table with a scheduled run.
-Laws: `docs/ARCHITECTURE_LAWS.md`.
+Laws: `docs/explanation/ARCHITECTURE_LAWS.md`.
 
 ## LAW 1: zero-gravity compute
 
@@ -53,7 +53,7 @@ exists; crew#253 is the emitter-registry gate).
 | MLflow deployed | 0 | no manifest or compose file names mlflow |
 | Langfuse scoring files | present, Mac compose only | `idp/observability/langfuse.yml`; `idp/sovereign/engine/tracing.py` |
 | STANDARDS.md rows | Agent traces (row 27) partially live; Experiments (row 28) MLflow, not deployed | `crew/docs/STANDARDS.md:27-28` |
-| Forecast ledger | 30 priors in `crew/science/predictions.jsonl`, 0 scored | `docs/research-engine/CHARTER.md` bootstrap step 3 (crew#256) |
+| Forecast ledger | 30 priors in `crew/science/predictions.jsonl`, 0 scored | `docs/explanation/research-engine/CHARTER.md` bootstrap step 3 (crew#256) |
 
 Gap: no prediction is graded. Close in the order CHARTER.md gives: MLflow + Langfuse on OKE
 behind the collector, then the ledger writes to the collector and the first three forecasts

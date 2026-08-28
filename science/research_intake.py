@@ -3,7 +3,7 @@
 
 Founder, 2026-08-27: "there is wealth of info and data out there and we need to be future
 proof, we cant afford to rest on laurels and fall behind on research". Every tool named on a
-docs/STANDARDS.md row is watched through science/research-sources.json. Once a day this
+docs/reference/STANDARDS.md row is watched through science/research-sources.json. Once a day this
 pulls the newest release of each repo from the GitHub Releases API (the mature source; a
 tag list is the fallback for repos that publish no releases) and files every release the
 estate has not seen as a *candidate* row on science/RESEARCH-INTAKE.jsonl. A candidate is

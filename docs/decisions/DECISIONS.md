@@ -4,7 +4,7 @@ Precedent. Before asking him anything, read this — the answer is usually a lin
 already in it. Cite the entry by number when you apply it.
 
 `~/AGENTS.md` is the law. [`FOUNDER.md`](FOUNDER.md) is how he works.
-[`PREFERENCES.md`](PREFERENCES.md) is what he reaches for by default. This file
+[`docs/reference/PREFERENCES.md`](docs/reference/PREFERENCES.md) is what he reaches for by default. This file
 is what was actually decided, and when.
 
 ## Format

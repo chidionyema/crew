@@ -3,7 +3,7 @@ source without naming its lane (2026-08-28 01:2xZ, science hook on session 09cd0
 the collector owns and the snapshot commits is not a discovery; it belongs to a lane the day it
 is declared, or the lane grade lies (crew#508: a lane is graded on what it emits).
 
-Standard: Observability row, docs/STANDARDS.md
+Standard: Observability row, docs/reference/STANDARDS.md
 Rejected: mapping every unmapped name by hand in one sweep -- hindsight_recall is owned by
 ~/.claude/settings.json and its lane is that owner's call (LAW 29).
 """

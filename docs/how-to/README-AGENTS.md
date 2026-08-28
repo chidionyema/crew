@@ -81,7 +81,7 @@ watch -n 60 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 watch -n 30 ~/bin/watch-estate
 ```
 
-(See QUICK-START.md for the script)
+(See docs/how-to/QUICK-START.md for the script)
 
 ### **Communicate with them**
 
@@ -155,7 +155,7 @@ watch -n 30 ~/bin/watch-estate
 
 ## Next Steps (Your Checklist)
 
-- [ ] Read QUICK-START.md
+- [ ] Read docs/how-to/QUICK-START.md
 - [ ] Open 4 terminals (or run `watch-estate` script)
 - [ ] Watch maestro's next cycle (~3 min)
 - [ ] Post a test update to crew board

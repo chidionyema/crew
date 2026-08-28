@@ -1,6 +1,6 @@
 """CP2: a conversation becomes a tracked issue with no person typing `crew plan`.
 
-Wire A in docs/CLOSING_THE_LOOP.md. Fails until it is built, which is the point:
+Wire A in docs/explanation/CLOSING_THE_LOOP.md. Fails until it is built, which is the point:
 an unbuilt checkpoint is a red box on the issue, not a silence.
 """
 

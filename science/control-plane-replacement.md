@@ -11,14 +11,14 @@ Founder ruling, twice unanswered: "never reinvent the wheel and do a worse job."
   not change the exit code. 43 PASS, 1 FAIL, 1 MISSING DEP. Run `2026-08-24T08:37:39+0100`.
 - **32** estate plists in `~/Library/LaunchAgents`, 31 loaded. **28 are in no git repo.** Of the 4
   tracked, **3 have drifted** from disk.
-- Healthchecks — the job-monitoring standard in `docs/STANDARDS.md` — is **down**
+- Healthchecks — the job-monitoring standard in `docs/reference/STANDARDS.md` — is **down**
   (`http://127.0.0.1:8000/` returns HTTP 000). 9 of 32 jobs ping it; `hc-wrap.sh` is fail-open. So
   nothing is monitored and nothing says so.
 - 13 drills registered, **8 have a command, 5 are NOT WRITTEN**.
 - **Vale 3.17.1 is installed** and configured in 10+ repos. `jargon-guard.py`, 269 lines of
   hand-rolled prose linting, references it **zero** times.
 
-`docs/STANDARDS.md` is on `main` since 01e732c (PR #150, 2026-08-24 09:56Z, 133 lines); when this page was
+`docs/reference/STANDARDS.md` is on `main` since 01e732c (PR #150, 2026-08-24 09:56Z, 133 lines); when this page was
 first written it lived only on `standards/one-stack` (9a11c64, 57 lines), and the fit below was re-read against
 the 133-line copy on 2026-08-27 (review on crew#139). Everything below fits it; the one addition is Vale, and
 main's row "Custom guard scripts → pre-commit framework" is the delivery path for it: Vale runs as the
@@ -75,7 +75,7 @@ $100/mo against ~$4.50 of real use; Prefect Starter ($100/mo) caps at 20 deploym
 
 | Guard | Verdict |
 |---|---|
-| `jargon-guard.py` (269 ln) | **Vale 3.17.1**, already installed — [rule types](https://docs.vale.sh/topics/styles) map one-for-one; wired as the `repo: local` pre-commit hook `docs/STANDARDS.md` already assigns the jargon gate to |
+| `jargon-guard.py` (269 ln) | **Vale 3.17.1**, already installed — [rule types](https://docs.vale.sh/topics/styles) map one-for-one; wired as the `repo: local` pre-commit hook `docs/reference/STANDARDS.md` already assigns the jargon gate to |
 | `rule-guard.py` (1362 ln) | **Split.** Static bans → the 41 existing `permissions.deny` rules, which are shell-operator and env-prefix aware ([docs](https://code.claude.com/docs/en/permissions)). Law logic stays |
 | `context-guard-hook.py` | Delete the token arithmetic, read the harness field — also fixes the `[1m]` threshold bug |
 | `goal-guard.py`, `tracked.py` | **Keep.** Every guardrail product is a single-message content filter; none models session trajectory |

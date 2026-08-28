@@ -22,7 +22,7 @@ def test_no_workflow_reinvents_the_dead_man() -> None:
         text = wf.read_text(encoding="utf-8", errors="replace")
         if re.search(r"dead-?man|heartbeat age", text, re.IGNORECASE):
             hits.append(wf.relative_to(ROOT).as_posix())
-    assert not hits, f"dead-man reinvented in {hits}: the estate's is Healthchecks (docs/onboarding/monitoring.md)"
+    assert not hits, f"dead-man reinvented in {hits}: the estate's is Healthchecks (docs/how-to/onboarding/monitoring.md)"
 
 
 def test_no_script_reinvents_the_dead_man() -> None:
@@ -31,6 +31,6 @@ def test_no_script_reinvents_the_dead_man() -> None:
 
 
 def test_onboarding_names_the_one_receiver() -> None:
-    doc = (ROOT / "docs" / "onboarding" / "monitoring.md").read_text(encoding="utf-8")
+    doc = (ROOT / "docs" / "how-to" / "onboarding" / "monitoring.md").read_text(encoding="utf-8")
     for needle in ("idp-hc-enroll", "hc-wrap.sh", "estate-snapshot"):
-        assert needle in doc, f"docs/onboarding/monitoring.md must name {needle}"
+        assert needle in doc, f"docs/how-to/onboarding/monitoring.md must name {needle}"

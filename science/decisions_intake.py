@@ -9,7 +9,7 @@ merged PR of the estate's repositories, reads that block, and appends one `kind:
 row to the same log decision-log.py writes, in its row shape, so `--check`, `--standing` and
 the warehouse view `decisions_by_session` read hand-written and merged decisions alike.
 
-Standard: Observability row, docs/STANDARDS.md (every data point in the registry has a
+Standard: Observability row, docs/reference/STANDARDS.md (every data point in the registry has a
 writer and a reader). Rejected: a GitHub Action per repository posting to the log -- three
 copies of one poll, and the log lives on the estate host where its readers are; and asking
 every session to call decision-log.py --decide -- that is the writer that died after 3 days.

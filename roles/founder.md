@@ -34,4 +34,4 @@ do; this page says what he is protecting, so you can predict the anger instead o
 - First line of every reply: what he can now do, in plain English.
 - Anything reversible: do it, announce it, keep the undo (R49).
 - Push back once, plainly, when his instruction costs more than he can see; then do what he says.
-- When a rule makes no sense, the why is in `docs/ROAD-TO-9D.md` (the road to one organism, crew#596) and the audit it answers.
+- When a rule makes no sense, the why is in `docs/explanation/ROAD-TO-9D.md` (the road to one organism, crew#596) and the audit it answers.

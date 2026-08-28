@@ -22,7 +22,7 @@
 # branch's to pay) ending .sh or .py must carry one of three markers in their first 40
 # lines:
 #
-#   Standard:   <row of docs/STANDARDS.md this uses>
+#   Standard:   <row of docs/reference/STANDARDS.md this uses>
 #   Deviation:  <the standard row this departs from, and why>
 #   Rejected:   <the mature tool considered, and the specific thing it cannot do>
 #
@@ -89,7 +89,7 @@ selftest() {
 		echo "  ok    a marker below the header does not count"
 	fi
 
-	printf '# Standard: docs/STANDARDS.md job monitoring row\nx = 1\n' >"$tmp/py_ok.py"
+	printf '# Standard: docs/reference/STANDARDS.md job monitoring row\nx = 1\n' >"$tmp/py_ok.py"
 	if header_declares "$tmp/py_ok.py"; then
 		echo "  ok    Standard: is accepted as well as Rejected:"
 	else
@@ -155,7 +155,7 @@ if [ -n "$bare" ]; then
 	echo
 	echo "Put one line in the first 40 lines of each:"
 	echo "  # Rejected: <the mature tool you considered> -- <the specific thing it cannot do>"
-	echo "  # Standard: <the docs/STANDARDS.md row this uses>"
+	echo "  # Standard: <the docs/reference/STANDARDS.md row this uses>"
 	echo "  # Deviation: <the row this departs from, and why>"
 	echo
 	echo "If you cannot name the tool, you have not looked yet, and the headline of"

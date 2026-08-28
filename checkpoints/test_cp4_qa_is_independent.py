@@ -1,6 +1,6 @@
 """CP4: QA verifies on a runner engineering does not control.
 
-Wire C in docs/CLOSING_THE_LOOP.md. A gate on the same machine as the builder is
+Wire C in docs/explanation/CLOSING_THE_LOOP.md. A gate on the same machine as the builder is
 a gate the builder can edit.
 """
 

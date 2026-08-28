@@ -250,4 +250,4 @@ OpenTelemetry collector instead of a local script."
 ## Applies to
 
 crew#221 (research capability), crew#242 (step 1), crew#244 (science-plane rows), the bootstrap
-steps in `docs/research-engine/CHARTER.md`, and every guard, job and product on the estate.
+steps in `docs/explanation/research-engine/CHARTER.md`, and every guard, job and product on the estate.

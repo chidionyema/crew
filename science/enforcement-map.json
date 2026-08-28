@@ -308,7 +308,7 @@
    "law_title": "SEAMLESS IS THE DELIVERABLE",
    "verdict": "mechanical",
    "where": "pre-push",
-   "check": "a feat: commit or a new top level source directory ships without docs/demo and docs/onboarding",
+   "check": "a feat: commit or a new top level source directory ships without docs/tutorials/demo and docs/how-to/onboarding",
    "state": "live",
    "guards": [
     "hooks/pre-push"

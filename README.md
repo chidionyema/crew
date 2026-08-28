@@ -5,7 +5,7 @@ Fly, and the open P1 fires. Every row is a command and its output, rebuilt hourl
 row that could not be measured says NOT RUN rather than PASS. Read it before you measure
 anything yourself and before you ask the founder anything.
 
-**Who we are to each other:** [`docs/ROAD-TO-9D.md`](docs/ROAD-TO-9D.md) is the two-stage road
+**Who we are to each other:** [`docs/explanation/ROAD-TO-9D.md`](docs/explanation/ROAD-TO-9D.md) is the two-stage road
 from the [depth-psychology audit](docs/audits/depth-psychology-founder-and-crew-2026-08-28.md)
 of the founder and the crew to one organism; [`roles/founder.md`](roles/founder.md) is who he
 is. Pinned as crew#596. Read them when you wonder why a rule exists.
@@ -16,8 +16,8 @@ brain, and this tool is the only thing that writes to it.
 Three roles. The PM writes the spec and cannot build. Engineering builds and
 cannot tick a box. QA runs the tests and is the only role that can tick one.
 
-Read [`CREW_ORCHESTRATION_SPEC.md`](CREW_ORCHESTRATION_SPEC.md) for the shape and
-[`docs/CLOSING_THE_LOOP.md`](docs/CLOSING_THE_LOOP.md) for how the three wires
+Read [`docs/explanation/CREW_ORCHESTRATION_SPEC.md`](docs/explanation/CREW_ORCHESTRATION_SPEC.md) for the shape and
+[`docs/explanation/CLOSING_THE_LOOP.md`](docs/explanation/CLOSING_THE_LOOP.md) for how the three wires
 that run it without a person came to be built. This file is how to run it.
 
 ## Install
@@ -197,21 +197,21 @@ other's containers and the failure reads as a real defect.
 **`FOUNDER.md`** — how he works and what he will not sit through. Read it before
 working an issue. `~/AGENTS.md` is the law and outranks it.
 
-**`DECISIONS.md`** — what was decided and why, numbered. Read it before asking
+**`docs/decisions/DECISIONS.md`** — what was decided and why, numbered. Read it before asking
 anything; the answer is usually already a line in it. Cite the entry number when
 you apply it.
 
-**`PREFERENCES.md`** — what he reaches for when nothing forces the choice.
+**`docs/reference/PREFERENCES.md`** — what he reaches for when nothing forces the choice.
 Python for tools, bash for glue, property tests over example tests, raw output
 over a summary.
 
-**`CORRECTIONS.md`** — every time he had to say something twice. A correction
+**`docs/decisions/CORRECTIONS.md`** — every time he had to say something twice. A correction
 here already cost him a turn. One that keeps happening becomes a law or a guard,
 never a note.
 
 **`.github/ISSUE_TEMPLATE/crew_task.md`** and
 **`.github/pull_request_template.md`** — GitHub fills these in for you.
-`ISSUE_TEMPLATE.md` and `PR_TEMPLATE.md` at the root are pointers at those two,
+`docs/reference/ISSUE_TEMPLATE.md` and `docs/reference/PR_TEMPLATE.md` at the root are pointers at those two,
 not copies, because two copies of one template drift apart.
 
 ## Why a tick means something

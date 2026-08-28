@@ -19,7 +19,7 @@ class Config:
     root: Path
     repo: str
     features_dir: str = "features"
-    specs_dir: str = "docs/specs"
+    specs_dir: str = "docs/reference/specs"
     bdd_command: str = "behave --no-capture --no-skipped -f plain --tags={tag}"
     bdd_cwd: str = "."
     default_role: str = "engineering"
@@ -74,7 +74,7 @@ def load(start: str | None = None) -> Config:
         root=root,
         repo=repo,
         features_dir=data.get("features_dir", "features"),
-        specs_dir=data.get("specs_dir", "docs/specs"),
+        specs_dir=data.get("specs_dir", "docs/reference/specs"),
         bdd_command=data.get("bdd_command", Config.bdd_command),
         bdd_cwd=data.get("bdd_cwd", "."),
         default_role=data.get("default_role", "engineering"),

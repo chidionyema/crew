@@ -7,9 +7,9 @@ this file cannot rank itself into it. A pull request that breaks one
 does not merge; the checklist at the end is copied into every PR body and each line is a
 command, not a sentence.
 
-The standard stack that implements each law is one row per layer in `docs/STANDARDS.md`;
+The standard stack that implements each law is one row per layer in `docs/reference/STANDARDS.md`;
 the acceptance scenarios are in idp `features/cloud-agnostic/` and `features/estate-rebuild/`.
-The measured gap between these laws and what runs today is `docs/ARCHITECTURE_GAP.md`,
+The measured gap between these laws and what runs today is `docs/explanation/ARCHITECTURE_GAP.md`,
 measured by hand on 2026-08-25; the generator that re-measures it on a schedule is crew#260.
 
 ## LAW 1: Zero-gravity compute (extreme portability)

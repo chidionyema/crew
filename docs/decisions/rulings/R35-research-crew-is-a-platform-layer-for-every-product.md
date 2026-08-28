@@ -33,5 +33,5 @@ Then: "i need to be certain we are on the same page and you dont drift."
 ## Drift guard
 
 Any step-1 or later deliverable under #221/#242 that names prospector in the prompt, the runner,
-or the ledger schema is drift. `rg -n prospector docs/research-engine/PROMPT_generate.md` must
+or the ledger schema is drift. `rg -n prospector docs/explanation/research-engine/PROMPT_generate.md` must
 return nothing.

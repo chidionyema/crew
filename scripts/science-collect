@@ -18,7 +18,7 @@
 #
 # A non-zero exit is the point, not a failure of this script: it means a source
 # stopped being written and somebody needs to look. It lands in the .err.log and
-# in the collector's own stdout, both named in docs/onboarding/collect.md.
+# in the collector's own stdout, both named in docs/how-to/onboarding/collect.md.
 set -uo pipefail
 
 # foresight needs scikit-learn, which lives in the repo venv, not the system python3 (crew#404).

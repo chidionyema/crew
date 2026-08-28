@@ -28,7 +28,7 @@ and `~/AGENTS.md` are. This is the default when the law is silent.
 - Having to repeat an instruction he already gave.
 - "I believe" where "here is the command output" belongs.
 - A browser step when an API exists.
-- "Should I…" when the precedent is already in [`DECISIONS.md`](DECISIONS.md).
+- "Should I…" when the precedent is already in [`docs/decisions/DECISIONS.md`](docs/decisions/DECISIONS.md).
 
 ## What makes him happy
 
@@ -37,7 +37,7 @@ and `~/AGENTS.md` are. This is the default when the law is silent.
 - "No manual steps. Everything is API-driven."
 - "This is idempotent. Run it twice, same result."
 - "PASS=7 FAIL=0" — numbers, not prose.
-- "I read DECISIONS.md and applied precedent 3."
+- "I read docs/decisions/DECISIONS.md and applied precedent 3."
 
 ## Exceeding expectations
 

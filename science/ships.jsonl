@@ -83,7 +83,7 @@
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":510,"title":"feat(science): Lanes section, every lane graded on facts emitted (crew#508)"}
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":509,"title":"ci: stale workflow, 24h window hourly, branch kept, both ways back named (crew#504)"}
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":507,"title":"science page regenerated hourly from the live checkout, no absolute path in the page (crew#403)"}
-{"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":502,"title":"hazards: add R14-R17 and publish docs/HAZARDS.md from the hourly snapshot (crew#495)"}
+{"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":502,"title":"hazards: add R14-R17 and publish docs/reference/HAZARDS.md from the hourly snapshot (crew#495)"}
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":501,"title":"science-collect: run main's collect.py from an origin/main worktree, ledgers pinned to the live checkout (crew#90)"}
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":500,"title":"science: research_ledger and hindsight_recall schema files match their rows, so science-collect exits 0 (crew#90)"}
 {"at":"2026-08-28T12:37:12+00:00","day":"2026-08-27","repo":"crew","pr":499,"title":"feat(risk): forward hazard register page generated from the register, and every P1 names its hazard (crew#495)"}

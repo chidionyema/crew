@@ -68,11 +68,11 @@ $ bash scripts/verify.d/95-docs.sh ; echo "rc=$?"
 NOTE: 3 document(s) in other repositories are new or worse since the baseline.
 Reported, not refused: this gate only fails for ~/dev/code/crew, because that is
 the only repository whoever is reading this can fix.
-  ~/dev/code/idp::docs/demo/placement.md
+  ~/dev/code/idp::docs/tutorials/demo/placement.md
       missing: owned, persisted
-  ~/dev/code/idp::docs/demo/supply-chain.md
+  ~/dev/code/idp::docs/tutorials/demo/supply-chain.md
       missing: owned, persisted
-  ~/dev/code/idp::docs/onboarding/placement.md
+  ~/dev/code/idp::docs/how-to/onboarding/placement.md
       missing: owned, persisted
 
 PASS: 196 documents graded, 3 meet the standard, 193 on the baseline backlog,
@@ -96,6 +96,6 @@ PASS: 196 documents graded, 3 meet the standard, 193 on the baseline backlog
 PASS=9  FAIL=0  CANNOT RUN=3   of 12
 ```
 
-The three documents meeting the standard are `ARCHITECTURE.md` and this page and its
+The three documents meeting the standard are `docs/explanation/ARCHITECTURE.md` and this page and its
 onboarding, all written the same day. The other 193 are the backlog, tolerated by a
 committed baseline so that turning the standard on did not turn CI red for a month.

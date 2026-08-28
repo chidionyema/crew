@@ -52,7 +52,6 @@ from collections import defaultdict
 
 UTC = dt.UTC
 STAMP = "%Y-%m-%dT%H:%M:%SZ"
-RUN_CAP = 400        # `gh run list -L`; hitting it is reported, never assumed to be the whole window
 REFUSED = []          # every gh call that failed, so the report can say so out loud
 # Every workflow or cron this tool declined to count, and which way the omission bends the
 # headline. Review finding, session 78caaa17 on crew#571: the headline is a SHARE, so a
@@ -61,7 +60,7 @@ REFUSED = []          # every gh call that failed, so the report can say so out 
 # number nobody can check. Conservative drops are printed; a drop that can INVENT a miss is
 # exit 2, because that one can raise a false alarm and REFUSED already owns that job.
 DROPPED = []
-TRUNCATED = []        # the run-list cap was hit: delivered runs are missing, misses are not
+TRUNCATED = []        # fewer runs arrived than GitHub matched: deliveries are missing, misses are not
 
 
 def gh(args, jq=None, absent_ok=False):
@@ -87,7 +86,8 @@ def gh(args, jq=None, absent_ok=False):
 
 def gh_pages(path, per_page=100):
     """`gh api --paginate` concatenates JSON documents; decode them into a list of pages."""
-    txt = gh(["gh", "api", f"{path}?per_page={per_page}", "--paginate"])
+    sep = "&" if "?" in path else "?"
+    txt = gh(["gh", "api", f"{path}{sep}per_page={per_page}", "--paginate"])
     if txt is None:
         return None
     pages, dec, i, txt = [], json.JSONDecoder(), 0, txt.strip()
@@ -215,23 +215,33 @@ def repos_of(owner, only):
 
 
 def scheduled_runs(repo, since):
-    """Every `schedule` run created since `since`, as (workflow name, created minute)."""
-    txt = gh(["gh", "run", "list", "-R", repo, "--event", "schedule", "-L", str(RUN_CAP),
-              "--json", "createdAt,workflowName"])
-    if txt is None:
+    """Every `schedule` run created since `since`, as (workflow name, created minute).
+
+    The window is applied by GitHub, not by a row cap. `gh run list -L 400` asked for the newest
+    400 runs of any age and filtered locally, so on the first live run three repositories came
+    back full of runs OLDER than the window while deliveries inside it fell off the end -- the
+    direction that removes deliveries and so invents misses (review finding, session 78caaa17 on
+    crew#571). The runs API takes `created=>=<day>` server-side, so the reply is the window and
+    little else, and `--paginate` walks all of it.
+
+    `total_count` is GitHub's own count of what that filter matched. Fewer rows than that means
+    the walk was cut short, deliveries are missing, and the measurement is unsound: the only
+    truncation left to report, and it is still exit 2 rather than a printed drop.
+    """
+    pages = gh_pages(f"repos/{repo}/actions/runs?event=schedule&created=%3E%3D{since[:10]}")
+    if pages is None:
         return None
-    rows = json.loads(txt or "[]")
-    if len(rows) >= RUN_CAP:
-        # The cap took the OLDEST runs off the list, so runs that did happen are missing and
-        # the misses are all still there: this direction INVENTS drops. That is a false alarm,
-        # which is the one thing this instrument may not do, so it is exit 2 like a refusal.
-        TRUNCATED.append(f"{repo}: `gh run list -L {RUN_CAP}` returned {len(rows)} rows, the cap. "
-                         "Deliveries older than the newest 400 are missing from this window.")
+    rows = [r for p in pages for r in p.get("workflow_runs", [])]
+    total = pages[0].get("total_count", 0) if pages else 0
+    if len(rows) < total:
+        TRUNCATED.append(f"{repo}: the runs API matched {total} scheduled run(s) since "
+                         f"{since[:10]} but only {len(rows)} arrived. Deliveries are missing "
+                         "from this window, which invents misses.")
     out = []
     for r in rows:
-        if r.get("createdAt", "") >= since:
-            out.append((r.get("workflowName"),
-                        dt.datetime.strptime(r["createdAt"][:19] + "Z", STAMP)
+        if r.get("created_at", "") >= since:
+            out.append((r.get("name"),
+                        dt.datetime.strptime(r["created_at"][:19] + "Z", STAMP)
                           .replace(tzinfo=UTC, second=0, microsecond=0)))
     return out
 

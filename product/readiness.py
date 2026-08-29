@@ -19,7 +19,9 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
+from email.utils import parsedate_to_datetime
 
 HERE = pathlib.Path(__file__).resolve().parent
 CREW = HERE.parent
@@ -57,12 +59,38 @@ def research_ids(ledger: pathlib.Path) -> set[str]:
     return out
 
 
-def _proof_age(path: pathlib.Path, today: dt.date) -> tuple[str | None, int | None]:
+def authority_clock(run=subprocess.run) -> dt.date | None:
+    """Today's date from GitHub's own `Date` header, never from this machine (crew#583, idp#669).
+
+    A proof's **Date:** line was stamped by a person on the day they ran the checkout; the age
+    graded here is that stamp against a clock the estate trusts. This Mac's clock is not one
+    (RTC reset to 1970 on 2026-08-27; founder 2026-08-28: "eliminate absolute trust in the local
+    machine's clock"). No header is None, and the caller grades BLIND -- never a fall back.
+    """
+    try:
+        out = run(["gh", "api", "-i", "-X", "GET", "rate_limit"], capture_output=True, text=True, timeout=30).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    for line in out.splitlines():
+        name, _, value = line.partition(":")
+        if name.strip().lower() == "date" and value.strip():
+            try:
+                return parsedate_to_datetime(value.strip()).date()
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _proof_age(path: pathlib.Path, today: dt.date | None) -> tuple[str | None, int | None]:
+    """(verdict, age in days). Age is None when the proof has no date, the estate has no clock,
+    or the stamp lies in the future of that clock -- each of those is unmeasured, not fresh."""
     text = path.read_text()
     m = re.search(r"\*\*Verdict:\*\*\s*(.+)", text)
     d = re.search(r"\*\*Date:\*\*\s*(\d{4}-\d{2}-\d{2})", text)
     verdict = m.group(1).strip() if m else None
-    age = (today - dt.date.fromisoformat(d.group(1))).days if d else None
+    age = (today - dt.date.fromisoformat(d.group(1))).days if (d and today) else None
+    if age is not None and age < 0:
+        age = None
     return verdict, age
 
 
@@ -79,7 +107,10 @@ def grade_prospector(root: pathlib.Path, today: dt.date) -> list[dict]:
         verdict, age = _proof_age(proof, today)
         if not verdict or "ALL" not in verdict.upper():
             rows.append(_row("prospector", "B", "pay path", "red", f"verdict: {verdict}"))
-        elif age is None or age > STALE_DAYS:
+        elif age is None:
+            rows.append(_row("prospector", "B", "pay path", "BLIND",
+                             f"{verdict}, but its age is unmeasured (no trusted clock, no **Date:** line, or a stamp in the future)"))
+        elif age > STALE_DAYS:
             rows.append(_row("prospector", "B", "pay path", "amber",
                              f"{verdict}, but proof is {age} days old (> {STALE_DAYS})"))
         else:
@@ -163,7 +194,7 @@ def _row(asset: str, lens: str, step: str, status: str, reason: str) -> dict:
 
 
 def grade(root: pathlib.Path, today: dt.date | None = None) -> dict:
-    today = today or dt.date.today()
+    # `today` is the authority's clock or None; never dt.date.today() (crew#583).
     rows = grade_hermes(root) + grade_prospector(root, today) + grade_idp(root)
     ids = research_ids(CREW / "science/RESEARCH-LEDGER.jsonl")
     for r in rows:
@@ -171,7 +202,7 @@ def grade(root: pathlib.Path, today: dt.date | None = None) -> dict:
         r["research"] = ("linked" if m.group(1) in ids else "BLIND") if m else "-"
     horizons = [{"surface": h, "experiment": e, "research": "linked" if h in ids else "BLIND"}
                 for h, e in HORIZONS]
-    return {"date": today.isoformat(), "root": str(root), "rows": rows, "horizons": horizons}
+    return {"date": today.isoformat() if today else "BLIND", "root": str(root), "rows": rows, "horizons": horizons}
 
 
 def render(g: dict) -> str:
@@ -204,6 +235,10 @@ def check(g: dict) -> list[str]:
         errs.append("fewer than 3 assets graded")
     if not g["rows"] or g["rows"][0]["asset"] != "hermes":
         errs.append("hermes is not the first row")
+    if g["rows"] and all(r["status"] == "BLIND" for r in g["rows"]):
+        errs.append(f"every row is BLIND: the grader read nothing under {g['root']}")
+    if g["date"] == "BLIND":
+        errs.append("no trusted clock: GitHub's Date header did not come back, so no age was measured")
     for r in g["rows"]:
         if r["status"] not in {"green", "amber", "red", "BLIND", "stealth-held"} or not r["reason"]:
             errs.append(f"malformed row: {r}")
@@ -211,7 +246,7 @@ def check(g: dict) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    g = grade(estate_root())
+    g = grade(estate_root(), authority_clock())
     if "--json" in argv:
         print(json.dumps(g, indent=1))
         return 0

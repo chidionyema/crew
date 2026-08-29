@@ -65,7 +65,9 @@ def test_hermes_rows_come_first_and_no_pay_path_is_red(tmp_path):
 def test_missing_estate_is_blind_everywhere_and_check_refuses_fewer_than_three_assets(tmp_path):
     g = rd.grade(tmp_path / "nowhere", TODAY)
     assert {r["status"] for r in g["rows"]} == {"BLIND"}
-    assert rd.check(g) == []  # three assets, all BLIND, hermes first: honest, not an error
+    # crew#610 review: three BLIND rows are honest rows, but an estate the grader could not read
+    # at all is a failed check, not a pass (it cleared >=3 assets and hermes-first with nothing read).
+    assert any(e.startswith("every row is BLIND") for e in rd.check(g))
 
 
 def test_horizons_have_one_experiment_each_and_unlinked_science_is_blind(tmp_path):
@@ -77,3 +79,42 @@ def test_horizons_have_one_experiment_each_and_unlinked_science_is_blind(tmp_pat
     page = rd.render(g)
     assert page.splitlines()[0].startswith("# Product readiness")
     assert "| hermes |" in page.splitlines()[7]
+
+
+# crew#610 review (code-e9, comment 5459186713): two ways the grader read green off nothing.
+
+def _gh(date_header):
+    def run(*a, **k):
+        class R:
+            stdout = ("HTTP/2.0 200 OK\r\n" + (f"Date: {date_header}\r\n" if date_header else "") + "\r\n{}")
+        return R()
+    return run
+
+
+def test_the_age_follows_githubs_clock_not_this_machines(tmp_path):
+    # 69-day-old proof; the machine's clock is never consulted, so any local clock gives one verdict.
+    today = rd.authority_clock(run=_gh("Fri, 29 Aug 2026 00:00:00 GMT"))
+    assert today == dt.date(2026, 8, 29)
+    g = rd.grade(estate(tmp_path), today)
+    row = next(r for r in g["rows"] if r["asset"] == "prospector" and r["step"] == "pay path")
+    assert row["status"] == "amber", row
+
+
+def test_no_clock_is_blind_never_green(tmp_path):
+    assert rd.authority_clock(run=_gh(None)) is None
+    g = rd.grade(estate(tmp_path), None)
+    row = next(r for r in g["rows"] if r["asset"] == "prospector" and r["step"] == "pay path")
+    assert row["status"] == "BLIND", row
+    assert any("no trusted clock" in e for e in rd.check(g))
+
+
+def test_a_proof_stamped_in_the_future_is_blind_not_green(tmp_path):
+    g = rd.grade(estate(tmp_path), dt.date(1970, 1, 1))
+    row = next(r for r in g["rows"] if r["asset"] == "prospector" and r["step"] == "pay path")
+    assert row["status"] == "BLIND", row
+
+
+def test_check_refuses_an_estate_it_could_not_read(tmp_path):
+    g = rd.grade(tmp_path / "nowhere", TODAY)
+    assert all(r["status"] == "BLIND" for r in g["rows"])
+    assert any(e.startswith("every row is BLIND") for e in rd.check(g))

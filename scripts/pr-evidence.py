@@ -422,6 +422,50 @@ def transcript_evidence(body: str) -> int:
                if len(block.strip()) >= TRANSCRIPT_MIN_CHARS)
 
 
+ACCEPT_WHEN = re.compile(r"^\s*\**accept when:?\**\s*(.+)$", re.I | re.M)
+
+
+def accept_when(body: str) -> tuple:
+    """(ok, message) for the acceptance criterion a pull request must carry.
+
+    Founder, 2026-08-29 (crew#626 CP19, crew#629): "WE ARE NOT USING ACCEPTANCE CRITERIA",
+    "NO PR GOES THRU WITHOUT PROOF". A body that never says what state of the world counts
+    as done cannot be graded by anyone but its author. The bar is one line, `Accept when:`,
+    followed by a command, an output or an observable state; a bare word after the colon is
+    not a criterion.
+    """
+    m = ACCEPT_WHEN.search(body or "")
+    if not m:
+        return False, ("no 'Accept when:' line. Name the observable state or command output "
+                       "that proves the change did its job (crew#626 CP19)")
+    crit = m.group(1).strip()
+    if len(crit) < 20:
+        return False, f"'Accept when: {crit}' is not a criterion; say what is observed and where"
+    return True, "acceptance criterion stated"
+
+
+def selftest_accept() -> int:
+    """The Accept when gate, both ways, on literal bodies."""
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    good = "## Fix\nOne value.\n\nAccept when: `gh run view 1 --log | grep landed` prints `0 password field(s)`.\n"
+    bold = "**Accept when:** the drill on the branch prints the landing path and no password box.\n"
+    check_one("plain line passes", accept_when(good)[0], True)
+    check_one("bold line passes", accept_when(bold)[0], True)
+    check_one("missing line fails", accept_when("## Fix\nOne value.\n")[0], False)
+    check_one("bare word fails", accept_when("Accept when: green\n")[0], False)
+    print(f"selftest-accept: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 def evidence_paths(body: str, diff: str, number=None) -> tuple:
     """(paths, where) for a pull request's evidence: ask the diff first, the body second.
 
@@ -764,13 +808,18 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_laws, why_laws = architecture_laws(body)
     if not ok_laws:
         return False, "#{} {}".format(info["number"], why_laws)
+    # Blocking from birth (crew#626 CP19): the fix for a refused body is one line, and the
+    # founder named the missing criterion as the defect, not a debt to measure first.
+    ok_acc, why_acc = accept_when(body)
+    if not ok_acc:
+        return False, "#{} {}".format(info["number"], why_acc)
     # REPORT-ONLY while crew#135 measures the estate (LAW 45 step 4: report mode first, with
     # the would-fail count on the record). Flipping this to a refusal is its own reviewed PR.
     ok_std, why_std = standards_line(body, diff)
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
     carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
     return True, (f"#{info['number']} carries {carries}, {why_opts}, "
-                  f"{why_cpl}, {why_dod}, {why_laws}; standards (report-only): {std}")
+                  f"{why_cpl}, {why_dod}, {why_laws}, {why_acc}; standards (report-only): {std}")
 
 
 def selftest_commit_scope() -> int:
@@ -1125,6 +1174,7 @@ def main() -> int:
                    help="prove the options gate on literal bodies, no network")
     sub.add_parser("selftest-commit-scope",
                    help="prove the evidence commit takes only its own files, in a temp repo")
+    sub.add_parser("selftest-accept", help="prove the Accept when gate on literal bodies, no network")
     sub.add_parser("selftest-dod",
                    help="prove the definition-of-done row gate on literal bodies, no network")
     sub.add_parser("selftest-evidence-section",
@@ -1159,6 +1209,8 @@ def main() -> int:
         return selftest_dod()
     if ns.cmd == "selftest-evidence-section":
         return selftest_evidence_section()
+    if ns.cmd == "selftest-accept":
+        return selftest_accept()
     try:
         if ns.cmd == "shot":
             if ns.target == "-":

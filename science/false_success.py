@@ -7,10 +7,10 @@ REJECTED) over the window; claims still pending are counted and shown, never fol
 from GitHub every run, never from memory. Usage: python3 science/false_success.py [--days 30]
 """
 
-from __future__ import annotations
-
 # Rejected: GitHub Insights / a saved label search -- neither pairs a claim with the prover's next move, so a ticket rejected then verified would count twice.
 # Standard: Verification (docs/STANDARDS.md)
+
+from __future__ import annotations
 
 import argparse
 import datetime as dt

@@ -9,6 +9,9 @@ from GitHub every run, never from memory. Usage: python3 science/false_success.p
 
 from __future__ import annotations
 
+# Rejected: GitHub Insights / a saved label search -- neither pairs a claim with the prover's next move, so a ticket rejected then verified would count twice.
+# Standard: Verification (docs/STANDARDS.md)
+
 import argparse
 import datetime as dt
 import json
@@ -77,7 +80,7 @@ def pair(issues: list[dict], moves_of) -> dict:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument(
         "--repo", default=None, help="OWNER/crew; default from gh's view of the checkout"

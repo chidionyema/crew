@@ -59,9 +59,13 @@ Each phase: what changes, exact command that proves it, what can break, and the 
 - Proof: `router-spend` shows consumer `laptop`, lanes `minimax` and `claude`, and the PR merged.
 - Break: MiniMax may fail the rungs on a hard ticket; then `claude` stays default and `minimax` takes review/lint/test lanes (the cheaper lane still absorbs the bulk).
 
-### Phase 4 — Agents move to the estate
-- 13 `~/.claude/agents/**/*.md` → `~/.estate/agents/<role>.md` (the claude-estate repo, git-held, LAW 24), each with `lane:` in front matter and no vendor name (`grep -L` gate). Claude Code and OpenCode both read them via symlink/config. A gate in claude-guards refuses an agent file naming a vendor.
-- Proof: `ls ~/.claude/agents/**/*.md` → 0 regular files, 13 symlinks; guard test green.
+### Phase 4 — Agents, scripts and rules files move to the estate
+Measured 2026-08-29: `~/.claude/scripts` holds 158 scripts (119 Python, 76 naming Claude or Anthropic), git-held in the `claude-guards` repo; `~/.claude/agents` holds 13 agent files; the rules exist as five top-level copies (`~/.claude.md`, `~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, two `.snapshot.md`, `~/AGENTS-FULL.md`) plus 13 `AGENTS.md` and 4 `CLAUDE.md` across the repos.
+- Agents: 13 `~/.claude/agents/**/*.md` → `~/.estate/agents/<role>.md` (git-held, LAW 24), each with `lane:` in front matter and no vendor name. Claude Code and OpenCode both read them (symlink for Claude Code, `agent` config for OpenCode). A guard refuses an agent file naming a vendor.
+- Scripts: the `claude-guards` repo is renamed `estate-guards` and checked out at `~/.estate/scripts`; `~/.claude/scripts` becomes a symlink to it. Scripts that call a model directly (`consultd.py`, `kimi-bridge`, any `anthropic`/`openai` import: `grep -l 'import anthropic\|api.anthropic.com' ~/.claude/scripts/*.py`) are rewritten to call the router with the laptop key. Scripts that exist only as Claude Code hooks (`hook-run.py` and the guards it runs) get the same guard registered as an OpenCode plugin (`~/.config/opencode/plugin/`), one runner, two harnesses. A script OpenCode already does natively (session feed, compaction handoff) is retired with `git mv` to `retired/`.
+- Rules: one `AGENTS.md` per repo is the file both harnesses read. The five top-level copies collapse to `~/.estate/AGENTS.md` (`~/.claude/AGENTS.md` and `~/.claude.md` become symlinks; the two `.snapshot.md` are deleted from the tree, they are in git history). Each repo `CLAUDE.md` becomes the one line `@AGENTS.md`.
+- Proof: `find ~/.claude/agents -type f -name '*.md' | wc -l` → 0; `readlink ~/.claude/scripts` → `~/.estate/scripts`; `grep -rl 'api.anthropic.com' ~/.estate/scripts` → empty; `wc -l */CLAUDE.md` in `~/dev/code` → every file 1 line; guard tests green in both harnesses (`opencode run --dir idp "run the rungs"` and the Claude Code hook both refuse a bare `kubectl`).
+- Break: a hook that only fires in Claude Code protects nothing in OpenCode until its plugin exists; the plugin lands in the same PR as the move, never after.
 
 ### Phase 5 — Products onto the router
 - hermes-v2 primary `anthropic` → lane `claude` via router (its own virtual key `hermes`); prospector chain (`prospector`); Dagster jobs (`dagster`); k8sgpt already there. Each consumer = one `bin/idp-router-key` row in `vault-seed.yml`, each with a monthly budget.
@@ -69,6 +73,26 @@ Each phase: what changes, exact command that proves it, what can break, and the 
 
 ### Phase 6 — Enforce and forget
 - `bin/litellm-status` in the estate snapshot; a laptop guard refuses a `*_API_KEY` export for a vendor; STANDARDS.md LLM row points at ADR 0010; crew#119/#122/#284/#293/#400/#506/#533/#576/#579 closed with the box ticked by qa-agent against this spec.
+
+## Rollback — one word from the founder, back in minutes
+
+Every phase is built so that the way back is one command, and the founder never runs it: he says **`ROLLBACK <phase>`** (or `ROLLBACK ALL`) on crew#568, and the session on the lane runs `bin/estate-rollback <phase>` and posts the proof. No phase ships until its rollback line has been run once against a copy and shown green (LAW 3: the way back is tested before the way forward is trusted).
+
+| Phase | What comes back | Command | Proof |
+|---|---|---|---|
+| 0 | Laptop router key withdrawn | delete the `laptop` key in the LiteLLM UI, `git revert` of the vault-seed PR | `router-spend` lists no `laptop` key |
+| 1 | Claude lanes removed from the router | `git revert` of the config PR; Flux reconciles in one cycle | `/v1/models` lists 11 lanes again |
+| 2 | Mac back on vendor keys | `mv *.retired` back, `launchctl load` consultd and kimi-bridge, `git checkout` of `~/.pi/models.json` | `bin/litellm-status` shows the 4 FAIL rows again, `bin/consult` answers |
+| 3 | Claude Code back as the harness | nothing to undo: Claude Code was never removed; `~/.config/opencode` is left in place unused | a Claude Code session runs the rungs |
+| 4 | Agents, scripts, rules back under `~/.claude` | `git checkout <tag>` of `claude-guards` at the pre-move tag `pre-568-phase4`, symlinks replaced by the directories | `find ~/.claude/agents -type f | wc -l` → 13; every hook fires |
+| 5 | A product back on its own vendor key | per product `git revert`; the vendor key was never deleted from that product's vault entry | product health check green, its calls gone from `router-spend` |
+| 6 | Guards off | `git revert` of the guard PR | snapshot green without the rows |
+
+Rules of the rollback:
+- Nothing is deleted on the way forward. Files are renamed or moved with `git mv`; keys and vault entries are kept until phase 6 is signed off by the founder; each repo is tagged `pre-568-phase<N>` before its phase merges.
+- `ROLLBACK` outranks every open piece of work on the lane: the session stops what it is doing, rolls back, posts the proof, then asks nothing.
+- Target time: phases 0–4 back in under 15 minutes of machine time; phase 5 within one Flux cycle per product. The measured time from the rehearsal goes in the PR body.
+- After a rollback the plan does not retry silently: the phase reopens on crew#568 with the reason the founder gave, and waits for `go`.
 
 ## Order and effort
 0 → 1 → 2 and 3 in parallel → 4 → 5 → 6. Phases 0–3 are one session's work in machine hours; 5 is the only one that touches a product and lands one product per PR.

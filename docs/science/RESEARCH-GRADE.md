@@ -1,10 +1,10 @@
 # Research capability, graded
 
-Generated 2026-08-27 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
+Generated 2026-08-29 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
 
 | Direction | Grade | One sentence |
 |---|---|---|
-| Outward | **ELITE** | 25 of 25 questions fed a decision; 0 stale, 0 with no source; intake fresh, 0 candidates (0 late). |
+| Outward | **ELITE** | 31 of 31 questions fed a decision; 0 stale, 0 with no source; intake fresh, 0 candidates (0 late). |
 | Inward | **GAP** | foresight trained; 0 of 11 predictions scored. |
 
 ## Outward — questions answered from the world
@@ -13,14 +13,14 @@ Source: `science/RESEARCH-LEDGER.jsonl`.
 
 | What | Value | How it is counted |
 |---|---|---|
-| Questions asked | 25 | rows in `science/RESEARCH-LEDGER.jsonl` |
-| Decisions fed | 25 (100%) | rows whose `decision_fed` carries text |
+| Questions asked | 31 | rows in `science/RESEARCH-LEDGER.jsonl` |
+| Decisions fed | 31 (100%) | rows whose `decision_fed` carries text |
 | Questions still open | 0 | rows with no `decision_fed` |
 | Median question to decision | 0.0h | `decided_at` - `asked_at`, else day granularity |
-| Sources cited | 245 total, median 8 per question (min 1, max 40) | `len(row['sources'])` |
+| Sources cited | 342 total, median 9 per question (min 1, max 40) | `len(row['sources'])` |
 | Questions with no source | 0 | `sources` empty |
 
-25 of 25 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
+31 of 31 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
 
 ### Stale questions (>7 days, no decision fed)
 
@@ -32,7 +32,7 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-27T14:51:47+00:00 (fresh, 0.0d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-27T14:51:47+00:00 (fresh, 1.6d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
 | Releases filed | 22 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
 | Candidates unanswered | 0 (0 RED, >7d) | `status == candidate` |

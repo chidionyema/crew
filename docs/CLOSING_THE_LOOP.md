@@ -96,7 +96,7 @@ The lab lease goes first and is not dropped. There is one lab on this machine: o
 ports, one docker label namespace, one network. Two test runs at once destroy each other's boxes
 and the failure reads as a real defect. Two sessions each lost a cycle to it on 2026-08-22. An
 autonomous engineering agent and an autonomous QA gate running at the same time is exactly that
-collision, on a schedule. Wiring the lease into `features/environment.py` and `scripts/dry-run.sh`
+collision, on a schedule. Wiring the lease into `survival-stack/features/environment.py` and `survival-stack/scripts/dry-run.sh`
 comes before any of the three wires above.
 
 Then A, B, C in that order, each proved by the loop running end to end: a sentence in chat becomes
@@ -108,8 +108,8 @@ an issue, the issue becomes a PR with a screenshot, the gate merges it or refuse
 
 All three wires, on branch `the-three-wires`, tracked as CP2, CP3 and CP4 on
 [issue #2](https://github.com/chidionyema/crew/issues/2). The lease went first, as this document
-said it must: `survival-stack` PR #3 wires it into `features/environment.py` and
-`scripts/dry-run.sh`.
+said it must: `survival-stack` PR #3 wires it into `survival-stack/features/environment.py` and
+`survival-stack/scripts/dry-run.sh`.
 
 **Wire A** — `integrations/claude-code/hooks/crew-listener.py`, a `UserPromptSubmit` hook.
 `decide(text)` returns a verdict and the reason for it. Vetoes run first and all of them win: a

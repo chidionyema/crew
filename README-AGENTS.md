@@ -197,7 +197,7 @@ This is LAW 2 (Proof before action) and LAW 17 (Prove it operational).
 2. **Why doesn't maestro post about successful heals?** → Silence means health (LAW 8: heal first, speak on exception)
 3. **Can I add my own healing recipes?** → Yes, create YAML files in `~/dev/code/crew/remedies/` and commit
 4. **What if Telegram is down?** → Both agents keep working, logs remain, STATE.md updates hourly
-5. **How do I update Architect's baseline?** → Edit `profiles/architect/MEMORY.md`, commit, both agents reload from git
+5. **How do I update Architect's baseline?** → Edit `hermes-v2/profiles/architect/MEMORY.md`, commit, both agents reload from git
 6. **Can maestro learn from incidents?** → Yes, via `experience_graph.db` (SQLite), it tracks what heals work
 
 ---

@@ -1,6 +1,6 @@
 # How this estate runs an experiment
 
-The method is not invented here. `hermes-agent/scripts/toolperf_abeval/ab_eval.py`
+The method is not invented here. `hermes-v2/hermes-agent/scripts/toolperf_abeval/ab_eval.py`
 already got the hard parts right, and it is the standard (LAW 3 — the owner
 exists, do not write a second one). This file is that design, stated so it
 outlives the tree it currently sits in.

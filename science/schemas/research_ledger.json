@@ -8,6 +8,18 @@
   "verdict": {
    "description": "The one-line answer the research reached (crew#227 added it, 2026-08-27).",
    "pii": false
+  },
+  "kind": {
+   "description": "Row kind. Absent for research rows; 'idea' for a business idea from the research engine (crew#537 CP5, 2026-08-28).",
+   "pii": false
+  },
+  "forecast": {
+   "description": "Idea rows only: the author's probability in [0, 1] that the idea's question resolves yes; graded by science/showcase.py ideas() (crew#537).",
+   "pii": false
+  },
+  "outcome": {
+   "description": "Idea rows only: 0 or 1 once the question resolved; the Brier score is the mean squared error of forecast minus outcome (crew#537).",
+   "pii": false
   }
  },
  "fields": {
@@ -56,6 +68,17 @@
   ],
   "why": [
    "str"
+  ],
+  "kind": [
+   "str"
+  ],
+  "forecast": [
+   "NoneType",
+   "float"
+  ],
+  "outcome": [
+   "NoneType",
+   "int"
   ]
  },
  "owner": "crew/science",

@@ -43,6 +43,21 @@ def validate(e: dict) -> dict:
         raise Refused(f"every finding is a statement of at least {MIN_FINDING} characters; a short one says nothing")
     out = dict(e)
     out["sources"], out["findings"] = sources, findings
+    # crew#537 CP4: an idea row carries a forecast (probability) and, once known, an outcome (0/1);
+    # docs/science/SHOWCASE.md grades the contract from these fields.
+    if out.get("forecast") is not None:
+        try:
+            out["forecast"] = float(out["forecast"])
+        except (TypeError, ValueError):
+            raise Refused("forecast is not a number") from None
+        if not 0 <= out["forecast"] <= 1:
+            raise Refused("forecast is a probability between 0 and 1")
+    if out.get("outcome") is not None:
+        if str(out["outcome"]) not in ("0", "1"):
+            raise Refused("outcome is 0 or 1: an idea either happened or it did not")
+        if out.get("forecast") is None:
+            raise Refused("an outcome without a forecast cannot be scored; record the forecast first")
+        out["outcome"] = int(str(out["outcome"]))
     out.setdefault("date", dt.datetime.now(dt.UTC).strftime("%Y-%m-%d"))
     out.setdefault("owner", os.environ.get("CLAUDE_SESSION_ID", "unknown")[:16])
     out.setdefault("metric_after", None)
@@ -64,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     a = sub.add_parser("add", help="append one validated entry")
     a.add_argument("--json", type=pathlib.Path, help="entry as one JSON object; flags override")
     for flag in ("question", "why", "decision-fed", "metric", "metric-before", "metric-after",
-                 "what-this-costs", "ticket", "owner", "date"):
+                 "what-this-costs", "ticket", "owner", "date", "kind", "forecast", "outcome"):
         a.add_argument(f"--{flag}")
     a.add_argument("--source", action="append", default=[])
     a.add_argument("--finding", action="append", default=[])
@@ -72,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     e = json.loads(args.json.read_text()) if args.json else {}
     for flag in ("question", "why", "decision_fed", "metric", "metric_before", "metric_after",
-                 "what_this_costs", "ticket", "owner", "date"):
+                 "what_this_costs", "ticket", "owner", "date", "kind", "forecast", "outcome"):
         v = getattr(args, flag)
         if v is not None:
             e[flag] = v

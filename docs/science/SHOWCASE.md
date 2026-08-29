@@ -1,13 +1,13 @@
 # Science lane showcase
 
-Generated 2026-08-27T13:53Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-29T05:06Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-27T13:49Z.
+Previous run: 2026-08-29T03:07Z.
 
-No number changed.
+- producers discovered: 6800 -> 6628
 
 ## Capabilities
 
@@ -19,8 +19,11 @@ No number changed.
 | collect | Collect every estate data store into one queryable table | `python3 science/collect.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | datamap | The estate's data dictionary, generated rather than written | `python3 science/datamap.py` | CI: scripts/verify.d/26-datamap-register.sh |
 | dbt_build | Generate the dbt project's `facts` model from the one registry | `python3 science/dbt_build.py` | hand-run |
+| decisions_intake | Decision intake from merged pull requests (crew#366, act/agent_decisions) | `python3 science/decisions_intake.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | docsmap | Inventory every document this estate owns, and say which ones fail the standard | `python3 science/docsmap.py` | CI: scripts/verify.d/95-docs.sh |
+| dora | DORA four keys for the estate, measured from GitHub, never from memory (crew#495 CP9) | `python3 science/dora.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | duckdb_differential | Does DuckDB's `read_json_auto` read this estate's stores the same way collect.py does? | `python3 science/duckdb_differential.py` | hand-run |
+| emit | Emit every collected science row to the estate collector as an OTLP log (LAW 50) | `python3 science/emit.py` | hand-run |
 | export_drill | crew#74 row 1: the warehouse exit drill | `python3 science/export_drill.py` | hand-run |
 | foresight | Foresight: predict a red CI run before the push, and score the prediction after (crew#405) | `python3 science/foresight.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | friction | What the founder has had to say twice, measured over every transcript on this machine | `python3 science/friction.py` | hand-run |
@@ -29,50 +32,57 @@ No number changed.
 | map_covers_laws | Every law in AGENTS.md has a check written for it in enforcement-map.json | `python3 science/map_covers_laws.py` | hand-run |
 | outcomes | Collect what the estate produced, so spend can be divided by something | `python3 science/outcomes.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | producers | Every producer of data in the estate, discovered by class rather than typed by hand | `python3 science/producers.py` | hand-run |
+| research_grade | Grade the general-purpose research capability from its own ledger (crew#508) | `python3 science/research_grade.py` | hand-run |
+| research_intake | Scheduled outward research intake (crew#508 CP8) | `python3 science/research_intake.py` | hand-run |
 | self_grade | Weekly self-grade of the research loop (LAW 35, crew#72 row 4) | `python3 science/self_grade.py` | hand-run |
 | transcripts | Read Claude Code session transcripts incrementally, by byte offset (crew#319, crew#74 row 4) | `python3 science/transcripts.py` | launchd com.founder.sciencecollect via scripts/science-collect |
+| velocity | Velocity per lane, measured from the board, never felt (crew#527 CP1) | `python3 science/velocity.py` | hand-run |
 
+
+## Lanes
+
+`sqlite3 science/warehouse.db "select source, count(*) from facts where ingested_at >= datetime('now','-24 hours') group by source"`
+
+BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 ## Warehouse
 
 `sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"`
 
-- 120,709 rows across 39 sources; last ingest 2026-08-27T12:32:55+00:00
-- 0 of 41 declared sources carry owner, method, retention and sensitivity
-- stale past their SLA: spend (6h)
+BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 ## Data map (LAW 50)
 
 `python3 science/datamap.py --check`
 
-- 58 register entries (COLLECTED 29, EXCLUDED 9, NEVER_EMITTED 9, WIRED_NEVER 11); 8248 producers discovered at the last census
-- 915 field paths in the shape walk of 2026-08-27 11:15Z
-- domains blind at the last census: cluster_live
-- contract violations now: BLIND (crew#71 not merged)
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 6628 producers discovered at the last census
+- shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
+- domains blind at the last census: none
+- contract violations now: 0
 
 ## Research ledger
 
 `python3 -c "import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))"`
 
-- 25 entries, 2026-08-23 to 2026-08-27; 25 record the decision they fed
+- 31 entries, 2026-08-23 to 2026-08-28; 31 record the decision they fed
 
-- **2026-08-25** What is the one front-end platform for every Bytesync public surface (parent site plus each company's brand and store), so that a new brand 
-  - decision: STANDARDS.md gains a Front end row: Next.js + Payload 3 + one design system with per-brand tokens + Medusa 2 under selling brands; brand = config + collection +
-  - metric: 0 of 3 (Store.Web, look-engine, mumchimp-medusa storefront; no row existed) -> row exists; still 0 of 3 until crew#235 CP2 lands, then 1 of 3
-- **2026-08-27** Is there a mature open-source tool that predicts a red CI run / selects tests from repository history, and which learner and prediction-trac
-  - decision: Foresight uses scikit-learn LogisticRegression (requirements-dev floor >=1.5) trained on the estate's own run history; no test-selection product is bought or bu
-  - metric: no prediction existed (1 hand prediction ever scored) -> 1078 labelled PRs; holdout 216: accuracy 0.676 vs base 0.634, red precision 0.846, Brier 0.209; 11 open PRs predicted before CI
-- **2026-08-27** What is the mature standard for each identity population (cloud machines, workloads, humans), and what number grades it?
-  - decision: docs/STANDARDS.md Identity row (crew#482); crew#227 CP3/CP4/CP5 graded against it
-  - metric: 0 of 3 (no Identity row); static-secret-gate 25 -> 3 of 3 written; static-secret-gate 25 (the number the row now grades)
+- **2026-08-24** Which of the estate's hand-written Claude Code guard hooks (rule-guard, goal-guard, tracked, jargon-guard, context-guard-hook) can be expres
+  - decision: Replace one, split one, delete half of one, keep two. (1) jargon-guard.py -> Vale 3.17.1, already installed, already configured in 10+ repos: highest-value swap
+  - metric: 269 lines (jargon-guard.py) duplicating Vale 3.17.1, which is installed and used in 10+ repos and referenced 0 times by the guard; plus an unmeasured share of rule-guard.py's 1362 lines duplicating 41 existing permissions.deny rules. -> None
+- **2026-08-24** Is there a proven tool for 'prove this system can be rebuilt from nothing', to replace the hand-written nightly drill runner at ~/.claude/sc
+  - decision: KEEP ~/.claude/scripts/drills/run.py. It is a drill REGISTER - 13 entries, 5 named as not yet written, with an orphan check - and no product on the market is th
+  - metric: 13 registered, 8 with a command, 5 NOT WRITTEN; ai.estate.drills last exit = 1; its plist is in no git repo. -> None
+- **2026-08-28** Would this market pay at least twice the price of an idea dossier for a five-year survival probability conditioned on industry code and regi
+  - decision: Whether prospector's next price test sells a survival rating beside the dossier (SCALE_market hypothesis 7 test: two checkout pages, 200 visitors each, pass if 
+  - metric: 0 ideas on the ledger; three contract rows FAIL (no data) -> None
 
 ## Delivery outcomes
 
 `python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7`
 
-- last 7 days: 1003 commits across 6 repos
-- founder messages 3277, complaints 166 (5.1%)
-- spend USD 7798.59, USD per commit 7.78
+- last 7 days: 643 commits across 6 repos
+- founder messages 1990, complaints 92 (4.6%)
+- spend: BLIND (warehouse absent)
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 
 ## Predictions
@@ -80,6 +90,18 @@ No number changed.
 `python3 science/outcomes.py rate`
 
 - 13 recorded before a repair, 2 scored after, hit rate 50%
+
+## Ideas: the prospector contract (crew#537)
+
+`python3 -c "import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl') if json.loads(l).get('kind')=='idea'))"`
+
+| Row | Value | Grade |
+|---|---|---|
+| ideas generated per week | 1 | ok |
+| ideas graded (forecast with source) | 1 | ok |
+| ideas resolved with Brier | 0 | FAIL (no data) |
+
+- 1 idea rows in the ledger (`kind: idea`, written by `python3 science/ledger.py add --kind idea --forecast P`); resolved with `--outcome 0|1`. Red until the first business idea lands (CP5).
 
 ## Foresight: will this PR go red?
 

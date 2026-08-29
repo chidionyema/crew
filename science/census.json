@@ -1,16 +1,14 @@
 {
  "domains": {
-  "mac": 572,
-  "cluster": 141,
-  "endpoint": 5,
-  "hook": 36,
+  "mac": 541,
+  "cluster": 271,
+  "cluster_live": 166,
+  "endpoint": 8,
+  "hook": 39,
   "mcp": 3,
-  "github": 96,
-  "transcript": 7345,
+  "github": 117,
+  "transcript": 5475,
   "act": 8
  },
- "blind": {
-  "warehouse": "FileNotFoundError: no warehouse at /Users/chidionyema/dev/code/.wt-crew-383/science/warehouse.db",
-  "cluster_live": "RuntimeError: Unable to connect to the server: getting credentials: exec: executable oci failed with exit code 1"
- }
+ "blind": {}
 }

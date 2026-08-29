@@ -105,9 +105,41 @@ Founder, 2026-08-29: "we will migrate and test for a few days." So every phase l
 ## Order and effort
 0 → 1 → 2 and 3 in parallel → 4 → 5 → 6. Phases 0–3 are one session's work in machine hours; 5 is the only one that touches a product and lands one product per PR.
 
+## Claude Code and the subscription — two roads, one router
+
+Claude Code on the Mac is billed by subscription (`~/.claude.json` `billingType: stripe_subscription`).
+A subscription call cannot pass through `llm.mumchimp.com`; the router only carries API keys. So
+Claude Code is not on the router, by design, and the plan does not try to force it.
+
+| Road | Client | Billing | On the router | When |
+|---|---|---|---|---|
+| A | Claude Code | subscription, flat | no (by design) | today, stays as long as the subscription is worth it |
+| B | OpenCode (`/usr/local/bin/opencode`, 1.18.20) | router virtual key, per-token | yes, every lane | Phase 3, measured first |
+
+Both roads run through the soak. The Phase 3 ticket compares them (cost per task, tasks that
+needed a second try). The founder picks the default; nothing is uninstalled.
+
+## Who is where today (measured 2026-08-29)
+
+| Caller | Router login | State |
+|---|---|---|
+| KINI (sovereign kernel, Temporal) | `sovereign-kernel` | on |
+| k8sgpt (cluster doctor) | `k8sgpt` | on |
+| Hermes / Architect / Otto (one agent) | fallback only (`hermes-v2/config.yaml:12` minimax); primary is Anthropic direct (`:2`, `:50`) | half, Phase 5 |
+| prospector, Dagster jobs | none | off, Phase 5 |
+| Claude Code | none | off by design (road A) |
+| agent files, `bin/consult`, pi | none, vendor keys in files | off, Phases 2 and 4 |
+| Aiden | no model calls | n/a |
+| Maestro (the Deputy) | v1.0 makes no model calls; v1.1 shape extraction gets login `maestro` | Phase 5 |
+| kimi-bridge, deepseek-bridge | browser scrapes, no key | retired in Phase 2 |
+
+The full picture with diagrams is the Backstage page **AI model stack**
+(`docs/explanation/architecture/model-stack.md` in idp).
+
 ## What the founder decides
 1. Default lane for the harness after the Phase 3 measurement (`minimax` or `claude`).
-2. Whether Claude Code stays installed as a client (plan says yes, as a client only).
+2. Which road is the default on the Mac after the soak: Claude Code on subscription (A) or OpenCode
+   on the router (B). Plan keeps both installed either way.
 Nothing else needs him.
 
 ## Optimised

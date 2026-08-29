@@ -12,6 +12,12 @@ BLIND with the path it looked for, never green and never silently amber (memory
 called the agent the future of the business. No path is a literal: the estate root comes from
 ESTATE_ROOT or the parent of this checkout (LAW 46).
 """
+# Rejected: Backstage Tech Insights / scorecard plugins -- they grade catalog entities from
+#   fact retrievers over HTTP, not files and trees on the estate root, and cannot read hermes,
+#   prospector or science proofs that live only on disk; SonarQube/Allure grade code, not readiness.
+# Standard: docs/STANDARDS.md row "Observability" (one query surface) and row "GitOps" -- this
+#   grader reads the trees those rows name and writes two Markdown pages, no store of its own.
+# Deviation: none -- it is a report generator over existing artefacts, not a platform layer.
 from __future__ import annotations
 
 import datetime as dt

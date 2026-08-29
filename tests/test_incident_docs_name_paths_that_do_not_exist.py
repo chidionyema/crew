@@ -78,7 +78,9 @@ def _is_generated(rel: str) -> bool:
     """A path .gitignore covers is written by a run, so it is absent in a clean checkout and
     present after one. `science/foresight-state.json` is real; refusing it would be a guard that
     refuses correct work (LAW 38)."""
-    return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", rel]).returncode == 0
+    #: check=False is the point: exit 1 means "not ignored", which is an answer, not a failure.
+    return subprocess.run(["git", "-C", str(ROOT), "check-ignore", "-q", rel],
+                          check=False).returncode == 0
 
 
 def dead_paths() -> dict[str, list[str]]:

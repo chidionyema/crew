@@ -156,7 +156,7 @@ def grade_hermes(root: pathlib.Path) -> list[dict]:
         usd = float(cost.group(1))
         inside = BAND_USD[0] <= usd <= BAND_USD[1]
         rows.append(_row("hermes", "B", "price vs run cost", "amber" if inside else "red",
-                         f"run cost ${usd}/month {'inside' if inside else 'outside'} the ${BAND_USD[0]}–{BAND_USD[1]} band; no price named (R-H1)"))
+                         f"run cost ${usd}/month {'inside' if inside else 'outside'} the ${BAND_USD[0]}-{BAND_USD[1]} band; no price named (R-H1)"))
     else:
         rows.append(_row("hermes", "B", "price vs run cost", "BLIND", f"no **$N/month** cost line in {_rel(readme)}"))
     rows.append(_row("hermes", "B", "surface-agnostic core", "red", "one surface (Telegram); no screenless walk (R-H4)"))

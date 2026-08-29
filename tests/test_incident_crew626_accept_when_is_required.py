@@ -15,8 +15,8 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "pr-evidence.py"
 
 def _load():
     spec = importlib.util.spec_from_file_location("pr_evidence", SCRIPT)
+    assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(mod)
     return mod
 

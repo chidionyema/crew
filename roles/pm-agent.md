@@ -17,7 +17,14 @@ a GitHub issue, and then you get out of the way.
 
    - CP1: <a checkpoint a suite can prove>
    - CP2: ...
+
+   ## Infra facts
+   <the whole output of `bin/idp-ticket-facts <flux row or surface>`, run in the idp
+   checkout; never typed from memory (crew#629 CP2)>
    ```
+
+   The Infra facts block is not optional: a brief that names a layer without it is not a
+   brief. If the row is BLIND, the ticket says so and the first checkpoint is the row.
 
 4. `crew plan <brief.md> --author <founder>` — this writes `docs/specs/issue-N.md`,
    opens the issue with the checklist, and sets it as the active issue.

@@ -15,6 +15,18 @@ BUILD with checkpoints is a different shape and `crew plan` writes it — do not
 hand-write that one, `crew status` parses it.
 -->
 
+## 0. Infra facts — generated, never typed
+
+<!-- Run `bin/idp-ticket-facts <flux row or surface>` in the idp checkout and paste its output
+here whole. It names the Flux rows, the admission policies over their namespaces, the chart
+on/off keys, the door and its login answer, the drills that grade it and the standards row.
+A ticket without this block builds against guesses (crew#629 CP1/CP2; idp#800 met eight
+admission refusals after building). -->
+
+```
+paste the output of bin/idp-ticket-facts here
+```
+
 ## 1. Origin — what was asked
 
 **Original request:**

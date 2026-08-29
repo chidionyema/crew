@@ -106,8 +106,8 @@ Every store, its path, and what it held when this page was written.
 | science warehouse | `science/warehouse.db` | `facts` 6040, `ingest_log` 255 | `science/collect.py`, `science/outcomes.py` |
 | estate board | `~/.claude/ESTATE_BOARD.jsonl` | 140 | ten scripts, `estate-broadcast.py` among them |
 | prompt ledger | `~/.claude/state/ledger.jsonl` | 694 | `prompt-ledger.py` |
-| risk register | `risk/REGISTER.jsonl` | 11, of which 1 mitigated | by hand, gated by `verify.d/85-risk-register.sh` |
-| research ledger | `science/RESEARCH-LEDGER.jsonl` | 16 | by hand, gated by `verify.d/80-research-ledger.sh` |
+| risk register | `risk/REGISTER.jsonl` | 11, of which 1 mitigated | by hand, gated by `scripts/verify.d/85-risk-register.sh` |
+| research ledger | `science/RESEARCH-LEDGER.jsonl` | 16 | by hand, gated by `scripts/verify.d/80-research-ledger.sh` |
 | decisions | `~/.claude/DECISIONS.jsonl` | 118, **last written 2026-08-21 18:23** | unknown, and that is the defect |
 | would-have-fired | `~/.claude/state/one-branch/would-have-fired.jsonl` | 162, **last written 2026-08-21 22:38** | unknown |
 | issue board | GitHub `chidionyema/crew` | 30 open | `crew/gh.py`, via `crew-triage` |

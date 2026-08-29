@@ -121,7 +121,7 @@ Each tier goes one dimension deeper than the last. Every idea names its first mo
 ### 9D — One organism (founder health as a platform SLO)
 18. **The founder is a node with an SLO.** Sleep window honoured; laptop load under 8; ≤3 FOUNDER ACTIONs per day; hours-since-last-praise. Red rows on STATE.md like any other service. He put his blood pressure in a ruling; the estate should be the first thing to take it seriously.
 19. **Decision rights as a table, not a vibe.** Money, identity, irreversible: his. Everything else: the crew's, announced, undoable. It is already law (R49); it is not yet believed by either side. Belief comes from a month of the table being honoured in both directions — including him not re-deciding what he delegated.
-20. **The day-after-the-sale drill.** A drill in `drills/catalogue.yaml`: the founder is unreachable for 72 hours; what runs, what stops, what asks. It is the truest test of "out of the loop", and it is also the only rehearsal there is of the thing he actually wants — an estate that holds itself, so that he can finally be held by it.
+20. **The day-after-the-sale drill.** A drill in `idp/drills/catalogue.yaml`: the founder is unreachable for 72 hours; what runs, what stops, what asks. It is the truest test of "out of the loop", and it is also the only rehearsal there is of the thing he actually wants — an estate that holds itself, so that he can finally be held by it.
 
 ---
 

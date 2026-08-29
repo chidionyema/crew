@@ -1,13 +1,16 @@
 # Science lane showcase
 
-Generated 2026-08-29T13:04Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-29T19:05Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-29T09:04Z.
+Previous run: 2026-08-29T13:04Z.
 
-No number changed.
+- producers discovered: 6632 -> 6018
+- capabilities: 22 -> 23
+- claims decided by the prover: 0 (new)
+- claims pending a verdict: 1 (new)
 
 ## Capabilities
 
@@ -25,6 +28,7 @@ No number changed.
 | duckdb_differential | Does DuckDB's `read_json_auto` read this estate's stores the same way collect.py does? | `python3 science/duckdb_differential.py` | hand-run |
 | emit | Emit every collected science row to the estate collector as an OTLP log (LAW 50) | `python3 science/emit.py` | hand-run |
 | export_drill | crew#74 row 1: the warehouse exit drill | `python3 science/export_drill.py` | hand-run |
+| false_success | False-success rate: how often an agent's "resolved" claim on the board was rejected by the prover (crew#631 CP | `python3 science/false_success.py` | hand-run |
 | foresight | Foresight: predict a red CI run before the push, and score the prediction after (crew#405) | `python3 science/foresight.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | friction | What the founder has had to say twice, measured over every transcript on this machine | `python3 science/friction.py` | hand-run |
 | law_enforcement | Law enforcement coverage: which laws are machine-enforced, which are prose | `python3 science/law_enforcement.py` | launchd com.founder.lawenforcement |
@@ -55,7 +59,7 @@ BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 `python3 science/datamap.py --check`
 
-- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 6632 producers discovered at the last census
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 6018 producers discovered at the last census
 - shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
 - domains blind at the last census: none
 - contract violations now: 0
@@ -108,3 +112,11 @@ BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 `python3 science/foresight.py report`
 
 BLIND: science/foresight-state.json absent (python3 science/foresight.py train)
+
+## False success: claims the prover rejected
+
+`python3 science/false_success.py --days 30`
+
+- false-success rate n/a (no claim decided yet): 0 rejected of 0 decided claims, 1 pending, last 30d
+- a claim is an agent labelling a ticket RESOLVED_PENDING_VERIFICATION; the verdict of the moment is the prover App's next move on it (idp ticket-verification.yml)
+  - pending #636 ticket-verify canary (crew#631 CP5): an agent-set VERIFIED must be rev

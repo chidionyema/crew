@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-29 13:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-29 19:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,37 +8,38 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 3.31s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 4.23s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | GREEN | last cycle 5 min ago (`INTENT-20260829-125224-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260829-185629-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 24h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 58h old (bar 30h) |
-| delivery | RED | 1471 commits on no remote (oldest 7.1d), 44 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 30h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 64h old (bar 30h) |
+| delivery | RED | 1675 commits on no remote (oldest 7.4d), 59 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 699 commits no remote holds, oldest 4.8d, 1 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 371 commits no remote holds, oldest 7.1d, 5 dirty |
-| &nbsp;&nbsp;stranded | scripts | 350 commits no remote holds, oldest 5.9d, 12 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 902 commits no remote holds, oldest 5.0d, 1 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 371 commits no remote holds, oldest 7.4d, 4 dirty |
+| &nbsp;&nbsp;stranded | scripts | 351 commits no remote holds, oldest 6.2d, 11 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 2 commit(s) to origin/main edf7952, 5 local edit(s) kept |
+| live checkout | GREEN | moved 5 commit(s) to origin/main e614453, 4 local edit(s) kept |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| data map | RED | 6632 producers, 59236 measurables, 250 in gaps with a ticket, 16 unexplained, blind: none (`science/datamap.py --check`) |
+| data map | RED | 6018 producers, 53056 measurables, 253 in gaps with a ticket, 16 unexplained, blind: none (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | 16 producer(s) UNEXPLAINED (first: mac/data/~/.estate/tailscale-browser/first_party_sets.db) |
 | &nbsp;&nbsp;violation | | warehouse: 0 members and not BLIND; a domain never returns nothing silently |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 115h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 9 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 121h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 11 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
 | research | GREEN | 31 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 135864 runs in 24h, 1093 refused (most: pre-push 209), slowest 120031 ms, 36 overturned by a marker (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 131687 runs in 24h, 1187 refused (most: pre-push 221), slowest 120031 ms, 33 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
-| OCI verification identity | RED 3/3 scheduled runs failed | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345) |
+| OCI verification identity | RED 4/4 scheduled runs failed | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345) |
 | crew P1 | 30 open | the fires nobody has put out |
+| &nbsp;&nbsp;#631 Verification Plane: no work item closes without a fresh signed verdict from a prover the agent cannot run | | |
 | &nbsp;&nbsp;#626 DEFECTS on the god view: guards, Kubernetes tooling, Dagster, inventory and guard control missing; 'thing | | |
 | &nbsp;&nbsp;#620 Strict shell practice estate-wide: shellcheck, shfmt, strict mode, trap, bats; enforced in the hook route | | |
 | &nbsp;&nbsp;#609 Product function (stealth): audit, research, bootstrap in five checkpoints | | |
@@ -68,9 +69,8 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#71 1,064 field paths, 0 declared: the warehouse has no schema, no owner, no retention and no sensitivity on a | | |
 | &nbsp;&nbsp;#32 prospector is still in ~/Documents/code — the move to ~/dev/code has never been applied | | |
 | &nbsp;&nbsp;#26 Estate spend is $866/day against a $120 cap, and one owner is 69% of it | | |
-| &nbsp;&nbsp;#13 Retire the Hermes estate — unconditional, Hermes is discontinued | | |
-| portability | GREEN | ready 10/43 (root-red 2 all named, cascaded 27, pending 4) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33253418015, 0.3h ago (bar 194h)) |
-| &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=340s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
+| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 1.8h ago (bar 194h)) |
+| &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |
 | OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |
 | OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |

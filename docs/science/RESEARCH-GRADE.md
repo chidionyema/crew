@@ -4,7 +4,7 @@ Generated 2026-08-29 by `python3 science/research_grade.py`. Two directions, gra
 
 | Direction | Grade | One sentence |
 |---|---|---|
-| Outward | **ELITE** | 31 of 31 questions fed a decision; 0 stale, 0 with no source; intake fresh, 0 candidates (0 late). |
+| Outward | **GAP** | 31 of 31 questions fed a decision; 0 stale, 0 with no source; intake RED, 0 candidates (0 late). |
 | Inward | **GAP** | foresight trained; 0 of 11 predictions scored. |
 
 ## Outward — questions answered from the world
@@ -32,7 +32,7 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-27T14:51:47+00:00 (fresh, 1.9d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-27T14:51:47+00:00 (RED, 2.2d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
 | Releases filed | 22 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
 | Candidates unanswered | 0 (0 RED, >7d) | `status == candidate` |

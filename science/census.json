@@ -1,13 +1,13 @@
 {
  "domains": {
-  "mac": 542,
-  "cluster": 271,
-  "cluster_live": 169,
+  "mac": 544,
+  "cluster": 280,
+  "cluster_live": 170,
   "endpoint": 8,
-  "hook": 39,
+  "hook": 29,
   "mcp": 3,
-  "github": 117,
-  "transcript": 5475,
+  "github": 119,
+  "transcript": 4857,
   "act": 8
  },
  "blind": {}

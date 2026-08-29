@@ -911,6 +911,78 @@ def research() -> list[str]:
     return research_row(ROOT / "science" / "RESEARCH-LEDGER.jsonl")
 
 
+#: The two lines `bin/idp-portability-drill` prints on the run, verbatim (measured on idp run
+#: 33165807800, 2026-08-28): the hydrate job's ready count and the k3s job's cost line.
+PORTABILITY_READY = re.compile(r"ok\s+portability\s+(ready \d+/\d+ layers[^\n\r|]*)")
+PORTABILITY_K3S = re.compile(r"ok\s+portability-k3s\s+(provider=\S+ distro=\S+ wall_clock=\d+s cost=[^\n\r|]*)")
+
+
+def portability_row(runs: str, log: str, now: float | None = None,
+                    stale_hours: int = 194) -> list[str]:
+    """Grade the portability rehearsal from what the run itself printed (crew#488 CP4).
+
+    `bin/idp-drills-row` already says whether the drill RAN. It does not say what the drill
+    FOUND, and CP4 is the founder reading the ready count and the cost line -- the two numbers
+    that say the estate hydrates a foreign cluster and what leaving costs. So this row carries
+    the drill's own output, not a freshness verdict about it.
+
+    `stale_hours` is the catalogue's `max_age_hours` for both rows of `drills/catalogue.yaml`
+    (194h = a weekly cron plus a missed run), so this row and `bin/idp-verify` go red together.
+    """
+    try:
+        rows = json.loads(runs) if runs.strip() else []
+    except ValueError:
+        return ["| portability | NOT RUN | `gh run list -w portability-drill.yml` did not answer JSON |"]
+    done = [r for r in rows if r.get("status") == "completed" and r.get("conclusion") == "success"]
+    if not done:
+        return ["| portability | NOT RUN | no successful run of `portability-drill.yml` (crew#488 CP1/CP2) |"]
+    last = max(done, key=lambda r: str(r.get("createdAt", "")))
+    at = str(last.get("createdAt", ""))
+    try:
+        ts = dt.datetime.strptime(at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc).timestamp()
+    except ValueError:
+        return [f"| portability | NOT RUN | last run has no readable `createdAt` ({at[:25]!r}) |"]
+    age_h = ((now if now is not None else time.time()) - ts) / 3600
+    run_id = last.get("databaseId")
+    where = f"idp run {run_id}, {age_h:.1f}h ago (bar {stale_hours}h)"
+
+    ready = PORTABILITY_READY.search(log)
+    k3s = PORTABILITY_K3S.search(log)
+    #: A green workflow whose grade line is absent is NOT RUN, never GREEN: the run passing and
+    #: the drill having measured something are different claims (LAW 2, and the proxy trap --
+    #: a conclusion is not a measurement).
+    if not ready and not k3s:
+        return [f"| portability | NOT RUN | {where} is green but its log holds no "
+                f"`ok portability` grade line |"]
+    colour = "RED" if age_h > stale_hours else "GREEN"
+    out = [f"| portability | {colour} | {ready.group(1).strip() if ready else 'no ready count in the log'} "
+           f"({where}) |"]
+    out.append("| &nbsp;&nbsp;second provider | | "
+               + (k3s.group(1).strip() if k3s else "no cost line in the log") + " |")
+    return out
+
+
+def portability() -> list[str]:
+    """crew#488 CP4. Reads the drill's own output from the run, so the founder reads the ready
+    count and the cost line here instead of opening Actions."""
+    rc, runs = sh("gh run list -R chidionyema/idp -w portability-drill.yml -L 20 "
+                  "--json databaseId,conclusion,createdAt,status", timeout=30)
+    if rc:
+        return [f"| portability | NOT RUN | `gh run list -w portability-drill.yml` exited {rc} |"]
+    try:
+        done = [r for r in json.loads(runs or "[]")
+                if r.get("status") == "completed" and r.get("conclusion") == "success"]
+    except ValueError:
+        done = []
+    log = ""
+    if done:
+        last = max(done, key=lambda r: str(r.get("createdAt", "")))
+        #: 194 KB and 1.0s measured on run 33165807800; cheap enough to fetch every snapshot,
+        #: so no cache can go stale behind the row.
+        _, log = sh(f"gh run view {last.get('databaseId')} -R chidionyema/idp --log", timeout=60)
+    return portability_row(runs, log)
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -925,7 +997,7 @@ def main() -> int:
     rows: list[str] = []
     for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
         datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
-               runtime, elite_grade):
+               portability, runtime, elite_grade):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

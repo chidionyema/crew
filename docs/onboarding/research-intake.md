@@ -11,4 +11,4 @@
 - **Source of truth for releases:** the GitHub Releases API via `gh api` (tags as fallback).
   Renovate/Dependabot were rejected (LAW 43): they watch dependency manifests and open PRs;
   the estate needs a graded ledger against a standards page.
-- **Schedule:** idp `scheduler/schedule.yml` `com.estate.research-intake`, daily.
+- **Schedule:** idp `idp/scheduler/schedule.yml` `com.estate.research-intake`, daily.

@@ -441,10 +441,9 @@
    "law_title": "DEFINE DONE BEFORE YOU START, IN COMMANDS",
    "verdict": "mechanical",
    "where": "GitHub Actions: pull_request",
-   "check": "PR template's DoD boxes are commands (crew qa, pr-evidence check --pr <n>, Author-session/Reviewed-by + REVIEW: comment), and review-gate.yml fails the PR until they resolve",
+   "check": "RETIRED 2026-08-29 (founder: peer review is friction; frontier models do not review each other's work; review-gate.yml deleted, CI + pr-evidence are the gate). Was: PR template's DoD boxes are commands (crew qa, pr-evidence check --pr <n>, Author-session/Reviewed-by + REVIEW: comment), and review-gate.yml fails the PR until they resolve",
    "state": "live",
    "guards": [
-    ".github/workflows/review-gate.yml"
    ]
   },
   {
@@ -455,10 +454,9 @@
    "law_title": "A law without a protocol is a wish",
    "verdict": "mechanical",
    "where": "GitHub Actions: pull_request",
-   "check": "review-gate.yml is the protocol: it fails closed on any gh api error and refuses a PR with no Author-session/Reviewed-by pair and no matching REVIEW: comment",
+   "check": "RETIRED 2026-08-29 (founder ruling, see above). Was: review-gate.yml is the protocol: it fails closed on any gh api error and refuses a PR with no Author-session/Reviewed-by pair and no matching REVIEW: comment",
    "state": "live",
    "guards": [
-    ".github/workflows/review-gate.yml"
    ]
   },
   {

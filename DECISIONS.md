@@ -128,8 +128,8 @@ the local verbs.
 deletion.*
 
 **8. 2026-08-22 | the lab lease**
-`scripts/lab-lease.py` existed and nothing called it, so it protected nothing.
-Called it from `features/environment.py` and `scripts/dry-run.sh`. Rejected: a
+`survival-stack/scripts/lab-lease.py` existed and nothing called it, so it protected nothing.
+Called it from `survival-stack/features/environment.py` and `survival-stack/scripts/dry-run.sh`. Rejected: a
 docker-level lock, and a lock file per test.
 → *A guard nothing calls is not a guard. Wire it at the entry point.* (LAW 3,
 LAW 23)
@@ -161,7 +161,7 @@ before, prove the project's own verify after.* (LAW 4)
 
 **12. 2026-08-22 | new-user setup is a first-class feature**
 A new user must be operational in 60 seconds, with one command and three clicks.
-Longer than that is a bug, filed like any other. `./scripts/cf-bootstrap.sh` is
+Longer than that is a bug, filed like any other. `survival-stack/scripts/cf-bootstrap.sh` is
 the shape: pre-flight in shell because node may be absent, then one node flow
 that opens the pre-ticked page, reads the clipboard on macOS, Linux, WSL or
 Windows, falls back to a hidden paste where there is no clipboard tool, grades

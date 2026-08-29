@@ -97,7 +97,7 @@ been shown to permit.
 ## Running it
 
 Nothing to start. `idp/scheduler/workspace.yaml` names
-`../../crew/science/scheduler/estate_dagster/facts.py` as location `estate-facts`
+`science/scheduler/estate_dagster/facts.py` as location `estate-facts`
 (relative to the idp checkout, so no file names where a checkout lives, LAW 46),
 and `idp/bin/scheduler-up` loads it with the schedule.yml jobs and refuses to
 report "up" if it does not import. The dashboard is the scheduler's own,

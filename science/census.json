@@ -1,15 +1,14 @@
 {
  "domains": {
   "mac": 541,
-  "cluster": 233,
+  "cluster": 271,
+  "cluster_live": 166,
   "endpoint": 8,
-  "hook": 38,
+  "hook": 39,
   "mcp": 3,
-  "github": 111,
-  "transcript": 5858,
+  "github": 117,
+  "transcript": 5475,
   "act": 8
  },
- "blind": {
-  "cluster_live": "RuntimeError: no receipt body in the last 8 oke-check.yml run(s): job 99040558910: log unreadable; job 99040167453: no receipt body in the log; job 99039367372: log unreadable; job 99038729462: no rec"
- }
+ "blind": {}
 }

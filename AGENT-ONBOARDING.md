@@ -118,7 +118,7 @@ tail -f ~/.maestro/intents/INTENT-*.json
 ```
 
 ### To update THE ARCHITECT's baseline:
-Edit `profiles/architect/MEMORY.md` (only the coordinator or founder should touch this)
+Edit `hermes-v2/profiles/architect/MEMORY.md` (only the coordinator or founder should touch this)
 
 ### To add a healing recipe:
 Add to `~/dev/code/crew/remedies/*.yaml`, then PR to crew board (no runtime decisions)

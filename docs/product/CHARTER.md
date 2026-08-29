@@ -34,9 +34,9 @@ same shape).
 
 | Asset | Lens | Buyer named | Price named | Pay path | Onboarding | Readiness | Evidence |
 |---|---|---|---|---|---|---|---|
-| prospector dossier store | B | UK entrepreneur, franchisor payer (hypotheses, `docs/research-engine/SCALE_market_2026-08-25.md`) | £19.99–£99.99 rungs, `config.yaml:2112` `rungs: [1999, 2999, 4999, 7999, 9999]`, marked "HYPOTHESIS, not a finding" (`config.yaml:2081`) | real Stripe checkout on 11 packs, 12/12 sessions (`store/launch/checkout-proof.md`, 2026-06-20); storefront API 10/10 (`storefront-proof.md`) | store runs on OKE at mumchimp.com (memory `store-runs-on-oke-mumchimp`) | **amber**: money path proven once, 69 days old; no willingness-to-pay evidence; no help/cancel path graded | `grep -n rungs prospector-main/config.yaml`; `grep -c '^- \[x\]' prospector-main/store/launch/*.md` |
+| prospector dossier store | B | UK entrepreneur, franchisor payer (hypotheses, `docs/research-engine/SCALE_market_2026-08-25.md`) | £19.99–£99.99 rungs, `config.yaml:2112` `rungs: [1999, 2999, 4999, 7999, 9999]`, marked "HYPOTHESIS, not a finding" (`config.yaml:2081`) | real Stripe checkout on 11 packs, 12/12 sessions (`prospector-main/store/launch/checkout-proof.md`, 2026-06-20); storefront API 10/10 (`storefront-proof.md`) | store runs on OKE at mumchimp.com (memory `store-runs-on-oke-mumchimp`) | **amber**: money path proven once, 69 days old; no willingness-to-pay evidence; no help/cancel path graded | `grep -n rungs prospector-main/config.yaml`; `grep -c '^- \[x\]' prospector-main/store/launch/*.md` |
 | hermes personal agent | B | none named — README sells "an engineering agent that watches your production estate" to an engineer, not an SMB owner or consumer | none; only its own run cost: WATCH $22.63/month (`hermes-v2/README.md:123`), VPS £5–15/mo (`THE-ARCHITECT.md:61`) | none — no signup, no billing, no tenant; onboarding docs are `claim-gate.md`, `verify_on_stop.md` (operator mechanics) | clone-and-run, Telegram gateway is a launchd job on the founder's Mac (memory `hermes-telegram-is-the-gateway-launchd-job`) | **red**: no buyer, no price, no pay path, single-tenant on one laptop | `grep -ril 'stripe\|billing\|signup\|tenant' hermes-v2` → config/onboarding mechanics only, 0 commercial |
-| idp platform | A | none named — `docs/demo/idp-free-tier.md` exists (demo only); `docs/policy/enterprise-operating-model.md` describes the operating model, not an offer | none | none | `docs/onboarding/*`, `docs/SHOWCASE.md` (358 lines, graded per entity), portability drill (idp#648, last run red on edge/k3s) | **red for sale, amber for diligence**: 75 catalog entities, showcase graded, but no SKU, no licence, no support tier, drill not green | `find idp -name catalog-info.yaml \| wc -l` = 75 |
+| idp platform | A | none named — `idp/docs/demo/idp-free-tier.md` exists (demo only); `idp/docs/policy/enterprise-operating-model.md` describes the operating model, not an offer | none | none | `docs/onboarding/*`, `idp/docs/SHOWCASE.md` (358 lines, graded per entity), portability drill (idp#648, last run red on edge/k3s) | **red for sale, amber for diligence**: 75 catalog entities, showcase graded, but no SKU, no licence, no support tier, drill not green | `find idp -name catalog-info.yaml \| wc -l` = 75 |
 | marketing / sales / pm agents | — | — | — | — | `~/.claude/agents/roles/{marketing,sales,finance}.md`, `pm-agent.md` | **inventory**: role files exist, no product-shaping role, none wired to a ledger | `ls ~/.claude/agents/roles` |
 
 Red is honest. Nothing above is a launch.
@@ -139,14 +139,14 @@ files, the hermes tree, the idp catalog and showcase, and prints one row per ass
 `green|amber|red|BLIND|stealth-held` and the reason; writes `docs/product/READINESS.md` and the first `docs/product/HORIZONS.md` (glasses, wearables, robots, in-car: one experiment each, `research_id` or BLIND).
 Probe: `bin/product-readiness --check` exits 0 and the page has ≥ 3 asset rows, hermes rows
 first; a row whose source file is missing prints BLIND (mutation test: move
-`store/launch/checkout-proof.md`, expect BLIND).
+`prospector-main/store/launch/checkout-proof.md`, expect BLIND).
 
 **CP3 · The ledger.** `docs/product/LEDGER.md` with the four sub-function columns, one row per
 R-row above, each with `fix_pr` blank or a PR number. Probe: `bin/product-readiness --ledger`
 refuses a ledger row with no entity or a red readiness row with no ledger row.
 
 **CP4 · Requirements attached to entities.** `product.bytesync.io/requirement: R-xx` annotation
-on the three entities; gate in idp `policy/operating_model.rego` (or a `bin/` check called from
+on the three entities; gate in idp `idp/policy/operating_model.rego` (or a `bin/` check called from
 ci.yml) refuses a catalog entity under lens A/B with no R-row and an R-row with no entity.
 Probe: `opa test policy/ -v` shows the two new cases; mutation: drop the annotation, expect deny.
 

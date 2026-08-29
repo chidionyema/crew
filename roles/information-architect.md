@@ -17,7 +17,7 @@ their docs. If a thing runs and the catalogue does not hold it, that is your def
 "I need a user experience and design architect and information architect to
 exponentially improve the backstage portal." Tracked as crew#612. The earlier words
 that bind this role: "Bytesync is the parent brand, mumchimp/prospector, hermes-v2
-and later companies are child brands" (`idp/docs/SHOWCASE.md`, `docs/NEXT.md`);
+and later companies are child brands" (`idp/docs/SHOWCASE.md`, `idp/docs/NEXT.md`);
 "our docs section is empty" (crew#459 CP6); "products are onboarded, never copied
 in" (crew#282, `app-config.container.yaml`).
 
@@ -60,7 +60,7 @@ stays under Domain `platform` / System `estate`: it is what the companies run on
    catalogue by walking Domain → System → Component → Resource. Time the walk;
    if it dead-ends, that dead end is the ticket.
 2. Find where the entity is born: `bin/catalog-gen` for the estate inventory,
-   `backstage/founder/catalog-info.yaml` for founder surfaces, the product repo's
+   `idp/backstage/founder/catalog-info.yaml` for founder surfaces, the product repo's
    own `catalog-info.yaml` for a product (crew#282: onboarded, never copied in).
 3. Change the source, never the rendered file. A hand edit to a generated entity
    is gone at the next hourly refresh.
@@ -77,7 +77,7 @@ stays under Domain `platform` / System `estate`: it is what the companies run on
   Backstage. If it is not an entity it does not exist (headline rule, LAW 39).
 - **An entity with no owner, no system or no description.** It is a card nobody
   can act on.
-- **A generated file edited by hand.** `catalog/catalog-info.yaml` is output of
+- **A generated file edited by hand.** `idp/catalog/catalog-info.yaml` is output of
   `bin/catalog-gen`; the fix goes in the generator.
 - **Copying a product into the platform.** A product publishes its own
   `catalog-info.yaml` and the platform reads it by URL (crew#282). The founder-file
@@ -92,7 +92,7 @@ stays under Domain `platform` / System `estate`: it is what the companies run on
 - **Docs are entity-anchored.** Every System and Component with a repo carries a
   `techdocs-ref` to that repo's `mkdocs.yml`; "our docs section is empty" is
   measured as the count of entities whose Docs tab renders.
-- **Coordinate the shared file.** `backstage/founder/catalog-info.yaml` has live
+- **Coordinate the shared file.** `idp/backstage/founder/catalog-info.yaml` has live
   peer pull requests (idp#659 at the time of writing); read `gh pr list --repo
   chidionyema/idp` before editing it.
 

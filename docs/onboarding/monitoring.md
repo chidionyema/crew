@@ -10,12 +10,12 @@ Healthchecks container exited 137 and stayed down for hours; 12 of 40 wrapped jo
 it into nothing and every one of them reported success.
 
 The receiver now lives on the cluster, outside the Mac's failure domain: Healthchecks on
-OKE at `https://hc.<zone>` (idp `platform/healthchecks/healthchecks.yaml`). The Mac only
+OKE at `https://hc.<zone>` (idp `idp/platform/healthchecks/healthchecks.yaml`). The Mac only
 pings it. When the pings stop, the receiver — not the Mac — raises the alert.
 
 ## What it watches
 
-One heartbeat, not 46 jobs. `com.founder.estatesnapshot` (idp `scheduler/schedule.yml`)
+One heartbeat, not 46 jobs. `com.founder.estatesnapshot` (idp `idp/scheduler/schedule.yml`)
 runs every two hours and commits STATE.md to crew main; it is already wrapped:
 
     ~/.claude/scripts/hc-wrap.sh estate-snapshot <checkout>/scripts/estate-snapshot --commit
@@ -46,11 +46,11 @@ failure this closes — so `idp-hc-enroll` is the onboarding, not an optional st
 
 ## Where it lives
 
-- Receiver: idp `platform/healthchecks/healthchecks.yaml` (OKE), keys from
-  `platform/oci/healthchecks.tf` via the vault.
+- Receiver: idp `idp/platform/healthchecks/healthchecks.yaml` (OKE), keys from
+  `idp/platform/oci/healthchecks.tf` via the vault.
 - Wrapper: `~/.claude/scripts/hc-wrap.sh` (claude-guards), documented in
   `~/.claude/scripts/docs/onboarding/healthchecks.md`.
-- Schedule: idp `scheduler/schedule.yml`, entry `com.founder.estatesnapshot`.
+- Schedule: idp `idp/scheduler/schedule.yml`, entry `com.founder.estatesnapshot`.
 - Guard: `tests/test_incident_crew163_deadman_is_healthchecks_not_a_workflow.py` fails if
   anyone adds a second, hand-rolled dead-man to this repository.
 

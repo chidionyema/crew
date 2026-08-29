@@ -94,7 +94,7 @@ def _proof_age(path: pathlib.Path, today: dt.date | None) -> tuple[str | None, i
     return verdict, age
 
 
-def grade_prospector(root: pathlib.Path, today: dt.date) -> list[dict]:
+def grade_prospector(root: pathlib.Path, today: dt.date | None) -> list[dict]:
     base = root / "prospector-main"
     proof = base / "store/launch/checkout-proof.md"
     cfg = base / "config.yaml"

@@ -2,12 +2,12 @@
  "domains": {
   "mac": 544,
   "cluster": 280,
-  "cluster_live": 170,
+  "cluster_live": 176,
   "endpoint": 8,
-  "hook": 29,
+  "hook": 32,
   "mcp": 3,
-  "github": 119,
-  "transcript": 4857,
+  "github": 120,
+  "transcript": 4189,
   "act": 8
  },
  "blind": {}

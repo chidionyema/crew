@@ -16,6 +16,7 @@ progress section is the diff against them, so "what changed" is answered by the 
 
 Wired into `scripts/science-collect`, which launchd runs four times a day.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,6 +25,7 @@ import json
 import pathlib
 import re
 import sqlite3
+import subprocess
 import sys
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -48,13 +50,46 @@ LANE_HOURS = 24
 # not on what it claims. The mapping is explicit and typed here, never inferred from a name, so a
 # new source is unmapped-and-visible rather than silently absorbed into a lane that looks healthy.
 LANE_SOURCES: dict[str, tuple[str, ...]] = {
-    "code": ("ships", "ci_runs", "ci_reach", "bundle_push", "estate_push", "worktree_cleanup",
-             "hook_outcomes", "close_guard", "dora"),
-    "crew": ("board", "ledger", "decisions", "directives", "tickets", "goal_net", "attention",
-             "founder_actions", "board_deadletter", "prompt_ledger"),
-    "hermes-v2": ("alerts_inbox", "sovereign_receipts", "sovereign_budget", "revenue", "agent_cert",
-                  "runaway-reaper", "stuck_detector", "aiden_ticks"),
-    "portal": ("estate_registry", "capability_receipts", "enforcement_map", "drills", "drills_scripts"),
+    "code": (
+        "ships",
+        "ci_runs",
+        "ci_reach",
+        "bundle_push",
+        "estate_push",
+        "worktree_cleanup",
+        "hook_outcomes",
+        "close_guard",
+        "dora",
+    ),
+    "crew": (
+        "board",
+        "ledger",
+        "decisions",
+        "directives",
+        "tickets",
+        "goal_net",
+        "attention",
+        "founder_actions",
+        "board_deadletter",
+        "prompt_ledger",
+    ),
+    "hermes-v2": (
+        "alerts_inbox",
+        "sovereign_receipts",
+        "sovereign_budget",
+        "revenue",
+        "agent_cert",
+        "runaway-reaper",
+        "stuck_detector",
+        "aiden_ticks",
+    ),
+    "portal": (
+        "estate_registry",
+        "capability_receipts",
+        "enforcement_map",
+        "drills",
+        "drills_scripts",
+    ),
     "science": ("research_ledger", "predictions", "method_metrics", "history", "spend"),
     "data-ml": ("dagster-ticks", "dagster-runs", "temporal_dev_executions", "job_timelines"),
 }
@@ -108,9 +143,14 @@ def capabilities(now: dt.datetime) -> tuple[list[dict], list[str]]:
     for py in sorted(SCIENCE.glob("*.py")):
         if py.name.startswith("_") or py.name == "showcase.py":
             continue
-        rows.append({"name": py.stem, "what": _docstring_line(py)[:110],
-                     "run": f"python3 science/{py.name}",
-                     "scheduled": schedulers.get(py.stem, "hand-run")})
+        rows.append(
+            {
+                "name": py.stem,
+                "what": _docstring_line(py)[:110],
+                "run": f"python3 science/{py.name}",
+                "scheduled": schedulers.get(py.stem, "hand-run"),
+            }
+        )
     notes = []
     if not LAUNCHD.exists():
         notes.append(f"BLIND to launchd: {LAUNCHD} absent (CI has no home tree)")
@@ -141,11 +181,17 @@ def warehouse(now: dt.datetime) -> dict:
         # crew#508: a 0-byte warehouse.db opens cleanly and has no tables. Before this, that
         # raised OperationalError out of build() and took the whole page down with it; a store
         # that cannot answer is BLIND, one section wide (LAW 45).
-        rows, sources, last = db.execute("select count(*), count(distinct source), max(ingested_at) from facts").fetchone()
+        rows, sources, last = db.execute(
+            "select count(*), count(distinct source), max(ingested_at) from facts"
+        ).fetchone()
         per = dict(db.execute("select source, max(at) from facts group by source").fetchall())
     except sqlite3.Error as e:
         raise Blind(f"{rel(WAREHOUSE)} has no readable facts table ({e})") from e
-    reg = json.load(SOURCES.open()) if SOURCES.exists() else {"sources": [], "default_stale_after_hours": 48}
+    reg = (
+        json.load(SOURCES.open())
+        if SOURCES.exists()
+        else {"sources": [], "default_stale_after_hours": 48}
+    )
     default = reg.get("default_stale_after_hours", 48)
     stale = []
     for s in reg["sources"]:
@@ -153,14 +199,25 @@ def warehouse(now: dt.datetime) -> dict:
         if not newest:
             continue
         try:
-            age_h = (now - dt.datetime.fromisoformat(newest.replace("Z", "+00:00")).replace(tzinfo=None)).total_seconds() / 3600
+            age_h = (
+                now - dt.datetime.fromisoformat(newest.replace("Z", "+00:00")).replace(tzinfo=None)
+            ).total_seconds() / 3600
         except ValueError:
             continue
         if age_h > s.get("stale_after_hours", default):
             stale.append(f"{s['name']} ({age_h:.0f}h)")
-    contracted = sum(all(k in s for k in ("owner", "method", "retention_days", "sensitivity")) for s in reg["sources"])
-    return {"rows": rows, "sources": sources, "last_ingest": last, "stale": stale,
-            "declared": len(reg["sources"]), "contracted": contracted}
+    contracted = sum(
+        all(k in s for k in ("owner", "method", "retention_days", "sensitivity"))
+        for s in reg["sources"]
+    )
+    return {
+        "rows": rows,
+        "sources": sources,
+        "last_ingest": last,
+        "stale": stale,
+        "declared": len(reg["sources"]),
+        "contracted": contracted,
+    }
 
 
 def _contract_violations(dm: Any) -> list | str:
@@ -174,37 +231,53 @@ def _contract_violations(dm: Any) -> list | str:
 def datamap(now: dt.datetime) -> dict:
     sys.path.insert(0, str(SCIENCE))
     import datamap as dm
+
     if not dm.REGISTER.exists():
         raise Blind(f"{rel(dm.REGISTER)} absent")
     reg = json.load(dm.REGISTER.open())
     census = json.load(dm.CENSUS.open()) if dm.CENSUS.exists() else {}
     shapes = json.load(dm.SHAPES.open()) if dm.SHAPES.exists() else {}
     from collections import Counter
-    verdicts = Counter(e["verdict"] for e in reg["entries"])
-    return {"entries": len(reg["entries"]), "verdicts": dict(verdicts),
-            "producers": sum(census.get("domains", {}).values()),
-            "blind": sorted(census.get("blind", {})),
-            "field_paths": sum(len(v.get("fields", {})) for v in shapes.values()),
-            "shapes_walked": _file_age(dm.SHAPES) if shapes else None,
-            "shapes_path": rel(dm.SHAPES),
-            "contract_violations": _contract_violations(dm)}
 
+    verdicts = Counter(e["verdict"] for e in reg["entries"])
+    return {
+        "entries": len(reg["entries"]),
+        "verdicts": dict(verdicts),
+        "producers": sum(census.get("domains", {}).values()),
+        "blind": sorted(census.get("blind", {})),
+        "field_paths": sum(len(v.get("fields", {})) for v in shapes.values()),
+        "shapes_walked": _file_age(dm.SHAPES) if shapes else None,
+        "shapes_path": rel(dm.SHAPES),
+        "contract_violations": _contract_violations(dm),
+    }
 
 
 def _file_age(path) -> str:
     """UTC mtime of a store, so a number on the page carries the date it was measured."""
     return dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).strftime("%Y-%m-%d %H:%MZ")
 
+
 def research(now: dt.datetime) -> dict:
     rows = _jsonl(LEDGER)
     with_decision = [r for r in rows if r.get("decision_fed")]
-    last = [{"date": r.get("date"), "question": (r.get("question") or "")[:140],
-             "decision": (r.get("decision_fed") or "(none)")[:160],
-             "metric": f"{r.get('metric_before', '?')} -> {r.get('metric_after', '?')}" if r.get("metric") else ""}
-            for r in rows[-3:]]
-    return {"entries": len(rows), "with_decision": len(with_decision),
-            "first": min((r.get("date") or "" for r in rows), default=""),
-            "last_date": max((r.get("date") or "" for r in rows), default=""), "last": last}
+    last = [
+        {
+            "date": r.get("date"),
+            "question": (r.get("question") or "")[:140],
+            "decision": (r.get("decision_fed") or "(none)")[:160],
+            "metric": f"{r.get('metric_before', '?')} -> {r.get('metric_after', '?')}"
+            if r.get("metric")
+            else "",
+        }
+        for r in rows[-3:]
+    ]
+    return {
+        "entries": len(rows),
+        "with_decision": len(with_decision),
+        "first": min((r.get("date") or "" for r in rows), default=""),
+        "last_date": max((r.get("date") or "" for r in rows), default=""),
+        "last": last,
+    }
 
 
 def outcomes(now: dt.datetime) -> dict:
@@ -223,31 +296,42 @@ def outcomes(now: dt.datetime) -> dict:
         db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
         per_day: dict[str, float] = {}
         try:
-            samples = db.execute("select payload from facts where source='spend' order by at").fetchall()
+            samples = db.execute(
+                "select payload from facts where source='spend' order by at"
+            ).fetchall()
         except sqlite3.Error:
-            samples = []                              # crew#508: an unreadable store is no spend, not a crash
+            samples = []  # crew#508: an unreadable store is no spend, not a crash
         else:
             for (payload,) in samples:
                 p = json.loads(payload)
                 if p.get("day", "") >= since and isinstance(p.get("total"), (int, float)):
-                    per_day[p["day"]] = p["total"]    # newest sample of the day wins
+                    per_day[p["day"]] = p["total"]  # newest sample of the day wins
             spend = round(sum(per_day.values()), 2)
-    return {"window_days": WINDOW_DAYS, "commits": commits, "repos": len({k[1] for k in latest}),
-            "messages": messages, "complaints": complaints,
-            "complaint_rate": round(100 * complaints / messages, 1) if messages else None,
-            "spend_usd": spend,
-            "usd_per_commit": round(spend / commits, 2) if spend and commits else None}
+    return {
+        "window_days": WINDOW_DAYS,
+        "commits": commits,
+        "repos": len({k[1] for k in latest}),
+        "messages": messages,
+        "complaints": complaints,
+        "complaint_rate": round(100 * complaints / messages, 1) if messages else None,
+        "spend_usd": spend,
+        "usd_per_commit": round(spend / commits, 2) if spend and commits else None,
+    }
 
 
 def predictions(now: dt.datetime) -> dict:
     latest: dict = {}
-    for r in _jsonl(PREDICTIONS):       # append-only; the newest row per id wins
+    for r in _jsonl(PREDICTIONS):  # append-only; the newest row per id wins
         latest[r.get("id")] = r
     rows = list(latest.values())
     scored = [r for r in rows if r.get("scored_at")]
     hits = [r for r in scored if r.get("correct") is True]
-    return {"recorded": len(rows), "scored": len(scored), "hits": len(hits),
-            "hit_rate": round(100 * len(hits) / len(scored)) if scored else None}
+    return {
+        "recorded": len(rows),
+        "scored": len(scored),
+        "hits": len(hits),
+        "hit_rate": round(100 * len(hits) / len(scored)) if scored else None,
+    }
 
 
 IDEA_KIND = "idea"
@@ -273,22 +357,53 @@ def ideas(now: dt.datetime) -> dict:
     this_week = [r for r in rows if (r.get("date") or "") >= since]
     graded = [r for r in rows if _forecast(r) is not None and r.get("sources")]
     resolved = [r for r in graded if r.get("outcome") in (0, 1)]
-    brier = (round(sum((_forecast(r) - r["outcome"]) ** 2 for r in resolved) / len(resolved), 3)
-             if resolved else None)
-    return {"window_days": WINDOW_DAYS, "ideas": len(rows), "this_week": len(this_week),
-            "graded": len(graded), "resolved": len(resolved), "brier": brier,
-            "rows": [("ideas generated per week", len(this_week), len(this_week) > 0),
-                     ("ideas graded (forecast with source)", len(graded), len(graded) > 0),
-                     ("ideas resolved with Brier", f"{len(resolved)}, Brier {brier}" if resolved else 0, brier is not None)]}
+    brier = (
+        round(sum((_forecast(r) - r["outcome"]) ** 2 for r in resolved) / len(resolved), 3)
+        if resolved
+        else None
+    )
+    return {
+        "window_days": WINDOW_DAYS,
+        "ideas": len(rows),
+        "this_week": len(this_week),
+        "graded": len(graded),
+        "resolved": len(resolved),
+        "brier": brier,
+        "rows": [
+            ("ideas generated per week", len(this_week), len(this_week) > 0),
+            ("ideas graded (forecast with source)", len(graded), len(graded) > 0),
+            (
+                "ideas resolved with Brier",
+                f"{len(resolved)}, Brier {brier}" if resolved else 0,
+                brier is not None,
+            ),
+        ],
+    }
+
+
+def false_success(now: dt.datetime) -> dict:
+    """crew#631 CP4: every agent claim on the board paired with the prover's verdict of the
+    moment; the number is the share of decided claims the prover rejected."""
+    import false_success as fs
+
+    try:
+        repo = fs.gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]).strip()
+        issues = fs.board(repo, now - dt.timedelta(days=30))
+        d = fs.pair(issues, lambda n: fs.moves(repo, n))
+    except (OSError, subprocess.CalledProcessError, ValueError) as e:
+        raise Blind(f"the board is unreadable through gh: {str(e)[:120]}") from e
+    d["window_days"] = 30
+    d["query"] = "python3 science/false_success.py --days 30"
+    return d
 
 
 def foresight(now: dt.datetime) -> dict:
     """The estate's own predictions about its CI, scored against what happened (crew#405)."""
     import foresight as fs
+
     if not fs.STATE.exists():
         raise Blind(f"{rel(fs.STATE)} absent (python3 science/foresight.py train)")
     return fs.summary()
-
 
 
 def _lane_of(source: str) -> str:
@@ -316,7 +431,9 @@ def _ticked_checkpoints(now: dt.datetime) -> tuple[dict[str, int], str]:
         searched.append(rel(path))
         if not path.exists():
             continue
-        age_h = (now - dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).replace(tzinfo=None)).total_seconds() / 3600
+        age_h = (
+            now - dt.datetime.fromtimestamp(path.stat().st_mtime, dt.UTC).replace(tzinfo=None)
+        ).total_seconds() / 3600
         if age_h > LANE_HOURS:
             continue
         fresh.append(rel(path))
@@ -326,9 +443,12 @@ def _ticked_checkpoints(now: dt.datetime) -> tuple[dict[str, int], str]:
                 if lane in low:
                     counts[lane] = counts.get(lane, 0) + 1
     if not counts:
-        why = (f"0 for every lane: no `- [x]` line in a ledger written in the last {LANE_HOURS}h "
-               f"(searched {', '.join(searched)}"
-               + (f"; fresh: {', '.join(fresh)}" if fresh else "; none written in the window") + ")")
+        why = (
+            f"0 for every lane: no `- [x]` line in a ledger written in the last {LANE_HOURS}h "
+            f"(searched {', '.join(searched)}"
+            + (f"; fresh: {', '.join(fresh)}" if fresh else "; none written in the window")
+            + ")"
+        )
         return counts, why
     return counts, ""
 
@@ -366,26 +486,66 @@ def lanes(now: dt.datetime) -> dict:
     for lane in list(LANE_SOURCES) + ([UNMAPPED] if unmapped else []):
         facts = per_lane.get(lane, 0) if lane != UNMAPPED else sum(unmapped.values())
         cps = ticks.get(lane, 0)
-        rows.append({"lane": lane, "facts": facts, "checkpoints": cps,
-                     "grade": _grade(facts, cps),
-                     "sources": ", ".join(sorted(unmapped)) if lane == UNMAPPED
-                                else ", ".join(LANE_SOURCES[lane])})
+        rows.append(
+            {
+                "lane": lane,
+                "facts": facts,
+                "checkpoints": cps,
+                "grade": _grade(facts, cps),
+                "sources": ", ".join(sorted(unmapped))
+                if lane == UNMAPPED
+                else ", ".join(LANE_SOURCES[lane]),
+            }
+        )
     rows.sort(key=lambda r: ({"BLIND": 0, "GAP": 1, "ELITE": 2}[r["grade"]], r["lane"]))
-    return {"rows": rows, "hours": LANE_HOURS, "since": since,
-            "checkpoint_note": tick_note, "unmapped": unmapped}
+    return {
+        "rows": rows,
+        "hours": LANE_HOURS,
+        "since": since,
+        "checkpoint_note": tick_note,
+        "unmapped": unmapped,
+    }
 
 
 SECTIONS = [
-    ("Capabilities", capabilities, "python3 science/showcase.py  (reads science/*.py, scripts/science-collect, scripts/verify.d, launchd)"),
-    ("Lanes", lanes, "sqlite3 science/warehouse.db \"select source, count(*) from facts where ingested_at >= datetime('now','-24 hours') group by source\""),
-    ("Warehouse", warehouse, "sqlite3 science/warehouse.db \"select count(*), count(distinct source), max(ingested_at) from facts\""),
+    (
+        "Capabilities",
+        capabilities,
+        "python3 science/showcase.py  (reads science/*.py, scripts/science-collect, scripts/verify.d, launchd)",
+    ),
+    (
+        "Lanes",
+        lanes,
+        "sqlite3 science/warehouse.db \"select source, count(*) from facts where ingested_at >= datetime('now','-24 hours') group by source\"",
+    ),
+    (
+        "Warehouse",
+        warehouse,
+        'sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"',
+    ),
     ("Data map (LAW 50)", datamap, "python3 science/datamap.py --check"),
-    ("Research ledger", research, "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))\""),
-    ("Delivery outcomes", outcomes, "python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7"),
+    (
+        "Research ledger",
+        research,
+        "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))\"",
+    ),
+    (
+        "Delivery outcomes",
+        outcomes,
+        "python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7",
+    ),
     ("Predictions", predictions, "python3 science/outcomes.py rate"),
-    ("Ideas: the prospector contract (crew#537)", ideas,
-     "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl') if json.loads(l).get('kind')=='idea'))\""),
+    (
+        "Ideas: the prospector contract (crew#537)",
+        ideas,
+        "python3 -c \"import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl') if json.loads(l).get('kind')=='idea'))\"",
+    ),
     ("Foresight: will this PR go red?", foresight, "python3 science/foresight.py report"),
+    (
+        "False success: claims the prover rejected",
+        false_success,
+        "python3 science/false_success.py --days 30",
+    ),
 ]
 
 
@@ -402,25 +562,60 @@ def build(now: dt.datetime) -> tuple[dict, dict]:
 def numbers(data: dict) -> dict[str, float]:
     """The scalars the progress section diffs. Flat, named, and stable across runs."""
     n: dict[str, float] = {}
-    w, d, r, o, p = (data.get(k) for k in ("Warehouse", "Data map (LAW 50)", "Research ledger", "Delivery outcomes", "Predictions"))
+    w, d, r, o, p = (
+        data.get(k)
+        for k in (
+            "Warehouse",
+            "Data map (LAW 50)",
+            "Research ledger",
+            "Delivery outcomes",
+            "Predictions",
+        )
+    )
     f = data.get("Foresight: will this PR go red?")
     if f and f["state"]:
-        n.update({"foresight labelled PRs": f["state"]["labelled_prs"], "foresight holdout accuracy": f["state"]["holdout_accuracy"],
-                  "foresight predictions scored": f["scored"]})
+        n.update(
+            {
+                "foresight labelled PRs": f["state"]["labelled_prs"],
+                "foresight holdout accuracy": f["state"]["holdout_accuracy"],
+                "foresight predictions scored": f["scored"],
+            }
+        )
         if f["hit_rate"] is not None:
             n["foresight hit rate %"] = f["hit_rate"]
     if w:
-        n.update({"warehouse rows": w["rows"], "warehouse sources": w["sources"], "stale sources": len(w["stale"]),
-                  "sources with a contract": w["contracted"]})
+        n.update(
+            {
+                "warehouse rows": w["rows"],
+                "warehouse sources": w["sources"],
+                "stale sources": len(w["stale"]),
+                "sources with a contract": w["contracted"],
+            }
+        )
     if d:
-        n.update({"register entries": d["entries"], "producers discovered": d["producers"],
-                  "field paths": d["field_paths"]})
+        n.update(
+            {
+                "register entries": d["entries"],
+                "producers discovered": d["producers"],
+                "field paths": d["field_paths"],
+            }
+        )
         if isinstance(d["contract_violations"], list):
             n["contract violations"] = len(d["contract_violations"])
     if r:
-        n.update({"research entries": r["entries"], "research entries with a decision": r["with_decision"]})
+        n.update(
+            {
+                "research entries": r["entries"],
+                "research entries with a decision": r["with_decision"],
+            }
+        )
     if o:
-        n.update({f"commits, {o['window_days']}d": o["commits"], f"complaints, {o['window_days']}d": o["complaints"]})
+        n.update(
+            {
+                f"commits, {o['window_days']}d": o["commits"],
+                f"complaints, {o['window_days']}d": o["complaints"],
+            }
+        )
         if o["spend_usd"] is not None:
             n[f"spend USD, {o['window_days']}d"] = o["spend_usd"]
         if o["usd_per_commit"] is not None:
@@ -429,8 +624,13 @@ def numbers(data: dict) -> dict[str, float]:
         n.update({"predictions recorded": p["recorded"], "predictions scored": p["scored"]})
     i = data.get("Ideas: the prospector contract (crew#537)")
     if i:
-        n.update({f"ideas generated, {i['window_days']}d": i["this_week"], "ideas graded": i["graded"],
-                  "ideas resolved": i["resolved"]})
+        n.update(
+            {
+                f"ideas generated, {i['window_days']}d": i["this_week"],
+                "ideas graded": i["graded"],
+                "ideas resolved": i["resolved"],
+            }
+        )
         if i["brier"] is not None:
             n["ideas Brier"] = i["brier"]
     lanes_d = data.get("Lanes")
@@ -439,6 +639,16 @@ def numbers(data: dict) -> dict[str, float]:
             n[f"lane {r['lane']} facts 24h"] = r["facts"]
         n["lanes BLIND"] = sum(r["grade"] == "BLIND" for r in lanes_d["rows"])
         n["lanes ELITE"] = sum(r["grade"] == "ELITE" for r in lanes_d["rows"])
+    fsd = data.get("False success: claims the prover rejected")
+    if fsd:
+        n.update(
+            {
+                "claims decided by the prover": fsd["verified"] + fsd["rejected"],
+                "claims pending a verdict": fsd["pending"],
+            }
+        )
+        if fsd["false_success_pct"] is not None:
+            n["false-success %"] = fsd["false_success_pct"]
     if data.get("Capabilities"):
         rows, _ = data["Capabilities"]
         n["capabilities"] = len(rows)
@@ -447,9 +657,13 @@ def numbers(data: dict) -> dict[str, float]:
 
 
 def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
-    out = ["# Science lane showcase", "",
-           f"Generated {now.strftime('%Y-%m-%dT%H:%MZ')} by `python3 science/showcase.py`. Every number is read at generation",
-           "time; the command under each heading reproduces it. A section that cannot see its source says BLIND.", ""]
+    out = [
+        "# Science lane showcase",
+        "",
+        f"Generated {now.strftime('%Y-%m-%dT%H:%MZ')} by `python3 science/showcase.py`. Every number is read at generation",
+        "time; the command under each heading reproduces it. A section that cannot see its source says BLIND.",
+        "",
+    ]
     cur = numbers(data)
     prev_n = prev.get("numbers", {})
     out += ["## Progress since the previous run", ""]
@@ -477,71 +691,132 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
         if title == "Capabilities":
             rows, notes = d
             out += ["| Capability | What it answers | Run | Scheduled by |", "|---|---|---|---|"]
-            out += [f"| {r['name']} | {r['what']} | `{r['run']}` | {r['scheduled']} |" for r in rows]
+            out += [
+                f"| {r['name']} | {r['what']} | `{r['run']}` | {r['scheduled']} |" for r in rows
+            ]
             out += [""] + [f"{n}" for n in notes]
         elif title == "Lanes":
-            out += [f"Every lane graded on what it emitted in the last {d['hours']}h. BLIND rows first:",
-                    "a lane that emitted no fact is not healthy, it is unobserved (crew#508).", "",
-                    "| Lane | Facts, 24h | Checkpoints, 24h | Grade | Sources counted |",
-                    "|---|---:|---:|---|---|"]
-            out += [f"| {r['lane']} | {r['facts']:,} | {r['checkpoints']} | {r['grade']} | {r['sources']} |"
-                    for r in d["rows"]]
+            out += [
+                f"Every lane graded on what it emitted in the last {d['hours']}h. BLIND rows first:",
+                "a lane that emitted no fact is not healthy, it is unobserved (crew#508).",
+                "",
+                "| Lane | Facts, 24h | Checkpoints, 24h | Grade | Sources counted |",
+                "|---|---:|---:|---|---|",
+            ]
+            out += [
+                f"| {r['lane']} | {r['facts']:,} | {r['checkpoints']} | {r['grade']} | {r['sources']} |"
+                for r in d["rows"]
+            ]
             out.append("")
             blind_lanes = [r["lane"] for r in d["rows"] if r["grade"] == "BLIND"]
             out.append(f"- BLIND: {', '.join(blind_lanes) if blind_lanes else 'none'}")
             if d["unmapped"]:
-                out.append("- sources in no lane: " + ", ".join(f"{k} ({n:,})" for k, n in sorted(d["unmapped"].items()))
-                           + " — add them to LANE_SOURCES in science/showcase.py")
+                out.append(
+                    "- sources in no lane: "
+                    + ", ".join(f"{k} ({n:,})" for k, n in sorted(d["unmapped"].items()))
+                    + " — add them to LANE_SOURCES in science/showcase.py"
+                )
             if d["checkpoint_note"]:
                 out.append(f"- checkpoints {d['checkpoint_note']}")
         elif title == "Warehouse":
-            out += [f"- {d['rows']:,} rows across {d['sources']} sources; last ingest {d['last_ingest']}",
-                    f"- {d['contracted']} of {d['declared']} declared sources carry owner, method, retention and sensitivity",
-                    f"- stale past their SLA: {', '.join(d['stale']) if d['stale'] else 'none'}"]
+            out += [
+                f"- {d['rows']:,} rows across {d['sources']} sources; last ingest {d['last_ingest']}",
+                f"- {d['contracted']} of {d['declared']} declared sources carry owner, method, retention and sensitivity",
+                f"- stale past their SLA: {', '.join(d['stale']) if d['stale'] else 'none'}",
+            ]
         elif title == "Data map (LAW 50)":
             v = ", ".join(f"{k} {n}" for k, n in sorted(d["verdicts"].items()))
-            out += [f"- {d['entries']} register entries ({v}); {d['producers']} producers discovered at the last census",
-                    (f"- {d['field_paths']} field paths in the shape walk of {d['shapes_walked']}" if d.get("shapes_walked")
-                     else f"- shape walk: BLIND ({d['shapes_path']} empty or absent; no walk has landed)"),
-                    f"- domains blind at the last census: {', '.join(d['blind']) if d['blind'] else 'none'}",
-                    "- contract violations now: " + (str(len(d["contract_violations"])) if isinstance(d["contract_violations"], list) else d["contract_violations"])]
+            out += [
+                f"- {d['entries']} register entries ({v}); {d['producers']} producers discovered at the last census",
+                (
+                    f"- {d['field_paths']} field paths in the shape walk of {d['shapes_walked']}"
+                    if d.get("shapes_walked")
+                    else f"- shape walk: BLIND ({d['shapes_path']} empty or absent; no walk has landed)"
+                ),
+                f"- domains blind at the last census: {', '.join(d['blind']) if d['blind'] else 'none'}",
+                "- contract violations now: "
+                + (
+                    str(len(d["contract_violations"]))
+                    if isinstance(d["contract_violations"], list)
+                    else d["contract_violations"]
+                ),
+            ]
         elif title == "Research ledger":
-            out += [f"- {d['entries']} entries, {d['first']} to {d['last_date']}; {d['with_decision']} record the decision they fed", ""]
+            out += [
+                f"- {d['entries']} entries, {d['first']} to {d['last_date']}; {d['with_decision']} record the decision they fed",
+                "",
+            ]
             for r in d["last"]:
                 out += [f"- **{r['date']}** {r['question']}", f"  - decision: {r['decision']}"]
                 if r["metric"]:
                     out.append(f"  - metric: {r['metric']}")
         elif title == "Delivery outcomes":
-            out += [f"- last {d['window_days']} days: {d['commits']} commits across {d['repos']} repos",
-                    f"- founder messages {d['messages']}, complaints {d['complaints']}"
-                    + (f" ({d['complaint_rate']}%)" if d['complaint_rate'] is not None else ""),
-                    f"- spend USD {d['spend_usd']}" + (f", USD per commit {d['usd_per_commit']}" if d['usd_per_commit'] is not None else "")
-                    if d["spend_usd"] is not None else "- spend: BLIND (warehouse absent)",
-                    "- machine learning: none. Nothing here trains a model; every number is a count or a ratio."]
+            out += [
+                f"- last {d['window_days']} days: {d['commits']} commits across {d['repos']} repos",
+                f"- founder messages {d['messages']}, complaints {d['complaints']}"
+                + (f" ({d['complaint_rate']}%)" if d["complaint_rate"] is not None else ""),
+                f"- spend USD {d['spend_usd']}"
+                + (
+                    f", USD per commit {d['usd_per_commit']}"
+                    if d["usd_per_commit"] is not None
+                    else ""
+                )
+                if d["spend_usd"] is not None
+                else "- spend: BLIND (warehouse absent)",
+                "- machine learning: none. Nothing here trains a model; every number is a count or a ratio.",
+            ]
         elif title == "Predictions":
             rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored)"
-            out += [f"- {d['recorded']} recorded before a repair, {d['scored']} scored after, hit rate {rate}"]
+            out += [
+                f"- {d['recorded']} recorded before a repair, {d['scored']} scored after, hit rate {rate}"
+            ]
         elif title.startswith("Ideas"):
             out += ["| Row | Value | Grade |", "|---|---|---|"]
-            out += [f"| {name} | {value} | {'ok' if green else 'FAIL (no data)'} |" for name, value, green in d["rows"]]
-            out += ["", f"- {d['ideas']} idea rows in the ledger (`kind: idea`, written by `python3 science/ledger.py add --kind idea "
-                        "--forecast P`); resolved with `--outcome 0|1`. Red until the first business idea lands (CP5)."]
+            out += [
+                f"| {name} | {value} | {'ok' if green else 'FAIL (no data)'} |"
+                for name, value, green in d["rows"]
+            ]
+            out += [
+                "",
+                f"- {d['ideas']} idea rows in the ledger (`kind: idea`, written by `python3 science/ledger.py add --kind idea "
+                "--forecast P`); resolved with `--outcome 0|1`. Red until the first business idea lands (CP5).",
+            ]
+        elif title.startswith("False success"):
+            rate = (
+                f"{d['false_success_pct']}%"
+                if d["false_success_pct"] is not None
+                else "n/a (no claim decided yet)"
+            )
+            out += [
+                f"- false-success rate {rate}: {d['rejected']} rejected of {d['verified'] + d['rejected']} decided claims, {d['pending']} pending, last {d['window_days']}d",
+                "- a claim is an agent labelling a ticket RESOLVED_PENDING_VERIFICATION; the verdict of the moment is the prover App's next move on it (idp ticket-verification.yml)",
+            ]
+            out += [f"  - {c['verdict']} #{c['number']} {c['title']}" for c in d["claims"][:10]]
         elif title.startswith("Foresight"):
             st = d["state"]
             rate = f"{d['hit_rate']}%" if d["hit_rate"] is not None else "n/a (none scored yet)"
-            out += [f"- trained {st['trained_at']} on {st['labelled_prs']} labelled PRs; {st['red_rate']:.0%} of first runs were red",
-                    f"- unseen newest {st['holdout']} PRs: accuracy {st['holdout_accuracy']:.0%} against a base rate of {st['holdout_base_rate']:.0%}; Brier {st['brier']}",
-                    f"- {st['verdict']}",
-                    "- strongest signals: " + ", ".join(f"{k} ({v:+.2f})" for k, v in st["top_features"]),
-                    f"- live: {d['recorded']} open PRs predicted before their CI finished, {d['scored']} scored, hit rate {rate}"]
+            out += [
+                f"- trained {st['trained_at']} on {st['labelled_prs']} labelled PRs; {st['red_rate']:.0%} of first runs were red",
+                f"- unseen newest {st['holdout']} PRs: accuracy {st['holdout_accuracy']:.0%} against a base rate of {st['holdout_base_rate']:.0%}; Brier {st['brier']}",
+                f"- {st['verdict']}",
+                "- strongest signals: "
+                + ", ".join(f"{k} ({v:+.2f})" for k, v in st["top_features"]),
+                f"- live: {d['recorded']} open PRs predicted before their CI finished, {d['scored']} scored, hit rate {rate}",
+            ]
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--print", action="store_true", dest="dry", help="write nothing, show the page")
-    ap.add_argument("--check", action="store_true", help="refuse a capability with no description or no demo command")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="refuse a capability with no description or no demo command",
+    )
     args = ap.parse_args()
     if args.check:
         bad = refusals(capabilities(dt.datetime.now(dt.UTC).replace(tzinfo=None))[0])
@@ -558,7 +833,12 @@ def main() -> int:
         return 0
     DOCS.mkdir(parents=True, exist_ok=True)
     PAGE.write_text(page)
-    STATE.write_text(json.dumps({"generated": now.strftime("%Y-%m-%dT%H:%MZ"), "numbers": numbers(data)}, indent=1) + "\n")
+    STATE.write_text(
+        json.dumps(
+            {"generated": now.strftime("%Y-%m-%dT%H:%MZ"), "numbers": numbers(data)}, indent=1
+        )
+        + "\n"
+    )
     print(f"wrote {PAGE.relative_to(CREW)}")
     for title, _, _ in SECTIONS:
         print(f"  {title:<20} {'BLIND: ' + blind[title] if title in blind else 'ok'}")

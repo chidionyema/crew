@@ -6,7 +6,8 @@ Rung 4, incident test. The trap this closes is the proxy trap: a workflow's `con
 measurement. A green run whose log holds no `ok portability` grade line must print NOT RUN, never
 GREEN, because "the run passed" and "the drill measured 2/37 layers Ready" are different claims.
 
-Grade lines are the ones idp run 33165807800 actually printed on 2026-08-28.
+Grade lines are the ones idp run 33165807800 actually printed on 2026-08-28, and -- after the
+drill stopped saying "layers" -- the ones idp run 33225061822 printed on 2026-08-29.
 """
 import datetime as dt
 import importlib.machinery
@@ -117,6 +118,49 @@ def test_no_runs_at_all_prints_not_run():
 def test_unparseable_gh_output_prints_not_run():
     assert _snap().portability_row("not json", "", now=NOW) == [
         "| portability | NOT RUN | `gh run list -w portability-drill.yml` did not answer JSON |"]
+
+
+#: idp run 33225061822 (2026-08-29), verbatim. Same counter, different words: the drill grew a
+#: root-red/cascaded/pending breakdown and dropped the noun `layers`. The regex demanded that
+#: noun, so it matched nothing, the run was green, and the row printed GREEN carrying `no ready
+#: count in the log`. The founder lost the one number CP4 exists to show him and nothing said so.
+READY_2026_08_29 = ("ok      portability  ready 9/42 (root-red 1 all named, cascaded 28, "
+                    "pending 4) on a cluster with no OCI (floor 9)")
+
+
+def test_the_grade_lines_wording_may_change_and_the_count_still_lands():
+    rows = _snap().portability_row(_runs(), f"{K3S}\n{READY_2026_08_29}\n", now=NOW)
+    assert "| portability | GREEN |" in rows[0], rows[0]
+    assert "ready 9/42 (root-red 1 all named, cascaded 28, pending 4)" in rows[0], rows[0]
+    assert "(floor 9)" in rows[0], rows[0]
+
+
+def test_a_run_with_a_cost_line_but_no_ready_count_is_not_run_never_green():
+    """Half a grade is not a grade, and it must not wear the run's colour.
+
+    The old code coloured this row GREEN and wrote `no ready count in the log` into the cell --
+    a conclusion standing in for a measurement, which is the same proxy trap the both-missing
+    branch above already refuses. One number thinner is not a different rule.
+    """
+    rows = _snap().portability_row(_runs(), f"{K3S}\n", now=NOW)
+    assert rows == ["| portability | NOT RUN | idp run 33165807800, 0.9h ago (bar 194h) is green "
+                    "but its log holds no ready count (`ok portability ready N/M`) |"], rows
+
+
+def test_a_run_with_a_ready_count_but_no_cost_line_is_not_run_never_green():
+    rows = _snap().portability_row(_runs(), f"{READY}\n", now=NOW)
+    assert rows == ["| portability | NOT RUN | idp run 33165807800, 0.9h ago (bar 194h) is green "
+                    "but its log holds no cost line "
+                    "(`ok portability-k3s provider=... cost=...`) |"], rows
+
+
+def test_the_pattern_pins_the_counter_and_nothing_about_the_prose():
+    """The regression in one line: what is graded is `ready N/M`, not the words around it."""
+    snap = _snap()
+    assert snap.PORTABILITY_READY.search("ok portability ready 9/42 anything at all here")
+    assert snap.PORTABILITY_READY.search("ok      portability  ready 2/37 layers on a cluster")
+    # ... and a line with no counter is still not a grade line.
+    assert snap.PORTABILITY_READY.search("ok portability ready lots of layers") is None
 
 
 def test_the_row_is_wired_into_the_snapshot_body():

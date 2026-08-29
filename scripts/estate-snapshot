@@ -935,7 +935,14 @@ def research() -> list[str]:
 
 #: The two lines `bin/idp-portability-drill` prints on the run, verbatim (measured on idp run
 #: 33165807800, 2026-08-28): the hydrate job's ready count and the k3s job's cost line.
-PORTABILITY_READY = re.compile(r"ok\s+portability\s+(ready \d+/\d+ layers[^\n\r|]*)")
+#:
+#: `ready \d+/\d+` and nothing more. This used to demand the literal word `layers`, and the drill
+#: stopped printing it -- run 33225061822 (2026-08-29) says `ready 9/42 (root-red 1 all named,
+#: cascaded 28, pending 4) on a cluster with no OCI (floor 9)`. The run was green, so the row
+#: rendered GREEN carrying `no ready count in the log`: the founder lost the one number CP4 exists
+#: to put in front of him, and nothing went red to say so. A grade line's PROSE is not the
+#: measurement -- pin the counter, let the words move.
+PORTABILITY_READY = re.compile(r"ok\s+portability\s+(ready \d+/\d+[^\n\r|]*)")
 PORTABILITY_K3S = re.compile(r"ok\s+portability-k3s\s+(provider=\S+ distro=\S+ wall_clock=\d+s cost=[^\n\r|]*)")
 
 
@@ -995,11 +1002,17 @@ def portability_row(runs: str, log: str, now: float | None = None,
     if not ready and not k3s:
         return [f"| portability | NOT RUN | {where} is green but its log holds no "
                 f"`ok portability` grade line |"]
+    #: Half a grade is not a grade. A row reading GREEN while it carries `no ready count in the
+    #: log` is the same proxy trap one number thinner -- the run's conclusion standing in for a
+    #: measurement -- and it is exactly how a wording change in the drill hid for a day (idp run
+    #: 33225061822, 2026-08-29). Name the half that is missing; do not colour it.
+    if not ready or not k3s:
+        missing = ("ready count (`ok portability ready N/M`)" if not ready
+                   else "cost line (`ok portability-k3s provider=... cost=...`)")
+        return [f"| portability | NOT RUN | {where} is green but its log holds no {missing} |"]
     colour = "RED" if age_h > stale_hours else "GREEN"
-    out = [f"| portability | {colour} | {ready.group(1).strip() if ready else 'no ready count in the log'} "
-           f"({where}) |"]
-    out.append("| &nbsp;&nbsp;second provider | | "
-               + (k3s.group(1).strip() if k3s else "no cost line in the log") + " |")
+    out = [f"| portability | {colour} | {ready.group(1).strip()} ({where}) |"]
+    out.append("| &nbsp;&nbsp;second provider | | " + k3s.group(1).strip() + " |")
     return out
 
 

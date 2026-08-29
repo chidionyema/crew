@@ -256,6 +256,11 @@ def main(argv: list[str]) -> int:
             print("FAIL", e)
         print(f"product-readiness: {len(g['rows'])} rows, {sum(r['status']=='BLIND' for r in g['rows'])} BLIND, {len(errs)} errors")
         return 1 if errs else 0
+    if g["date"] == "BLIND":
+        # No trusted clock: exit rather than replace yesterday's measured page with an unmeasured one
+        # (idp#623 served_now rule; crew#610 review).
+        print("BLIND product-readiness: no trusted clock, pages left as they were")
+        return 1
     (CREW / "docs/product/READINESS.md").write_text(render(g))
     (CREW / "docs/product/HORIZONS.md").write_text(render_horizons(g))
     print(render(g))

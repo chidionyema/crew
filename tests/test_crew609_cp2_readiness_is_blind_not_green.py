@@ -118,3 +118,13 @@ def test_check_refuses_an_estate_it_could_not_read(tmp_path):
     g = rd.grade(tmp_path / "nowhere", TODAY)
     assert all(r["status"] == "BLIND" for r in g["rows"])
     assert any(e.startswith("every row is BLIND") for e in rd.check(g))
+
+
+def test_no_clock_leaves_the_pages_untouched(tmp_path, monkeypatch):
+    monkeypatch.setattr(rd, "CREW", tmp_path)
+    (tmp_path / "docs/product").mkdir(parents=True)
+    page = tmp_path / "docs/product/READINESS.md"; page.write_text("yesterday, measured")
+    monkeypatch.setattr(rd, "authority_clock", lambda: None)
+    monkeypatch.setenv("ESTATE_ROOT", str(estate(tmp_path)))
+    assert rd.main([]) == 1
+    assert page.read_text() == "yesterday, measured"

@@ -94,6 +94,14 @@ Rules of the rollback:
 - Target time: phases 0–4 back in under 15 minutes of machine time; phase 5 within one Flux cycle per product. The measured time from the rehearsal goes in the PR body.
 - After a rollback the plan does not retry silently: the phase reopens on crew#568 with the reason the founder gave, and waits for `go`.
 
+## Soak — migrate, then run both ways before the old road closes
+
+Founder, 2026-08-29: "we will migrate and test for a few days." So every phase lands in two steps: **switch**, then **soak**, then **close**.
+- Switch: the new road is live and is the default; the old road still works (keys kept, files renamed not deleted, Claude Code still installed).
+- Soak: the lane runs real tickets on the new road. Every 12 hours of machine time the session posts on crew#568: calls and spend per lane from `router-spend`, tickets finished, rungs failed, and any time the old road was used and why. The founder's own use during the soak counts as the test; anything that annoys him is a row on the ticket the same hour.
+- Close: only the founder closes a soak, with `CLOSE <phase>` on crew#568; then the old road's keys and files are removed in a PR that names the soak's numbers. Until he says it, the rollback table above is one word away.
+- The soak for phases 1–4 runs together (one router, one Mac, one harness); phase 5 soaks per product.
+
 ## Order and effort
 0 → 1 → 2 and 3 in parallel → 4 → 5 → 6. Phases 0–3 are one session's work in machine hours; 5 is the only one that touches a product and lands one product per PR.
 

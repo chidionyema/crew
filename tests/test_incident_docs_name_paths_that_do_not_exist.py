@@ -66,6 +66,14 @@ def _tracked_markdown() -> list[str]:
     return sorted(set(out.split()))
 
 
+#: An absolute path is always a defect, and it is the one this guard nearly missed. `ROOT / t` for
+#: an absolute `t` is `t` itself, so `/Users/<someone>/dev/code/...` EXISTS on the machine that
+#: wrote it and does not exist anywhere else -- the check passed on the laptop and failed on the
+#: CI runner (crew#616, run 33228113856). LAW 46: a file never names where the checkout lives.
+_ABSOLUTE = "an absolute path names this machine (LAW 46) -- write it relative to the repo, or "\
+            "prefixed with the sibling repo: `hermes-v2/profiles/architect/MEMORY.md`"
+
+
 def _is_generated(rel: str) -> bool:
     """A path .gitignore covers is written by a run, so it is absent in a clean checkout and
     present after one. `science/foresight-state.json` is real; refusing it would be a guard that
@@ -84,6 +92,9 @@ def dead_paths() -> dict[str, list[str]]:
                 continue
             if t.startswith(("http", "//")) or "github.com/" in t:
                 continue                              # a URL that happens to end in .md
+            if t.startswith("/"):
+                dead.setdefault(doc, []).append(t)    # LAW 46, and see _ABSOLUTE below
+                continue
             if t.split("/")[0] in SIBLINGS:
                 continue                              # another repo; not checked out here
             if (ROOT / t).exists() or (p.parent / t).exists():
@@ -99,10 +110,24 @@ def test_no_doc_names_a_file_that_does_not_exist():
                    for doc, ts in dead_paths().items()}
     unexplained = {d: ts for d, ts in unexplained.items() if ts}
     assert not unexplained, (
-        "these docs name paths that resolve to nothing. Repoint the path (a cross-repo reference "
+        f"these docs name paths that resolve to nothing ({_ABSOLUTE}). Repoint the path (a cross-repo reference "
         "needs its repo prefix: `idp/drills/catalogue.yaml`, not `drills/catalogue.yaml`), delete "
         "the sentence, or add the path to ALLOWED with the reason it is legitimately absent:\n"
         + "\n".join(f"  {d}: {', '.join(ts)}" for d, ts in sorted(unexplained.items())))
+
+
+def test_no_doc_names_an_absolute_path():
+    """Graded separately because it is the case that got through.
+
+    A relative dead path fails everywhere. An absolute one passes on the machine that wrote it --
+    `ROOT / "/Users/x/..."` is `/Users/x/...`, which exists there -- and fails only on a runner.
+    crew#616 run 33228113856 caught four of them in AGENT-ONBOARDING.md after the local run said
+    4 passed. This assertion holds on the laptop too.
+    """
+    absolute = {doc: [t for t in ts if t.startswith("/")] for doc, ts in dead_paths().items()}
+    absolute = {d: ts for d, ts in absolute.items() if ts}
+    assert not absolute, f"{_ABSOLUTE}\n" + "\n".join(
+        f"  {d}: {', '.join(ts)}" for d, ts in sorted(absolute.items()))
 
 
 def test_the_allowlist_does_not_outlive_the_paths_it_excuses():

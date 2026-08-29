@@ -140,10 +140,10 @@ Add to `~/dev/code/crew/remedies/*.yaml`, then PR to crew board (no runtime deci
 
 ## Files Modified
 
-- ✓ `/Users/chidionyema/dev/code/hermes-v2/profiles/architect/USER.md`
-- ✓ `/Users/chidionyema/dev/code/hermes-v2/profiles/architect/MEMORY.md`
-- ✓ `/Users/chidionyema/dev/code/hermes-v2/profiles/maestro/USER.md`
-- ✓ `/Users/chidionyema/dev/code/hermes-v2/profiles/maestro/MEMORY.md`
+- ✓ `hermes-v2/profiles/architect/USER.md`
+- ✓ `hermes-v2/profiles/architect/MEMORY.md`
+- ✓ `hermes-v2/profiles/maestro/USER.md`
+- ✓ `hermes-v2/profiles/maestro/MEMORY.md`
 - ✓ Session memory updated (coordinator + agent architecture)
 
 ---

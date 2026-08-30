@@ -34,3 +34,6 @@ science/transcripts.db
 science/transcripts.db-shm
 science/transcripts.db-wal
 .dependencies.json
+
+# crew#659: Inspect eval logs are run artefacts; the ledger row names the file
+science/inspect-logs/

@@ -14,6 +14,7 @@ science/RESEARCH-LEDGER.jsonl at generation time, and the page prints the comman
 Paths are resolved from __file__ and printed repo-relative, never the checkout's absolute
 path (crew#403, the pattern in science/showcase.py rel()).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,6 +34,7 @@ FORESIGHT_STATE = SCIENCE / "foresight-state.json"
 FORESIGHT_BLOCKER = SCIENCE / "foresight-model.json"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
 PAGE = CREW / "docs" / "science" / "RESEARCH-GRADE.md"
+IDEA_WINDOW_DAYS = 1  # a scored idea per day, or the lane is GAP (crew#659 CP2)
 STALE_DAYS = 7
 
 
@@ -86,6 +88,14 @@ def grade(rows: list[dict], today: dt.date) -> dict:
             hours.append(0.0)
             day_only += 1
 
+    # crew#659 CP2: the lane is measured by ideas with a score, per day, not by questions fed.
+    ideas = [r for r in rows if r.get("kind") == "idea"]
+    scored = [r for r in ideas if isinstance(r.get("score"), int | float)]
+    cutoff = today - dt.timedelta(days=IDEA_WINDOW_DAYS)
+    fresh = [
+        r for r in scored if (_day(r, "decided_at") or _day(r, "date") or dt.date.min) > cutoff
+    ]
+
     sources = [len(r.get("sources") or []) for r in rows]
     stale = []
     for r in open_rows:
@@ -94,39 +104,67 @@ def grade(rows: list[dict], today: dt.date) -> dict:
             continue
         age = (today - asked).days
         if age > STALE_DAYS:
-            stale.append({"date": r["date"], "age_days": age, "ticket": r.get("ticket") or "-",
-                          "owner": r.get("owner") or "-", "question": r.get("question") or "-"})
+            stale.append(
+                {
+                    "date": r["date"],
+                    "age_days": age,
+                    "ticket": r.get("ticket") or "-",
+                    "owner": r.get("owner") or "-",
+                    "question": r.get("question") or "-",
+                }
+            )
     stale.sort(key=lambda s: -s["age_days"])
 
-    return {"questions": len(rows), "decisions_fed": len(fed), "open": len(open_rows),
-            "fed_pct": round(100 * len(fed) / len(rows)) if rows else None,
-            "median_hours_to_decision": round(statistics.median(hours), 1) if hours else None,
-            "day_only_rows": day_only,
-            "sources_total": sum(sources),
-            "sources_median": round(statistics.median(sources), 1) if sources else None,
-            "sources_min": min(sources) if sources else None,
-            "sources_max": max(sources) if sources else None,
-            "sourceless": sum(1 for n in sources if n == 0),
-            "stale": stale}
+    return {
+        "questions": len(rows),
+        "decisions_fed": len(fed),
+        "open": len(open_rows),
+        "fed_pct": round(100 * len(fed) / len(rows)) if rows else None,
+        "median_hours_to_decision": round(statistics.median(hours), 1) if hours else None,
+        "day_only_rows": day_only,
+        "sources_total": sum(sources),
+        "sources_median": round(statistics.median(sources), 1) if sources else None,
+        "sources_min": min(sources) if sources else None,
+        "sources_max": max(sources) if sources else None,
+        "sourceless": sum(1 for n in sources if n == 0),
+        "ideas": len(ideas),
+        "ideas_scored": len(scored),
+        "ideas_fresh": len(fresh),
+        "ideas_mean_score": round(sum(r["score"] for r in scored) / len(scored), 2)
+        if scored
+        else None,
+        "stale": stale,
+    }
 
 
 def foresight_row() -> tuple[str, str]:
     """(verdict, evidence) for the foresight model, read from what it actually wrote."""
     if FORESIGHT_STATE.exists():
         s = json.load(FORESIGHT_STATE.open())
-        return (f"TRAINED on {s.get('labelled_prs')} labelled PRs; holdout accuracy "
-                f"{s.get('holdout_accuracy')} vs base rate {s.get('holdout_base_rate')} "
-                f"({s.get('verdict')})", rel(FORESIGHT_STATE))
+        return (
+            f"TRAINED on {s.get('labelled_prs')} labelled PRs; holdout accuracy "
+            f"{s.get('holdout_accuracy')} vs base rate {s.get('holdout_base_rate')} "
+            f"({s.get('verdict')})",
+            rel(FORESIGHT_STATE),
+        )
     if FORESIGHT_BLOCKER.exists():
         b = json.load(FORESIGHT_BLOCKER.open())
         if b.get("status") == "TRAINED":
-            return (f"TRAINED on {b.get('rows_used')} labelled PRs; holdout accuracy "
-                    f"{b.get('holdout_accuracy')} vs base rate {b.get('holdout_base_rate')} "
-                    f"({b.get('verdict')})", rel(FORESIGHT_BLOCKER))
-        return (f"UNTRAINED: {b.get('blocker') or b.get('open_blocker') or 'no reason recorded'}",
-                rel(FORESIGHT_BLOCKER))
-    return (f"UNTRAINED: neither {rel(FORESIGHT_STATE)} nor {rel(FORESIGHT_BLOCKER)} on disk; "
-            "run `python3 science/foresight.py train`", "-")
+            return (
+                f"TRAINED on {b.get('rows_used')} labelled PRs; holdout accuracy "
+                f"{b.get('holdout_accuracy')} vs base rate {b.get('holdout_base_rate')} "
+                f"({b.get('verdict')})",
+                rel(FORESIGHT_BLOCKER),
+            )
+        return (
+            f"UNTRAINED: {b.get('blocker') or b.get('open_blocker') or 'no reason recorded'}",
+            rel(FORESIGHT_BLOCKER),
+        )
+    return (
+        f"UNTRAINED: neither {rel(FORESIGHT_STATE)} nor {rel(FORESIGHT_BLOCKER)} on disk; "
+        "run `python3 science/foresight.py train`",
+        "-",
+    )
 
 
 def inward() -> dict:
@@ -144,16 +182,24 @@ def inward() -> dict:
         recorded = len(mine)
         done = [r for r in mine if r.get("scored_at")]
         scored, hits = len(done), sum(1 for r in done if r.get("correct"))
-    return {"verdict": verdict, "evidence": evidence, "trained": trained, "recorded": recorded,
-            "scored": scored, "hits": hits,
-            "hit_rate": round(100 * hits / scored) if scored else None}
+    return {
+        "verdict": verdict,
+        "evidence": evidence,
+        "trained": trained,
+        "recorded": recorded,
+        "scored": scored,
+        "hits": hits,
+        "hit_rate": round(100 * hits / scored) if scored else None,
+    }
 
 
 def intake(now: dt.datetime | None = None) -> dict:
     """The scheduled outward intake (crew#508 CP8), graded by research_intake.grade."""
     now = now or dt.datetime.now(dt.UTC)
     sources = research_intake.watched() if research_intake.SOURCES.exists() else []
-    state = json.loads(research_intake.STATE.read_text()) if research_intake.STATE.exists() else None
+    state = (
+        json.loads(research_intake.STATE.read_text()) if research_intake.STATE.exists() else None
+    )
     return research_intake.grade(research_intake.read_rows(), state, sources, now)
 
 
@@ -165,7 +211,11 @@ def grades(g: dict, inw: dict, ink: dict | None = None) -> tuple[str, str]:
     ink = ink or {"fresh": True, "late": []}
     if not g["questions"]:
         out_g = "BLIND"
-    elif g["stale"] or g["sourceless"] or not ink["fresh"] or ink["late"]:
+    elif (
+        g["stale"] or g["sourceless"] or not ink["fresh"] or ink["late"] or not g.get("ideas_fresh")
+    ):
+        # crew#659 CP2, founder 2026-08-30: "if no progress then I have to run the lane myself".
+        # Progress is a scored idea on the ledger inside the window; ELITE with none is silent green.
         out_g = "GAP"
     else:
         out_g = "ELITE"
@@ -187,8 +237,11 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
     out = ["# Research capability, graded", ""]
     blind = [name for name, grade_ in (("Outward", out_g), ("Inward", in_g)) if grade_ == "BLIND"]
     if blind:
-        out += [f"**BLIND: {', '.join(blind)} cannot see its source.** "
-                "A block that cannot read its store prints this line and nothing it says below is a number.", ""]
+        out += [
+            f"**BLIND: {', '.join(blind)} cannot see its source.** "
+            "A block that cannot read its store prints this line and nothing it says below is a number.",
+            "",
+        ]
     out += [
         f"Generated {today.isoformat()} by `python3 science/research_grade.py`. Two directions, "
         "graded separately (R37): **Outward** is what the estate learned from the world, "
@@ -198,7 +251,8 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         "|---|---|---|",
         f"| Outward | **{out_g}** | {g['decisions_fed']} of {g['questions']} questions fed a "
         f"decision; {len(g['stale'])} stale, {g['sourceless']} with no source; intake "
-        f"{'fresh' if ink['fresh'] else 'RED'}, {ink['candidates']} candidates ({len(ink['late'])} late). |",
+        f"{'fresh' if ink['fresh'] else 'RED'}, {ink['candidates']} candidates ({len(ink['late'])} late); "
+        f"ideas: {g['ideas_fresh']} scored in {IDEA_WINDOW_DAYS}d of {g['ideas']} ever. |",
         f"| Inward | **{in_g}** | foresight {'trained' if inw['trained'] else 'untrained'}; "
         f"{inw['scored']} of {inw['recorded']} predictions scored. |",
         "",
@@ -218,18 +272,45 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         "",
     ]
     if g["day_only_rows"]:
-        out += [f"{g['day_only_rows']} of {g['decisions_fed']} fed rows record only a day, not a "
-                "timestamp, so they count as 0h. The median is a floor, not a measurement, until "
-                "the ledger carries `asked_at` and `decided_at`.", ""]
-    out += [f"### Stale questions (>{STALE_DAYS} days, no decision fed)", ""]
+        out += [
+            f"{g['day_only_rows']} of {g['decisions_fed']} fed rows record only a day, not a "
+            "timestamp, so they count as 0h. The median is a floor, not a measurement, until "
+            "the ledger carries `asked_at` and `decided_at`.",
+            "",
+        ]
+    out += [
+        "## Outward — ideas for the store front (crew#659)",
+        "",
+        "Source: rows with `kind: idea` on the ledger, written only by `science/research_worker.py`, "
+        "each graded by Inspect before it is written. The founder's measure (2026-08-30): scored "
+        "ideas per day above zero, or the lane is GAP whatever else it says.",
+        "",
+        "| What | Value | How it is counted |",
+        "|---|---|---|",
+        f"| Ideas on the ledger | {g['ideas']} | rows with `kind == idea` |",
+        f"| Ideas with a score | {g['ideas_scored']} | rows carrying a numeric `score` (Inspect model_graded_qa) |",
+        f"| Scored in the last {IDEA_WINDOW_DAYS}d | {g['ideas_fresh']}{'' if g['ideas_fresh'] else ' (RED: no progress)'} "
+        f"| `decided_at` inside the window |",
+        f"| Mean score | {'n/a' if g['ideas_mean_score'] is None else g['ideas_mean_score']} | C=1, P=0.5, I=0 |",
+        "",
+        f"### Stale questions (>{STALE_DAYS} days, no decision fed)",
+        "",
+    ]
     if not g["stale"]:
         out += [f"None. Every open question is under {STALE_DAYS} days old.", ""]
     else:
         out += ["| Age | Asked | Ticket | Owner | Question |", "|---|---|---|---|---|"]
-        out += [f"| RED {s['age_days']}d | {s['date']} | {s['ticket']} | {s['owner']} | "
-                f"{s['question'][:120]} |" for s in g["stale"]]
-        out += ["", f"A red row is research that cost tokens and fed nothing. {len(g['stale'])} of "
-                    f"{g['questions']} questions are in this state.", ""]
+        out += [
+            f"| RED {s['age_days']}d | {s['date']} | {s['ticket']} | {s['owner']} | "
+            f"{s['question'][:120]} |"
+            for s in g["stale"]
+        ]
+        out += [
+            "",
+            f"A red row is research that cost tokens and fed nothing. {len(g['stale'])} of "
+            f"{g['questions']} questions are in this state.",
+            "",
+        ]
     out += [research_intake.render(ink, research_intake.read_rows()), ""]
     out += [
         "## Inward — what the estate knows about itself",
@@ -242,21 +323,33 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         f"| Hit rate | {'n/a, nothing scored' if inw['hit_rate'] is None else str(inw['hit_rate']) + '%'} "
         f"| {inw['hits']} correct of {inw['scored']} scored |",
         "",
-        "## Re-run this page", "",
-        "```", "python3 science/research_grade.py --print   # the page, written nowhere",
-        "python3 science/research_grade.py --check   # exit 1 when a question is stale", "```", ""]
+        "## Re-run this page",
+        "",
+        "```",
+        "python3 science/research_grade.py --print   # the page, written nowhere",
+        "python3 science/research_grade.py --check   # exit 1 when a question is stale",
+        "```",
+        "",
+    ]
     return "\n".join(out)
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--ledger", type=pathlib.Path, default=LEDGER)
     ap.add_argument("--out", type=pathlib.Path, default=PAGE)
-    ap.add_argument("--print", dest="show", action="store_true", help="write nothing, print the page")
+    ap.add_argument(
+        "--print", dest="show", action="store_true", help="write nothing, print the page"
+    )
     ap.add_argument("--check", action="store_true", help="exit 1 when any question is stale")
-    ap.add_argument("--today", type=dt.date.fromisoformat, default=None,
-                    help="grade as of this date (tests); default: now, UTC")
+    ap.add_argument(
+        "--today",
+        type=dt.date.fromisoformat,
+        default=None,
+        help="grade as of this date (tests); default: now, UTC",
+    )
     args = ap.parse_args(argv)
 
     rows = read_ledger(args.ledger)
@@ -271,11 +364,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(page)
-        print(f"{rel(args.out)}: {g['questions']} questions, {g['decisions_fed']} fed, "
-              f"{len(g['stale'])} stale")
+        print(
+            f"{rel(args.out)}: {g['questions']} questions, {g['decisions_fed']} fed, "
+            f"{len(g['stale'])} stale"
+        )
     if args.check and g["stale"]:
-        print(f"STALE: {len(g['stale'])} question(s) over {STALE_DAYS} days with no decision",
-              file=sys.stderr)
+        print(
+            f"STALE: {len(g['stale'])} question(s) over {STALE_DAYS} days with no decision",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

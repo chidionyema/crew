@@ -124,6 +124,11 @@ def require_frontier(lane: str, role: str) -> str:
 #: 2026-08-30 05:3xZ every `claude` and `gemini` call came back as MiniMax-M2 because both vendor
 #: accounts were empty. A frontier lane that answers from another vendor is not a frontier lane.
 NO_FALLBACK = {"fallbacks": []}
+#: The probe asks for as many tokens as gpt-researcher's largest single call (its default
+#: SMART_TOKEN_LIMIT is 4000). OpenRouter refuses up front with 402 when the account cannot afford
+#: `max_tokens`, so a 1-token probe passed at 05:5xZ on 2026-08-30 and the run then died on
+#: "can only afford 2272" nine retries later. Asking for 4096 and generating two costs nothing more.
+PROBE_MAX_TOKENS = 4096
 
 
 def probe_lane(lane: str, role: str, ask=None) -> str:
@@ -138,8 +143,8 @@ def probe_lane(lane: str, role: str, ask=None) -> str:
             client = OpenAI(base_url=f"{url}/v1", api_key=key)
             out = client.chat.completions.create(
                 model=lane,
-                max_tokens=1,
-                messages=[{"role": "user", "content": "ok"}],
+                max_tokens=PROBE_MAX_TOKENS,
+                messages=[{"role": "user", "content": "Reply with the single word ok."}],
                 extra_body=NO_FALLBACK,
             )
             return out.model or lane

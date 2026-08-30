@@ -39,3 +39,12 @@ def test_every_router_call_the_worker_makes_has_fallbacks_off():
         "vendor is the incident"
     )
     assert rw.NO_FALLBACK == {"fallbacks": []}
+
+
+def test_the_probe_asks_for_a_real_run_worth_of_tokens_so_an_empty_balance_shows_up_front():
+    """2026-08-30 05:5xZ: the 1-token probe passed on OpenRouter and the run died nine retries
+    later on `402 ... You requested up to 4000 tokens, but can only afford 2272`."""
+    import inspect
+
+    assert rw.PROBE_MAX_TOKENS >= 4000
+    assert "max_tokens=PROBE_MAX_TOKENS" in inspect.getsource(rw.probe_lane)

@@ -165,7 +165,7 @@ def test_an_unscored_idea_never_reaches_the_ledger(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "worker,grader", [("minimax", "gemini"), ("claude", "groq"), ("deepseek", "deepseek")]
+    "worker,grader", [("ollama", "gemini"), ("claude", "deepseek"), ("deepseek", "deepseek")]
 )
 def test_a_non_frontier_lane_is_refused_before_any_call(tmp_path, worker, grader):
     with pytest.raises(research_worker.Refused, match="not a frontier lane"):
@@ -199,3 +199,12 @@ def test_configure_points_every_model_at_the_router_and_never_prints_the_key(mon
 def test_parse_ideas_refuses_an_idea_missing_a_field():
     with pytest.raises(research_worker.Refused, match="has no price_hypothesis"):
         research_worker.parse_ideas('[{"title": "t", "claim": "c", "sources": ["u"]}]')
+
+
+def test_the_funded_paid_lanes_are_allowed_while_the_frontier_accounts_are_empty():
+    """2026-08-30 06:2xZ: all three frontier accounts refused on credit; minimax, minimax_m27 and
+    groq answered a 4096-token call with fallbacks off. Founder: "we have work to do"."""
+    assert {"minimax", "minimax_m27", "groq"} <= research_worker.FRONTIER_LANES
+    assert "deepseek" not in research_worker.FRONTIER_LANES  # "Insufficient Balance" that morning
+    for lane in ("minimax", "groq"):
+        assert research_worker.require_frontier(lane, "worker") == lane

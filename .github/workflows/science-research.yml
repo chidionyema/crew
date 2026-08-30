@@ -13,10 +13,10 @@ on:
         default: ""
       worker:
         description: "router lane that researches"
-        default: "minimax"
+        default: "claude"
       grader:
         description: "router lane that grades (a different one)"
-        default: "groq"
+        default: "claude-fast"
 permissions:
   contents: read
 concurrency:

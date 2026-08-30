@@ -121,8 +121,8 @@ def main(argv: list[str] | None = None) -> int:
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--row", type=int, default=0, help="index into science/RESEARCH-INTAKE.jsonl")
     g.add_argument("--question")
-    ap.add_argument("--worker", default=os.environ.get("RESEARCH_WORKER_LANE", "minimax"))
-    ap.add_argument("--grader", default=os.environ.get("RESEARCH_GRADER_LANE", "groq"))
+    ap.add_argument("--worker", default=os.environ.get("RESEARCH_WORKER_LANE", "claude"))
+    ap.add_argument("--grader", default=os.environ.get("RESEARCH_GRADER_LANE", "claude-fast"))
     ap.add_argument("--out", type=pathlib.Path, default=pathlib.Path("research-run"))
     a = ap.parse_args(argv)
     run_id = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]

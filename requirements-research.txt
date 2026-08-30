@@ -6,7 +6,6 @@
 # (FAST_LLM/SMART_LLM/STRATEGIC_LLM/EMBEDDING "openai:<lane>", model_graded_qa) is pinned by
 # tests/test_incident_crew659_ideas_are_scored_or_the_lane_is_gap.py.
 gpt-researcher>=0.15
-inspect-ai>=0.3.200
-openai>=1
+openai>=2.45,<3   # litellm pins <3; the grader (Inspect, openai>=3.1) lives in requirements-grade.txt
 ddgs>=9.16.0   # gpt-researcher duckduckgo retriever imports it and refuses without it (first live run, 2026-08-30)
-ddgs>=9.16.0   # gpt-researcher duckduckgo retriever imports it and refuses without it (first live run, 2026-08-30)
+litellm>=1.84.0   # pip-audit: 1.83.0 carries 11 known vulnerabilities (crew#712 security-scan run 33305374523)

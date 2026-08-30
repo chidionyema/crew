@@ -13,14 +13,16 @@ on:
         default: ""
       worker:
         description: "router lane that researches"
-        default: "minimax"
+        default: "claude"
       grader:
         description: "router lane that grades (a different one)"
-        default: "groq"
+        default: "claude-fast"
 permissions:
   contents: read
+# One group per row, so five rows on five topics run side by side (founder 2026-08-30:
+# "any reason the engine ... cant kick of 5 concurrent runs"); the same row twice still queues.
 concurrency:
-  group: science-research
+  group: science-research-row-${{ inputs.row }}-${{ inputs.question }}
   cancel-in-progress: false
 jobs:
   research:
@@ -31,11 +33,14 @@ jobs:
       - uses: actions/setup-python@v7
         with: { python-version: "3.11" }
       - name: install the worker, the grader and the record
-        run: pip install -q -r requirements-research.txt mlflow-skinny>=2.20
+        run: |
+          pip install -q -r requirements-research.txt mlflow-skinny>=2.20
+          python3 -m venv "$RUNNER_TEMP/grade" && "$RUNNER_TEMP/grade/bin/pip" install -q -r requirements-grade.txt
       - name: one graded report
         env:
           ROUTER_KEY: ${{ secrets.SCIENCE_ROUTER_KEY }}
           ESTATE_ZONE: ${{ vars.ESTATE_ZONE }}
+          RESEARCH_GRADER_PYTHON: ${{ runner.temp }}/grade/bin/python
         run: |
           set -euo pipefail
           if [ -n "${{ inputs.question }}" ]; then

@@ -48,3 +48,41 @@ def test_a_failed_grade_drops_the_report(tmp_path, monkeypatch):
     monkeypatch.setattr(research_run, "grade", lambda *a, **k: 1.0)
     rc = research_run.main(["--question", "q", "--out", str(out)])
     assert rc == 0 and (out / "report.md").read_text().startswith("# q")
+
+
+def test_the_default_lanes_are_on_a_key_that_also_carries_embed(monkeypatch):
+    """Run 33304930630: worker minimax on a key with no embed row -> GPT Researcher's context
+    compression 403s and the report is hollow. The defaults are the frontier lanes the science
+    router key carries beside embed (idp vault-seed.yml, science entry); the workflow says the same."""
+    monkeypatch.delenv("RESEARCH_WORKER_LANE", raising=False)
+    monkeypatch.delenv("RESEARCH_GRADER_LANE", raising=False)
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "science-research.yml").read_text())
+    inputs = wf[True]["workflow_dispatch"]["inputs"]
+    src = (ROOT / "science" / "research_run.py").read_text()
+    assert inputs["worker"]["default"] == "claude" and '"RESEARCH_WORKER_LANE", "claude"' in src
+    assert (
+        inputs["grader"]["default"] == "claude-fast"
+        and '"RESEARCH_GRADER_LANE", "claude-fast"' in src
+    )
+    req = (ROOT / "requirements-research.txt").read_text()
+    assert "openai>=2.45,<3" in req and "inspect-ai" not in req, (
+        "litellm needs openai<3 (run 33305540921)"
+    )
+    grade_req = (ROOT / "requirements-grade.txt").read_text()
+    assert "inspect-ai" in grade_req and "openai>=3.1" in grade_req, (
+        "Inspect needs openai>=3.1 (run 33304930630)"
+    )
+    run = next(s for s in wf["jobs"]["research"]["steps"] if s.get("name") == "one graded report")
+    assert "RESEARCH_GRADER_PYTHON" in run["env"], "the grader runs in its own interpreter"
+    assert "requirements-grade.txt" in yaml.dump(wf)
+    assert "litellm>=1.84" in req, (
+        "pip-audit: litellm 1.83.0 carries 11 known vulnerabilities (run 33305374523)"
+    )
+
+
+def test_five_rows_run_side_by_side_because_the_concurrency_group_is_per_row():
+    """Founder 2026-08-30: five concurrent research runs on five topics. One shared group
+    would queue them one after another."""
+    wf = (ROOT / ".github" / "workflows" / "science-research.yml").read_text()
+    group = next(line for line in wf.splitlines() if line.strip().startswith("group:"))
+    assert "inputs.row" in group, group

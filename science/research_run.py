@@ -19,7 +19,6 @@ Tailscale resolver); the runner is the place, and that is the point of the workf
 # Standard: docs/STANDARDS.md rows "Experiments" (MLflow) and "Agent traces" (Langfuse via the router).
 # Deviation: none -- worker, grader and store are all the named rows.
 
-
 from __future__ import annotations
 
 import argparse
@@ -28,6 +27,7 @@ import datetime as dt
 import json
 import os
 import pathlib
+import subprocess
 import sys
 import uuid
 
@@ -62,42 +62,24 @@ def research(question: str, run_id: str) -> dict:
 
 
 def grade(question: str, report: str, lane: str, run_id: str, log_dir: pathlib.Path) -> float:
-    """Inspect model_graded_qa over the one report. Returns the score in [0, 1]."""
-    from inspect_ai import Task
-    from inspect_ai import eval as inspect_eval
-    from inspect_ai.dataset import Sample
-    from inspect_ai.model import GenerateConfig, get_model
-    from inspect_ai.scorer import model_graded_qa
-    from inspect_ai.solver import generate
+    """Inspect model_graded_qa over the one report, in the grader's own interpreter. Returns [0, 1].
 
-    grader = get_model(
-        f"openai/{lane}", config=GenerateConfig(extra_body={"litellm_trace_id": run_id})
+    Inspect's openai provider demands openai>=3.1 and litellm (GPT Researcher's dependency) demands
+    openai<3 (crew#712, runs 33304930630 and 33305540921), so the two cannot share one environment:
+    RESEARCH_GRADER_PYTHON names the interpreter that holds requirements-grade.txt; the default is
+    this one, for a machine that installed both by hand."""
+    py = os.environ.get("RESEARCH_GRADER_PYTHON", sys.executable)
+    grader = pathlib.Path(__file__).with_name("research_inspect_grade.py")
+    r = subprocess.run(
+        [py, str(grader), "--lane", lane, "--run-id", run_id, "--log-dir", str(log_dir)],
+        input=json.dumps({"question": question, "report": report}),
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    task = Task(
-        dataset=[
-            Sample(
-                input=f"Question: {question}\n\nReport:\n{report}",
-                target=(
-                    "A report that answers the question directly, cites at least three real "
-                    "sources by URL, separates what changed from what it means for the reader, "
-                    "and states a recommendation with its conditions."
-                ),
-            )
-        ],
-        solver=[generate()],
-        scorer=model_graded_qa(
-            model=grader,
-            partial_credit=True,
-            instructions=(
-                "Grade the Report against the Criterion. Answer with GRADE: C when it meets "
-                "every part, GRADE: P when it meets most, GRADE: I when it does not."
-            ),
-        ),
-    )
-    (log,) = inspect_eval(task, model=grader, log_dir=str(log_dir), display="none")
-    if log.status != "success" or not log.results:
-        raise rw.Refused(f"inspect eval {log.status}: {log.error}")
-    return float(log.results.scores[0].metrics["accuracy"].value)
+    if r.returncode != 0:
+        raise rw.Refused(f"inspect grade failed: {r.stderr.strip()[-400:]}")
+    return float(json.loads(r.stdout.strip().splitlines()[-1])["score"])
 
 
 def record(
@@ -121,8 +103,8 @@ def main(argv: list[str] | None = None) -> int:
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--row", type=int, default=0, help="index into science/RESEARCH-INTAKE.jsonl")
     g.add_argument("--question")
-    ap.add_argument("--worker", default=os.environ.get("RESEARCH_WORKER_LANE", "minimax"))
-    ap.add_argument("--grader", default=os.environ.get("RESEARCH_GRADER_LANE", "groq"))
+    ap.add_argument("--worker", default=os.environ.get("RESEARCH_WORKER_LANE", "claude"))
+    ap.add_argument("--grader", default=os.environ.get("RESEARCH_GRADER_LANE", "claude-fast"))
     ap.add_argument("--out", type=pathlib.Path, default=pathlib.Path("research-run"))
     a = ap.parse_args(argv)
     run_id = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]

@@ -13,6 +13,12 @@ Exit 0 with `ok research-run ... inspect <score> ... langfuse trace <id>`; exit 
 workflow attaches both as the run artefact. Runs from the Mac fail on search (crew#659: the
 Tailscale resolver); the runner is the place, and that is the point of the workflow.
 """
+# Rejected: GPT Researcher's own CLI/REST server (gptr.dev) -- it can run the research but it cannot
+#   score the report with Inspect, drop a failed one, or log the run to MLflow; this file is only
+#   that glue around the library, no research logic of its own.
+# Standard: docs/STANDARDS.md rows "Experiments" (MLflow) and "Agent traces" (Langfuse via the router).
+# Deviation: none -- worker, grader and store are all the named rows.
+
 
 from __future__ import annotations
 

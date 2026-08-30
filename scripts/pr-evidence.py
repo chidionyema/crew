@@ -1332,8 +1332,9 @@ def selftest_generated_block() -> int:
     check_one("markers with no run url name no run",
               generated_evidence(GEN_START + "\n" + fence + GEN_END), (None, 0))
     check_one("claims are counted", len(VERIFY_LINE.findall("Verify: `a`\nVerify: `b c`\nx")), 2)
+    m = re.search(r"github\.com/([^/]+/[^/]+)/pull/", "https://github.com/o/r/pull/9")
     check_one("repo is read off the pull request url when --repo is absent",
-              re.search(r"github\.com/([^/]+/[^/]+)/pull/", "https://github.com/o/r/pull/9").group(1), "o/r")
+              m.group(1) if m else None, "o/r")
     print(f"selftest-generated-block: {len(ran) - len(fails)}/{len(ran)} ok")
     return 1 if fails else 0
 

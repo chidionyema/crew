@@ -1,8 +1,8 @@
 {
  "domains": {
-  "mac": 542,
+  "mac": 570,
   "cluster": 280,
-  "cluster_live": 177,
+  "cluster_live": 178,
   "endpoint": 8,
   "hook": 32,
   "mcp": 3,

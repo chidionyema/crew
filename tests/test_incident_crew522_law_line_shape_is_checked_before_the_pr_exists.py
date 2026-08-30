@@ -60,4 +60,4 @@ def test_no_section_is_refused_not_ignored():
 def test_check_wires_the_verdict_in():
     src = (Path(__file__).resolve().parents[1] / "scripts" / "pr-evidence.py").read_text()
     assert "ok_laws, why_laws = architecture_laws(body)" in src
-    assert "{why_dod}, {why_laws}, {why_acc};" in src
+    assert "{why_dod}, {why_laws}, {why_acc}, {why_inc};" in src

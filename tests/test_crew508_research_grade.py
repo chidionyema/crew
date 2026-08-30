@@ -100,6 +100,7 @@ def test_grades_call_a_blind_block_blind():
     blind = rg.grades({"questions": 0, "stale": [], "sourceless": 0},
                       {"trained": False, "evidence": "-", "scored": 0})
     assert blind == ("BLIND", "BLIND")
-    elite = rg.grades({"questions": 5, "stale": [], "sourceless": 0},
+    # crew#659 CP2: a lane with no idea scored in the last day is GAP, however good its questions.
+    elite = rg.grades({"questions": 5, "stale": [], "sourceless": 0, "ideas_fresh": 1},
                       {"trained": True, "evidence": "science/foresight-state.json", "scored": 4})
     assert elite == ("ELITE", "ELITE")

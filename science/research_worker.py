@@ -120,11 +120,45 @@ def require_frontier(lane: str, role: str) -> str:
     return lane
 
 
+#: The router walks a dead frontier lane to a fallback (claude -> minimax) and answers 200; on
+#: 2026-08-30 05:3xZ every `claude` and `gemini` call came back as MiniMax-M2 because both vendor
+#: accounts were empty. A frontier lane that answers from another vendor is not a frontier lane.
+NO_FALLBACK = {"fallbacks": []}
+
+
+def probe_lane(lane: str, role: str, ask=None) -> str:
+    """One tiny call with fallbacks off. Returns the upstream model that answered, or raises
+    Refused carrying the vendor's own words (an empty account is a founder action, not a retry)."""
+    if ask is None:
+
+        def ask(lane: str) -> str:
+            from openai import OpenAI
+
+            url, key = router()
+            client = OpenAI(base_url=f"{url}/v1", api_key=key)
+            out = client.chat.completions.create(
+                model=lane,
+                max_tokens=1,
+                messages=[{"role": "user", "content": "ok"}],
+                extra_body=NO_FALLBACK,
+            )
+            return out.model or lane
+
+    try:
+        return ask(lane)
+    except Exception as e:
+        raise Refused(
+            f"{role} lane {lane!r} does not answer from its own vendor: {str(e)[:300]}"
+        ) from e
+
+
 def configure(worker: str, grader: str) -> dict:
     """The environment gpt-researcher and Inspect read. Returns what was set (values redacted)."""
     url, key = router()
     require_frontier(worker, "worker")
     require_frontier(grader, "grader")
+    probe_lane(worker, "worker")
+    probe_lane(grader, "grader")
     env = {
         "OPENAI_BASE_URL": f"{url}/v1",
         "OPENAI_API_KEY": key,
@@ -167,6 +201,7 @@ def _chat(lane: str, system: str, user: str) -> str:
         model=lane,
         temperature=0.2,
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        extra_body=NO_FALLBACK,
     )
     return out.choices[0].message.content or ""
 

@@ -189,6 +189,7 @@ def test_configure_points_every_model_at_the_router_and_never_prints_the_key(mon
     key.write_text("router-virtual-key\n")
     monkeypatch.setenv("ROUTER_URL", "https://router.example")
     monkeypatch.setenv("ROUTER_KEY_FILE", str(key))
+    monkeypatch.setattr(research_worker, "probe_lane", lambda lane, role, ask=None: lane)
     shown = research_worker.configure("claude", "gemini")
     assert shown["OPENAI_BASE_URL"] == "https://router.example/v1"
     assert shown["OPENAI_API_KEY"] == "<redacted>" and "router-virtual-key" not in json.dumps(shown)

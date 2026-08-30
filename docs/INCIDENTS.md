@@ -20,9 +20,9 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 
 GENERATED from `incidents/GUARDS.jsonl` by `scripts/incident-backfill`: one row per `tests/test_incident_*` file in the estate.
 Each one is an incident somebody paid for before this ledger existed; the class is a keyword read of the file name, so
-**306 of 454 are unclassified** until a person or the science lane names the class (crew#668 CP3).
+**306 of 455 are unclassified** until a person or the science lane names the class (crew#668 CP3).
 
-- Guards: **crew 100, hermes-v2 19, idp 335**, 454 in all
+- Guards: **crew 101, hermes-v2 19, idp 335**, 455 in all
 - Tickets with a guard: 129
 
 ### Classes, by how many guards they needed
@@ -30,7 +30,7 @@ Each one is an incident somebody paid for before this ledger existed; the class 
 | Class | Means | Guards |
 |---|---|---|
 | unclassified | not read from the file name yet | 306 |
-| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 46 |
+| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 47 |
 | instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | 25 |
 | secret-in-chat | a credential in a message, transcript or log (R49) | 24 |
 | single-point-of-failure | one machine, provider, account or person held the whole path | 12 |

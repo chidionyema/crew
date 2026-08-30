@@ -13,7 +13,7 @@ BACKFILL = ROOT / "scripts" / "incident-backfill"
 
 def run(*args, cwd=ROOT):
     return subprocess.run(
-        [sys.executable, str(REPORT), *args], cwd=cwd, capture_output=True, text=True
+        [sys.executable, str(REPORT), *args], cwd=cwd, capture_output=True, text=True, check=False
     )
 
 
@@ -24,6 +24,7 @@ def test_the_committed_guards_file_is_what_the_backfill_generates_from_this_repo
         cwd=ROOT,
         capture_output=True,
         text=True,
+        check=False,
     )
     assert r.returncode == 0, r.stderr
     mine = [json.loads(line) for line in out.read_text().splitlines()]

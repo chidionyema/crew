@@ -96,7 +96,7 @@ def rows_for(name: str, repo: Path) -> list[dict]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     ap.add_argument("--repo", action="append", required=True, help="NAME=PATH, repeatable")
     ap.add_argument("--out", default="incidents/GUARDS.jsonl")
     a = ap.parse_args()

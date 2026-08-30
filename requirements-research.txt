@@ -8,3 +8,5 @@
 gpt-researcher>=0.15
 inspect-ai>=0.3.200
 openai>=1
+ddgs>=9.16.0   # gpt-researcher duckduckgo retriever imports it and refuses without it (first live run, 2026-08-30)
+ddgs>=9.16.0   # gpt-researcher duckduckgo retriever imports it and refuses without it (first live run, 2026-08-30)

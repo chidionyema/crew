@@ -131,7 +131,7 @@ def probe_lane(lane: str, role: str, ask=None) -> str:
     Refused carrying the vendor's own words (an empty account is a founder action, not a retry)."""
     if ask is None:
 
-        def ask(lane: str) -> str:
+        def _ask(lane: str) -> str:
             from openai import OpenAI
 
             url, key = router()
@@ -143,6 +143,8 @@ def probe_lane(lane: str, role: str, ask=None) -> str:
                 extra_body=NO_FALLBACK,
             )
             return out.model or lane
+
+        ask = _ask
 
     try:
         return ask(lane)

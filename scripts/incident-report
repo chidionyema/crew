@@ -35,6 +35,9 @@ CLASSES = {
     "founder-repeat": "the founder had to say something again (R2)",
     "single-point-of-failure": "one machine, provider, account or person held the whole path",
 }
+GUARDS = Path("incidents/GUARDS.jsonl")
+GUARD_NEEDS = ("repo", "guard", "title", "class", "first_commit", "guarded_at")
+
 NEEDS = (
     "id",
     "title",
@@ -68,7 +71,67 @@ def cell(s: object) -> str:
     return str(s).replace("|", "\\|").replace("\n", " ")
 
 
-def render(led: list[dict], bad: dict[str, list[str]]) -> str:
+def guard_faults(g: dict) -> list[str]:
+    """A backfilled guard row must at least say where it is, when it landed and what class it is."""
+    out = [f"missing {k}" for k in GUARD_NEEDS if not g.get(k)]
+    if g.get("class") and g["class"] not in CLASSES and g["class"] != "unclassified":
+        out.append(f"unknown class {g['class']}")
+    return out
+
+
+def render_guards(guards: list[dict]) -> list[str]:
+    """crew#668 CP2: the retroactive audit. Every test_incident_* guard is an incident already paid
+    for; this ranks the tickets and classes that keep producing them."""
+    if not guards:
+        return []
+    by_repo: dict[str, int] = {}
+    by_class: dict[str, int] = {}
+    by_ticket: dict[str, int] = {}
+    for g in guards:
+        by_repo[g["repo"]] = by_repo.get(g["repo"], 0) + 1
+        by_class[g["class"]] = by_class.get(g["class"], 0) + 1
+        if g.get("ticket"):
+            by_ticket[g["ticket"]] = by_ticket.get(g["ticket"], 0) + 1
+    unclassified = by_class.get("unclassified", 0)
+    lines = [
+        "## The guards already on record (retroactive audit)",
+        "",
+        "GENERATED from `incidents/GUARDS.jsonl` by `scripts/incident-backfill`: one row per `tests/test_incident_*` file in the estate.",
+        "Each one is an incident somebody paid for before this ledger existed; the class is a keyword read of the file name, so",
+        f"**{unclassified} of {len(guards)} are unclassified** until a person or the science lane names the class (crew#668 CP3).",
+        "",
+        "- Guards: **"
+        + ", ".join(f"{k} {v}" for k, v in sorted(by_repo.items()))
+        + f"**, {len(guards)} in all",
+        f"- Tickets with a guard: {len(by_ticket)}",
+        "",
+        "### Classes, by how many guards they needed",
+        "",
+        "| Class | Means | Guards |",
+        "|---|---|---|",
+    ]
+    for c, n in sorted(by_class.items(), key=lambda kv: -kv[1]):
+        means = (
+            "not read from the file name yet"
+            if c == "unclassified"
+            else CLASSES.get(c, "**unknown class**")
+        )
+        lines.append(f"| {c} | {cell(means)} | {n} |")
+    lines += [
+        "",
+        "### Tickets that kept producing guards (repeat offenders)",
+        "",
+        "| Ticket | Guards | Repos |",
+        "|---|---|---|",
+    ]
+    for t, n in sorted(by_ticket.items(), key=lambda kv: -kv[1])[:15]:
+        repos = sorted({g["repo"] for g in guards if g.get("ticket") == t})
+        lines.append(f"| {t} | {n} | {', '.join(repos)} |")
+    lines.append("")
+    return lines
+
+
+def render(led: list[dict], bad: dict[str, list[str]], guards: list[dict] | None = None) -> str:
     open_rows = [r for r in led if not r.get("resolved")]
     by_class: dict[str, list[dict]] = {}
     for r in led:
@@ -100,7 +163,8 @@ def render(led: list[dict], bad: dict[str, list[str]]) -> str:
         lines.append(
             f"| {c} | {cell(CLASSES.get(c, '**unknown class**'))} | {', '.join(r['id'] for r in rs)} | {hours:g} | {guarded} |"
         )
-    lines += ["", "## Incidents, newest first", ""]
+    lines += ["", *render_guards(guards or [])]
+    lines += ["## Incidents, newest first", ""]
     for r in sorted(led, key=lambda r: r["detected"], reverse=True):
         state = "open" if not r.get("resolved") else f"resolved {r['resolved']}"
         lines += [
@@ -128,20 +192,27 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--ledger", type=Path, default=LEDGER)
     ap.add_argument("--out", type=Path, default=PAGE)
+    ap.add_argument("--guards", type=Path, default=GUARDS)
     a = ap.parse_args(argv)
     led = rows(a.ledger)
+    guards = rows(a.guards) if a.guards.exists() else []
+    gbad = [f"{g.get('guard', '?')}: {'; '.join(f)}" for g in guards if (f := guard_faults(g))]
     hazards = {r["id"] for r in rows(REGISTER)} if REGISTER.exists() else set()
     bad = {r["id"]: f for r in led if (f := faults(r, hazards))}
     a.out.parent.mkdir(parents=True, exist_ok=True)
-    a.out.write_text(render(led, bad))
+    a.out.write_text(render(led, bad, guards))
     n_open = sum(1 for r in led if not r.get("resolved"))
-    word = "FAIL " if (a.check and bad) else "ok   "
+    red = bool(bad or gbad)
+    word = "FAIL " if (a.check and red) else "ok   "
     print(
-        f"{word} incident-report  {n_open} open of {len(led)} incidents; {len(bad)} teach nothing -> {a.out}"
+        f"{word} incident-report  {n_open} open of {len(led)} incidents; {len(bad)} teach nothing; "
+        f"{len(guards)} guards on record, {len(gbad)} malformed -> {a.out}"
     )
+    for line in gbad:
+        print(f"      guard {line}")
     for i, f in bad.items():
         print(f"      {i}: {'; '.join(f)}")
-    return 1 if (a.check and bad) else 0
+    return 1 if (a.check and red) else 0
 
 
 if __name__ == "__main__":

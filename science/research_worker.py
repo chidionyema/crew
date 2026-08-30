@@ -60,9 +60,15 @@ import ledger  # noqa: E402
 
 REPORTS = SCIENCE / "research-reports"
 INSPECT_LOGS = SCIENCE / "inspect-logs"
-#: Router lanes (platform/llm/config.yaml model_name rows) that are frontier models. The worker and
-#: the grader must both be one of these; anything else is refused before a single request.
-FRONTIER_LANES = frozenset({"claude", "claude-fast", "gemini", "gemini-or"})
+#: Router lanes (platform/llm/config.yaml model_name rows) that are frontier models.
+FRONTIER_MODEL_LANES = frozenset({"claude", "claude-fast", "gemini", "gemini-or"})
+#: Paid vendor lanes that answer while every frontier account is out of credit (2026-08-30: Anthropic,
+#: Google and OpenRouter all refused; minimax, minimax_m27 and groq answered a 4096-token call with
+#: fallbacks off). Founder, 2026-08-30: "why is minimax not there" ... "we have work to do".
+PAID_LANES = frozenset({"minimax", "minimax_m27", "groq"})
+#: The worker and the grader must both be one of these; a local model or any other lane is refused
+#: before a single request. The name is kept: the rule is still "a paid API, never a local model".
+FRONTIER_LANES = FRONTIER_MODEL_LANES | PAID_LANES
 #: The router lane that serves embeddings; gpt-researcher ranks scraped context with it.
 EMBED_LANE = "embed"
 SCORE = {"C": 1.0, "P": 0.5, "I": 0.0}

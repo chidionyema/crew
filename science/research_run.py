@@ -9,7 +9,7 @@ MLflow keeps the question, the report and the score; Langfuse catches tokens and
     python3 science/research_run.py --question "..."   # or a question of your own
 
 Exit 0 with `ok research-run ... inspect <score> ... langfuse trace <id>`; exit 1 with
-`REFUSED research-run <why>`. The MLflow file store lands in `mlruns/` beside the report so the
+`REFUSED research-run <why>`. The MLflow SQLite store lands in `mlruns/mlflow.db` beside the report so the
 workflow attaches both as the run artefact. Runs from the Mac fail on search (crew#659: the
 Tailscale resolver); the runner is the place, and that is the point of the workflow.
 """
@@ -82,12 +82,22 @@ def grade(question: str, report: str, lane: str, run_id: str, log_dir: pathlib.P
     return float(json.loads(r.stdout.strip().splitlines()[-1])["score"])
 
 
+def tracking_uri(mlruns: pathlib.Path) -> str:
+    return f"sqlite:///{(mlruns / 'mlflow.db').resolve()}"
+
+
 def record(
     mlruns: pathlib.Path, run_id: str, question: str, report: str, score: float, passed: bool
 ) -> str:
     import mlflow
 
-    mlflow.set_tracking_uri(mlruns.resolve().as_uri())
+    # MLflow 3.x refuses the `./mlruns` file store ("maintenance mode"; crew#701, five runs on
+    # 2026-08-30). A SQLite database in the same folder is the backend both lines accept, and
+    # the artifacts stay beside it so the whole folder is one workflow artifact.
+    mlruns.mkdir(parents=True, exist_ok=True)
+    mlflow.set_tracking_uri(tracking_uri(mlruns))
+    if mlflow.get_experiment_by_name("research") is None:
+        mlflow.create_experiment("research", artifact_location=(mlruns / "artifacts").resolve().as_uri())
     mlflow.set_experiment("research")
     with mlflow.start_run(run_name=run_id) as run:
         mlflow.log_param("question", question[:500])

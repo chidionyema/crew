@@ -1,4 +1,4 @@
-# The grader's own environment (science/research_grade.py, crew#701 CP1). Inspect's openai provider
+# The grader's own environment (science/research_inspect_grade.py, crew#701 CP1). Inspect's openai provider
 # refuses openai<3.1 while litellm, which gpt-researcher pulls in, refuses openai>=3 (crew#712,
 # runs 33304930630 and 33305540921); so the grader is installed apart and research_run.py calls it
 # through RESEARCH_GRADER_PYTHON.

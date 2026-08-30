@@ -69,7 +69,7 @@ def grade(question: str, report: str, lane: str, run_id: str, log_dir: pathlib.P
     RESEARCH_GRADER_PYTHON names the interpreter that holds requirements-grade.txt; the default is
     this one, for a machine that installed both by hand."""
     py = os.environ.get("RESEARCH_GRADER_PYTHON", sys.executable)
-    grader = pathlib.Path(__file__).with_name("research_grade.py")
+    grader = pathlib.Path(__file__).with_name("research_inspect_grade.py")
     r = subprocess.run(
         [py, str(grader), "--lane", lane, "--run-id", run_id, "--log-dir", str(log_dir)],
         input=json.dumps({"question": question, "report": report}),

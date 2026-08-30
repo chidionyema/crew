@@ -13,6 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def _mod():
     spec = importlib.util.spec_from_file_location("research_run", ROOT / "science" / "research_run.py")
+    assert spec is not None and spec.loader is not None
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

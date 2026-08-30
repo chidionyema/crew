@@ -1,13 +1,14 @@
 # Science lane showcase
 
-Generated 2026-08-30T09:04Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-30T11:04Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-30T03:05Z.
+Previous run: 2026-08-30T09:04Z.
 
-- producers discovered: 5359 -> 5388
+- producers discovered: 5388 -> 5389
+- capabilities: 23 -> 26
 
 ## Capabilities
 
@@ -34,7 +35,10 @@ Previous run: 2026-08-30T03:05Z.
 | outcomes | Collect what the estate produced, so spend can be divided by something | `python3 science/outcomes.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | producers | Every producer of data in the estate, discovered by class rather than typed by hand | `python3 science/producers.py` | hand-run |
 | research_grade | Grade the general-purpose research capability from its own ledger (crew#508) | `python3 science/research_grade.py` | hand-run |
+| research_inspect_grade | crew#701 CP1: the Inspect grader, run by science/research_run.py in its own interpreter | `python3 science/research_inspect_grade.py` | hand-run |
 | research_intake | Scheduled outward research intake (crew#508 CP8) | `python3 science/research_intake.py` | hand-run |
+| research_run | crew#701 CP1: one graded research report, end to end, on a GitHub runner | `python3 science/research_run.py` | hand-run |
+| research_worker | The research worker: GPT Researcher through the router, every report graded by Inspect, every | `python3 science/research_worker.py` | hand-run |
 | self_grade | Weekly self-grade of the research loop (LAW 35, crew#72 row 4) | `python3 science/self_grade.py` | hand-run |
 | transcripts | Read Claude Code session transcripts incrementally, by byte offset (crew#319, crew#74 row 4) | `python3 science/transcripts.py` | launchd com.founder.sciencecollect via scripts/science-collect |
 | velocity | Velocity per lane, measured from the board, never felt (crew#527 CP1) | `python3 science/velocity.py` | hand-run |
@@ -56,7 +60,7 @@ BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 `python3 science/datamap.py --check`
 
-- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 5388 producers discovered at the last census
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 5389 producers discovered at the last census
 - shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
 - domains blind at the last census: none
 - contract violations now: 1

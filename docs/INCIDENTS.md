@@ -5,24 +5,24 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 
 ## The bar
 
-- Incidents: **1 open**, 0 resolved, of 1
-- Hours dark, all rows: **1.5**
+- Incidents: **0 open**, 1 resolved, of 1
+- Hours dark, all rows: **1.8**
 - Rows that teach nothing (no class, guard or receipt): **0**
 
 ## What not to do, ranked by hours dark
 
 | Class | Means | Incidents | Hours dark | Guarded |
 |---|---|---|---|---|
-| fix-proved-on-the-wrong-surface | the fix was proved on a Mac or a test and failed on the cluster | I1 | 1.5 | yes |
-| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | I1 | 1.5 | yes |
+| fix-proved-on-the-wrong-surface | the fix was proved on a Mac or a test and failed on the cluster | I1 | 1.8 | yes |
+| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | I1 | 1.8 | yes |
 
 ## Incidents, newest first
 
 ### I1 — Otto (hermes gateway on the cluster) crash-looped through two copy-flag fixes
 
-- Surface: hermes-agent gateway, Telegram; detected 2026-08-29T23:36Z by oke-check run 33281380053 (chaos drill red), then the founder asking 'is Otto back?' at 2026-08-30T00:4xZ; open; traced: full
+- Surface: hermes-agent gateway, Telegram; detected 2026-08-29T23:36Z by oke-check run 33281380053 (chaos drill red), then the founder asking 'is Otto back?' at 2026-08-30T00:4xZ; resolved 2026-08-30T01:26Z; traced: full
 - Root cause: cp -R --preserve=mode on "$BUILD"/. onto the volume root tries to chmod /data itself, which the pod does not own. The first fix (plain cp) had the opposite fault: it leaves an existing file's mode alone.
-- Class: fix-proved-on-the-wrong-surface, instrument-nobody-reads; laws: 1, 2, 6, 28; hazard: R6; hours dark: 1.5
+- Class: fix-proved-on-the-wrong-surface, instrument-nobody-reads; laws: 1, 2, 6, 28; hazard: R6; hours dark: 1.8
 - Guard: `hermes-v2 tests/test_incident_crew561_the_image_can_reach_the_mac_and_keeps_its_exec_bits.py`; issue: https://github.com/chidionyema/crew/issues/561
 - Founder, verbatim: "is Otto back? / incident reports are learning opportunity and training data for estate / the estate itself can learn"
 
@@ -33,4 +33,7 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 | 2026-08-29T23:53Z | hermes-v2#51 merged: cp --preserve=mode | https://github.com/chidionyema/hermes-v2/pull/51 |
 | 2026-08-30T00:05Z | new image main-38-eb48806d boots and crash-loops: cp: preserving permissions for '/data/.': Operation not permitted (56 restarts in 39 min) | https://github.com/chidionyema/idp/actions/runs/33283974599 |
 | 2026-08-30T00:49Z | hermes-v2#54 opened: copy without modes, chmod bin/ after; K8sGPT produced no finding (analyzer blocked by kyverno webhook, idp#873) | https://github.com/chidionyema/hermes-v2/pull/54 |
+| 2026-08-30T00:58Z | hermes-v2#55 d2bf529 on main: copy the build's children, never the mount root; the same fix was in flight twice (#54 closed as superseded) | https://github.com/chidionyema/hermes-v2/pull/55 |
+| 2026-08-30T01:11Z | Flux moved platform/hermes-agent to main-45-d2bf529 | idp main platform/hermes-agent/kustomization.yaml newTag |
+| 2026-08-30T01:26Z | Deployment hermes-agent-gateway 1/1 NewReplicaSetAvailable, no restart on the new pod | https://github.com/chidionyema/idp/actions/runs/33285635030 |
 

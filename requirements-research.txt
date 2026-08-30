@@ -1,0 +1,10 @@
+# The research worker's live dependencies (science/research_worker.py, crew#659 CP3). Kept out of
+# requirements-dev.txt on purpose: gpt-researcher pulls numba/llvmlite and a dozen scrapers, and
+# the tests fake the worker, so CI never needs them. Install with
+#   .venv/bin/pip install -r requirements-research.txt --only-binary llvmlite,numba
+# Versions are the ones measured on 2026-08-30; the env var and API contract the worker uses
+# (FAST_LLM/SMART_LLM/STRATEGIC_LLM/EMBEDDING "openai:<lane>", model_graded_qa) is pinned by
+# tests/test_incident_crew659_ideas_are_scored_or_the_lane_is_gap.py.
+gpt-researcher>=0.15
+inspect-ai>=0.3.200
+openai>=1

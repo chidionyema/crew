@@ -65,7 +65,7 @@ def test_candidate_unanswered_past_seven_days_is_late_and_answered_one_is_not():
 
 
 def test_outward_grade_drops_to_gap_when_the_intake_is_stale_or_late():
-    healthy = {"questions": 3, "stale": [], "sourceless": 0}
+    healthy = {"questions": 3, "stale": [], "sourceless": 0, "ideas_fresh": 1}  # crew#659 CP2
     inw = {"trained": True, "scored": 1, "evidence": "x"}
     assert rg.grades(healthy, inw, {"fresh": True, "late": []})[0] == "ELITE"
     assert rg.grades(healthy, inw, {"fresh": False, "late": []})[0] == "GAP"

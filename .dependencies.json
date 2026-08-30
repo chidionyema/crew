@@ -97,6 +97,14 @@
     "MTIME_KEY": {
       "is": "the name of the mtime metadata field science/scheduler/estate_dagster/sources.py records on a materialization, not a credential",
       "dismissed": "a metadata field name; the freshness check it feeds is the estate-facts code location graded by science/scheduler/tests"
+    },
+    "ROUTER_KEY": {
+      "is": "the science lane's virtual key for the estate router (LITELLM_SCIENCE_KEY in estate-secrets, minted by idp vault-seed, crew#659 CP3)",
+      "dismissed": "science/research_worker.py reads it from ROUTER_KEY_FILE or the env; the router key's mint and rotation are graded in idp (tests/test_incident_crew659_science_router_key_is_frontier_only.py)"
+    },
+    "OPENAI_API_KEY": {
+      "is": "not an OpenAI credential: the env var name gpt-researcher and the openai client read the router key from; science/research_worker.py sets it to ROUTER_KEY with OPENAI_BASE_URL at the estate router",
+      "dismissed": "an alias of ROUTER_KEY inside one process; no OpenAI account exists"
     }
   }
 }

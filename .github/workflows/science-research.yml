@@ -22,7 +22,7 @@ permissions:
 # One group per row, so five rows on five topics run side by side (founder 2026-08-30:
 # "any reason the engine ... cant kick of 5 concurrent runs"); the same row twice still queues.
 concurrency:
-  group: science-research-${{ inputs.row }}-${{ hashFiles('science/RESEARCH-INTAKE.jsonl') }}
+  group: science-research-row-${{ inputs.row }}-${{ inputs.question }}
   cancel-in-progress: false
 jobs:
   research:

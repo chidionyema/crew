@@ -23,6 +23,7 @@ ClickHouse, Langfuse and R2 that already exist:
 | Deterministic eval harness | Inspect (UK AI Security Institute) | MIT; logs are files, so it survives any rewrite; test-ladder rung 5 |
 | Traces and scores | Langfuse (already in idp) | Scores API with numeric/categorical/boolean types; datasets and dataset runs |
 | Retrieval | pgvector in the existing Postgres | No new stateful service |
+| Open-web research worker | GPT Researcher, via the router | Apache-2.0; the step that actually reads the web. Added 2026-08-30, see below |
 | Durable business workflows | Temporal (already in idp) | Stays; Argo is the batch scheduler, not a second Temporal |
 
 Not chosen, and why (full table with licence, release, stars and URL in the research agent's
@@ -34,8 +35,74 @@ output, attached to #221):
   flux during our diligence window, and either is a second scheduler beside Temporal and Argo.
 - **Arize Phoenix.** Elastic 2.0 licence forbids offering it as a service. A resale flag.
 - **W&B Server.** Production features sit behind a vendor licence key.
-- **AI-Scientist-v2, GPT-Researcher, STORM.** Non-OSI licence, or report generators with no eval
-  loop and no state. Not platform material.
+- **AI-Scientist-v2.** Non-OSI licence. Not platform material.
+- **STORM (stanford-oval/storm).** MIT, 31,165 stars -- but last pushed 2025-09-30, eleven months
+  cold (GitHub API, read 2026-08-30). It is knowledge curation into an article, not a report
+  answering a brief, and GPT Researcher already cites its paper as an influence. Read it for the
+  method; do not take a cold repository as a platform dependency.
+- **GPT-Researcher. THIS ROW WAS WRONG AND IS WITHDRAWN (2026-08-30).** It was rejected here on
+  2026-08-25 as "non-OSI licence, or report generators with no eval loop and no state", which
+  merged three tools into one sentence and got this one wrong on both halves. Measured from the
+  GitHub API on 2026-08-30: licence Apache-2.0 (OSI-approved), 29,201 stars, `pushed_at`
+  2026-08-27 -- three days ago, not abandoned. The second half is true and is not a reason to
+  reject it: it has no eval loop, because it is not an eval harness. It is the WORKER. See "The
+  research worker" below.
+
+## The research worker (added 2026-08-30)
+
+Source: the founder's own note, `~/.claude/docs/founder/2026-08-30T0055Z-the-honest-answer-is-that-gpt-researcher-is-cd422c25.md`, committed to the claude-estate repo. Read that file, not this summary of it.
+
+**The decision: GPT Researcher is the research worker, and it runs against frontier models through
+the router. Never a local model.**
+
+The plane above had a hole nobody named on 2026-08-25. Argo schedules, MLflow records, Inspect
+scores, Langfuse traces, pgvector retrieves -- and *nothing in the table actually reads the web and
+writes an answer*. That is the one job the estate has been doing with hand-written Python since,
+which is what LAW 43 exists to stop. The reason the hole was invisible is that the only tool that
+fills it had been struck off the list in the same sentence as a non-OSI project, so the list looked
+complete.
+
+Why this one, checked rather than recalled (GitHub API, 2026-08-30):
+
+- Apache-2.0. OSI-approved, no resale flag, unlike Arize Phoenix's Elastic 2.0.
+- 29,201 stars; `pushed_at` 2026-08-27. Live, not a snapshot.
+- It predates the vendor deep-research modes it now gets compared against, so it is a library we
+  own the shape of rather than a feature of somebody's product.
+- The architecture is a three-role split we can schedule: a planner turns the brief into research
+  questions, execution agents crawl in parallel, one per question, and a publisher aggregates. One
+  Argo step per role, and the fan-out is the thing Argo is for.
+- `report_type="deep"` is recursive tree exploration with configurable breadth and depth;
+  `report_source="hybrid"` mixes the open web with our own documents. The founder's note is blunt
+  about why it gets a bad reputation: "Most people run it in its shallow default and conclude it's
+  weak." A grade of the shallow default is not a grade of the tool.
+
+**The control that makes it safe, and it is not optional.** From the note: the 2026 "Cited but Not
+Verified" benchmark found open-source models scored lower on fact-check accuracy than frontier
+models, so self-hosting moves the citation-quality risk onto us. "If you point any of these at a
+local model to save cost, you get a well-structured report with worse-verified claims, which is
+precisely the failure mode you spent tonight building a spec against." That is the same failure
+this document already measured from the other end: 3,608 dossiers and 166,000 ledger rows of
+verdicts, none ever scored against what happened. A faster way to produce unscored claims is not
+an improvement.
+
+So the worker is wired with two hard edges:
+
+1. **Frontier only, enforced by the router, not by a config file.** LAW 34 already says no consumer
+   holds a vendor key; the worker gets a router virtual key whose allowed models are frontier. It
+   cannot reach a local model by editing an env var, because it never had the key to one.
+2. **No report leaves the worker unscored.** The publisher's output is an Inspect eval sample and a
+   Langfuse score in the same Argo run that produced it. A run that writes a report and no score is
+   a failed run. This is the eval loop the 2026-08-25 rejection said it lacked -- which was true,
+   and is now the plane's job rather than the worker's.
+
+Not switched to, and the specific reason each was raised:
+
+- **Stanford STORM** -- for structured article-style synthesis rather than a report answering a
+  brief. Different output, and the repository is eleven months cold. Method, not dependency.
+- **Local Deep Research** -- only if external API calls become the constraint. They are not; the
+  constraint is citation quality, and this option makes that worse by construction.
+- **Open Deep Research** -- a smaller codebase to modify rather than a framework to configure. We
+  do not want a codebase to modify. LAW 43.
 
 ## What "rip most of it out" means, measured
 

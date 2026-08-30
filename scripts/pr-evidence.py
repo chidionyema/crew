@@ -770,6 +770,62 @@ def dod_rows(body: str) -> tuple:
     return True, "all 10 definition-of-done rows present"
 
 
+#: crew#668 CP4: a pull request that fixes an incident names its ledger row, so the fix and the
+#: lesson are one record. The ledger lives in the board repo (incidents/LEDGER.jsonl) and is
+#: read through the API; nothing here names a checkout (LAW 46).
+BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
+INCIDENT_LINE = re.compile(r"^Incident:\s*(I\d+(?:\s*,\s*I\d+)*)\s*$", re.M)
+
+
+def incident_ledger() -> list | None:
+    """Rows of the board repo's incident ledger; None when it cannot be read (BLIND, not empty)."""
+    try:
+        raw = gh(["api", "-H", "Accept: application/vnd.github.raw",
+                  f"repos/{BOARD_REPO}/contents/incidents/LEDGER.jsonl"])
+    except Exception:  # noqa: BLE001
+        return None
+    rows = []
+    for line in raw.splitlines():
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            continue
+    return rows
+
+
+def incident_named(body: str, ledger: list | None) -> tuple:
+    """A body that mentions an issue the ledger traces must carry `Incident: I<n>` naming that
+    row; an `Incident:` line naming a row the ledger does not hold is a lie and fails."""
+    if ledger is None:
+        return True, "incident ledger unreadable, incident row not graded (BLIND)"
+    named = set()
+    for m in INCIDENT_LINE.finditer(body):
+        named.update(x.strip() for x in m.group(1).split(","))
+    by_id = {str(r.get("id")): r for r in ledger}
+    unknown = sorted(named - set(by_id))
+    if unknown:
+        return False, (f"'Incident:' names {', '.join(unknown)}, not in the ledger "
+                       f"({BOARD_REPO} incidents/LEDGER.jsonl)")
+    text = mask_fences(body)
+    owed = []
+    for rid, r in by_id.items():
+        issue = str(r.get("issue") or "")
+        m = re.search(r"/([^/]+)/([^/]+)/issues/(\d+)$", issue)
+        if not m:
+            continue
+        repo, num = m.group(2), m.group(3)
+        hit = re.search(rf"(?:{re.escape(repo)}#|issues/|(?:Closes|Fixes|Resolves)\s+#){num}\b",
+                        text, re.I)
+        if hit and rid not in named:
+            owed.append(f"{rid} ({repo}#{num})")
+    if owed:
+        return False, (f"touches an incident the ledger traces but names no row: add "
+                       f"`Incident: {owed[0].split()[0]}` (owed: {', '.join(owed)}) -- crew#668 CP4")
+    if named:
+        return True, f"names incident row(s) {', '.join(sorted(named))}"
+    return True, "touches no traced incident"
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -808,6 +864,9 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     ok_laws, why_laws = architecture_laws(body)
     if not ok_laws:
         return False, "#{} {}".format(info["number"], why_laws)
+    ok_inc, why_inc = incident_named(body, incident_ledger())
+    if not ok_inc:
+        return False, "#{} {}".format(info["number"], why_inc)
     # Blocking from birth (crew#626 CP19): the fix for a refused body is one line, and the
     # founder named the missing criterion as the defect, not a debt to measure first.
     ok_acc, why_acc = accept_when(body)
@@ -819,7 +878,7 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     std = why_std if ok_std else "WOULD FAIL once crew#135 blocks — " + why_std
     carries = f"{len(imgs)} evidence image(s) {where}" if imgs else where
     return True, (f"#{info['number']} carries {carries}, {why_opts}, "
-                  f"{why_cpl}, {why_dod}, {why_laws}, {why_acc}; standards (report-only): {std}")
+                  f"{why_cpl}, {why_dod}, {why_laws}, {why_acc}, {why_inc}; standards (report-only): {std}")
 
 
 def selftest_commit_scope() -> int:
@@ -1021,6 +1080,32 @@ def selftest_options() -> int:
     return 1 if fails else 0
 
 
+def selftest_incident() -> int:
+    """crew#668 CP4, paired controls on literal bodies against a fixture ledger."""
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    ledger = [{"id": "I1", "issue": "https://github.com/chidionyema/crew/issues/561"}]
+    check_one("a fix for a traced issue with no Incident line is refused",
+              incident_named("Closes #561\n\nfix the mount", ledger)[0], False)
+    check_one("naming the row passes",
+              incident_named("Closes #561\nIncident: I1\n", ledger)[0], True)
+    check_one("a row the ledger does not hold is refused",
+              incident_named("Incident: I9\n", ledger)[0], False)
+    check_one("a body touching no traced issue passes", incident_named("Closes #12", ledger)[0], True)
+    check_one("an unreadable ledger is BLIND, not green-by-silence",
+              "BLIND" in incident_named("Closes #561", None)[1], True)
+    print(f"selftest-incident: {len(ran) - len(fails)}/{len(ran)} passed")
+    return 1 if fails else 0
+
+
 def selftest_dod() -> int:
     """The definition-of-done gate (crew#207), proved on literal bodies. Paired controls, and
     the bad fixture is the one the issue names: a body where the Operational proof row is not
@@ -1175,6 +1260,8 @@ def main() -> int:
     sub.add_parser("selftest-commit-scope",
                    help="prove the evidence commit takes only its own files, in a temp repo")
     sub.add_parser("selftest-accept", help="prove the Accept when gate on literal bodies, no network")
+    sub.add_parser("selftest-incident",
+                   help="crew#668 CP4: a PR fixing a traced incident names its ledger row")
     sub.add_parser("selftest-dod",
                    help="prove the definition-of-done row gate on literal bodies, no network")
     sub.add_parser("selftest-evidence-section",
@@ -1205,6 +1292,8 @@ def main() -> int:
         return selftest_options()
     if ns.cmd == "selftest-commit-scope":
         return selftest_commit_scope()
+    if ns.cmd == "selftest-incident":
+        return selftest_incident()
     if ns.cmd == "selftest-dod":
         return selftest_dod()
     if ns.cmd == "selftest-evidence-section":

@@ -56,7 +56,9 @@ from collections.abc import Callable
 SCIENCE = pathlib.Path(__file__).resolve().parent
 ROOT = SCIENCE.parent
 sys.path.insert(0, str(SCIENCE))
+import cursor_research  # noqa: E402
 import ledger  # noqa: E402
+from cursor_research import CursorUnavailable  # noqa: E402
 
 REPORTS = SCIENCE / "research-reports"
 INSPECT_LOGS = SCIENCE / "inspect-logs"
@@ -202,6 +204,14 @@ async def _research(brief: str, deep: bool) -> dict:
 
 def research(brief: str, deep: bool = False) -> dict:
     return asyncio.run(_research(brief, deep))
+
+
+#: `--researcher`: who does the searching. gpt-researcher needs the router and a resolver the Mac
+#: does not have (crew#659); desktop Cursor needs the founder's login and nothing else.
+RESEARCHERS: dict[str, Callable[..., dict] | None] = {
+    "gpt-researcher": None,
+    "cursor": cursor_research.research,
+}
 
 
 # --- 2. ideas out of the report -----------------------------------------------------------------
@@ -439,14 +449,28 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument(
         "--deep", action="store_true", help="report_type=deep: recursive breadth/depth research"
     )
+    r.add_argument(
+        "--researcher",
+        choices=sorted(RESEARCHERS),
+        default="gpt-researcher",
+        help="who searches: gpt-researcher on the router, or the founder's desktop Cursor (no key)",
+    )
     r.add_argument("--dry-run", action="store_true", help="run everything, write nothing")
     r.add_argument("--ledger", type=pathlib.Path, default=ledger.LEDGER)
     a = ap.parse_args(argv)
     try:
         out = run(
-            a.brief, a.market, a.ideas, a.worker, a.grader, a.deep, a.ledger, dry_run=a.dry_run
+            a.brief,
+            a.market,
+            a.ideas,
+            a.worker,
+            a.grader,
+            a.deep,
+            a.ledger,
+            researcher=RESEARCHERS[a.researcher],
+            dry_run=a.dry_run,
         )
-    except Refused as e:
+    except (Refused, CursorUnavailable) as e:
         print(f"REFUSED research-worker   {e}", file=sys.stderr)
         return 1
     print(

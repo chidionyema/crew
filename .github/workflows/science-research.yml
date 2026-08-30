@@ -34,7 +34,7 @@ jobs:
         with: { python-version: "3.11" }
       - name: install the worker, the grader and the record
         run: |
-          pip install -q -r requirements-research.txt mlflow-skinny>=2.20
+          pip install -q -r requirements-research.txt "mlflow>=3"
           python3 -m venv "$RUNNER_TEMP/grade" && "$RUNNER_TEMP/grade/bin/pip" install -q -r requirements-grade.txt
       - name: one graded report
         env:

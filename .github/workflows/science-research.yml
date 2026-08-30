@@ -1,0 +1,51 @@
+# crew#701 CP1: one graded research report, off the laptop (R31). GPT Researcher through the
+# router on one intake row, Inspect scores it, MLflow keeps question/report/score, the router
+# traces every call to Langfuse under the run id. A failed score is a failed run (CP2).
+name: science-research
+on:
+  workflow_dispatch:
+    inputs:
+      row:
+        description: "index into science/RESEARCH-INTAKE.jsonl"
+        default: "0"
+      question:
+        description: "a question of your own (overrides row)"
+        default: ""
+      worker:
+        description: "router lane that researches"
+        default: "minimax"
+      grader:
+        description: "router lane that grades (a different one)"
+        default: "groq"
+permissions:
+  contents: read
+concurrency:
+  group: science-research
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.11" }
+      - name: install the worker, the grader and the record
+        run: pip install -q -r requirements-research.txt mlflow-skinny>=2.20
+      - name: one graded report
+        env:
+          ROUTER_KEY: ${{ secrets.SCIENCE_ROUTER_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${{ inputs.question }}" ]; then
+            python3 science/research_run.py --question "${{ inputs.question }}" --worker "${{ inputs.worker }}" --grader "${{ inputs.grader }}"
+          else
+            python3 science/research_run.py --row "${{ inputs.row }}" --worker "${{ inputs.worker }}" --grader "${{ inputs.grader }}"
+          fi
+      - name: the report, the Inspect log and the MLflow run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-run
+          path: research-run/
+          if-no-files-found: warn

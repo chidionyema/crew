@@ -9,3 +9,4 @@ gpt-researcher>=0.15
 inspect-ai>=0.3.200
 openai>=3.1,<4   # Inspect's openai provider refuses <3.1 (run 33304930630); langchain-openai 1.6 allows <4
 ddgs>=9.16.0   # gpt-researcher duckduckgo retriever imports it and refuses without it (first live run, 2026-08-30)
+litellm>=1.84.0   # pip-audit: 1.83.0 carries 11 known vulnerabilities (crew#712 security-scan run 33305374523)

@@ -48,3 +48,19 @@ def test_a_failed_grade_drops_the_report(tmp_path, monkeypatch):
     monkeypatch.setattr(research_run, "grade", lambda *a, **k: 1.0)
     rc = research_run.main(["--question", "q", "--out", str(out)])
     assert rc == 0 and (out / "report.md").read_text().startswith("# q")
+
+
+def test_the_default_lanes_are_on_a_key_that_also_carries_embed(monkeypatch):
+    """Run 33304930630: worker minimax on a key with no embed row -> GPT Researcher's context
+    compression 403s and the report is hollow. The defaults are the frontier lanes the science
+    router key carries beside embed (idp vault-seed.yml, science entry); the workflow says the same."""
+    monkeypatch.delenv("RESEARCH_WORKER_LANE", raising=False)
+    monkeypatch.delenv("RESEARCH_GRADER_LANE", raising=False)
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "science-research.yml").read_text())
+    inputs = wf[True]["workflow_dispatch"]["inputs"]
+    src = (ROOT / "science" / "research_run.py").read_text()
+    assert inputs["worker"]["default"] == "claude" and '"RESEARCH_WORKER_LANE", "claude"' in src
+    assert inputs["grader"]["default"] == "claude-fast" and '"RESEARCH_GRADER_LANE", "claude-fast"' in src
+    req = (ROOT / "requirements-research.txt").read_text()
+    assert "openai>=3.1" in req, "Inspect's openai provider refuses openai<3.1 (run 33304930630)"
+    assert "litellm>=1.84" in req, "pip-audit: litellm 1.83.0 carries 11 known vulnerabilities (run 33305374523)"

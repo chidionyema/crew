@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# Rejected: GPT Researcher's own CLI / multi_agents runner -- it can research, but it cannot refuse a
+#   non-frontier lane, cannot grade its own report, and cannot write a ledger row the scoreboard counts;
+#   this file is the 200 lines of glue around GPT Researcher (worker) and Inspect (grader), not a rival.
+# Standard: docs/STANDARDS.md row "LLM providers" (LiteLLM router, the only door to a model) and
+#   docs/RESEARCH_PLATFORM_CAPABILITY.md "The research worker" (GPT Researcher, crew#672).
+# Deviation: none -- MLflow (blueprint memory) is not running in the estate yet; the ledger is the memory
+#   until the MLflow row exists (crew#659).
 """The research worker: GPT Researcher through the router, every report graded by Inspect, every
 idea a scored row on the ledger (crew#659 CP3, crew#221, founder 2026-08-30).
 

@@ -98,7 +98,7 @@ def render(led: list[dict], bad: dict[str, list[str]]) -> str:
         hours = sum(float(r.get("hours_dark") or 0) for r in rs)
         guarded = "yes" if all(r.get("guard") for r in rs) else "**NO GUARD**"
         lines.append(
-            f"| {c} | {cell(CLASSES[c])} | {', '.join(r['id'] for r in rs)} | {hours:g} | {guarded} |"
+            f"| {c} | {cell(CLASSES.get(c, '**unknown class**'))} | {', '.join(r['id'] for r in rs)} | {hours:g} | {guarded} |"
         )
     lines += ["", "## Incidents, newest first", ""]
     for r in sorted(led, key=lambda r: r["detected"], reverse=True):

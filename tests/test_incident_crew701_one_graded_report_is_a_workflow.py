@@ -78,3 +78,11 @@ def test_the_default_lanes_are_on_a_key_that_also_carries_embed(monkeypatch):
     assert "litellm>=1.84" in req, (
         "pip-audit: litellm 1.83.0 carries 11 known vulnerabilities (run 33305374523)"
     )
+
+
+def test_five_rows_run_side_by_side_because_the_concurrency_group_is_per_row():
+    """Founder 2026-08-30: five concurrent research runs on five topics. One shared group
+    would queue them one after another."""
+    wf = (ROOT / ".github" / "workflows" / "science-research.yml").read_text()
+    group = next(line for line in wf.splitlines() if line.strip().startswith("group:"))
+    assert "inputs.row" in group, group

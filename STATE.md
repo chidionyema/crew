@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-29 23:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-08-30 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,38 +8,40 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 5.68s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.84s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | GREEN | last cycle 7 min ago (`INTENT-20260829-225045-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 5 min ago (`INTENT-20260830-025216-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: No apps found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 34h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 68h old (bar 30h) |
-| delivery | RED | 1382 commits on no remote (oldest 7.6d), 49 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 38h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 72h old (bar 30h) |
+| delivery | RED | 1391 commits on no remote (oldest 7.7d), 49 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 696 commits no remote holds, oldest 5.2d, 1 dirty |
-| &nbsp;&nbsp;stranded | .wt-vocab | 351 commits no remote holds, oldest 6.3d, 0 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 287 commits no remote holds, oldest 7.6d, 5 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 702 commits no remote holds, oldest 5.3d, 1 dirty |
+| &nbsp;&nbsp;stranded | .wt-vocab | 351 commits no remote holds, oldest 6.5d, 0 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 287 commits no remote holds, oldest 7.7d, 5 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 2 commit(s) to origin/main 9dd9abf, 5 local edit(s) kept |
+| live checkout | GREEN | moved 8 commit(s) to origin/main 00eb032, 5 local edit(s) kept |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| data map | RED | 5360 producers, 46411 measurables, 253 in gaps with a ticket, 16 unexplained, blind: none (`science/datamap.py --check`) |
+| data map | RED | 5359 producers, 46407 measurables, 253 in gaps with a ticket, 16 unexplained, blind: none (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
 | &nbsp;&nbsp;violation | | 16 producer(s) UNEXPLAINED (first: mac/data/~/.estate/tailscale-browser/first_party_sets.db) |
 | &nbsp;&nbsp;violation | | warehouse: 0 members and not BLIND; a domain never returns nothing silently |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 125h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 16 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 129h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 10 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
-| research | GREEN | 31 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 115489 runs in 24h, 1146 refused (most: pre-push 258), slowest 42556 ms, 24 overturned by a marker (`hook-outcomes.jsonl`) |
+| research | GREEN | 29 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
+| hooks | GREEN | 105785 runs in 24h, 1049 refused (most: pre-push 216), slowest 42343 ms, 14 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
-| OCI verification identity | RED 4/4 scheduled runs failed | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345) |
+| OCI verification identity | RED 3/3 scheduled runs failed | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345) |
 | crew P1 | 30 open | the fires nobody has put out |
+| &nbsp;&nbsp;#668 Incident ledger: every outage is a traced, classed, machine-readable row, the report is the what-not-to-d | | |
+| &nbsp;&nbsp;#667 Hazard register to zero: every open row closes by a command, three need one founder word (founder 2026-08 | | |
 | &nbsp;&nbsp;#652 Audit of the guards: can the code that guards the crew be trusted (founder-owned, external review) | | |
 | &nbsp;&nbsp;#631 Verification Plane: no work item closes without a fresh signed verdict from a prover the agent cannot run | | |
 | &nbsp;&nbsp;#626 DEFECTS on the god view: guards, Kubernetes tooling, Dagster, inventory and guard control missing; 'thing | | |
@@ -68,9 +70,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#248 Prospector scheduler runs nowhere: no re-verification since 2026-08-16 | | |
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
 | &nbsp;&nbsp;#85 Machine overload: load 255 on 12 cores with founder at keyboard — no cross-session load governor | | |
-| &nbsp;&nbsp;#71 1,064 field paths, 0 declared: the warehouse has no schema, no owner, no retention and no sensitivity on a | | |
-| &nbsp;&nbsp;#32 prospector is still in ~/Documents/code — the move to ~/dev/code has never been applied | | |
-| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 5.8h ago (bar 194h)) |
+| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 9.8h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |
 | OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors+---------+--' |

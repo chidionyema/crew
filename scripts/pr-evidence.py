@@ -466,6 +466,63 @@ def selftest_accept() -> int:
     return 1 if fails else 0
 
 
+# crew#628 CP1 (founder 2026-08-29: "NO ONE IS PROVING OR VERIFYING ANYTHING"). The evidence
+# block is written by bin/idp-verify-claims in CI between these markers, naming its run. A
+# transcript under `## Verification evidence` OUTSIDE the markers was typed by the author, and
+# a typed transcript is a claim, not a proof. Measured 2026-08-30 09:0xZ on the open idp PRs
+# before this landed: 980, 977, 973, 925 and 726 were clean; 802 carried one typed fence.
+GEN_START = "<!-- verify-claims:start -->"
+GEN_END = "<!-- verify-claims:end -->"
+GEN_RUN = re.compile(r"actions/runs/(\d+)")
+VERIFY_LINE = re.compile(r"(?m)^Verify:\s*`[^`\n]+`\s*$")
+
+
+def generated_evidence(body: str) -> tuple:
+    """(run id the generated block names or None, count of hand-typed transcripts).
+
+    The generated block is what sits between the verify-claims markers; everything else under
+    a Verification evidence heading is the author's typing. The body with the block cut out is
+    handed to transcript_evidence, so the sub-heading and fence rules stay the ones it proves.
+    """
+    body = body or ""
+    i, j = body.find(GEN_START), body.find(GEN_END)
+    if i < 0 or j < i:
+        return None, transcript_evidence(body)
+    block = body[i:j]
+    m = GEN_RUN.search(block)
+    rest = body[:i] + body[j + len(GEN_END):]
+    return (m.group(1) if m else None), transcript_evidence(rest)
+
+
+def has_generator(repo: str | None, url: str = "") -> bool:
+    """True when the repository runs bin/idp-verify-claims, so a typed block is refusable.
+
+    crew#708 (2026-08-30) carries a typed `## Verification evidence` and is correct: crew has
+    no verify-claims workflow, so a transcript is the only evidence it can offer. Refusing it
+    would be a guard refusing correct work (LAW 38). Until the generator lands there, a repo
+    without `.github/workflows/verify-claims.yml` keeps the old counting; a repo with it never
+    accepts typing again.
+    """
+    if not repo:
+        m = re.search(r"github\.com/([^/]+/[^/]+)/pull/", url or "")
+        repo = m.group(1) if m else None
+    if not repo:
+        return False
+    try:
+        gh(["api", f"repos/{repo}/contents/.github/workflows/verify-claims.yml", "--jq", ".path"])
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def run_exists(run_id: str, repo: str | None) -> bool:
+    args = ["run", "view", run_id, "--json", "databaseId"] + (["--repo", repo] if repo else [])
+    try:
+        return str(json.loads(gh(args)).get("databaseId")) == run_id
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def evidence_paths(body: str, diff: str, number=None) -> tuple:
     """(paths, where) for a pull request's evidence: ask the diff first, the body second.
 
@@ -842,13 +899,30 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
         return False, ("#{}: could not fetch the diff, so neither the evidence nor LAW 34 "
                        "coupling was checked".format(info["number"]))
     imgs, where = evidence_paths(body, diff, info["number"])
-    transcripts = transcript_evidence(body)
-    if not imgs and not transcripts:
+    gen_run, typed = generated_evidence(body)
+    claims = len(VERIFY_LINE.findall(body))
+    generator = has_generator(repo, info.get("url", ""))
+    if typed and generator:
+        return False, (f"#{info['number']} carries {typed} hand-typed transcript(s) under "
+                       f"`## Verification evidence`. A claim is a `Verify: `command`` line the "
+                       f"pipeline runs and writes back between the verify-claims markers "
+                       f"(crew#628 CP1); delete the typed block and state the claim as a command")
+    if gen_run and not run_exists(gen_run, repo):
+        return False, (f"#{info['number']}: the generated evidence block names run {gen_run}, "
+                       f"which does not exist in this repository; a block that names no real run "
+                       f"was typed (crew#628 CP1)")
+    if not imgs and not gen_run and not claims and not (typed and not generator):
         return False, (f"#{info['number']} has no verification evidence. "
                        f"LAW 7: attach a screenshot with `pr-evidence.py attach --pr {info['number']} …`, "
-                       f"or paste the command output under `## Verification evidence`")
+                       f"or write `Verify: `command`` lines for the pipeline to run (crew#628 CP1)")
     if not imgs:
-        where = f"{transcripts} command transcript(s) in the body"
+        if gen_run:
+            where = f"a generated evidence block from run {gen_run}"
+        elif claims:
+            where = f"{claims} `Verify:` claim(s) awaiting the verify-claims run"
+        else:
+            where = (f"{typed} typed transcript(s); this repository has no verify-claims "
+                     f"generator yet, so typing is still accepted here (crew#628 CP1)")
     ok_opts, why_opts = options_considered(body)
     if not ok_opts:
         return False, "#{} {}".format(info["number"], why_opts)
@@ -1227,6 +1301,43 @@ def selftest_evidence_section() -> int:
 
 
 # -------------------------------------------------------------------- main
+
+def selftest_generated_block() -> int:
+    """A typed transcript under the evidence heading refuses; the generated block passes.
+
+    crew#628 CP1, 2026-08-30. Before this, `check` counted every fence under the heading as
+    evidence, so an author could type a transcript and pass. Measured on idp#802 that day: one
+    typed fence beside the generated block from run 33295695401.
+    """
+    fails, ran = [], []
+
+    def check_one(name, got, want):
+        ran.append(name)
+        if got == want:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}: got {got!r}, want {want!r}")
+            fails.append(name)
+
+    fence = "```\n" + ("x" * (TRANSCRIPT_MIN_CHARS + 5)) + "\n```\n"
+    gen = (GEN_START + "\n## Verification evidence (generated)\nGenerated by bin/idp-verify-claims"
+           " in https://github.com/o/r/actions/runs/123\n" + fence + GEN_END + "\n")
+    typed = "## Verification evidence\n\n" + fence
+    check_one("generated block names its run, nothing typed",
+              generated_evidence("Verify: `true`\n" + gen), ("123", 0))
+    check_one("typed block beside the generated one is counted",
+              generated_evidence(typed + gen), ("123", 1))
+    check_one("typed block alone is typed", generated_evidence(typed), (None, 1))
+    check_one("no evidence at all", generated_evidence("just prose"), (None, 0))
+    check_one("markers with no run url name no run",
+              generated_evidence(GEN_START + "\n" + fence + GEN_END), (None, 0))
+    check_one("claims are counted", len(VERIFY_LINE.findall("Verify: `a`\nVerify: `b c`\nx")), 2)
+    m = re.search(r"github\.com/([^/]+/[^/]+)/pull/", "https://github.com/o/r/pull/9")
+    check_one("repo is read off the pull request url when --repo is absent",
+              m.group(1) if m else None, "o/r")
+    print(f"selftest-generated-block: {len(ran) - len(fails)}/{len(ran)} ok")
+    return 1 if fails else 0
+
 
 def main() -> int:
     ap = argparse.ArgumentParser(prog="pr-evidence.py", description=__doc__,

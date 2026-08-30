@@ -20,46 +20,44 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 
 GENERATED from `incidents/GUARDS.jsonl` by `scripts/incident-backfill`: one row per `tests/test_incident_*` file in the estate.
 Each one is an incident somebody paid for before this ledger existed; the class is a keyword read of the file name, so
-**307 of 456 are unclassified** until a person or the science lane names the class (crew#668 CP3).
+**76 of 105 are unclassified** until a person or the science lane names the class (crew#668 CP3).
 
-- Guards: **crew 102, hermes-v2 19, idp 335**, 456 in all
-- Tickets with a guard: 129
+- Guards: **crew 105**, 105 in all
+- Tickets with a guard: 67
 
 ### Classes, by how many guards they needed
 
 | Class | Means | Guards |
 |---|---|---|
-| unclassified | not read from the file name yet | 307 |
-| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 47 |
-| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | 25 |
-| secret-in-chat | a credential in a message, transcript or log (R49) | 24 |
-| single-point-of-failure | one machine, provider, account or person held the whole path | 12 |
-| summary-over-source | a compaction summary or memory was trusted over the file or the vendor page | 9 |
-| fix-proved-on-the-wrong-surface | the fix was proved on a Mac or a test and failed on the cluster | 9 |
-| rule-without-guard | a law or ruling with no test or hook that can stop a session (LAW 44) | 9 |
-| silent-green | a check reads green when it cannot measure (LAW 15) | 8 |
-| hardcoded-path | a path, host, port or account typed as a literal (LAW 46) | 4 |
-| founder-repeat | the founder had to say something again (R2) | 2 |
+| unclassified | not read from the file name yet | 76 |
+| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 16 |
+| silent-green | a check reads green when it cannot measure (LAW 15) | 4 |
+| summary-over-source | a compaction summary or memory was trusted over the file or the vendor page | 2 |
+| fix-proved-on-the-wrong-surface | the fix was proved on a Mac or a test and failed on the cluster | 2 |
+| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | 2 |
+| single-point-of-failure | one machine, provider, account or person held the whole path | 1 |
+| rule-without-guard | a law or ruling with no test or hook that can stop a session (LAW 44) | 1 |
+| founder-repeat | the founder had to say something again (R2) | 1 |
 
 ### Tickets that kept producing guards (repeat offenders)
 
 | Ticket | Guards | Repos |
 |---|---|---|
-| crew#584 | 24 | idp |
-| crew#516 | 19 | crew, hermes-v2, idp |
-| crew#539 | 19 | idp |
-| crew#66 | 16 | idp |
-| crew#631 | 11 | crew, idp |
-| crew#586 | 11 | idp |
-| crew#562 | 10 | idp |
-| crew#307 | 9 | idp |
-| crew#284 | 8 | crew, hermes-v2, idp |
-| crew#320 | 7 | crew, idp |
-| crew#488 | 7 | crew, idp |
-| crew#495 | 7 | crew, idp |
-| crew#85 | 7 | crew, idp |
-| crew#483 | 7 | idp |
-| crew#503 | 7 | idp |
+| crew#320 | 4 | crew |
+| crew#423 | 4 | crew |
+| crew#403 | 3 | crew |
+| crew#495 | 3 | crew |
+| crew#668 | 3 | crew |
+| crew#72 | 3 | crew |
+| crew#74 | 3 | crew |
+| crew#253 | 2 | crew |
+| crew#368 | 2 | crew |
+| crew#508 | 2 | crew |
+| crew#527 | 2 | crew |
+| crew#558 | 2 | crew |
+| crew#659 | 2 | crew |
+| crew#70 | 2 | crew |
+| crew#90 | 2 | crew |
 
 ## Incidents, newest first
 

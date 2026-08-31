@@ -34,7 +34,10 @@ def test_the_grade_never_counts_itself_and_the_entry_passes_the_ledger_validator
     g = sg.grade([_row(3), prior], NOW)
     assert g["entries"] == 1 and g["prior"] == prior["metric_after"]
     ledger = tmp_path / "L.jsonl"
-    ledger.write_text(json.dumps(_row(3)) + "\n")
+    # main() grades the real calendar week, so the row must be dated inside it: a row pinned to
+    # NOW went silent seven days later and the suite turned RED on 2026-08-31 (crew#728).
+    today = {**_row(3), "date": dt.datetime.now(dt.UTC).strftime("%Y-%m-%d")}
+    ledger.write_text(json.dumps(today) + "\n")
     assert sg.main(["--ledger", str(ledger), "--owner", "t"]) == 0
     rows = [json.loads(line) for line in ledger.read_text().splitlines()]
     e = rows[-1]

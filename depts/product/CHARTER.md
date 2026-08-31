@@ -37,6 +37,7 @@ diligence engineer can't take apart.
 - Opportunity brief ← research (their Provides).
 - Metric ← data (their Provides).
 - Model release with card ← science-ml (their Provides).
+- Unit economics report ← finance (their Provides).
 - Decision record and ranked priorities ← executive (their Provides).
 
 ## Domain instinct — decision procedures, not virtues

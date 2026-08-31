@@ -34,6 +34,7 @@ replayable, versioned, and owned.
 
 - Spec ← product (their Provides).
 - Instrumentation requirements ← product (their Provides).
+- Revenue recognition policy ← finance (their Provides).
 - Ranked priorities ← executive (their Provides).
 
 ## Domain instinct — decision procedures, not virtues

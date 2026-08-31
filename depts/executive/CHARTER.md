@@ -38,6 +38,7 @@ undo or was deliberately made expensive.
 - Metric ← data (their Provides).
 - Ship recommendation ← product (their Provides).
 - Eval report ← science-ml (their Provides).
+- Unit economics report and financial data room ← finance (their Provides).
 
 ## Domain instinct — decision procedures, not virtues
 

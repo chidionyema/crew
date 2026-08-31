@@ -11,7 +11,7 @@ adds or updates nothing under `docs/` fails crew qa with **Missing Architectural
 - Bot pull requests (`*[bot]` authors).
 - Pull requests opened before 2026-09-01 — warn only (the gate was graded against all open PRs on
   2026-08-31: crew#730 is a bot, crew#728 and crew#735 already carry docs).
-- A PR body line `Docs-exempt: <reason>` — the escape valve a guard must have (LAW 38).
+- A PR body line `Docs-exempt: <reason>` — the escape valve a guard must have (the self-service-with-guardrails law).
 
 **Where it runs:** the `no docs, no merge` step in `.github/workflows/crew-qa.yml`; the same step
 runs in the idp repo's `fast-gate.yml`.

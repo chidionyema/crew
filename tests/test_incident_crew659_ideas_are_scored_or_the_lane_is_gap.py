@@ -57,7 +57,7 @@ def test_a_scored_idea_inside_the_window_lets_the_lane_grade_elite():
     rows = [_question("2026-08-29"), _idea("2026-08-30T01:00:00+00:00", 0.5)]
     g = research_grade.grade(rows, TODAY)
     assert g["ideas_fresh"] == 1 and g["ideas_mean_score"] == 0.5
-    assert research_grade.grades(g, INWARD, FRESH_INTAKE)[0] == "ELITE"
+    assert research_grade.grades(g, INWARD, FRESH_INTAKE, delivered_n=1)[0] == "ELITE"
 
 
 def test_an_idea_without_a_score_does_not_count_as_progress():

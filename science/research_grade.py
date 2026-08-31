@@ -33,6 +33,7 @@ LEDGER = SCIENCE / "RESEARCH-LEDGER.jsonl"
 FORESIGHT_STATE = SCIENCE / "foresight-state.json"
 FORESIGHT_BLOCKER = SCIENCE / "foresight-model.json"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
+RECEIPTS = SCIENCE / "DELIVERY-RECEIPTS.jsonl"
 PAGE = CREW / "docs" / "science" / "RESEARCH-GRADE.md"
 IDEA_WINDOW_DAYS = 1  # a scored idea per day, or the lane is GAP (crew#659 CP2)
 STALE_DAYS = 7
@@ -203,7 +204,27 @@ def intake(now: dt.datetime | None = None) -> dict:
     return research_intake.grade(research_intake.read_rows(), state, sources, now)
 
 
-def grades(g: dict, inw: dict, ink: dict | None = None) -> tuple[str, str]:
+def delivered(path: pathlib.Path = RECEIPTS) -> list[dict]:
+    """Receipts authored OUTSIDE this lane (founder 2026-08-31: self scoring is banned forever).
+
+    A receipt is written by the consumer of a research output, never by the research worker,
+    and must point at a verifiable artifact: `used_in` is a merged PR URL or repo@sha where
+    the research changed what shipped. Rows without that pointer do not count. No founder
+    step is involved anywhere in this file: the pointer is machine-checkable reality, not a
+    word from a person (founder 2026-08-31: "NO FOUNDER CALIBRATE").
+    """
+    rows = read_ledger(path)
+    return [
+        r
+        for r in rows
+        if isinstance(r.get("used_in"), str)
+        and (r["used_in"].startswith("http") or "@" in r["used_in"])
+        and isinstance(r.get("what"), str)
+        and r["what"].strip()
+    ]
+
+
+def grades(g: dict, inw: dict, ink: dict | None = None, delivered_n: int = 0) -> tuple[str, str]:
     """ELITE when the block answers its own question with numbers; GAP when it answers with a
     hole it can name; BLIND when its source is not on disk at all. Outward is also GAP when
     the intake is stale (>2 days since a pull) or a candidate release sits >7 days unanswered:
@@ -217,11 +238,16 @@ def grades(g: dict, inw: dict, ink: dict | None = None) -> tuple[str, str]:
         # crew#659 CP2, founder 2026-08-30: "if no progress then I have to run the lane myself".
         # Progress is a scored idea on the ledger inside the window; ELITE with none is silent green.
         out_g = "GAP"
+    elif not delivered_n:
+        # Founder 2026-08-31: "SELF SCORING IS BANNED FOREVER". Every number above comes from
+        # the lane's own ledger; without one receipt authored outside the lane, the top grade
+        # is unreachable however perfect the self-authored rows look.
+        out_g = "GAP"
     else:
         out_g = "ELITE"
     if not inw["trained"] and inw["evidence"] == "-":
         in_g = "BLIND"
-    elif not inw["trained"] or not inw["scored"]:
+    elif not inw["trained"] or not inw["scored"] or not delivered_n:
         in_g = "GAP"
     else:
         in_g = "ELITE"
@@ -231,7 +257,8 @@ def grades(g: dict, inw: dict, ink: dict | None = None) -> tuple[str, str]:
 def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
     inw = inward()
     ink = intake()
-    out_g, in_g = grades(g, inw, ink)
+    rec = delivered()
+    out_g, in_g = grades(g, inw, ink, len(rec))
     med = "n/a" if g["median_hours_to_decision"] is None else f"{g['median_hours_to_decision']}h"
     L = rel(ledger)
     out = ["# Research capability, graded", ""]
@@ -256,6 +283,26 @@ def render(g: dict, ledger: pathlib.Path, today: dt.date) -> str:
         f"| Inward | **{in_g}** | foresight {'trained' if inw['trained'] else 'untrained'}; "
         f"{inw['scored']} of {inw['recorded']} predictions scored. |",
         "",
+        "## Delivered — receipts authored outside this lane",
+        "",
+        'Self scoring is banned (founder, 2026-08-31, verbatim: "the research ledger should '
+        'never score itself SELF SCORING IS BANNED FOREVER"). Every count above comes from the '
+        "lane's own ledger, so none of it can raise the grade past GAP. Only a receipt written "
+        "by the consumer of a research output — pointing at the merged PR or commit where it "
+        f"changed what shipped (`used_in`) — counts as delivery. Source: `{rel(RECEIPTS)}`.",
+        "",
+    ]
+    if rec:
+        out += ["| Date | What | Used in |", "|---|---|---|"]
+        out += [f"| {r.get('date', '-')} | {r['what'][:100]} | {r['used_in']} |" for r in rec]
+        out += [""]
+    else:
+        out += [
+            "None. Nothing this lane produced has a receipt from anyone who used it; the "
+            "grade floors at GAP whatever the self-authored numbers say.",
+            "",
+        ]
+    out += [
         "## Outward — questions answered from the world",
         "",
         f"Source: `{L}`.",

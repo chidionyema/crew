@@ -8,6 +8,7 @@ The defect this test exists to prevent: a page that prints a research capability
 while a question sat 30 days with no decision, or that prints a foresight hit rate with no
 model behind it. A stale question is a RED row on the page or this test fails.
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -23,18 +24,38 @@ TODAY = dt.date(2026, 8, 27)
 
 LEDGER_ROWS = [
     # fed a decision the day it was asked, 3 sources
-    {"date": "2026-08-26", "question": "Which catalogue does the estate run on?",
-     "decision_fed": "Backstage for the catalogue, SQLite behind it.",
-     "sources": ["https://backstage.io/docs", "https://a2a-protocol.org/", "https://opentofu.org/"],
-     "findings": ["hosted portals price per seat"], "owner": "platform"},
+    {
+        "date": "2026-08-26",
+        "question": "Which catalogue does the estate run on?",
+        "decision_fed": "Backstage for the catalogue, SQLite behind it.",
+        "sources": [
+            "https://backstage.io/docs",
+            "https://a2a-protocol.org/",
+            "https://opentofu.org/",
+        ],
+        "findings": ["hosted portals price per seat"],
+        "owner": "platform",
+    },
     # open, 2 days old -> not stale
-    {"date": "2026-08-25", "question": "What grades an identity population?",
-     "decision_fed": None, "sources": ["https://www.w3.org/TR/webauthn-2/"],
-     "findings": [], "owner": "platform", "ticket": "crew#227"},
+    {
+        "date": "2026-08-25",
+        "question": "What grades an identity population?",
+        "decision_fed": None,
+        "sources": ["https://www.w3.org/TR/webauthn-2/"],
+        "findings": [],
+        "owner": "platform",
+        "ticket": "crew#227",
+    },
     # open, 30 days old -> RED
-    {"date": "2026-07-28", "question": "What should replace the launchd scheduler?",
-     "decision_fed": "", "sources": [], "findings": [], "owner": "operations",
-     "ticket": "crew#247"},
+    {
+        "date": "2026-07-28",
+        "question": "What should replace the launchd scheduler?",
+        "decision_fed": "",
+        "sources": [],
+        "findings": [],
+        "owner": "operations",
+        "ticket": "crew#247",
+    },
 ]
 
 
@@ -47,13 +68,13 @@ def _ledger(tmp_path: pathlib.Path) -> pathlib.Path:
 def test_counts_are_read_from_the_ledger(tmp_path):
     g = rg.grade(rg.read_ledger(_ledger(tmp_path)), TODAY)
     assert g["questions"] == 3
-    assert g["decisions_fed"] == 1          # None and "" are not decisions
+    assert g["decisions_fed"] == 1  # None and "" are not decisions
     assert g["open"] == 2
     assert g["fed_pct"] == 33
     assert g["sources_total"] == 4
     assert g["sources_median"] == 1.0
     assert g["sourceless"] == 1
-    assert g["median_hours_to_decision"] == 0.0   # day-granular rows are a floor, not a guess
+    assert g["median_hours_to_decision"] == 0.0  # day-granular rows are a floor, not a guess
     assert g["day_only_rows"] == 1
 
 
@@ -92,15 +113,32 @@ def test_check_exits_one_when_a_question_is_stale(tmp_path):
     out = tmp_path / "RESEARCH-GRADE.md"
     # --today pins the clock: the fixture dates are fixed, and at 2026-08-28T00:00Z the row
     # aged to 31d and every PR went red (crew#547 qa 33129059210).
-    assert rg.main(["--ledger", str(ledger), "--out", str(out), "--check", "--today", TODAY.isoformat()]) == 1
+    assert (
+        rg.main(
+            ["--ledger", str(ledger), "--out", str(out), "--check", "--today", TODAY.isoformat()]
+        )
+        == 1
+    )
     assert "RED 30d" in out.read_text()
 
 
 def test_grades_call_a_blind_block_blind():
-    blind = rg.grades({"questions": 0, "stale": [], "sourceless": 0},
-                      {"trained": False, "evidence": "-", "scored": 0})
+    blind = rg.grades(
+        {"questions": 0, "stale": [], "sourceless": 0},
+        {"trained": False, "evidence": "-", "scored": 0},
+    )
     assert blind == ("BLIND", "BLIND")
     # crew#659 CP2: a lane with no idea scored in the last day is GAP, however good its questions.
-    elite = rg.grades({"questions": 5, "stale": [], "sourceless": 0, "ideas_fresh": 1},
-                      {"trained": True, "evidence": "science/foresight-state.json", "scored": 4})
+    # crew#729, founder 2026-08-31: self scoring is banned forever — with no receipt authored
+    # outside the lane the same perfect self-ledger floors at GAP; one receipt lifts it.
+    capped = rg.grades(
+        {"questions": 5, "stale": [], "sourceless": 0, "ideas_fresh": 1},
+        {"trained": True, "evidence": "science/foresight-state.json", "scored": 4},
+    )
+    assert capped == ("GAP", "GAP")
+    elite = rg.grades(
+        {"questions": 5, "stale": [], "sourceless": 0, "ideas_fresh": 1},
+        {"trained": True, "evidence": "science/foresight-state.json", "scored": 4},
+        delivered_n=1,
+    )
     assert elite == ("ELITE", "ELITE")

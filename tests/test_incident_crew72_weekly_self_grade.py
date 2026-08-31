@@ -3,6 +3,7 @@ The rule: the self-grade is RED for a silent week and for a week whose entries f
 GREEN only when every entry of a non-empty week fed one; the grade lands as a ledger entry the
 existing validator accepts, and never counts itself as research.
 """
+
 import datetime as dt
 import importlib.util
 import json
@@ -18,8 +19,13 @@ NOW = dt.datetime(2026, 8, 27, tzinfo=dt.UTC)
 
 
 def _row(days_ago: int, decision: str = "x", after: str = "") -> dict:
-    return {"date": (NOW - dt.timedelta(days=days_ago)).strftime("%Y-%m-%d"), "question": "q",
-            "decision_fed": decision, "metric_before": "0", "metric_after": after}
+    return {
+        "date": (NOW - dt.timedelta(days=days_ago)).strftime("%Y-%m-%d"),
+        "question": "q",
+        "decision_fed": decision,
+        "metric_before": "0",
+        "metric_after": after,
+    }
 
 
 def test_a_silent_week_is_red_and_a_decided_week_is_green():
@@ -30,14 +36,28 @@ def test_a_silent_week_is_red_and_a_decided_week_is_green():
 
 
 def test_the_grade_never_counts_itself_and_the_entry_passes_the_ledger_validator(tmp_path):
-    prior = sg.entry(sg.grade([_row(3)], NOW - dt.timedelta(days=7)), NOW - dt.timedelta(days=7), "t")
+    prior = sg.entry(
+        sg.grade([_row(3)], NOW - dt.timedelta(days=7)), NOW - dt.timedelta(days=7), "t"
+    )
     g = sg.grade([_row(3), prior], NOW)
     assert g["entries"] == 1 and g["prior"] == prior["metric_after"]
     ledger = tmp_path / "L.jsonl"
-    ledger.write_text(json.dumps(_row(3)) + "\n")
+    # sg.main grades with the real clock, so this row must be dated from it too — a row pinned
+    # to the NOW constant ages out of the window and reds the suite by calendar (2026-08-31).
+    live = dict(_row(3), date=(dt.datetime.now(dt.UTC) - dt.timedelta(days=2)).strftime("%Y-%m-%d"))
+    ledger.write_text(json.dumps(live) + "\n")
     assert sg.main(["--ledger", str(ledger), "--owner", "t"]) == 0
     rows = [json.loads(line) for line in ledger.read_text().splitlines()]
     e = rows[-1]
-    required = {"date", "question", "decision_fed", "sources", "findings", "metric", "metric_before", "owner"}
+    required = {
+        "date",
+        "question",
+        "decision_fed",
+        "sources",
+        "findings",
+        "metric",
+        "metric_before",
+        "owner",
+    }
     assert required <= e.keys() and e["sources"] and all(len(f) >= 20 for f in e["findings"])
     assert e["decision_fed"].startswith("GREEN:")

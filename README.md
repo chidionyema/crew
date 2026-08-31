@@ -1,5 +1,7 @@
 # crew
 
+**Founder documents: [`docs/FOUNDER-DOCS.md`](docs/FOUNDER-DOCS.md)** — every doc produced on a founder order, newest first. If you were brought a document, its link is there.
+
 **Start at [`STATE.md`](STATE.md).** It is the estate right now: The Architect, maestro,
 Fly, and the open P1 fires. Every row is a command and its output, rebuilt hourly, and a
 row that could not be measured says NOT RUN rather than PASS. Read it before you measure

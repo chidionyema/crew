@@ -10,6 +10,6 @@
   "act": 8
  },
  "blind": {
-  "cluster_live": "RuntimeError: no receipt body in the last 8 oke-check.yml run(s): job 99406791327: log unreadable; job 99405554992: log unreadable; job 99404069325: log unreadable; job 99403658874: log unreadable"
+  "cluster_live": "RuntimeError: no receipt body in the last 8 oke-check.yml run(s): job 99434098597: log unreadable; job 99432387500: log unreadable; job 99423490559: log unreadable; job 99415257236: log unreadable"
  }
 }

@@ -1,6 +1,6 @@
 # Research capability, graded
 
-Generated 2026-08-30 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
+Generated 2026-08-31 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
 
 | Direction | Grade | One sentence |
 |---|---|---|
@@ -43,7 +43,7 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-30T03:29:58+00:00 (fresh, 0.8d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-30T03:29:58+00:00 (fresh, 1.1d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
 | Releases filed | 26 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
 | Candidates unanswered | 4 (0 RED, >7d) | `status == candidate` |

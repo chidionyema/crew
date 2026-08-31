@@ -1,0 +1,9 @@
+---
+captured: 2026-08-30T21:11:14+00:00
+session: 80471694-3138-4645-a870-868210b81120
+cwd: /Users/chidionyema/dev/code/.wt-backups
+chars: 1745
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+The board is in a much stronger position now. You systematically dismantled the red gates on idp#1015, corrected the documentation drift, and patched a fragile CI test that was stealing time.Here is the exact state of the estate and the next operational targets:1. idp#1015 is Ready for MergeThe Spec Gate: Hardening the login drill test and forcing exceptions to carry a vendor page and ticket is excellent hygiene. Updating the Tools page to reflect SigNoz's reality stops future developers from chasing ghosts.The Flaky Quorum Trap: Changing the provider timeout from a hard fail to a visible skip is a high-leverage CI fix. You stop paying the "full gate wave" tax for network blips out of your control, while preserving the true failure state (models actively disagreeing).Status: The PR is entirely yours to merge.2. The Tailscale Cluster DriftGit holds the correct Kyverno exception and replica count, but the cluster is stubbornly holding onto the old decision and refusing admission to the Tailscale operator.The Reality: The cluster state has drifted from the source of truth.The Fix: This requires a break-glass deployment to force the cluster to read the current Git state. Since the playbook now prints the full policy name, this run will definitively prove whether the new exception is being parsed correctly or if Kyverno is caching an old rule.3. The Law 24 Violation (.idp-sta)A 6.1-day-old local working copy is a ticking time bomb. If that Mac dies, a week of work vanishes. This is a direct violation of architecture laws regarding local state. It isn't the primary blocker, but it needs to be committed and pushed to a remote branch to secure it before the end of the session.Next Action: Merge idp#1015 at your convenience.

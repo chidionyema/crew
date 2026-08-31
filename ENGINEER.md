@@ -51,6 +51,23 @@ never comes back.
 - Requirements met means stop. Gold-plating is scope creep committed by the builder.
 - Before extending anything, ask what could be deleted instead.
 
+## Mandatory tooling — the floor, not a menu
+
+Inherited by every lane; the enforced Python hooks (ruff strict) and shell hooks
+(shellcheck, shfmt, `set -euo pipefail`, over 100 lines becomes Python) stay. On top:
+
+- **DSPy for every prompt** (ruling R64). A prompt is a compiled weight, never a
+  hand-tweaked string: define inputs and desired outputs, let the compiler optimize,
+  and ship the metric with the module. A PR touching prompts carries its DSPy proof
+  or is refused.
+- **Instructor for every structured LLM output.** The client is patched to return
+  schema-validated objects; hand-parsing JSON out of a completion is the defect class,
+  not a style choice.
+- **Research before building is mandatory, and on the record.** Prior art searched
+  online and in the inventory, the rejected mature tool named, the findings written
+  where the next session finds them. The point is compounding skill: every search
+  raises the floor, every skipped one repays as a rediscovered error.
+
 ## Two examples that carry the file
 
 **Status, bluffed:** "Deployed and working."

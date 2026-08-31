@@ -41,6 +41,7 @@ SHIPS = SCIENCE / "ships.jsonl"
 ATTENTION = SCIENCE / "attention.jsonl"
 PREDICTIONS = SCIENCE / "predictions.jsonl"
 SOURCES = SCIENCE / "sources.json"
+PLANFILE = SCIENCE / "PLAN.md"
 LAUNCHD = pathlib.Path.home() / ".claude" / "scripts" / "launchagents"
 WINDOW_DAYS = 7
 LANE_HOURS = 24
@@ -507,6 +508,91 @@ def lanes(now: dt.datetime) -> dict:
     }
 
 
+REGISTER_TITLE = "Datasets collected from the estate"
+ROADMAP_TITLE = "Roadmap"
+
+
+def _cell(value) -> str:
+    """One markdown table cell: whitespace collapsed, pipes escaped, never a broken row."""
+    return re.sub(r"\s+", " ", str(value)).replace("|", "\\|").strip()
+
+
+def register(now: dt.datetime) -> dict:
+    """Every dataset the lane copies out of the estate, and every one it declined, on the page.
+
+    Founder, 2026-08-31: what science collects "must be transparent, critical for auditing".
+    The register already existed (science/sources.json, enforced by collect.py --check); a
+    JSON file nobody is shown is not transparency, so this renders it (LAW 28).
+    """
+    if not SOURCES.exists():
+        raise Blind(f"{rel(SOURCES)} absent")
+    reg = json.load(SOURCES.open())
+    newest: dict[str, str] = {}
+    if WAREHOUSE.exists():
+        try:
+            db = sqlite3.connect(f"file:{WAREHOUSE}?mode=ro", uri=True)
+            newest = dict(db.execute("select source, max(at) from facts group by source"))
+        except sqlite3.Error:
+            pass  # freshness renders as '-'; the Warehouse section reports the breakage
+    roots = reg.get("roots", {})
+    default_sla = reg.get("default_stale_after_hours", 48)
+    rows = []
+    for s in reg["sources"]:
+        prefix = {"~": "~", ".": "science"}.get(
+            roots.get(s.get("root", ""), ""), roots.get(s.get("root", ""), "")
+        )
+        rows.append(
+            {
+                "name": s["name"],
+                "lane": _lane_of(s["name"]),
+                "path": f"{prefix}/{s['path']}" if prefix else s["path"],
+                "owner": s.get("owner", "MISSING"),
+                "method": s.get("method", "MISSING"),
+                "sensitivity": s.get("sensitivity", "MISSING"),
+                "retention_days": s.get("retention_days", "MISSING"),
+                "sla_hours": s.get("stale_after_hours", default_sla),
+                "newest": newest.get(s["name"]) or "-",
+            }
+        )
+    rows.sort(key=lambda r: (r["lane"], r["name"]))
+    declined = [
+        {"id": e.get("id") or e.get("path", "?"), "reason": e.get("reason", "")}
+        for e in reg.get("declined", [])
+    ]
+    return {"rows": rows, "declined": declined}
+
+
+def roadmap(now: dt.datetime) -> dict:
+    """The lane's goals, read from science/PLAN.md each run so the page and the plan cannot drift."""
+    if not PLANFILE.exists():
+        raise Blind(f"{rel(PLANFILE)} absent")
+    goals = []
+    for m in re.finditer(r"^## (.+?)$([\s\S]*?)(?=^## |\Z)", PLANFILE.read_text(), re.M):
+        fields = dict(re.findall(r"^ {4}(\w+)\s+(.+)$", m.group(2), re.M))
+        if "target" in fields or "now" in fields:
+            goals.append(
+                {
+                    "title": m.group(1).strip(),
+                    "now": fields.get("now", "?"),
+                    "target": fields.get("target", "?"),
+                    "graded_by": fields.get("command")
+                    or fields.get("rule")
+                    or fields.get("reported")
+                    or "no grading command named in PLAN.md yet",
+                }
+            )
+    if not goals:
+        raise Blind(f"{rel(PLANFILE)} has no goal with a 'now' or 'target' line")
+    changed = subprocess.run(
+        ["git", "log", "-1", "--format=%cs", "--", str(PLANFILE)],
+        cwd=CREW,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    return {"goals": goals, "changed": changed or "?", "path": rel(PLANFILE)}
+
+
 SECTIONS = [
     (
         "Capabilities",
@@ -524,6 +610,7 @@ SECTIONS = [
         'sqlite3 science/warehouse.db "select count(*), count(distinct source), max(ingested_at) from facts"',
     ),
     ("Data map (LAW 50)", datamap, "python3 science/datamap.py --check"),
+    (REGISTER_TITLE, register, "python3 -m json.tool science/sources.json"),
     (
         "Research ledger",
         research,
@@ -546,6 +633,7 @@ SECTIONS = [
         false_success,
         "python3 science/false_success.py --days 30",
     ),
+    (ROADMAP_TITLE, roadmap, "git log -1 --format=%cs -- science/PLAN.md"),
 ]
 
 
@@ -653,6 +741,13 @@ def numbers(data: dict) -> dict[str, float]:
         rows, _ = data["Capabilities"]
         n["capabilities"] = len(rows)
         n["capabilities scheduled"] = sum(r["scheduled"] != "hand-run" for r in rows)
+    reg_d = data.get(REGISTER_TITLE)
+    if reg_d:
+        n["datasets collected"] = len(reg_d["rows"])
+        n["datasets declined"] = len(reg_d["declined"])
+    rm = data.get(ROADMAP_TITLE)
+    if rm:
+        n["roadmap goals"] = len(rm["goals"])
     return n
 
 
@@ -803,6 +898,43 @@ def render(now: dt.datetime, data: dict, blind: dict, prev: dict) -> str:
                 + ", ".join(f"{k} ({v:+.2f})" for k, v in st["top_features"]),
                 f"- live: {d['recorded']} open PRs predicted before their CI finished, {d['scored']} scored, hit rate {rate}",
             ]
+        elif title == REGISTER_TITLE:
+            out += [
+                "Every dataset the science lane copies out of the estate, from the register the",
+                "collector enforces (science/sources.json). A store the machine crawl finds that sits",
+                "in neither table fails `python3 science/collect.py --check`, so an omission here is",
+                "red in CI, never silent.",
+                "",
+                "| Dataset | Lane | Where it lives | Written by | How | Sensitivity | Kept, days | Fresh within, h | Newest row |",
+                "|---|---|---|---|---|---|---:|---:|---|",
+            ]
+            out += [
+                f"| {r['name']} | {r['lane']} | `{_cell(r['path'])}` | `{_cell(r['owner'])}` "
+                f"| {r['method']} | {r['sensitivity']} | {r['retention_days']} | {r['sla_hours']} | {_cell(r['newest'])} |"
+                for r in d["rows"]
+            ]
+            out += [
+                "",
+                f"### Declined: found by the crawl, deliberately not collected ({len(d['declined'])})",
+                "",
+                "| Store | Why not |",
+                "|---|---|",
+            ]
+            out += [f"| {_cell(r['id'])} | {_cell(r['reason'])} |" for r in d["declined"]]
+        elif title == ROADMAP_TITLE:
+            out += [
+                f"Read from `{d['path']}` (last changed {d['changed']}) each run, so this page and the",
+                "plan cannot say different things. A goal is on the roadmap only if a command can",
+                "grade it; the grading command is printed beside each one.",
+                "",
+            ]
+            for g in d["goals"]:
+                out += [
+                    f"- **{g['title']}**",
+                    f"  - now: {g['now']}",
+                    f"  - target: {g['target']}",
+                    f"  - graded by: `{g['graded_by']}`",
+                ]
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 

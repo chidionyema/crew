@@ -28,3 +28,9 @@ pyright>=1.1
 scikit-learn>=1.5
 # science/scheduler: the estate-facts code location; pyright needs the real module (crew#140)
 dagster>=1.13
+
+# Founder order 2026-08-31: DSPy (prompts compiled and optimised like weights) and Instructor
+# (typed, guaranteed structured output) are available to every agent. Both reach a model only
+# through the estate router. Proof: scripts/dspy-instructor-smoke.py, docs/tools/dspy-instructor.md.
+dspy>=3.3
+instructor>=1.16

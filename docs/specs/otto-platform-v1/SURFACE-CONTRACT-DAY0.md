@@ -37,7 +37,7 @@ a socket that already exists instead of forcing a gateway rework.
    webhook adapter pattern) and a minimal HTTP surface (the companion app's future socket —
    POST in, contract JSON out). One adapter is an example; two are a contract.
 
-## Acceptance (BDD, `otto/tests/cp6surface/`)
+## Acceptance (BDD, `otto/tests/cp2b/`)
 
 - The same task envelope results from a Telegram message and an HTTP call with identical
   content; gateway/tier behaviour is byte-identical.

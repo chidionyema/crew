@@ -105,6 +105,10 @@
     "OPENAI_API_KEY": {
       "is": "not an OpenAI credential: the env var name gpt-researcher and the openai client read the router key from; science/research_worker.py sets it to ROUTER_KEY with OPENAI_BASE_URL at the estate router",
       "dismissed": "an alias of ROUTER_KEY inside one process; no OpenAI account exists"
+    },
+    "LITELLM_API_KEY": {
+      "is": "an alias of ROUTER_KEY: the env var name LiteLLM-speaking clients read the estate router key from; scripts/dspy-instructor-smoke.py accepts it as a fallback",
+      "dismissed": "an alias of ROUTER_KEY inside one process; the router key's mint and rotation are graded in idp (tests/test_incident_crew659_science_router_key_is_frontier_only.py)"
     }
   }
 }

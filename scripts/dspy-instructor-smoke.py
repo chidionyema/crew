@@ -5,6 +5,10 @@ or refuses, naming exactly what is missing. The router address comes from ROUTER
 estate zone in the environment; the key from ROUTER_KEY or ROUTER_KEY_FILE — never printed.
 """
 
+# Rejected: promptfoo -- it grades prompts over HTTP but cannot import this venv's
+#   dspy and instructor, and the claim under proof is that the agents' own client path works.
+# Standard: LLM providers -- the LiteLLM router is the only model endpoint (docs/STANDARDS.md).
+
 import os
 import pathlib
 import sys

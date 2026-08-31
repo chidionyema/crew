@@ -1,6 +1,3 @@
-<!-- Requirements this spec answers: docs/requirements/2026-08-29-verification-layer.md
-     Work item: crew#656. Founder record: ~/.claude/docs/founder/2026-08-29T2213Z-crew-628-verification-layer-4e0f20e1.md (claude-estate 162b9d9) -->
-
 ---
 captured: 2026-08-29T22:13:40+00:00
 session: 14ed6c8b-f0a9-40d7-82a8-895f336f9b78

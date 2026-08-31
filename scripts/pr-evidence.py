@@ -883,6 +883,35 @@ def incident_named(body: str, ledger: list | None) -> tuple:
     return True, "touches no traced incident"
 
 
+def diff_via_files_api(info: dict) -> str:
+    """Rebuild a gradable diff from the paginated files API.
+
+    `gh pr diff` is one call against the diff media type, and GitHub refuses it outright
+    past ~300 files / 20k lines -- a corpus move (crew#760 mirrored 887 founder documents)
+    is a legitimate PR that size, and the fail-closed branch below turned it into a
+    permanent red no push could fix. The files endpoint paginates to 3000 files and
+    carries each file's hunks in `patch`, so the rebuilt text keeps the exact shapes the
+    graders read: `diff --git` headers (DIFF_SECTION), `deleted file mode` markers
+    (DELETED_SECTION) and `+` added lines (coupling, infra paths). Raises on any fetch
+    error so check() stays fail-closed."""
+    m = re.search(r"github\.com/([^/]+/[^/]+)/pull/(\d+)", info.get("url") or "")
+    if not m:
+        raise ValueError("no owner/repo in the pull request url")
+    raw = gh(["api", f"repos/{m.group(1)}/pulls/{m.group(2)}/files", "--paginate",
+              "--jq", ".[] | {filename, status, patch}"])
+    parts = []
+    for line in raw.splitlines():
+        e = json.loads(line)
+        parts.append(f"diff --git a/{e['filename']} b/{e['filename']}")
+        if e.get("status") == "removed":
+            parts.append("deleted file mode 100644")
+        if e.get("patch"):
+            parts.append(e["patch"])
+    if not parts:
+        raise ValueError("files API returned no entries")
+    return "\n".join(parts) + "\n"
+
+
 def check(pr: str, repo: str | None) -> tuple[bool, str]:
     info = pr_info(pr, repo)
     body = info.get("body") or ""
@@ -893,11 +922,15 @@ def check(pr: str, repo: str | None) -> tuple[bool, str]:
     try:
         diff = gh(args)
     except Exception:  # noqa: BLE001
-        # Blind on purpose, fail-closed: ANY fetch error must become a FAIL verdict, not a
-        # crash. A diff we cannot fetch is not a pass. Say which check did not run, because
-        # a gate that goes quiet on its own failure is the shape LAW 28 forbids.
-        return False, ("#{}: could not fetch the diff, so neither the evidence nor LAW 34 "
-                       "coupling was checked".format(info["number"]))
+        # The one-shot diff endpoint refuses oversized PRs; rebuild from the paginated
+        # files API before going red. Still blind-on-purpose, fail-closed: if that read
+        # fails too, ANY fetch error must become a FAIL verdict, not a crash, and the
+        # message says which check did not run (LAW 28).
+        try:
+            diff = diff_via_files_api(info)
+        except Exception:  # noqa: BLE001
+            return False, ("#{}: could not fetch the diff, so neither the evidence nor "
+                           "LAW 34 coupling was checked".format(info["number"]))
     imgs, where = evidence_paths(body, diff, info["number"])
     gen_run, typed = generated_evidence(body)
     claims = len(VERIFY_LINE.findall(body))

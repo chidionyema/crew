@@ -1,0 +1,9 @@
+---
+captured: 2026-08-29T13:28:08+00:00
+session: 2d8b3bd0-3d43-40d9-862b-712be5c41803
+cwd: /Users/chidionyema/dev/code/idp
+chars: 1724
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+SO DIFFERENT PERSONAS A "super elite" Backstage setup stops looking like a static directory of microservices and starts operating like a highly opinionated, autonomous mission control center.The baseline Backstage UI is essentially a filing cabinet. An elite setup flips this: it pushes context to the developer instead of forcing them to search for it. It relies heavily on Spotify’s modern Backstage UI (BUI) token system, deeply customized for density, actionability, and zero cognitive load.Here is exactly how the Information Architecture (IA), Design, and UI are structured for a 100/100 developer platform.1. Information Architecture: Context over HierarchyThe IA abandons the traditional "folder tree" model. Instead, it routes based on Identity (who is logged in) and State (what is broken or pending).Architectural LayerPurposeElite ExecutionThe "Now" (Home)Immediate action items and personal blast radius.You log in and see your open PRs, your failing GitHub Actions, and alerts for services you own. If you are on-call, the PagerDuty module moves to the top left.The "What" (Catalog)Zero-drift discovery and dependency mapping.Universal Command+K search. Every entity links directly to its upstream dependencies, downstream consumers, OpenAPI specs, and live runtime state.The "Next" (Scaffolder)Frictionless creation of new infrastructure.Golden Path wizards. You don't just search for "how to deploy." You click "New Go Microservice" and it provisions the repo, CI/CD, Vault paths, and K8s namespace instantly.The "Health" (Scorecards)Automated governance and engineering standards.DORA metrics, Trivy vulnerability counts, and cost-to-serve analytics mapped directly to the service and the team that owns it.

@@ -1,0 +1,9 @@
+---
+captured: 2026-08-31T10:38:25+00:00
+session: 4a84e2ea-66e0-4aca-9ccd-df82be7a0eeb
+cwd: /Users/chidionyema/dev/code/crew
+chars: 1745
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+efore we burn it down and start from scratch, we have to protect the data that currently exists in that fragile state. Here is the exact audit and bootstrap plan to move from manual chaos to a 100% reproducible estate.1. Stop the Bleeding (Immediate Rescue)We cannot start over until the existing data is safe.Snapshot the Volumes: Immediately take manual, out-of-band backups of the shop database volume and any other unmanaged persistent volumes.Export State: Run a resource discovery script against your cloud provider (OCI) to dump a list of every single resource currently running.2. The Hard Audit (Mapping Reality)We need to document exactly what was built by hand so we know what to codify.Network: Map the Virtual Cloud Network (VCN), subnets, routing tables, and security lists.Compute: Identify the exact Kubernetes version, node pool sizes, instance shapes, and load balancer configurations.Dependencies: Catalog the imported Vault secrets and external identity records the current Terraform relies on.3. Codify the BedrockWe write the missing Terraform from the ground up. This becomes your new source of truth.Layer 1: Network, subnets, and firewalls.Layer 2: The Kubernetes cluster and node pools.Layer 3: Storage classes and volume claims.4. The Clean Room (Bootstrapping V2)We do not touch the fragile production cluster yet.Apply the new Terraform to spin up a V2 environment in parallel.Restore the data snapshots into the new, managed volumes.Apply the existing high-level Terraform (secrets, identities) to V2.5. Institute the Iron GateBefore routing traffic to V2, we build the mechanism that was missing: a CI pipeline that runs conftest to grade every generated policy against the live estate before any merge is allowed.

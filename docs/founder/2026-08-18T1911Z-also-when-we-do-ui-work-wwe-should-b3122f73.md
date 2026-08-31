@@ -1,0 +1,9 @@
+---
+captured: 2026-08-18T19:11:57+00:00
+session: 3fa47c70-c6d2-4273-9620-19dc9810b132
+cwd: /Users/chidionyema/Documents/code/prospector
+chars: 1644
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+also when we do ui work wwe should close browers sessions this is now founders conplaint, lets have a list being tracked in repo, and deep liked to agents, branch hygiene, tiecket hygiene, we dont have proper ticketing systen, claining work to avoid duplication, we dont pan anynonre, we juno stright intp code, this is we have lots pf code that do nothing, testing hours and days have been spent writing tests for volatile chaning elenent, ui tests, debugiing a problen when not even sure the solution is right and wrtig extensive tests, by ui tests i nean ui layout and content and disply tests when ui changees constantly, ad volatile, wastig hours 5 hours sonethig down rabbitholes or chasing wrong soloutions, narrating issue without investgatig, fiing or ticketig, not batch editing, slow and inefficient working practicless, no batching no creative thinking to save tine cosst or be nore effcient, i have to always repeat ultra surgical , ultra nilitary ultra focus, approch when this should be default , not learning fron nistakes repeatig sane nistake and narrting e.g zsh issues, buuld isues never ahing root cause, agent naisfestor should be never repeat a nistake, dont see a bug nore than oonce, you should be ruthless about not just fiing things but ensuring they can never occur again and if they can occur adopt self hearinf as first pronciple, which we shold always be doing, shipping without verufying pushig branch without raising pr, rising pr and not follow through to shipped, ship but not verufy it actually wprks in prod. everythng here reoccurs across all agent session dozens of tines a day if not hundreds . rant over

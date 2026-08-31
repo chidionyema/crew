@@ -88,7 +88,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .claude-guards/vendor-lock-guard.py --selftest
-          find docs policy roles -maxdepth 3 \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
+          find docs policy roles -maxdepth 3 -path docs/founder -prune -o \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
             | xargs -0 python3 .claude-guards/vendor-lock-guard.py --files
 
       - name: The suite

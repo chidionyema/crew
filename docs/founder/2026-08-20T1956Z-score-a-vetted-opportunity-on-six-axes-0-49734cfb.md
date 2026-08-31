@@ -1,0 +1,48 @@
+---
+captured: 2026-08-20T19:56:40+00:00
+session: 0bd55347-8f48-4728-9575-bcf0a68b5e39
+cwd: /private/var/folders/gq/jbt0858s1g99w05n7k7531040000gn/T/prospector_cli_cwd/slot_0
+chars: 9387
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+Score a vetted opportunity on six axes, 0-5, grounded ONLY in the provided
+claims. Same standard for any sector. Score `automatability` REALISTICALLY against what
+current, real tooling can actually do today — not aspiration. Justify each in one line
+citing source_ids where used.
+
+HOW TO WORD IT (this governs the WRITING ONLY — it does not touch your ruling):
+Your verdict, your standard of proof, your confidence and your citations are exactly
+what they would be otherwise. The reader of this line is not on this project and has
+never seen our vocabulary. Write for them.
+
+  - Say what the passages showed, then what that means for the claim. Active voice,
+    one idea per sentence. A reader should not need a second pass.
+  - Explain a term of art the first time you use it, or drop it. Not "the value is
+    not commoditised away" but "no free or bundled alternative has taken the margin".
+  - NEVER name our internal machinery. No gate names, no threshold rules, no check
+    vocabulary: not "the 80%+ single-controller condition is not evidenced" but "no
+    passage shows a single provider holding most of this market". Not "the incumbency
+    check", but the substance of what was or was not found.
+  - When you rule unverifiable, name the specific thing the passages never addressed.
+    "The passages do not say what these operators pay today" tells the reader what is
+    missing; "unverifiable on this evidence" tells them nothing.
+  - Keep every source_id. Clarity never costs a citation, a caveat, or a number.
+
+Return ONLY valid JSON. No prose, no code fences.
+
+Candidate: {"title": "Construction Statutory Adjudication Arbitrage", "one_liner": "", "hypothesis": "", "who_pays": "", "why_now": "", "tags": {"price_comparables": {"anchors": [], "rejected": [], "queries": ["construction statutory adjudication arbitrage pricing how much does it cost", "construction statutory adjudication arbitrage one-off fee fixed price one time purchase", "construction statutory adjudication arbitrage course OR template OR toolkit price"], "sources": [{"source_id": "5351fed184c66ed2", "url": "https://statutory-adjudication.example.com/right", "text": "Statutory adjudication is a mandatory legal right for construction contracts in the UK under the Housing Grants, Construction and Regeneration Act 1996, providing a lawful forcing mechanism for payment: either party may refer a payment dispute at any time and the adjudicator's decision binds until finally determined. Nothing about preparing or referring such a claim requires breaking the law or falsifying data.", "published_at": "2024-01-01", "query": "construction statutory adjudication arbitrage pricing how much does it cost", "fetched_at": null, "archived_url": null, "retrieved_by": "fixture"}, {"source_id": "017bafe50a81b3ee", "url": "https://construction-payment.example.com/late-payment", "text": "Late payment is endemic in UK construction: subcontractors wait an average of 71 days to be paid and unpaid sums are the leading cause of otherwise-profitable firms failing, so the problem is acute and firms already pay solicitors to chase it. The payers are solvent main contractors and their clients \u2014 the money contractually exists and is withheld, not absent.", "published_at": "2024-02-01", "query": "construction statutory adjudication arbitrage pricing how much does it cost", "fetched_at": null, "archived_url": null, "retrieved_by": "fixture"}, {"source_id": "20959cd99f9c93a9", "url": "https://construction-legal-services.example.com/gap", "text": "No provider dominates adjudication claim preparation for sub-\u00a3100k construction disputes; construction-law firms decline claims of that size as uneconomic, leaving the segment open. The statutory right is permanent legislation rather than a temporary scheme, so the basis for the service is durable, and subcontractors are reachable through trade federations and builders' merchant partner programmes that already sell vendor access.", "published_at": "2024-03-01", "query": "construction statutory adjudication arbitrage pricing how much does it cost", "fetched_at": null, "archived_url": null, "retrieved_by": "fixture"}], "rationale": "", "provider": "claude_cli", "provisional": false, "degraded": false}}, "automatability": null, "weak_monetisation": false, "candidate_id": "abe159e281983e47", "structural_form": "", "ambition_tier": "", "market": "", "refinement_history": []}   Claims: [{"check": "value_durability", "verdict": "supported", "confidence": 0.775, "rationale": "The statutory right is permanent legislation (source [20959cd99f9c93a9]), late payment is endemic with solvent payers already spending on solutions (source [017bafe50a81b3ee]), and no provider dominates the sub-\u00a3100k segment (source [20959cd99f9c93a9]), confirming the value is durable and not commoditised.", "citations": ["5351fed184c66ed2", "017bafe50a81b3ee", "20959cd99f9c93a9"]}, {"check": "incumbency", "verdict": "supported", "confidence": 0.48, "rationale": "Passage [20959cd99f9c93a9] explicitly states no provider dominates adjudication claim preparation for sub-\u00a3100k construction disputes, and construction-law firms actively decline claims of that size as uneconomic, leaving the segment open. Passage [017bafe50a81b3ee] confirms the problem is acute and firms already pay solicitors to chase payment, indicating market demand and willingness to pay persist despite the absence of incumbents serving this specific segment.", "citations": ["20959cd99f9c93a9", "017bafe50a81b3ee"]}, {"check": "payer_solvency", "verdict": "supported", "confidence": 0.45, "rationale": "Passage [017bafe50a81b3ee] establishes that subcontractors face acute, endemic late payment (71-day average wait) and that this causes firm failure\u2014proving motive. The same passage confirms the payers are solvent (main contractors and clients with contractually-existing money, merely withheld) and that firms already pay solicitors to chase these claims, demonstrating both budget availability and proven willingness to pay for comparable services. At \u00a349.99, this price is trivially affordable for construction firms already spending on legal representation.", "citations": ["017bafe50a81b3ee", "5351fed184c66ed2"]}, {"check": "distribution", "verdict": "supported", "confidence": 0.76, "rationale": "Passages confirm statutory adjudication is a lawful forcing mechanism (ref [5351fed184c66ed2]), subcontractors already pay solicitors to chase payment claims (ref [017bafe50a81b3ee]), and trade federations and builders' merchant partner programmes already operate vendor-access channels through which subcontractors are reachable (ref [20959cd99f9c93a9]).", "citations": ["5351fed184c66ed2", "017bafe50a81b3ee", "20959cd99f9c93a9"]}, {"check": "legality", "verdict": "supported", "confidence": 0.76, "rationale": "Passage [5351fed184c66ed2] explicitly states that nothing about preparing or referring a statutory adjudication claim requires breaking the law or falsifying data; the mechanism is lawful under the Housing Grants, Construction and Regeneration Act 1996. The service exploits a permanent statutory right (not a temporary loophole) to solve an acute problem firms already pay to address, within a durable legal framework.", "citations": ["5351fed184c66ed2", "017bafe50a81b3ee", "20959cd99f9c93a9"]}, {"check": "pain_reality", "verdict": "supported", "confidence": 0.34, "rationale": "Passage [017bafe50a81b3ee] establishes that late payment is endemic in UK construction with subcontractors waiting an average of 71 days and unpaid sums being the leading cause of firm failure; firms already pay solicitors to address this, demonstrating that the pain is acute and the market actively pays to solve it.", "citations": ["017bafe50a81b3ee"]}]
+Axes: pain_acuity, money_provability, distribution, defensibility, build_feasibility, automatability.
+THE COMPOSITE AXES, heaviest first:
+- defensibility (weight 0.25): what accumulates here that a competitor starting tomorrow would not have
+- pain_acuity (weight 0.20): how sharp and how frequent the pain is for a specifically named sufferer
+- money_provability (weight 0.20): whether this BUYER already spends on this OUTCOME today — an adjacent invoice, staff hours, an agency or professional fee, a fine, or a paid workaround. A new solution to a job that is already funded scores HIGH; a job nobody spends anything to get done scores LOW. No public price page, quote-on-request pricing, and no direct competitor are facts about the market's disclosure, not evidence that the money is absent
+- automatability (weight 0.15): how much of the work real tooling can do TODAY, not aspirationally
+- distribution (weight 0.15): whether a beginner can actually reach the buyer through an open channel
+- build_feasibility (weight 0.05): whether a small team can ship the first useful version
+ABSENCE OF A PUBLISHED PRICE IS NOT EVIDENCE OF ABSENCE OF MONEY. Quote-on-request pricing, a
+sector where no competitor lists figures, or a paid substitute aimed at a slightly different
+artifact all mean the web did not disclose a number — not that the buyer does not spend. Score
+what the passages show this buyer already funds for this outcome. Score LOW only when the
+passages give you reason to believe nobody spends anything to get this job done.
+Output ONLY: {"scores":{axis:int...}, "justification":{axis:"..."}}

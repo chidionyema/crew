@@ -21,7 +21,14 @@ def test_incident_crew273_no_spec_mandates_a_vendor_only_channel():
         if os.environ.get("CI"):
             pytest.fail("BLIND: vendor-lock-guard not checked out; crew-qa.yml must check out claude-guards")
         pytest.skip("BLIND: vendor-lock-guard not on this machine (~/.claude/scripts is the claude-guards checkout)")
-    files = [str(f) for top in ("docs", "policy", "roles") for f in (ROOT / top).rglob("*") if f.suffix in {".md", ".feature"}]
+    #: docs/founder/ is the verbatim record of what the founder pasted (crew#760); a record is
+    #: never edited to satisfy a guard, so the store is not graded (LAW 38).
+    files = [
+        str(f)
+        for top in ("docs", "policy", "roles")
+        for f in (ROOT / top).rglob("*")
+        if f.suffix in {".md", ".feature"} and (ROOT / "docs" / "founder") not in f.parents
+    ]
     files += [str(f) for f in ROOT.glob("*.md")]
     r = subprocess.run([sys.executable, str(GUARD), "--files", *files], capture_output=True, text=True, check=False)
     assert r.returncode == 0, r.stdout[-2000:]

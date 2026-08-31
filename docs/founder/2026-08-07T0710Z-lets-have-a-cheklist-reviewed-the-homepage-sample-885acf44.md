@@ -1,0 +1,134 @@
+---
+captured: 2026-08-07T07:10:10+00:00
+session: 266e9014-edbd-4473-8cf5-9315db9161f5
+cwd: /Users/chidionyema/Documents/code/prospector
+chars: 15354
+source: founder prompt, verbatim (founder-doc-capture.py)
+---
+
+lets have a cheklist Reviewed the homepage, sample, a pack page, about, FAQ, refund policy and kill log. The concept is genuinely strong — the kill log is the best asset you have and I’ve not seen it done this well elsewhere. But there are things on there right now that I’d not put in front of a paying stranger.
+
+Ordered by what would actually cost you.
+
+Launch blockers
+
+1. The free sample contradicts the copy that sells it. Homepage: “A whole pack, free.” Kill log: “Read a full pack free.” About: “Read a full report, unredacted.” Then the sample page itself says: a pack adds the build spec, the go-to-market plan and the operations playbook on top of the dossier you just read. So the “whole pack” is one of four parts. For a brand whose entire moat is we don’t overclaim, this is the single most damaging line on the site. Change every instance to “the full verification dossier, free” — it’s still a strong offer and it’s true.
+
+2. “The target buyer profile is a broke body.” That phrase is live on the kill log, in an entry about unpaid carers in poverty. Nearby: an entry quoting “two suicides reported” in the tattoo trade as evidence of payer insolvency. These are screenshot-ready. One journalist or one Reddit thread and the kill log stops being your credibility asset and becomes the story. Every kill reason needs a human pass before launch — the engine’s register (“broke body”, “the candidate”, “refutation threshold”) is not a customer-facing register.
+
+3. The kill log is visibly broken in ways that undermine the product. Truncated mid-word: “the specific job this candidate claims to be firs”, “not offset the sol”, “the claim it would pr”. Leaked internal IDs: “Passages 9fa810377aee4d8f and 10481947a354f7f9”, “(sources e0638762, 8ab4672…)”, “[4f51b226e”. Empty citation lists rendered as “(,,,,)”. Several entries with zero sources on a page whose whole pitch is here is the receipt.
+
+4. Source quality is your product, and some sources are junk. On the £149 RateRebase page, the two visible sources are businessratechecker.com and abcmoney.co.uk — both carrying the same 57% stat, one of them a low-grade content site. That’s the shop window for a £149 purchase. In the kill log: gitnux.org (an AI stats farm), a raw Bing ad-redirect URL as a citation, a YouTube link, and — killing a US construction lien idea — parbitrationg.com/post/how-to-stay-organized-at-work, which has nothing to do with liens. You need a source allowlist/denylist and a relevance check before go-live, or the first sceptical buyer dismantles the whole claim.
+
+5. Nobody is behind this. Footer says “Who makes this” → /about has no human, no company, no address. Refund policy says “Registered address available on request”, which doesn’t meet the UK e-commerce disclosure requirements for a trader selling to consumers. Also live on that page: “Interim beta terms… pending final review by our legal counsel.” Never ship that sentence — you’re telling a buyer your terms aren’t finished while asking for £149.
+
+6. AI is disclosed only in clause 6 of the refund policy. Marketing says “the engine”, “the filter”, “none of this is our opinion”. The only place you say “AI-generated content may contain errors” is legal fine print. Buyers will work it out in about four seconds of reading a pack, and the gap between the two registers is what a refund request or a chargeback gets written from. Say it on the front page and make it a feature — “an adversarial AI research pipeline, with every claim traced to a source a human can open” is a better pitch than coyness about it.
+
+7. The filter doesn’t seem to apply UK regulatory tests to UK ideas. You correctly kill US ideas for unauthorised practice of law. But the UK catalogue includes several businesses that look like regulated claims management or reserved legal activity — chasing compensation, benefits-appeal brokers taking a contingency cut, invoice recovery on a success fee, a “settlement desk” negotiating DWP debts. If those need FCA authorisation and the pack doesn’t say so, a buyer follows your plan into a regulatory problem while holding a document that says legality: survived. Worth a lawyer’s eye on the whole legal-gate before launch, not after.
+
+8. The catalogue contradicts the kill log. The log kills idea after idea because carers, gig workers and pensioners are too poor to pay. The catalogue then sells packs for businesses charging carers £320 a letter, £795 a case, £145 a claim. Same buyer, opposite verdict. An intelligent reader spots this in one sitting, and it’s the strongest available attack on the filter’s integrity. Either the payer-solvency gate is inconsistent, or the packs explain why contingency/fixed-fee models clear a bar that subscriptions don’t — but right now the site doesn’t reconcile it.
+
+Numbers that don’t add up
+
+Currently visible on one scroll of the homepage:
+
+Hero: “63 packs”
+Catalogue: “63 packs · updated today”
+Button: “Show the other 39 packs”
+Below it: “Showing 13 of 52”
+Kill widget: “145 survived”
+Kill log CTA: “Browse the 145 that survived” → lands on 63
+Kill log filters: “All 60” on a page headed 1,168
+I can reverse-engineer it (52 UK + 11 US = 63; 145 includes unlisted) but no buyer will. Pick one canonical number, derive everything from it, and if 145 survived but 63 are listed, say why in one line — otherwise it reads as inflation.
+
+Copy and brand
+
+The name. “Mumchimp” signals parenting content, and post-Mailchimp the “-chimp” suffix reads derivative — Intuit has a history of defending that family of marks, and your packs literally ship a “Marketing Assets” document, which is uncomfortably adjacent. Nothing about the product is mum-related or chimp-related. Get a trademark search done this week; if it comes back clean you’ve still got a name that fights your positioning, which is sober, adversarial, evidence-first. This is the cheapest thing to change now and the most expensive later.
+
+Terminology sprawl. Pack, report, dossier, opportunity, survivor, shelf, catalogue/catalog, filter, engine, gauntlet, gate, front, check, kill. That’s thirteen nouns for roughly four things. Fix on: pack (the thing you buy), dossier (the evidence section), check (the test), kill log. Retire shelf, survivor, front, gauntlet.
+
+en_GB inconsistency. Nav says “Catalog” on most pages and “Catalogue” on the refund page; body copy mixes both. Site is og:locale: en_GB. Pick “Catalogue”.
+
+FAQ says “four parts”, everywhere else says “8 documents.” Same object, two counts.
+
+“Financial model (Python-computed from verified inputs)” — implementation detail that means nothing to a buyer and quietly signals “generated”. Cut “Python-computed”.
+
+Pricing rationale is the weakest paragraph on the site. “Every pack contains the same 8, whether it is £29 or £199: the price follows the size of the opportunity the research found.” A buyer reads: identical deliverable, 7x price spread, based on your unverifiable estimate of an opportunity you’re not delivering. Either introduce a visible price driver (source count, market size band, exclusivity/seat cap) or collapse to two or three tiers with a stated rule.
+
+UX and technical
+
+Pack page repeats the description verbatim twice, back to back, right under the H1.
+Social share links are broken — both the X and LinkedIn intents have an empty url= parameter.
+Logo alt text is duplicated (“MumchimpMumchimp”) in header and footer; a screen reader announces it twice on every page.
+“Verified 4 days ago” / “Verified last month” — relative timestamps decay badly on regulation-heavy content, and there’s no stated re-verification cadence. Use an absolute date plus a policy (“re-checked every 90 days; packs failing re-check are delisted”).
+The skills quiz sits mid-catalogue, interrupting the scan at exactly the moment someone is browsing. Move it to an empty-state or a first-visit slot.
+11 US packs priced in GBP inside a UK store, with a banner explaining the numbers won’t transfer. That’s a refund magnet. Hide them behind a market toggle or delist until you have a US store.
+FAQ answers appear collapsed and may not be in the server-rendered HTML — worth verifying, since FAQPage schema and the long-tail SEO both depend on it.
+/account in the nav on a site that repeatedly promises “no login”. Either it’s dead weight or it contradicts the pitch.
+No social proof anywhere. No name, no testimonial, no sales count, no Trustpilot. Anonymous site, instant download, £149, no reviews — that’s the conversion ceiling regardless of how good the copy is. The kill log partly substitutes for trust, but not for a person.
+What’s genuinely working
+
+The kill log is a real differentiator and the “here is what we rejected and why” move is strong enough to be the marketing channel on its own. Showing the adversarial pass on the free sample — including the objection you couldn’t dismiss, and the “strongest free alternative” line — is the most credible thing on the site. The refusal to invent TAM figures, the explicit non-goals, the plain-Markdown-no-login delivery: all correct instincts. The voice, when it isn’t leaking engine jargon, is distinctive and adult.
+
+The problem isn’t the idea. It’s that a store built entirely on we don’t overclaim and we show our receipts currently overclaims in its main CTA and shows some bad receipts. Fix those two and the rest is polish.
+
+If it’s useful, I can do a second pass on /how-it-works, /ideas, /terms and /privacy, or draft replacement copy for the sample CTA and the pricing paragraph.
+
+The criticism is right, but “add icons” is the wrong fix. Icons on top of this much prose gives you decorated prose. The actual problem is that the site explains the same mechanism nine times in words, when it has data that wants to be drawn.
+
+The diagnosis
+
+Count what the homepage argues: hero → “newest survivors” → skills quiz → newsletter → kill widget → “what you get at every price” → 8-document list (~450 words) → “a real page from a real pack” → “stress tested the way a sceptical investor would” → trust badges → “1,168 killed” line → final CTA. That’s five separate sections making the identical argument: we tried to kill these and these survived.
+
+And the 450-word document list appears twice — homepage and every pack page. It’s the fattest block on the site and it’s a filing cabinet described in sentences.
+
+Cut the homepage to five sections: hero → catalogue → what a pack is (visual) → kill log proof (visual) → CTA. That alone removes ~40% of the words with zero information loss.
+
+The five components that replace the prose
+
+1. The gate strip. Six pips, filled = survived, amber = pushed back, hollow = not faced. 60px wide. Put it on every catalogue card, every pack header, the OG image, the email. One glance carries the entire proposition. Replaces the “How we tried to kill it” list, the “Survived all 6 checks” line, and half the hero.
+
+2. The source strip. You have 29 sources on a pack and you render it as the string “29 sources”. Render favicons instead — a row of 12 domain marks plus “+17”. Visual, instantly credible, zero words, and it does the sourced-not-sold job that three paragraphs currently attempt.
+
+3. Pack anatomy. Eight file tiles in a zip outline, filenames in mono (00_Executive_Summary.md), one-line description on hover/tap. Kills 450 words twice over and finally makes “you own the files” feel like a physical object.
+
+4. The kill ratio. 1,168 vs 145 is your whole brand and it’s currently a sentence. Draw it: a dot grid of 1,168 dots with 145 lit. That’s a hero image, an OG image, a Twitter post, and a t-shirt. It’s the most shareable asset you’re not making.
+
+5. The score bars already exist on the sample page and are the best-designed thing on the site — including the weak bars, which is the point. Promote them to pack pages and card expansion. Right now your strongest visual is buried on a page most people won’t reach.
+
+Images — the honest answer
+
+Never stock photography. It would destroy this brand in one scroll. What you can use:
+
+Typographic pack covers, generated per pack from category colour + the № C5345D reference + a number. Gives 63 cards visual variety with no photography and no AI slop.
+Real screenshots of the .md files open in an editor. Proof of the thing you’re selling, which you currently only assert.
+Source page thumbnails — tiny screengrabs of the actual cited pages. “Those domains open” becomes visible rather than claimed.
+Layout: the catalogue is the biggest offender
+
+63 near-identical text blocks, each with category + title + truncated description ending in “…” + price + “View pack”. Five competing text elements, no visual anchor, descriptions cut mid-word.
+
+Also currently inconsistent: some cards show a two-letter monogram (R RateRebase, HW Hands on waste…), most don’t. The US badge lands in different positions (GCFor US rules vs For US rules Care and benefits claims). That’s a component with unhandled states, and it reads as unfinished.
+
+Fix: category becomes a colour-coded tag chip, not a text prefix. Title at one clear size. Description clamped to two lines cleanly. Price right-aligned in mono. Gate strip bottom-left. Verified date bottom-right. One monogram rule, applied to all or none.
+
+Art direction
+
+The brand wants to be a case file, not a SaaS landing page. Everything you need is already in the language — dossier, receipts, verdict, audit reference.
+
+Two typefaces: a grotesque for argument, a mono for all metadata — prices, source counts, dates, IDs, filenames, gate names. The mono does most of the “rigorous” work for free.
+Type scale with real jumps (13/15/17/21/28/40/64). Right now everything reads mid-weight and mid-size, which is a large part of why it feels like a wall.
+Measure at 62–68 characters. Long centred paragraphs are a big contributor to the wordiness perception — the same text at a proper measure reads noticeably shorter.
+One accent colour, used only for signal. Amber for “pushed back” is right. Avoid green/red pass-fail; it makes you look like a compliance dashboard.
+#0A0A0A is a good call, but pair it with #EDEDED rather than pure white, and watch the secondary-text contrast — that’s where near-black themes usually fail WCAG.
+Whitespace is the polish. Roughly double your section padding. Density is what makes a text-heavy site feel like homework.
+Icons — where they actually earn their place
+
+Only three uses: the six gate names, the eight document types, and the trust row. Everywhere else they’ll be decoration. Use a single line-weight set (Lucide/Phosphor), stroke matched to your body weight, never filled and never coloured. If an icon needs a label to be understood, delete the icon and keep the label.
+
+Mobile
+
+On a phone the homepage is currently a very long scroll of paragraphs. The gate strip, the source favicons and the pack anatomy tiles all survive the narrow viewport; the prose doesn’t. Add a sticky price/buy bar on pack pages, and make the first screen after the hero the catalogue — not the skills quiz.
+
+
+
+I’m reading structure and markup rather than rendered pixels here, so this is hierarchy and componentry rather than spacing and colour judgements. Send screenshots of the homepage, a pack page and the catalogue on mobile and I’ll go finer — or I can build the gate strip, source strip and redesigned catalogue card as a working React prototype you can lift straight in.

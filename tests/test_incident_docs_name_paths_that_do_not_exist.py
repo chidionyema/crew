@@ -63,7 +63,10 @@ ALLOWED = {
 def _tracked_markdown() -> list[str]:
     out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "*.md", "**/*.md"],
                          capture_output=True, text=True, check=True).stdout
-    return sorted(set(out.split()))
+    #: docs/founder/ is the verbatim record of what the founder pasted (crew#760). Its texts
+    #: quote other repos and dead worktrees as they stood; editing a record to satisfy a guard
+    #: is forbidden, so the record store is not graded (LAW 38).
+    return sorted(t for t in set(out.split()) if not t.startswith("docs/founder/"))
 
 
 #: An absolute path is always a defect, and it is the one this guard nearly missed. `ROOT / t` for

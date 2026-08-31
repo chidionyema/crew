@@ -513,8 +513,14 @@ ROADMAP_TITLE = "Roadmap"
 
 
 def _cell(value) -> str:
-    """One markdown table cell: whitespace collapsed, pipes escaped, never a broken row."""
-    return re.sub(r"\s+", " ", str(value)).replace("|", "\\|").strip()
+    """One markdown table cell: whitespace collapsed, pipes escaped, never a broken row.
+
+    The home directory renders as `~`: the committed page may never name where a checkout
+    lives (LAW 46; test_incident_crew403_committed_page_carries_no_absolute_path), and
+    contract text quoted from the register is the one place a machine path can ride in.
+    """
+    cleaned = str(value).replace(str(pathlib.Path.home()), "~")
+    return re.sub(r"\s+", " ", cleaned).replace("|", "\\|").strip()
 
 
 def register(now: dt.datetime) -> dict:

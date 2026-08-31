@@ -1,15 +1,13 @@
 # Science lane showcase
 
-Generated 2026-08-31T17:21Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-08-31T17:30Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-08-31T16:54Z.
+Previous run: 2026-08-31T17:21Z.
 
-- foresight labelled PRs: 2107 (new)
-- foresight holdout accuracy: 0.709 (new)
-- foresight predictions scored: 0 (new)
+No number changed.
 
 ## Capabilities
 
@@ -72,7 +70,7 @@ a lane that emitted no fact is not healthy, it is unobserved (crew#508).
 
 - 582,918 rows across 43 sources; last ingest 2026-08-31T12:37:49+00:00
 - 44 of 44 declared sources carry owner, method, retention and sensitivity
-- stale past their SLA: aiden_ticks (95h), stuck_detector (107h), estate_push (74h), drills_scripts (108h), sovereign_receipts (133h), board_deadletter (121h), estate_registry (143h), ci_runs (110h), lane.code.pr-hygiene (99h), dagster-ticks (5h), temporal_dev_executions (133h), hindsight_recall (80h)
+- stale past their SLA: aiden_ticks (95h), stuck_detector (107h), estate_push (74h), drills_scripts (108h), sovereign_receipts (134h), board_deadletter (121h), estate_registry (143h), ci_runs (110h), lane.code.pr-hygiene (99h), dagster-ticks (5h), temporal_dev_executions (134h), hindsight_recall (80h)
 
 ## Data map (LAW 50)
 
@@ -157,7 +155,7 @@ red in CI, never silent.
 | .estate/knowledge/maestro/experience_graph.db | The other half of that duplicate. Declined for the same reason and named separately so neither disappears from the registry while the question is open. |
 | .claude/state/one-branch/would-have-fired.jsonl | Producer (~/.claude/quarantine/2026-08-21-pipeline-workarounds/one-branch-fence.py) was quarantined 2026-08-21 22:42 -- not in ~/.claude/settings.json hooks, mode file ~/.claude/one-branch-fence.mode still reads 'refuse' but nothing calls it. Last write to would-have-fired.jsonl is 2026-08-21 22:38, the same window. This is a decommissioned guard, not a live source going quiet: it will never write again unless someone restores the hook. Declined 2026-08-24 by the on-call attribution (LAW 29) rather than left as a stale-source alert that can never clear itself. If the fence is restored, move this back to sources. |
 | dagster-run-store | Dagster's own run history and schedule state, one SQLite file per run. It is the orchestrator's bookkeeping about the jobs, not a fact about the estate -- what those jobs produced is already collected as the sources they write. Declined as a directory rather than 14 ids because the run store names each file after a fresh UUID, so an id list would be stale the next time Dagster runs. 2026-08-27 (crew#376): the tick and run tables are now collected as dagster-ticks and dagster-runs from the live store under the idp checkout (run/dagster); this ~/.estate/dagster copy is stale since 2026-08-24 and stays declined. |
-| .estate/REQUIREMENTS.jsonl | The id is relative to the 'home' root, so the file is /Users/chidionyema/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file. |
+| .estate/REQUIREMENTS.jsonl | The id is relative to the 'home' root, so the file is ~/.estate/REQUIREMENTS.jsonl -- not a path inside this repo. A reviewer probed ~/dev/code/crew/.estate/REQUIREMENTS.jsonl, found nothing, and reasonably read that as the row describing a file that does not exist. hermes-v2's monitoring requirements, and a specification rather than an event stream: 5 MON-* rows of id, phase, statement and acceptance_cmd, rewritten in place, carrying no timestamp. Ingesting it would append the same 5 undated rows on every run and grow without bound while saying nothing new. The signal worth having is how many of them currently pass, and that is produced by hermes-v2/bin/check-requirements.py against the live estate, not by copying the statements. Owner: hermes-v2 (templates/REQUIREMENTS.jsonl.tmpl, bin/verify). If hermes wants the pass/fail verdicts in the warehouse, that is a source pointing at its verify output, not at this file. |
 | crew-snapshot-worktree | A git worktree of this repo kept by com.founder.estatesnapshot so the hourly STATE.md rebuild reads a clean checkout. Every jsonl under it (science/ships, science/attention, science/RESEARCH-LEDGER, risk/REGISTER, science/predictions) is a copy of a file tracked in crew and already collected from the science root. Collecting the copies would double-count every row. Declined as a directory because the worktree is re-created whenever the snapshot job resets it. |
 | .estate/temporal/dev.db | The Temporal dev server's own persistence (SQLite), written by temporal CLI, schema owned upstream and rewritten on upgrade. It holds workflow history for the orchestrator, not a fact about the estate; what the workflows produce is collected from their outputs. Owner: the scheduler row of STANDARDS. When Temporal moves to the cluster (crew#78) this file goes with it. |
 | .estate/sovereign/budget.db | The sovereign runner's budget counter, a SQLite file it locks and rewrites in place; it carries no rows with a time. The fact stream beside it, .estate/sovereign/receipts.jsonl, is collected as source sovereign_receipts and holds budget_remaining on every receipt, so the counter's history is already in the warehouse. |

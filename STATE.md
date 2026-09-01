@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-08-31 11:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-09-01 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,36 +8,35 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.70s |
-| &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md Run bin/render to fix, or move your edit into templates/. |
-| &nbsp;&nbsp;failing | | FAIL  README describes what ships        tests/test_incident_20260831_the_evolution_lane_never_installed_a_job.py is in the repo, and the README never says why |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 7.73s |
+| &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md skills/founder-mac/SKILL.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         36510d1f6c (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | GREEN | last cycle 6 min ago (`INTENT-20260831-105041-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 1 min ago (`INTENT-20260901-025708-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: Error: no access token available. Please login with 'flyctl auth login' |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 70h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 104h old (bar 30h) |
-| delivery | RED | 1584 commits on no remote (oldest 9.1d), 23 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 86h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 120h old (bar 30h) |
+| delivery | RED | 1596 commits on no remote (oldest 9.7d), 24 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 847 commits no remote holds, oldest 6.7d, 1 dirty |
-| &nbsp;&nbsp;stranded | .wt-cg-656 | 351 commits no remote holds, oldest 7.8d, 0 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 287 commits no remote holds, oldest 9.1d, 3 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 850 commits no remote holds, oldest 7.3d, 1 dirty |
+| &nbsp;&nbsp;stranded | .wt-cg-656 | 351 commits no remote holds, oldest 8.5d, 0 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 287 commits no remote holds, oldest 9.7d, 4 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 3 commit(s) to origin/main e75db6e, 3 local edit(s) kept |
+| live checkout | RED | 4 commit(s) behind origin/main; not moved: 1 edited file(s) the update also changes (docs/science/SHOWCASE.md) |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| data map | RED | 4974 producers, 43391 measurables, 268 in gaps with a ticket, 17 unexplained, blind: cluster_live (`science/datamap.py --check`) |
+| data map | RED | 4162 producers, 35166 measurables, 274 in gaps with a ticket, 17 unexplained, blind: cluster_live (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
 | &nbsp;&nbsp;violation | | 17 producer(s) UNEXPLAINED (first: mac/ledger/~/.estate/claims.jsonl) |
 | &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): j |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 161h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 15 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 177h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 12 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
-| research | GREEN | 5 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 51075 runs in 24h, 325 refused (most: pre-push 105), slowest 43510 ms, 26 overturned by a marker (`hook-outcomes.jsonl`) |
+| research | GREEN | 3 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
+| hooks | GREEN | 57947 runs in 24h, 510 refused (most: rule-guard.py 144), slowest 120389 ms, 70 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | OCI verification identity | RED 0 scheduled runs in 24h | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345); the cron never fired |
 | crew P1 | 30 open | the fires nobody has put out |
@@ -71,7 +70,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#279 Estate MCP needs a write-side ledger tool: architecture changes reach agents hours late | | |
 | &nbsp;&nbsp;#248 Prospector scheduler runs nowhere: no re-verification since 2026-08-16 | | |
 | &nbsp;&nbsp;#116 Spec: the Fly-exit rehearsal drill passes, repeatably, for £0 | | |
-| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 41.8h ago (bar 194h)) |
+| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 57.8h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | runtime | NOT RUN | IndexError: list index out of range |
 | elite grade | 7 GAP, 10 BLIND | 323 ELITE of 340 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |

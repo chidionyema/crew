@@ -7,6 +7,10 @@ about the charge and expectations for this crew, get up to speed and bootstrap."
 Rulings that bind this file: R31, R32, R34, R35. Role file: `roles/science.md`. Method:
 `EXPERIMENTS.md`. Goals ledger: `science/PLAN.md`.
 
+> **Reset, 2026-09-01.** The founder's Research Engine v2 spec (walking skeleton first, claim ledger with a
+> provenance gate, Postgres + ClickHouse + R2) supersedes the crew#659 checkpoints and, pending his ruling,
+> amends the R34 stack named below: [RESET-2026-09-01-research-engine-v2.md](RESET-2026-09-01-research-engine-v2.md).
+
 ## The charge, one sentence
 
 Make every product on the platform provably right and measurably improving, by generating the
@@ -17,7 +21,7 @@ ledger that any buyer can read.
 
 | lane | owns | first deliverable | measured by |
 |---|---|---|---|
-| Research | behaviours 1, 2, 5: hypotheses nobody asked for, experiment design, one-sentence explanation, for any product or service registered on the platform | done for 3 targets: `STEP1_2026-08-25.md` | hypotheses per target whose test was run inside 14 days |
+| Research | behaviours 1, 2, 5: hypotheses nobody asked for, experiment design, one-sentence explanation, for any subject we register — a product, a service, a market, a company, or the estate itself | done for 3 targets: `STEP1_2026-08-25.md` | hypotheses per target whose test was run inside 14 days |
 | Data science | behaviours 3, 4: run the test unattended; every check is a forecast; Brier per source; the calibration curve | forecast ledger with resolved outcomes | `science/predictions.jsonl` scored rows > 0; Brier per prompt/model in MLflow |
 | ML | the models under both: routing, evaluation, fine-tunes when a grader shows a gain; provider-agnostic (LAW 34) | second model over the same 3 targets, same prompt, ledgered | Brier of model A vs model B on the same forecasts |
 

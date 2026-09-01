@@ -50,3 +50,17 @@ pays for it; the reviewer being Sonnet, not Opus, is the second saving.
 ## Tracked item
 
 crew#568 (the model stack); crew#751 (Cursor as the coding executor); crew#513 (Verified Scaffold).
+
+## Amendment, 2026-09-01 ~22:00Z: practiced from this hour
+
+Founder: "use cheap executor, we practice what we say right away"
+(`docs/founder/2026-09-01T2200Z-use-cheap-executor-practice-right-away.md`), given while
+the R74 build lanes were running on the top-tier model. Effective immediately:
+
+- Every NEW execution lane runs the R67 shape: a strong model writes the plan, the cheap
+  executor does the work, a strong model that is never the executor reviews it.
+- The three lanes already in flight finish rather than burn their work; their output gets
+  the strong review, and they are the last builds executed on the top tier (LAW 42: the
+  most capable agent works only multipliers).
+- First practice: the R75 fan-out lane launched on the cheap executor the same minute this
+  was recorded.

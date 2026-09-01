@@ -49,3 +49,22 @@ semi-autonomous department on a measured path to fully autonomous, and each show
 the founder can see (the showcase page, not prose).
 
 Related: R64 (DSPy), R67 (plan/execute/review), R72 (two-harness bake-off), crew#513.
+
+## Amendment, founder 2026-09-01 ~20:40Z — the red line and the second fatal mistake
+
+Verbatim record: `docs/founder/2026-09-01T2040Z-red-line-ceo-must-change-on-the-spot.md` (this repo).
+
+1. **RED LINE — the void is a dismissal offence.** The most important conversation the company
+   ever had was stored as a .md file in the claude folder. "That is basically the void. THIS IS A
+   LIABILITY AND COMPANY RED LINE RED ZONE. That is an instant dismissal." Founder records live in
+   the company's git repos, visible from the board, from the moment they are spoken. The
+   `~/.claude` folder is capture plumbing, never the record (this also re-states his 2026-08-31
+   ruling that estate context never lives in the claude folder).
+2. **Second fatal mistake — working for agents first.** The CEO serves humans AND agents
+   simultaneously. The founder has been working FOR the agents — rogue behaviours, cryptic
+   language, underperforming departments, absent leadership, fires — which is the inversion of
+   the dream. Every process is graded by what it costs the human in it.
+3. **New phase: mistakes are punished on the spot.** Recognition and correction happen in the
+   same turn the mistake is found — "strong action now not promises." Consultants lead the way.
+4. **Provider bias named again:** "Claude code risks turning rogue ... due to anthropic bias" —
+   R72's bake-off and LAW 34 are the standing mitigation.

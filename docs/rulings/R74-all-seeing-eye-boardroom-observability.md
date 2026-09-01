@@ -45,3 +45,15 @@ Agents build to green and push; the founder releases (his standing rule). Order:
    same words R63 defined; the word and the button are one trigger.
 3. **CP3 — the breaker:** router-level spend-velocity limit with bounded attempts, cool-off,
    visible open state (his circuit-breaker ruling), alert to his phone.
+
+## Amendment, same hour: voice is in scope now
+
+Founder, ~21:10Z: "we eed to getto our full potential" and "voice also"
+(`docs/founder/2026-09-01T2110Z-full-potential-and-voice-also.md`). The CEO had deferred
+voice pending a priced answer; the founder's word pulls it forward. The one answer:
+
+4. **CP4 — the voice:** voice notes on the Telegram gateway he already carries. Whisper
+   (open source) turns his spoken note into the command; Piper (open source) speaks the
+   company's reply back. Both self-hosted on the platform — no new vendor, no per-minute
+   fees, price is compute already paid for. Rejected: cloud voice APIs — a per-word meter
+   and a provider tie, against LAW 34.

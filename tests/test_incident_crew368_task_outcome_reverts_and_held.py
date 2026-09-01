@@ -58,8 +58,19 @@ def test_reverted_title_shapes():
     assert dora.reverted_title("") is None
 
 
+class _FrozenClock(datetime):
+    """dora.main() reads the wall clock; the fixtures above are anchored to NOW. Left unfrozen,
+    the day-10 PR ages out of the 14-day window on 2026-09-01 and the test fails on every PR
+    (class: time-anchored fixtures graded by a live clock — a silent time bomb)."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return NOW
+
+
 def test_jsonl_row_lands_in_the_source(tmp_path, monkeypatch):
     out = tmp_path / "dora.jsonl"
+    monkeypatch.setattr(dora, "datetime", _FrozenClock)
     monkeypatch.setattr(dora, "fetch", lambda repo, since: ([_pr(10, "fix: held"), _pr(9, 'Revert "fix: gone"'), _pr(9, "fix: gone")], []))
     assert dora.main(["--repo", "x/y", "--days", "14", "--jsonl", str(out), "--json"]) == 0
     row = json.loads(out.read_text().splitlines()[-1])

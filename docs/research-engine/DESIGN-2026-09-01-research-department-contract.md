@@ -129,3 +129,49 @@ the gut-or-keep test in §4 has its first data point.
 5. Whether the guard review runs first, as the dogfood request.
 
 No timer on this page. The founder reads it when he reads it; the crew builds nothing until he answers.
+
+## 7. Amendments from the review the founder pasted, 2026-09-01 (afternoon)
+
+The founder pasted a second review of this page. Its points are taken in here as amendments to the
+sections above; where it changes a proposal the change is stated, not argued.
+
+1. **Boundary, sharpened (amends §1).** Prospector's *method* (the disproof loop) generalises into the
+   engine; prospector's *domain* (ideas, verdicts, packs, market fit) never crosses. Translation lives in
+   an adapter on the consumer's side: prospector's adapter turns "is this marketable?" into falsifiable
+   questions, receives admitted claims, and computes its verdict in its own code. Profiles are data
+   (question templates, renderer parameters), never code hooks. The leak test is a CI check on the
+   engine's schema, tables and prompts for consumer vocabulary — this is a dependency check on code, not
+   a prose ban list; the founder's ruling against word bans (2026-09-01) is about sentences people read.
+2. **Contract, sharpened (amends §2).** The reply is a `ResearchDelivery`: artifact, claim manifest,
+   confidence summary, and an honest `unanswered[]` — "not found" beats filler. Consumers owe delivery
+   events on use and prediction scoring where they predicted.
+3. **Capacity is part of the boundary (new).** Demands leak through volume as well as vocabulary: one
+   router key per requester and a priority queue, so prospector volume can never starve an estate request
+   (the science lane on 2026-08-30 was starved this way). The founder is a first-class requester with top
+   priority and raw-question access, no profile needed — priority, not exemption: a founder request still
+   passes the provenance gate.
+4. **The four rulings under this framing.** 6.1 stands. 6.3 stands (cap and stop, never downgrade).
+   6.2 becomes: approve the principle — a standalone engine with prospector as client one through the
+   contract — and the contract specification is the deliverable that precedes any code. 6.4 sharpened:
+   the first trace is an *estate* subject — "guard architectures and best practice for multi-agent
+   estates", the research the founder would do by hand this week anyway; a prospector target is trace two.
+5. **The take-weight-or-gut test, restated (amends §4).** What loop does the department close without a
+   founder touch, inside its permission envelope? Count founder touches per deliverable; a department whose
+   every output needs his hand to become useful generates work for him. Research is the one department that
+   can be safely autonomous today: its outputs are documents and claims, no merge rights, no cluster access,
+   and a bad day is a bad document caught by a grader. It is therefore the template by which other lanes
+   re-earn autonomy.
+6. **The estate as standing client (amends §3).** Today's merge breach is case file one for the inward
+   profile. Which sessions break which rules under which conditions is a learnable pattern, and it is the
+   science lane's first real corpus. The "repeat myself" pain converts to one request: compile the last
+   month of founder instructions into a rulings registry, feeding the rule that every ruling compiles to
+   enforcement within 24 hours or is flagged unenforced.
+7. **Guard review criteria (amends §5).** From the incident: the one control that held (the push
+   rejection) was server-side; the ones that bent run inside the actor's own process — a gate the actor
+   satisfies by editing its own pull-request body is not two-party, and a guard that errors into silence
+   is a hole in a guard's uniform. Criteria: out-of-band effect (block, halt, page — not advice); no
+   self-satisfiable gates; a guard's own failure pages.
+
+Nothing here is approved. Two tracks run without touching: stabilisation of the cluster stays the
+founder's; this design track is paper. Next paper deliverables, on his word only: the contract
+specification as the 6.2 annex to the reset, and the guard-review checklist.

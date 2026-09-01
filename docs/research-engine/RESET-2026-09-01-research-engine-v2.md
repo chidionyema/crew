@@ -139,3 +139,7 @@ service, a market, a company, or the estate itself."
 `claims admitted/day` · `rejection rate` · `time-to-artifact` ·
 `delivery events/week`. Charters, grade scaffolding and checkpoint edits do
 not count. Admitted claims do.
+
+---
+
+*Index (not founder text): [FOUNDATIONS.md](../FOUNDATIONS.md) · design for review: [DESIGN-2026-09-01-research-department-contract.md](DESIGN-2026-09-01-research-department-contract.md) · charter: [CHARTER.md](CHARTER.md).*

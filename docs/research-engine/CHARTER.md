@@ -10,6 +10,7 @@ Rulings that bind this file: R31, R32, R34, R35. Role file: `roles/science.md`. 
 > **Reset, 2026-09-01.** The founder's Research Engine v2 spec (walking skeleton first, claim ledger with a
 > provenance gate, Postgres + ClickHouse + R2) supersedes the crew#659 checkpoints and, pending his ruling,
 > amends the R34 stack named below: [RESET-2026-09-01-research-engine-v2.md](RESET-2026-09-01-research-engine-v2.md).
+> Design for his review: [DESIGN-2026-09-01-research-department-contract.md](DESIGN-2026-09-01-research-department-contract.md). Index: [../FOUNDATIONS.md](../FOUNDATIONS.md).
 
 ## The charge, one sentence
 

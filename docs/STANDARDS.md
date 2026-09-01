@@ -1,5 +1,7 @@
 # The estate standard stack
 
+> Foundational estate documents, deep linked: [`docs/FOUNDATIONS.md`](FOUNDATIONS.md). The research department's charter, reset and design live under `docs/research-engine/`.
+
 Owner: crew (all sessions). Date: 2026-08-24. Ruling: R7 ("we need standardisation today")
 and R9 ("the review includes getting it fully operational — add to acceptance criteria").
 

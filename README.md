@@ -1,5 +1,7 @@
 # crew
 
+**Foundational estate documents: [`docs/FOUNDATIONS.md`](docs/FOUNDATIONS.md)** — the research department's charter, the founder's Research Engine v2 reset and the department design, deep linked. Founder, 2026-09-01: preserved, highly visible, referenced.
+
 **Founder documents: [`docs/FOUNDER-DOCS.md`](docs/FOUNDER-DOCS.md)** — every doc produced on a founder order, newest first. If you were brought a document, its link is there.
 
 **Start at [`STATE.md`](STATE.md).** It is the estate right now: The Architect, maestro,

@@ -1,0 +1,17 @@
+# INC2 — Kustomization `flux-system/edge` failed once: kyverno admission webhook returned EOF on dry-run, recovered in 16 minutes
+
+**Founder record:** `~/.claude/docs/founder/2026-09-01T1454Z-you-re-right-i-was-queuing-another-audit-2924313b.md`. **Class note:** [admission webhook EOF class](2026-09-01-NOTE-admission-webhook-eof-class.md). **Nothing was changed.**
+
+| Field | Value |
+|---|---|
+| First observed | 2026-09-01T13:20:17Z: `PolicyException/kyverno/provider-edge-load-balancer dry-run failed (InternalError): failed calling webhook "kyverno-svc.kyverno.svc": Post "https://kyverno-svc.kyverno.svc:443/…?timeout=10s": EOF` (Flux event; idp#1111 opened 13:20Z by `flux-events.yml`). |
+| Recovered | 2026-09-01T13:36:04Z: events `Progressing: ClusterPolicy/secrets-not-from-env-vars configured … PolicyException/kyverno/catalogue-entity-operator-children configured` then `Health check passed in 746ms`; first `ReconciliationSucceeded` event 13:45:53Z; idp#1111 closed 13:36Z by the recovery path. The earlier report's "recovered 14:16:13Z" was the Ready condition's `lastTransitionTime`, which Flux re-stamps on every successful reconcile (it read 14:56:24Z on the next check); the event log is the recovery time. Red for 16 minutes. |
+| Current state (read 14:56Z) | `Ready=True ReconciliationSucceeded`, `Healthy=True`, revision `main@bee102db`. |
+| Recurrence | Once in the event store (which starts 13:18Z). `edge` was filed as P0 six times since 08-29 (idp#789, #956, #1003, #1104, #1111 and one earlier) but the earlier ones carry different messages (dependency and health-check failures around the cert work), not webhook EOF. Kyverno webhook EOF appears exactly once in the store and once in the issue history. |
+| Blast radius | `edge` holds Traefik, external-dns, the Gateway and the kyverno PolicyExceptions the edge needs. A failed dry-run applies nothing; what was already running kept running. Because kyverno's resource webhooks are `failurePolicy: Fail`, any create or update anywhere in the cluster during a kyverno EOF would have been refused by the API server, not only Flux's. |
+| Degraded or unavailable right now | Nothing. otto.mumchimp.com's certificate (the paused thread, owned by code-f9) is a separate matter and not caused by this. |
+| Alert fired? | **Yes, correctly.** idp#1111 opened 13:20Z, closed 13:36Z with the recovery message. Telegram Alert suspended by design. |
+| Webhook facts | `kyverno-admission-controller`: 1 replica, 0 restarts, started 2026-08-28T02:21:56Z, node `10.0.159.197` (the same node as chaos-controller-manager); resource webhooks `failurePolicy: Fail`, `timeoutSeconds: 10`. Its log (`--since=3h`) holds **no line at all** between 13:15Z and 13:25Z, so the server did not log the request; the connection closed before it reached the handler, or kyverno does not log admissions at this level. Separately, the same log repeats `Failed to parse value type doesn't match key type … policy.name=require-priority-class rule.name=radio-room-set-is-guaranteed kind=Deployment name=hermes-agent-gateway` every few seconds: a policy defect, not this incident, recorded here so it is not lost. |
+
+## Evidence read
+`bin/idp-kube get events -A -o json` (edge events ordered); `gh issue list -R chidionyema/idp --label P0 --state all` and `gh issue view 1111`; `bin/idp-kube get kustomization edge -o jsonpath=…conditions`; `get pods -n kyverno -o custom-columns`; webhook configurations as in INC1; `logs deploy/kyverno-admission-controller --since=3h`.

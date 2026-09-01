@@ -101,7 +101,7 @@ LangGraph provides a lower-level state machine primitive for control flow but re
 
 ### AutoGen (Microsoft)
 
-AutoGen is a conversation-based multi-agent framework, simpler than CrewAI for two-agent chats but weaker for workflows with dependencies, conditional routing, and external task state. Crew orchestration is stronger with AutoGen.
+AutoGen is a conversation-based multi-agent framework, simpler than CrewAI for two-agent chats but weaker for workflows with dependencies, conditional routing, and external task state. Crew orchestration is stronger in CrewAI than in AutoGen.
 
 The audit already found this: capability map section 1 (Orchestration) marks CrewAI FULL for the turns we need; no other framework ships that breadth without hand-rolling orchestration on top.
 
@@ -117,7 +117,7 @@ The audit already found this: capability map section 1 (Orchestration) marks Cre
 
 **Adopt CrewAI as the open-source framework layer for the cloud crew redesign, running it as three replicas in a Kubernetes Deployment on the production OKE cluster.** CrewAI provides all orchestration and memory primitives the redesign plan requires (crews, tasks, flows, memory, knowledge, training, replay); integrates with our router, Langfuse, and SigNoz; supports our provider-agnostic law; and uses the same Postgres and object store the platform already runs. The risk is orchestration complexity in a single pod cluster — mitigated by replicas, separate department deployments if needed, and circuit breakers on router/database availability.
 
-**Alternative rejected:** CrewAI AMP (commercial SaaS) ties execution and state to CrewAI Inc.'s infrastructure and carrier lock-in (LAW 34 fails; LAW 50 evidence comes from their SaaS, not our collector). Do not use AMP; use the open-source framework on our cluster.
+**Alternative rejected:** CrewAI AMP (commercial SaaS) ties execution and state to CrewAI Inc.'s infrastructure — vendor lock-in (LAW 34 fails; LAW 50 evidence comes from their SaaS, not our collector). Do not use AMP; use the open-source framework on our cluster.
 
 ## Smallest Next Step (If Approved)
 

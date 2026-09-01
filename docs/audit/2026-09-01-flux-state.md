@@ -8,6 +8,8 @@ Founder, 2026-09-01: for each Flux Kustomization and HelmRelease report name, na
 
 ## Not Ready
 
+Note: `commerce`, `commerce-data`, `event-bus` and `temporal` carry `spec.suspend: true`; the first three have never reconciled (no conditions), and temporal's row is frozen at its last reconcile on 2026-08-30 (edge is Ready now). Only `chaos` is a live failure.
+
 | Kind | Namespace | Name | lastAppliedRevision | Ready | Reason | lastTransitionTime | Message |
 |---|---|---|---|---|---|---|---|
 | Kustomization | flux-system | chaos | main@bee102db | False | ReconciliationFailed | 2026-09-01T14:16:51Z | Schedule/backstage/backstage-pod-kill dry-run failed (InternalError): Internal error occurred: failed calling webhook "vschedule.kb.io": failed to call webhook: Post "https://chaos-mesh-controller-manager.chaos-mesh.svc:443/validate-chaos-mesh-org-v1alpha1-schedule?timeout=5s": EOF  |

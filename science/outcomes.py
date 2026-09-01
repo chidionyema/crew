@@ -54,7 +54,7 @@ GITHUB_OWNER = os.environ.get("ESTATE_GITHUB_OWNER", "chidionyema")
 #: crew#70: every efficiency number was a cost divided by nothing because no series held what
 #: came in. The admin token is read from the environment (vault entry `medusa-admin`), never
 #: from a file in this repo.
-STORE_API = os.environ.get("ESTATE_STORE_API", "https://api.mumchimp.com")
+STORE_API = os.environ.get("ESTATE_STORE_API") or f"https://api.{os.environ['ESTATE_ZONE']}"  # the zone is one value (idp clusters/<cluster>/estate-config.yaml, crew#796)
 
 #: Where his own words are captured. `directive-capture.py` writes one file per project on
 #: UserPromptSubmit, so this directory is the estate's complete record of what he asked for.

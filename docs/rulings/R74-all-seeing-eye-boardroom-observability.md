@@ -57,3 +57,23 @@ voice pending a priced answer; the founder's word pulls it forward. The one answ
    company's reply back. Both self-hosted on the platform — no new vendor, no per-minute
    fees, price is compute already paid for. Rejected: cloud voice APIs — a per-word meter
    and a provider tie, against LAW 34.
+
+## Amendment 2, same hour: the deployment shape
+
+The consultant's deployment plan (verbatim:
+`docs/founder/2026-09-01T2125Z-consultant-deployment-plan-free-tier-verbatim.md`) is adopted
+for WHAT it delivers and corrected for WHERE it runs, on standing company law:
+
+- **Same capability, same near-zero cost — but on the company's cluster,** not hand-run
+  containers on a lone VM. The cluster already runs on the same Oracle account, releases are
+  automated and audited, and a container someone starts by hand is the "breaks daily" pet
+  the headline bans. Langfuse's deployment already exists as code (`idp/platform/oci/langfuse.tf`).
+- **No public telemetry endpoint.** Agent telemetry travels the private network the estate
+  already runs (LAW 21; the edge layer fronts anything that must be reached from outside).
+  A trace store on a public IP is the first thing a buyer's engineer flags.
+- **No tiny polling script on a Micro instance.** The hourly plain-English digest to the
+  founder's phone is adopted as a requirement and lands on the platform's existing
+  scheduling and alerting layers — same digest, no new pet, and it respects the ruling that
+  his phone is never an alert firehose (one digest, not 1,743 messages).
+- **Storage:** Langfuse's own store on the cluster's block storage — the 20 GB Autonomous
+  Database free tier is a provider tie for the company's most strategic dataset (LAW 34).

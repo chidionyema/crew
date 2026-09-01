@@ -17,21 +17,21 @@ ledger that any buyer can read.
 
 | lane | owns | first deliverable | measured by |
 |---|---|---|---|
-| Research | behaviours 1, 2, 5: hypotheses nobody asked for, experiment design, one-sentence explanation, for any catalog target | done for 3 targets: `STEP1_2026-08-25.md` | hypotheses per target whose test was run inside 14 days |
+| Research | behaviours 1, 2, 5: hypotheses nobody asked for, experiment design, one-sentence explanation, for any product or service registered on the platform | done for 3 targets: `STEP1_2026-08-25.md` | hypotheses per target whose test was run inside 14 days |
 | Data science | behaviours 3, 4: run the test unattended; every check is a forecast; Brier per source; the calibration curve | forecast ledger with resolved outcomes | `science/predictions.jsonl` scored rows > 0; Brier per prompt/model in MLflow |
 | ML | the models under both: routing, evaluation, fine-tunes when a grader shows a gain; provider-agnostic (LAW 34) | second model over the same 3 targets, same prompt, ledgered | Brier of model A vs model B on the same forecasts |
 
 One ledger. `roles/science.md` refuses a second one; MLflow is where the ledger's scores are
 tracked, not a replacement for it.
 
-## How it improves each product (R35: a target is a catalog entity)
+## How it improves each product (R35: anything registered in the catalogue is a subject)
 
 - prospector: every check in a dossier becomes a forecast with a source locked in R2 and a
   Brier score when reality resolves it. The buyer gets a calibration curve (R34).
 - hermes-v2: same contract; its outputs are targets, its claims are forecasts.
 - the estate: `SCALE_estate_2026-08-25.md` is the first run; hypothesis 1 there was
   measured true inside the run.
-- a new product: add a catalog entity in `idp/catalog/catalog-info.yaml`. The sweep picks it up.
+- a new product: register it in the catalogue (`idp/catalog/catalog-info.yaml`) and the next sweep researches it on its own.
 
 ## What exists today (measured 2026-08-25, `scripts/estate-snapshot` science-plane rows)
 

@@ -59,8 +59,8 @@ the R74 build lanes were running on the top-tier model. Effective immediately:
 
 - Every NEW execution lane runs the R67 shape: a strong model writes the plan, the cheap
   executor does the work, a strong model that is never the executor reviews it.
-- The three lanes already in flight finish rather than burn their work; their output gets
-  the strong review, and they are the last builds executed on the top tier (LAW 42: the
-  most capable agent works only multipliers).
+- The in-flight-lanes grace period was struck by the founder the same minute ("no time to
+  adjust", "decrees are instant"): the three running top-tier lanes were stopped and
+  relaunched on the cheap executor, inheriting their partial work (LAW 42).
 - First practice: the R75 fan-out lane launched on the cheap executor the same minute this
   was recorded.

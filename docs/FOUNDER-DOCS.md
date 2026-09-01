@@ -6,6 +6,7 @@ founder entity's Docs tab in Backstage (mkdocs has no nav block, so every page s
 
 | date | document | one line |
 |---|---|---|
+| 2026-09-01 | [Flux state of the cluster, read-only, 14:19Z](audit/2026-09-01-flux-state.md) | 73 Flux objects: 68 Ready, 1 live failure (chaos: chaos-mesh webhook EOF), 4 suspended; 370 events in the hour, 2 warnings |
 | 2026-09-01 | [First-time success of agent builds and releases across infra](audit/2026-09-01-first-time-success.md) | idp pull requests green on first push 29%, prospector 61%; oke-check on main 0 of 6; script and output verbatim |
 | 2026-09-01 | [Research department design: boundary, contract, requesters, gut-or-keep, guard review](research-engine/DESIGN-2026-09-01-research-department-contract.md) | for his review; §7 holds the amendments from the review he pasted; index: [FOUNDATIONS.md](FOUNDATIONS.md) |
 | 2026-09-01 | [Research Engine v2 reset — walking skeleton first](research-engine/RESET-2026-09-01-research-engine-v2.md) | founder verbatim; supersedes crew#659 CP1–CP5; four rulings requested in §6 |

@@ -33,7 +33,7 @@ anywhere turns on deep reasoning.
 |---|---|---|
 | router `idp/platform/llm/config.yaml` | `claude`, `claude-fast`, `minimax`, `deepseek` … | adds `plan`, `execute`, `review` lanes with the chains above; existing names stay |
 | Otto's Telegram brain `hermes-v2/config.yaml` | `model.default: claude` | plan step on `plan`; tool turns on `execute`; `review` before the reply |
-| Otto's coding jobs `platform/hermes-agent/estate.yaml` | `work: claude-haiku-4-5` | plan on `plan`; the work itself by Cursor's hosted agent (crew#751 redesign) or `execute`; the PR reviewed on `review` before Otto posts it |
+| Otto's coding jobs `idp/platform/hermes-agent/estate.yaml` | `work: claude-haiku-4-5` | plan on `plan`; the work itself by Cursor's hosted agent (crew#751 redesign) or `execute`; the PR reviewed on `review` before Otto posts it |
 | Crew sessions | one model per session | the same three roles; the planner writes the `Optimised:` plan (LAW 51), the reviewer grades the diff (receipt-auditor) |
 
 Mature tool for the Hermes side, already named in `docs/THE-ARCHITECT.md:204` and not yet

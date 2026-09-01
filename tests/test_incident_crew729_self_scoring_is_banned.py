@@ -81,3 +81,21 @@ def test_the_page_states_the_ban_and_floors_with_no_receipts(tmp_path, monkeypat
     assert "SELF SCORING IS BANNED FOREVER" in page
     assert "| Outward | **ELITE**" not in page
     assert "grade floors at GAP" in page
+
+
+def test_the_weekly_self_grade_machine_is_gone_and_stays_gone():
+    """Founder, 2026-09-01: "no self grading in this estate ... BANNED ... get rid of that
+    shit" — said over the weekly self-grade pull request title. The machine was
+    .github/workflows/self-grade.yml calling science/self_grade.py on a Monday cron. This
+    guard sweeps the class: no workflow file may mention a self-grade, and the grader
+    module may not exist under any name."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    workflows = root / ".github" / "workflows"
+    offenders = [
+        p.name
+        for p in workflows.glob("*.yml")
+        if "self-grade" in p.read_text() or "self_grade" in p.read_text()
+    ]
+    assert offenders == [], f"a workflow still runs a self-grade: {offenders}"
+    graders = [str(p.relative_to(root)) for p in (root / "science").glob("*self*grade*")]
+    assert graders == [], f"a self-grade module came back: {graders}"

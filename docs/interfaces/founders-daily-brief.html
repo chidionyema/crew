@@ -1,0 +1,180 @@
+<title>Founder's Daily Brief</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --ground: #F6F7F5;
+    --card: #FFFFFF;
+    --ink: #20262E;
+    --muted: #5C6570;
+    --line: #E3E6E1;
+    --word: #0E6B4F;
+    --word-soft: #E7F1EC;
+    --wait: #B07B10;
+    --wait-soft: #F7EFDC;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #151A20;
+      --card: #1D242C;
+      --ink: #E8EAE6;
+      --muted: #98A1AB;
+      --line: #2A323B;
+      --word: #4CC297;
+      --word-soft: #1B322A;
+      --wait: #D9A83E;
+      --wait-soft: #33301F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #151A20;
+    --card: #1D242C;
+    --ink: #E8EAE6;
+    --muted: #98A1AB;
+    --line: #2A323B;
+    --word: #4CC297;
+    --word-soft: #1B322A;
+    --wait: #D9A83E;
+    --wait-soft: #33301F;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 0 20px 72px;
+  }
+  .page { max-width: 680px; margin: 0 auto; }
+  header { padding: 44px 0 20px; border-bottom: 2px solid var(--ink); }
+  .eyebrow {
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: clamp(38px, 7vw, 54px);
+    font-weight: 500; line-height: 1.05; margin: 0;
+    text-wrap: balance;
+  }
+  .dateline {
+    display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin: 14px 0 0; color: var(--muted); font-size: 14px;
+  }
+  .oneline {
+    font-family: "Newsreader", Georgia, serif;
+    font-size: 22px; line-height: 1.4; font-weight: 400;
+    margin: 28px 0 0; text-wrap: balance;
+  }
+  h2 {
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+    font-weight: 600; color: var(--muted);
+    margin: 44px 0 14px; padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  ul.done { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  ul.done li { padding-left: 26px; position: relative; }
+  ul.done li::before {
+    content: "✓"; position: absolute; left: 0; top: 0;
+    color: var(--word); font-weight: 600;
+  }
+  ul.done .how { color: var(--muted); font-size: 14px; display: block; }
+  .queue { display: grid; gap: 12px; }
+  .ask {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 18px 20px; display: flex; gap: 18px; align-items: flex-start;
+    justify-content: space-between; flex-wrap: wrap;
+  }
+  .ask p { margin: 0; max-width: 420px; }
+  .ask .detail { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .say {
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 15px; font-weight: 500; white-space: nowrap;
+    color: var(--word); background: var(--word-soft);
+    border-radius: 6px; padding: 8px 14px;
+  }
+  .say small { display: block; font-family: "IBM Plex Sans", sans-serif; font-weight: 400; color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .rulings { display: grid; gap: 10px; }
+  .ruling { display: flex; gap: 14px; align-items: baseline; }
+  .ruling .no {
+    font-family: "IBM Plex Mono", Consolas, monospace; font-size: 13px;
+    color: var(--wait); background: var(--wait-soft); border-radius: 5px;
+    padding: 2px 8px; flex-shrink: 0;
+  }
+  footer {
+    margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 14px;
+  }
+  footer strong { color: var(--ink); }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">The company reports to the founder</p>
+    <h1>Today</h1>
+    <div class="dateline">
+      <span>Monday 1 September 2026</span>
+      <span>Daily brief · first edition</span>
+    </div>
+  </header>
+
+  <p class="oneline">
+    You gave three instructions today. All three are now company law, and this page is the
+    first receipt of the newest one: the company comes to you — never through a terminal.
+  </p>
+
+  <h2>Done today, with proof</h2>
+  <ul class="done">
+    <li>Your words are now kept in the company's own files, word for word, the same hour you
+      speak them. The private capture folder is no longer the resting place for anything.
+      <span class="how">All three of today's instructions are filed and recorded as rulings.</span></li>
+    <li>The two-engine decision is recorded: we run the open-source harness and our own side
+      by side, with a scoreboard — work passed, cost per task, and how often you are
+      interrupted — deciding the winner.</li>
+    <li>The consultants' round you asked for ran, converged on one recommendation, and you
+      adopted it. Multi-perspective rounds are now a standing practice.</li>
+    <li>The portal now speaks plain English — "doors" became "sign-in pages" — and the
+      products are grouped under one company, awaiting your release.</li>
+    <li>Nine finished, verified changes stand ready for your release, including the
+      scheduling engine. Nothing moves without you.</li>
+    <li>This page. Your daily brief, readable on any phone or laptop, no command line
+      anywhere in it.</li>
+  </ul>
+
+  <h2>Waiting on your word — three items</h2>
+  <div class="queue">
+    <div class="ask">
+      <p>Build the daily meeting loop into your portal: this brief plus an approval queue
+        with real buttons, so a press replaces a typed word.
+        <span class="detail">The strategy is one page, written by the CEO, filed on the board.</span></p>
+      <span class="say"><small>Reply with</small>Approve 800</span>
+    </div>
+    <div class="ask">
+      <p>Release the nine finished changes.
+        <span class="detail">The list is pinned in your Telegram; each is green and verified.</span></p>
+      <span class="say"><small>Reply with</small>APPROVE</span>
+    </div>
+    <div class="ask">
+      <p>Close the paid cloud-editor trial. Your consultants say stop; only your word closes it.
+        <span class="detail">Item 751 on the board.</span></p>
+      <span class="say"><small>Reply with</small>Stop 751</span>
+    </div>
+  </div>
+
+  <h2>Rulings recorded today</h2>
+  <div class="rulings">
+    <div class="ruling"><span class="no">R71</span>
+      <p>The CEO's charter: proof of achievement daily, decisions almost automatic — you only
+        approve or comment — and the company serves humans and agents at the same time.</p></div>
+    <div class="ruling"><span class="no">R72</span>
+      <p>Adopt both engine rooms, measure them, keep the winner. Never afraid to build
+        tooling; never afraid to retire it.</p></div>
+    <div class="ruling"><span class="no">R73</span>
+      <p>Business people do not use the command line. Your surfaces are visual, voice and
+        chat; the terminal stays in the workshop with the agents.</p></div>
+  </div>
+
+  <footer>
+    <p><strong>To act on anything above:</strong> reply in Telegram with the word shown in
+      green. Your word is the only trigger the company accepts — agents never release
+      anything themselves. Buttons replace the words the moment you approve item one.</p>
+  </footer>
+</div>

@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-09-02 19:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-09-02 21:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,35 +8,35 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 3.78s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.95s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md skills/founder-mac/SKILL.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         06968744c0 (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | GREEN | last cycle 5 min ago (`INTENT-20260902-185232-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 2 min ago (`INTENT-20260902-205604-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: Error: no access token available. Please login with 'flyctl auth login' |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 126h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 160h old (bar 30h) |
-| delivery | RED | 1669 commits on no remote (oldest 11.4d), 23 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 128h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 162h old (bar 30h) |
+| delivery | RED | 1669 commits on no remote (oldest 11.5d), 24 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 876 commits no remote holds, oldest 9.0d, 1 dirty |
+| &nbsp;&nbsp;stranded | .idp-state | 876 commits no remote holds, oldest 9.1d, 1 dirty |
 | &nbsp;&nbsp;stranded | .wt-cg-656 | 352 commits no remote holds, oldest 10.2d, 0 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 288 commits no remote holds, oldest 11.4d, 3 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 288 commits no remote holds, oldest 11.5d, 4 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 1 commit(s) to origin/main daf9809, 3 local edit(s) kept |
+| live checkout | GREEN | moved 1 commit(s) to origin/main 0e515d6, 4 local edit(s) kept |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | RED | 4223 producers, 35394 measurables, 284 in gaps with a ticket, 18 unexplained, blind: cluster_live (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
 | &nbsp;&nbsp;violation | | 18 producer(s) UNEXPLAINED (first: mac/ledger/~/.estate/claims.jsonl) |
 | &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): j |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 217h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 15 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 219h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 12 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
 | research | GREEN | 3 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 41482 runs in 24h, 432 refused (most: pre-push 201), slowest 50648 ms, 28 overturned by a marker (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 41343 runs in 24h, 413 refused (most: pre-push 188), slowest 50648 ms, 29 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | OCI verification identity | RED 0 scheduled runs in 24h | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345); the cron never fired |
 | crew P1 | 30 open | the fires nobody has put out |
@@ -70,7 +70,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#290 Continuity: reach Otto/the estate through any single loss — phone, laptop, or one cloud provider | | |
 | &nbsp;&nbsp;#283 Science & ML: close the 3 measured gaps before adding capability (readerless metrics, unrun experiments,  | | |
 | &nbsp;&nbsp;#279 Estate MCP needs a write-side ledger tool: architecture changes reach agents hours late | | |
-| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 97.8h ago (bar 194h)) |
+| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 99.8h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | runtime | NOT RUN | IndexError: list index out of range |
 | elite grade | 7 GAP, 10 BLIND | 323 ELITE of 340 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |

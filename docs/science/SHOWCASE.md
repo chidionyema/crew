@@ -1,13 +1,14 @@
 # Science lane showcase
 
-Generated 2026-09-01T21:11Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-09-02T01:05Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-09-01T21:07Z.
+Previous run: 2026-09-01T21:11Z.
 
-- producers discovered: 4189 -> 4198
+- commits, 7d: 139 -> 77
+- complaints, 7d: 36 -> 20
 
 ## Capabilities
 
@@ -169,8 +170,8 @@ red in CI, never silent.
 
 `python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7`
 
-- last 7 days: 139 commits across 4 repos
-- founder messages 1152, complaints 36 (3.1%)
+- last 7 days: 77 commits across 4 repos
+- founder messages 799, complaints 20 (2.5%)
 - spend: BLIND (warehouse absent)
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 

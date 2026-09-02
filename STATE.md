@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-09-02 01:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-09-02 03:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,35 +8,35 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 4.29s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 3.06s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md skills/founder-mac/SKILL.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  agent is the pinned commit         06968744c0 (want 6c5b805196) |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | GREEN | last cycle 1 min ago (`INTENT-20260902-005648-0d20f3e7.json`) |
+| maestro | GREEN | last cycle 4 min ago (`INTENT-20260902-025314-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: Error: no access token available. Please login with 'flyctl auth login' |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 108h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 142h old (bar 30h) |
-| delivery | RED | 1619 commits on no remote (oldest 10.6d), 24 dirty files, 7 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 110h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 144h old (bar 30h) |
+| delivery | RED | 1624 commits on no remote (oldest 10.7d), 24 dirty files, 7 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
 | &nbsp;&nbsp;stranded | .idp-state | 849 commits no remote holds, oldest 8.3d, 1 dirty |
-| &nbsp;&nbsp;stranded | .wt-cg-656 | 352 commits no remote holds, oldest 9.4d, 0 dirty |
-| &nbsp;&nbsp;stranded | .crew-state | 288 commits no remote holds, oldest 10.6d, 4 dirty |
+| &nbsp;&nbsp;stranded | .wt-cg-656 | 352 commits no remote holds, oldest 9.5d, 0 dirty |
+| &nbsp;&nbsp;stranded | .crew-state | 288 commits no remote holds, oldest 10.7d, 4 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 1 commit(s) to origin/main cf2cdd5, 4 local edit(s) kept |
+| live checkout | GREEN | moved 1 commit(s) to origin/main dc44595, 4 local edit(s) kept |
 | collectors | NOT RUN | `ingest_log` did not answer |
 | data map | RED | 4198 producers, 35280 measurables, 280 in gaps with a ticket, 17 unexplained, blind: cluster_live (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
 | &nbsp;&nbsp;violation | | 17 producer(s) UNEXPLAINED (first: mac/ledger/~/.estate/claims.jsonl) |
 | &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): j |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 199h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 11 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 201h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 10 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
 | research | GREEN | 3 entries in 7d, 31 total, 31 with a decision fed, last 2026-08-28 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 35514 runs in 24h, 417 refused (most: pre-push 188), slowest 49566 ms, 14 overturned by a marker (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 37295 runs in 24h, 422 refused (most: pre-push 200), slowest 49566 ms, 11 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | OCI verification identity | RED 0 scheduled runs in 24h | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345); the cron never fired |
 | crew P1 | 30 open | the fires nobody has put out |
@@ -47,7 +47,6 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#668 Incident ledger: every outage is a traced, classed, machine-readable row, the report is the what-not-to-d | | |
 | &nbsp;&nbsp;#667 Hazard register to zero: every open row closes by a command, three need one founder word (founder 2026-08 | | |
 | &nbsp;&nbsp;#652 Audit of the guards: can the code that guards the crew be trusted (founder-owned, external review) | | |
-| &nbsp;&nbsp;#631 Verification Plane: no work item closes without a fresh signed verdict from a prover the agent cannot run | | |
 | &nbsp;&nbsp;#626 DEFECTS on the god view: guards, Kubernetes tooling, Dagster, inventory and guard control missing; 'thing | | |
 | &nbsp;&nbsp;#620 Strict shell practice estate-wide: shellcheck, shfmt, strict mode, trap, bats; enforced in the hook route | | |
 | &nbsp;&nbsp;#609 Product function (stealth): audit, research, bootstrap in five checkpoints | | |
@@ -70,7 +69,8 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#311 Class: the estate-operators policy lives outside tofu, so every new statement needs a founder browser sig | | |
 | &nbsp;&nbsp;#290 Continuity: reach Otto/the estate through any single loss — phone, laptop, or one cloud provider | | |
 | &nbsp;&nbsp;#283 Science & ML: close the 3 measured gaps before adding capability (readerless metrics, unrun experiments,  | | |
-| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 79.8h ago (bar 194h)) |
+| &nbsp;&nbsp;#279 Estate MCP needs a write-side ledger tool: architecture changes reach agents hours late | | |
+| portability | GREEN | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 81.8h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | runtime | NOT RUN | IndexError: list index out of range |
 | elite grade | 7 GAP, 10 BLIND | 323 ELITE of 340 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |

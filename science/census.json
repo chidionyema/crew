@@ -1,13 +1,13 @@
 {
  "domains": {
-  "mac": 548,
-  "warehouse": 32,
-  "cluster": 99,
+  "mac": 573,
+  "warehouse": 33,
+  "cluster": 105,
   "endpoint": 5,
-  "hook": 34,
+  "hook": 35,
   "mcp": 3,
-  "github": 79,
-  "transcript": 7344,
+  "github": 93,
+  "transcript": 7345,
   "act": 8
  },
  "blind": {

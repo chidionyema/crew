@@ -1,6 +1,6 @@
 {
  "agent_cert": {
-  "rows": 72,
+  "rows": 78,
   "unparseable": 0,
   "fields": {
    "agent": {
@@ -45,132 +45,132 @@
    },
    "rows": {
     "type": "map",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.*.blocked_reason": {
     "type": "NoneType",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.*.detail": {
     "type": "str",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.*.phase": {
     "type": "str",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.*.state": {
     "type": "str",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.*.statement": {
     "type": "str",
-    "coverage": 78
+    "coverage": 77
    },
    "rows.MON-1.blocked_reason": {
     "type": "NoneType",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-1.detail": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-1.phase": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-1.state": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-1.statement": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-2.blocked_reason": {
     "type": "NoneType",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-2.detail": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-2.phase": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-2.state": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-2.statement": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-3.blocked_reason": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-3.detail": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-3.phase": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-3.state": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-3.statement": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-4.blocked_reason": {
     "type": "NoneType",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-4.detail": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-4.phase": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-4.state": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-4.statement": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-5.blocked_reason": {
     "type": "NoneType",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-5.detail": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-5.phase": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-5.state": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    },
    "rows.MON-5.statement": {
     "type": "str",
-    "coverage": 22
+    "coverage": 23
    }
   }
  },
  "aiden_ticks": {
-  "rows": 596,
+  "rows": 653,
   "unparseable": 0,
   "fields": {
    "alerts": {
@@ -199,11 +199,11 @@
    },
    "took_s": {
     "type": "float",
-    "coverage": 86
+    "coverage": 87
    },
    "delivery.message_id": {
     "type": "str",
-    "coverage": 42
+    "coverage": 44
    },
    "delivery.out": {
     "type": "str",
@@ -219,8 +219,58 @@
    }
   }
  },
+ "alerts_inbox": {
+  "rows": 676,
+  "unparseable": 0,
+  "fields": {
+   "ts": {
+    "type": "float",
+    "coverage": 100
+   },
+   "key": {
+    "type": "str",
+    "coverage": 98
+   },
+   "source": {
+    "type": "str",
+    "coverage": 98
+   },
+   "text": {
+    "type": "str",
+    "coverage": 98
+   },
+   "dag_hash": {
+    "type": "str",
+    "coverage": 2
+   },
+   "kind": {
+    "type": "str",
+    "coverage": 2
+   },
+   "legacy_hash": {
+    "type": "str",
+    "coverage": 2
+   },
+   "query.rowid": {
+    "type": "int",
+    "coverage": 2
+   },
+   "query.table": {
+    "type": "str",
+    "coverage": 2
+   },
+   "rowid": {
+    "type": "int",
+    "coverage": 2
+   },
+   "table": {
+    "type": "str",
+    "coverage": 2
+   }
+  }
+ },
  "attention": {
-  "rows": 27,
+  "rows": 24,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -250,7 +300,7 @@
   }
  },
  "board": {
-  "rows": 694,
+  "rows": 717,
   "unparseable": 0,
   "fields": {
    "kind": {
@@ -263,39 +313,39 @@
    },
    "note": {
     "type": "str",
-    "coverage": 69
+    "coverage": 67
    },
    "at": {
     "type": "str",
-    "coverage": 69
+    "coverage": 67
    },
    "error": {
     "type": "str",
-    "coverage": 69
+    "coverage": 67
    },
    "frame": {
     "type": "list",
-    "coverage": 69
+    "coverage": 67
    },
    "guard": {
     "type": "str",
-    "coverage": 69
+    "coverage": 67
    },
    "from": {
     "type": "str",
-    "coverage": 31
+    "coverage": 33
    },
    "text": {
     "type": "str",
-    "coverage": 19
+    "coverage": 20
    },
    "message": {
     "type": "str",
-    "coverage": 12
+    "coverage": 13
    },
    "priority": {
     "type": "str",
-    "coverage": 12
+    "coverage": 13
    },
    "detail.expect": {
     "type": "str",
@@ -391,8 +441,42 @@
    }
   }
  },
+ "board_deadletter": {
+  "rows": 4,
+  "unparseable": 0,
+  "fields": {
+   "error": {
+    "type": "str",
+    "coverage": 100
+   },
+   "record.from": {
+    "type": "str",
+    "coverage": 100
+   },
+   "record.kind": {
+    "type": "str",
+    "coverage": 100
+   },
+   "record.message": {
+    "type": "str",
+    "coverage": 100
+   },
+   "record.priority": {
+    "type": "str",
+    "coverage": 100
+   },
+   "record.ts": {
+    "type": "str",
+    "coverage": 100
+   },
+   "ts": {
+    "type": "str",
+    "coverage": 100
+   }
+  }
+ },
  "bundle_push": {
-  "rows": 783,
+  "rows": 810,
   "unparseable": 0,
   "fields": {
    "ts": {
@@ -401,64 +485,64 @@
    },
    "bytes": {
     "type": "int",
-    "coverage": 99
+    "coverage": 100
    },
    "commits": {
     "type": "int",
-    "coverage": 99
+    "coverage": 100
    },
    "contents_scanned": {
     "type": "bool",
-    "coverage": 99
+    "coverage": 100
    },
    "iso": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "mode": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "remote": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "repo": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "restore": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "sha256": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "slug": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "tip": {
     "type": "str",
-    "coverage": 99
+    "coverage": 100
    },
    "at": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "event": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "reason": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    }
   }
  },
  "ci_reach": {
-  "rows": 244,
+  "rows": 256,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -484,7 +568,7 @@
   }
  },
  "close_guard": {
-  "rows": 2070,
+  "rows": 2268,
   "unparseable": 0,
   "fields": {
    "after_head": {
@@ -514,56 +598,6 @@
    "waited_ms": {
     "type": "int",
     "coverage": 100
-   }
-  }
- },
- "consult": {
-  "rows": 78,
-  "unparseable": 0,
-  "fields": {
-   "agent": {
-    "type": "str",
-    "coverage": 100
-   },
-   "answer": {
-    "type": "NoneType",
-    "coverage": 100
-   },
-   "at": {
-    "type": "str",
-    "coverage": 100
-   },
-   "backend": {
-    "type": "str",
-    "coverage": 100
-   },
-   "elapsed_s": {
-    "type": "float",
-    "coverage": 100
-   },
-   "id": {
-    "type": "str",
-    "coverage": 100
-   },
-   "question": {
-    "type": "str",
-    "coverage": 100
-   },
-   "question_sha256": {
-    "type": "str",
-    "coverage": 100
-   },
-   "status": {
-    "type": "str",
-    "coverage": 100
-   },
-   "tried": {
-    "type": "list",
-    "coverage": 95
-   },
-   "error": {
-    "type": "str",
-    "coverage": 5
    }
   }
  },
@@ -662,7 +696,7 @@
   }
  },
  "directives": {
-  "rows": 8017,
+  "rows": 8068,
   "unparseable": 0,
   "fields": {
    "_shard": {
@@ -818,7 +852,7 @@
   }
  },
  "estate_push": {
-  "rows": 47,
+  "rows": 50,
   "unparseable": 0,
   "fields": {
    "bytes": {
@@ -855,42 +889,34 @@
    }
   }
  },
- "founder_actions": {
-  "rows": 3,
+ "estate_registry": {
+  "rows": 1,
   "unparseable": 0,
   "fields": {
-   "done_when": {
-    "type": "NoneType",
-    "coverage": 100
-   },
-   "id": {
+   "estate_dir": {
     "type": "str",
     "coverage": 100
    },
-   "opened": {
+   "event": {
     "type": "str",
     "coverage": 100
    },
-   "source": {
+   "mode": {
     "type": "str",
     "coverage": 100
    },
-   "unblocks": {
+   "root": {
     "type": "str",
     "coverage": 100
    },
-   "what": {
-    "type": "str",
-    "coverage": 100
-   },
-   "why_founder": {
+   "ts": {
     "type": "str",
     "coverage": 100
    }
   }
  },
  "goal_net": {
-  "rows": 2900,
+  "rows": 3155,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -907,31 +933,31 @@
    },
    "signals": {
     "type": "list",
-    "coverage": 57
+    "coverage": 59
    },
    "tick": {
     "type": "int",
-    "coverage": 57
+    "coverage": 59
    },
    "depth": {
     "type": "int",
-    "coverage": 32
+    "coverage": 31
    },
    "from": {
     "type": "str",
-    "coverage": 28
+    "coverage": 27
    },
    "reason": {
     "type": "str",
-    "coverage": 28
+    "coverage": 27
    },
    "to": {
     "type": "str",
-    "coverage": 28
+    "coverage": 27
    },
    "node": {
     "type": "str",
-    "coverage": 15
+    "coverage": 14
    },
    "text": {
     "type": "str",
@@ -940,7 +966,7 @@
   }
  },
  "history": {
-  "rows": 14178,
+  "rows": 14269,
   "unparseable": 0,
   "fields": {
    "display": {
@@ -1037,11 +1063,11 @@
    },
    "pastedContents.7.id": {
     "type": "int",
-    "coverage": 1
+    "coverage": 0
    },
    "pastedContents.7.type": {
     "type": "str",
-    "coverage": 1
+    "coverage": 0
    },
    "pastedContents.5.contentHash": {
     "type": "str",
@@ -2458,7 +2484,7 @@
   }
  },
  "job_timelines": {
-  "rows": 507,
+  "rows": 1282,
   "unparseable": 0,
   "fields": {
    "_shard": {
@@ -2467,24 +2493,72 @@
    },
    "at": {
     "type": "str",
-    "coverage": 100
+    "coverage": 90
    },
    "detail": {
     "type": "str",
-    "coverage": 100
+    "coverage": 90
    },
    "state": {
     "type": "str",
-    "coverage": 100
+    "coverage": 90
    },
    "text": {
     "type": "str",
-    "coverage": 100
+    "coverage": 90
+   },
+   "id": {
+    "type": "str",
+    "coverage": 10
+   },
+   "iso": {
+    "type": "str",
+    "coverage": 10
+   },
+   "note": {
+    "type": "str",
+    "coverage": 10
+   },
+   "rc": {
+    "type": "int",
+    "coverage": 10
+   },
+   "seconds": {
+    "type": "float",
+    "coverage": 10
+   },
+   "status": {
+    "type": "str",
+    "coverage": 10
+   },
+   "ts": {
+    "type": "int",
+    "coverage": 10
+   },
+   "log": {
+    "type": "str",
+    "coverage": 2
+   },
+   "ID": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Labels": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Names": {
+    "type": "str",
+    "coverage": 1
+   },
+   "Ports": {
+    "type": "str",
+    "coverage": 1
    }
   }
  },
  "ledger": {
-  "rows": 2496,
+  "rows": 2774,
   "unparseable": 0,
   "fields": {
    "session": {
@@ -2493,67 +2567,67 @@
    },
    "kind": {
     "type": "str",
-    "coverage": 97
+    "coverage": 92
    },
    "t": {
     "type": "int",
-    "coverage": 97
+    "coverage": 92
    },
    "lane": {
     "type": "str",
-    "coverage": 93
+    "coverage": 88
    },
    "limit": {
     "type": "int",
-    "coverage": 72
+    "coverage": 68
    },
    "n": {
     "type": "int",
-    "coverage": 40
+    "coverage": 38
    },
    "target": {
     "type": "str",
-    "coverage": 40
+    "coverage": 38
    },
    "has_goal": {
     "type": "bool",
-    "coverage": 32
+    "coverage": 30
    },
    "run": {
     "type": "int",
-    "coverage": 32
+    "coverage": 30
    },
    "tool": {
     "type": "str",
-    "coverage": 21
+    "coverage": 20
+   },
+   "event": {
+    "type": "str",
+    "coverage": 8
+   },
+   "guard": {
+    "type": "str",
+    "coverage": 8
+   },
+   "ts": {
+    "type": "str",
+    "coverage": 8
+   },
+   "runs": {
+    "type": "list",
+    "coverage": 6
+   },
+   "unclaimed": {
+    "type": "list",
+    "coverage": 6
    },
    "goal": {
     "type": "str",
     "coverage": 4
    },
-   "event": {
-    "type": "str",
-    "coverage": 3
-   },
-   "guard": {
-    "type": "str",
-    "coverage": 3
-   },
-   "ts": {
-    "type": "str",
-    "coverage": 3
-   },
-   "runs": {
-    "type": "list",
-    "coverage": 2
-   },
-   "unclaimed": {
-    "type": "list",
-    "coverage": 2
-   },
    "item": {
     "type": "NoneType",
-    "coverage": 1
+    "coverage": 2
    },
    "quiet_s": {
     "type": "int",
@@ -2746,7 +2820,7 @@
   }
  },
  "prompt_ledger": {
-  "rows": 8310,
+  "rows": 8387,
   "unparseable": 0,
   "fields": {
    "_shard": {
@@ -2803,42 +2877,282 @@
    }
   }
  },
+ "research_ledger": {
+  "rows": 23,
+  "unparseable": 0,
+  "fields": {
+   "date": {
+    "type": "str",
+    "coverage": 100
+   },
+   "decision_fed": {
+    "type": "str",
+    "coverage": 100
+   },
+   "findings": {
+    "type": "list",
+    "coverage": 100
+   },
+   "metric": {
+    "type": "str",
+    "coverage": 100
+   },
+   "metric_after": {
+    "type": "NoneType",
+    "coverage": 100
+   },
+   "metric_before": {
+    "type": "str",
+    "coverage": 100
+   },
+   "owner": {
+    "type": "str",
+    "coverage": 100
+   },
+   "question": {
+    "type": "str",
+    "coverage": 100
+   },
+   "sources": {
+    "type": "list",
+    "coverage": 100
+   },
+   "ticket": {
+    "type": "str",
+    "coverage": 52
+   },
+   "why": {
+    "type": "str",
+    "coverage": 43
+   },
+   "what_this_costs": {
+    "type": "str",
+    "coverage": 9
+   },
+   "class_of_error": {
+    "type": "str",
+    "coverage": 4
+   }
+  }
+ },
  "ships": {
-  "rows": 41,
+  "rows": 57,
   "unparseable": 0,
   "fields": {
    "at": {
     "type": "str",
     "coverage": 100
    },
-   "commits": {
-    "type": "int",
-    "coverage": 100
-   },
    "day": {
     "type": "str",
-    "coverage": 100
-   },
-   "feats": {
-    "type": "int",
-    "coverage": 100
-   },
-   "fixes": {
-    "type": "int",
     "coverage": 100
    },
    "repo": {
     "type": "str",
     "coverage": 100
    },
+   "commits": {
+    "type": "int",
+    "coverage": 65
+   },
+   "feats": {
+    "type": "int",
+    "coverage": 65
+   },
+   "fixes": {
+    "type": "int",
+    "coverage": 65
+   },
    "shas": {
     "type": "list",
+    "coverage": 65
+   },
+   "pr": {
+    "type": "int",
+    "coverage": 35
+   },
+   "title": {
+    "type": "str",
+    "coverage": 35
+   }
+  }
+ },
+ "sovereign_receipts": {
+  "rows": 15,
+  "unparseable": 0,
+  "fields": {
+   "backend": {
+    "type": "str",
     "coverage": 100
+   },
+   "by": {
+    "type": "str",
+    "coverage": 100
+   },
+   "counter": {
+    "type": "int",
+    "coverage": 100
+   },
+   "hash": {
+    "type": "str",
+    "coverage": 100
+   },
+   "kind": {
+    "type": "str",
+    "coverage": 100
+   },
+   "prev_hash": {
+    "type": "str",
+    "coverage": 100
+   },
+   "session_id": {
+    "type": "str",
+    "coverage": 100
+   },
+   "sig": {
+    "type": "str",
+    "coverage": 100
+   },
+   "status": {
+    "type": "str",
+    "coverage": 100
+   },
+   "step": {
+    "type": "int",
+    "coverage": 100
+   },
+   "text": {
+    "type": "str",
+    "coverage": 100
+   },
+   "runner": {
+    "type": "str",
+    "coverage": 93
+   },
+   "task": {
+    "type": "str",
+    "coverage": 93
+   },
+   "commit": {
+    "type": "NoneType",
+    "coverage": 53
+   },
+   "repo": {
+    "type": "str",
+    "coverage": 47
+   },
+   "tokens": {
+    "type": "int",
+    "coverage": 47
+   },
+   "ts": {
+    "type": "str",
+    "coverage": 47
+   },
+   "budget_remaining": {
+    "type": "int",
+    "coverage": 40
+   },
+   "destructive": {
+    "type": "bool",
+    "coverage": 40
+   },
+   "fsm_state": {
+    "type": "str",
+    "coverage": 40
+   },
+   "policy_violations": {
+    "type": "list",
+    "coverage": 40
+   },
+   "proposal": {
+    "type": "str",
+    "coverage": 40
+   },
+   "quorum.agreed": {
+    "type": "bool",
+    "coverage": 40
+   },
+   "quorum.count": {
+    "type": "int",
+    "coverage": 40
+   },
+   "quorum.fresh": {
+    "type": "int",
+    "coverage": 40
+   },
+   "quorum.needed": {
+    "type": "int",
+    "coverage": 40
+   },
+   "quorum.of": {
+    "type": "int",
+    "coverage": 40
+   },
+   "quorum.proposal": {
+    "type": "str",
+    "coverage": 40
+   },
+   "quorum.stale": {
+    "type": "int",
+    "coverage": 40
+   },
+   "reason": {
+    "type": "str",
+    "coverage": 40
+   },
+   "state_hash": {
+    "type": "str",
+    "coverage": 40
+   },
+   "votes": {
+    "type": "list",
+    "coverage": 40
+   },
+   "channel": {
+    "type": "str",
+    "coverage": 7
+   },
+   "file": {
+    "type": "str",
+    "coverage": 7
+   },
+   "losers": {
+    "type": "list",
+    "coverage": 7
+   },
+   "model": {
+    "type": "str",
+    "coverage": 7
+   },
+   "node": {
+    "type": "str",
+    "coverage": 7
+   },
+   "op": {
+    "type": "str",
+    "coverage": 7
+   },
+   "parent_hash": {
+    "type": "str",
+    "coverage": 7
+   },
+   "savings": {
+    "type": "int",
+    "coverage": 7
+   },
+   "tags": {
+    "type": "list",
+    "coverage": 7
+   },
+   "winner": {
+    "type": "str",
+    "coverage": 7
    }
   }
  },
  "spend": {
-  "rows": 1084,
+  "rows": 1111,
   "unparseable": 0,
   "fields": {
    "at": {
@@ -2867,43 +3181,51 @@
    },
    "by_owner.prospector-interactive": {
     "type": "float",
-    "coverage": 69
+    "coverage": 67
    },
    "reqs_by_owner.prospector-interactive": {
     "type": "int",
-    "coverage": 68
+    "coverage": 67
    },
    "by_owner.Users-chidionyema-Documents-code": {
     "type": "float",
-    "coverage": 50
+    "coverage": 49
    },
    "reqs_by_owner.Users-chidionyema-Documents-code": {
     "type": "int",
-    "coverage": 50
+    "coverage": 49
    },
    "by_owner.hermes": {
     "type": "float",
-    "coverage": 49
+    "coverage": 48
    },
    "reqs_by_owner.hermes": {
     "type": "int",
-    "coverage": 48
+    "coverage": 47
    },
    "by_owner.Users-chidionyema-Documents-code-the-introduction-exchange": {
     "type": "float",
-    "coverage": 46
+    "coverage": 45
    },
    "reqs_by_owner.Users-chidionyema-Documents-code-the-introduction-exchange": {
     "type": "int",
-    "coverage": 46
+    "coverage": 45
    },
    "by_owner.Users-chidionyema": {
     "type": "float",
-    "coverage": 30
+    "coverage": 31
    },
    "reqs_by_owner.Users-chidionyema": {
     "type": "int",
-    "coverage": 30
+    "coverage": 31
+   },
+   "by_owner.Users-chidionyema-dev-code": {
+    "type": "float",
+    "coverage": 19
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code": {
+    "type": "int",
+    "coverage": 19
    },
    "by_owner.private-tmp": {
     "type": "float",
@@ -2913,17 +3235,9 @@
     "type": "int",
     "coverage": 19
    },
-   "by_owner.Users-chidionyema-dev-code": {
-    "type": "float",
-    "coverage": 17
-   },
-   "reqs_by_owner.Users-chidionyema-dev-code": {
-    "type": "int",
-    "coverage": 17
-   },
    "by_owner.Users-chidionyema-Documents-code-haworks-platform": {
     "type": "float",
-    "coverage": 15
+    "coverage": 14
    },
    "reqs_by_owner.Users-chidionyema-Documents-code-haworks-platform": {
     "type": "int",
@@ -2931,27 +3245,27 @@
    },
    "by_owner.Users-chidionyema-dev-code-idp": {
     "type": "float",
-    "coverage": 7
+    "coverage": 8
    },
    "reqs_by_owner.Users-chidionyema-dev-code-idp": {
     "type": "int",
-    "coverage": 7
+    "coverage": 8
    },
    "by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-275": {
     "type": "float",
-    "coverage": 5
+    "coverage": 7
    },
    "reqs_by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-275": {
     "type": "int",
-    "coverage": 5
+    "coverage": 7
    },
    "by_owner.private-tmp-haworks-testcov-orders-67248": {
     "type": "float",
-    "coverage": 5
+    "coverage": 4
    },
    "reqs_by_owner.private-tmp-haworks-testcov-orders-67248": {
     "type": "int",
-    "coverage": 5
+    "coverage": 4
    },
    "by_owner.private-tmp-claude-501--Users-chidionyema-8ef72725-f30e-4d4b-8cb9-791f03f67fdf-scratchpad": {
     "type": "float",
@@ -2960,6 +3274,14 @@
    "reqs_by_owner.private-tmp-claude-501--Users-chidionyema-8ef72725-f30e-4d4b-8cb9-791f03f67fdf-scratchpad": {
     "type": "int",
     "coverage": 4
+   },
+   "by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
+    "type": "float",
+    "coverage": 3
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
+    "type": "int",
+    "coverage": 3
    },
    "by_owner.private-tmp-cprobe-elxJ": {
     "type": "float",
@@ -2990,6 +3312,14 @@
     "coverage": 2
    },
    "reqs_by_owner.private-tmp-haworks-testcov-media-76500": {
+    "type": "int",
+    "coverage": 2
+   },
+   "by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
+    "type": "float",
+    "coverage": 2
+   },
+   "reqs_by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
     "type": "int",
     "coverage": 2
    },
@@ -3033,21 +3363,13 @@
     "type": "int",
     "coverage": 1
    },
-   "by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
+   "by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-345": {
     "type": "float",
     "coverage": 1
    },
-   "reqs_by_owner.Users-chidionyema-dev-code-idp--wt-p0": {
+   "reqs_by_owner.Users-chidionyema-dev-code-crew--worktrees-agent-go-345": {
     "type": "int",
     "coverage": 1
-   },
-   "by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
-    "type": "float",
-    "coverage": 0
-   },
-   "reqs_by_owner.Users-chidionyema-dev-code-idp--claude-worktrees-crew325-fix-the-map": {
-    "type": "int",
-    "coverage": 0
    },
    "by_owner.private-tmp-haworks-review-webhooks-97500": {
     "type": "float",
@@ -3060,7 +3382,7 @@
   }
  },
  "stuck_detector": {
-  "rows": 4433,
+  "rows": 4713,
   "unparseable": 0,
   "fields": {
    "class": {
@@ -3106,78 +3428,6 @@
    "ts": {
     "type": "str",
     "coverage": 16
-   }
-  }
- },
- "toolguard": {
-  "rows": 435,
-  "unparseable": 0,
-  "fields": {
-   "key": {
-    "type": "str",
-    "coverage": 100
-   },
-   "rule": {
-    "type": "str",
-    "coverage": 100
-   },
-   "t": {
-    "type": "float",
-    "coverage": 100
-   },
-   "n": {
-    "type": "int",
-    "coverage": 73
-   },
-   "tool": {
-    "type": "str",
-    "coverage": 66
-   },
-   "path": {
-    "type": "str",
-    "coverage": 27
-   },
-   "fp": {
-    "type": "str",
-    "coverage": 7
-   }
-  }
- },
- "worktree_cleanup": {
-  "rows": 2,
-  "unparseable": 0,
-  "fields": {
-   "applied": {
-    "type": "int",
-    "coverage": 100
-   },
-   "iso": {
-    "type": "str",
-    "coverage": 100
-   },
-   "kb": {
-    "type": "int",
-    "coverage": 100
-   },
-   "kept": {
-    "type": "int",
-    "coverage": 100
-   },
-   "salvaged": {
-    "type": "int",
-    "coverage": 100
-   },
-   "sha256": {
-    "type": "str",
-    "coverage": 100
-   },
-   "stamp": {
-    "type": "str",
-    "coverage": 100
-   },
-   "ts": {
-    "type": "int",
-    "coverage": 100
    }
   }
  }

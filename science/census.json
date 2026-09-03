@@ -1,16 +1,16 @@
 {
  "domains": {
-  "mac": 572,
-  "cluster": 141,
-  "endpoint": 5,
-  "hook": 36,
+  "mac": 544,
+  "warehouse": 53,
+  "cluster": 233,
+  "endpoint": 8,
+  "hook": 38,
   "mcp": 3,
-  "github": 96,
-  "transcript": 7345,
+  "github": 111,
+  "transcript": 6001,
   "act": 8
  },
  "blind": {
-  "warehouse": "FileNotFoundError: no warehouse at /Users/chidionyema/dev/code/.wt-crew-383/science/warehouse.db",
-  "cluster_live": "RuntimeError: Unable to connect to the server: getting credentials: exec: executable oci failed with exit code 1"
+  "cluster_live": "TimeoutExpired: Command '['kubectl', '--kubeconfig', '/Users/chidionyema/.kube/oke-estate', '--request-timeout=15s', 'get', 'deploy,sts,ds,cronjob,svc,pvc,helmrelease', '-A', '-o', 'json']' timed out "
  }
 }

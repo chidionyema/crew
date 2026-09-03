@@ -1,24 +1,25 @@
+## RESUME HERE — session claude-r74-cp1, 2026-09-01
 
-## RESUME HERE — session 14ed6c8b, 2026-08-28 ~17:45Z
+**Switching from:** idle (previous entry was crew#437 detached-checkout fix, status unknown to this
+session — not touched here).
+**Switching to:** R74 CP1 "The All-Seeing Eye" — Metabase as boardroom analytics glass, reading the
+platform's existing trace/metrics store. Ruling: crew repo
+`docs/rulings/R74-all-seeing-eye-boardroom-observability.md` on branch `ruling/plan-execute-review`.
 
-**Switching from:** crew#488 CP4 (done bar the founder's word) and crew#583 (idp#621, idp#622 both merged).
-**Switching to:** crew#437 — the live-checkout row narrates a detached HEAD instead of moving it.
+Plan: worktree `~/dev/code/.wt-all-seeing-eye` off `origin/main`, branch
+`feat/all-seeing-eye-metabase`, working only there (never touch the shared `~/dev/code/idp`
+checkout's branch). Pre-work: inventory Langfuse deploy (`platform/oci/langfuse.tf`, is ClickHouse
+on-cluster or managed), search prior Metabase art, copy a neighbouring platform component's
+kustomize/secret/probe conventions. Build: `platform/observability/metabase/` manifests (non-root,
+probes, resource limits, secret via platform's secret-store pattern, no literals), Backstage
+catalogue entry + portal link, `docs/demo` + `docs/onboarding` entries matching LAW 32's pre-push
+expectation for `feat(...)` commits. Prove: kustomize build, kyverno policy run, repo hooks, then
+`git push origin feat/all-seeing-eye-metabase` — NO PR, founder releases.
 
-Measured this turn, not remembered:
-- `~/dev/code/.crew-state` is the cwd of `com.founder.estatesnapshot` (idp/scheduler/schedule.yml:376-388,
-  every 2h). It was detached at `870a04f` (2026-08-27 11:30), **129 commits behind origin/main**, and
-  `grep -c "def portability_row" scripts/estate-snapshot` returned **0**. The board the founder reads was
-  generated every two hours by a 31-hour-old copy of the generator. Refreshed by hand to `43541c2`.
-- `~/dev/code/crew` is also detached, 17 behind origin/main.
-- `live_checkout_row()` (scripts/estate-snapshot:433) already watches this, and has been printing
-  `| live checkout | RED | on detached HEAD, N commit(s) behind ... the scheduled jobs run that |`
-  — then returning without moving anything. Detached-at-an-ancestor is the *safest* case to
-  fast-forward (no branch to lose), and it is the one case the function refuses. LAW 28.
+**Next step:** run the pre-work lookups (langfuse.tf, git log --all grep metabase, read
+platform/temporal or platform/monitoring conventions) before writing any manifest.
 
-**Next step:** worktree `$SCRATCH/detach` off origin/main, branch `fix/crew437-detached-checkout-moves`;
-make the detached-at-an-ancestor case take the existing dirty-file/ancestor checks and then
-`git checkout --detach origin/<branch>`; keep RED for a *named* branch that is not main (that is a
-person's work). Tests + 2 mutations.
+**Open elsewhere:** not investigated this turn — out of scope for R74 CP1.
 
-**Open elsewhere:** crew#587 (portability row dead-clock fix) is green except review-gate — waiting on
-code-5d's `REVIEW:` comment. idp#622 merged. Do not touch `$SCRATCH/tsacl` (stopped crew#562 work).
+## RESUME HERE (2026-09-01 ~23:05Z, session 54539261)
+Reviewing four cheap-executor lanes (R67/R74/R75). Breaker: kyverno refusal, executor resumed. Buttons+voice: false report, executor resumed. Fan-out: push in background. Research: pushed 50aa4a5, two wording fixes pending in scratchpad wt-crewai-fix. Metabase: running. Founder: calendar awaits /mcp connect; CrewAI research awaits his word.

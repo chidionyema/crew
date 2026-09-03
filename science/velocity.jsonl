@@ -6,3 +6,12 @@
 {"at": "2026-08-27T17:19:11Z", "closed": 3, "day": "2026-08-27", "half_done": 1, "lane": "lane:science", "median_age_d": 0.7, "no_checklist": 1, "open": 5, "opened": 5, "ticked": 2}
 {"at": "2026-08-27T17:19:11Z", "closed": 1, "day": "2026-08-27", "half_done": 0, "lane": "lane:security", "median_age_d": 2.3, "no_checklist": 3, "open": 4, "opened": 2, "ticked": 0}
 {"at": "2026-08-27T17:19:11Z", "closed": 14, "day": "2026-08-27", "half_done": 2, "lane": "lane:unsorted", "median_age_d": 3.2, "no_checklist": 29, "open": 42, "opened": 11, "ticked": 10}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 2, "lane": "lane:agents", "median_age_d": 8.6, "no_checklist": 0, "open": 32, "opened": 0, "ticked": 8}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 0, "lane": "lane:dr", "median_age_d": 4.2, "no_checklist": 0, "open": 2, "opened": 0, "ticked": 0}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 2, "lane": "lane:money", "median_age_d": 8.5, "no_checklist": 1, "open": 19, "opened": 0, "ticked": 3}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 3, "lane": "lane:observability", "median_age_d": 7.3, "no_checklist": 0, "open": 28, "opened": 0, "ticked": 5}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 8, "lane": "lane:platform", "median_age_d": 8.1, "no_checklist": 3, "open": 50, "opened": 0, "ticked": 27}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 5, "lane": "lane:process", "median_age_d": 9.6, "no_checklist": 0, "open": 47, "opened": 0, "ticked": 15}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 1, "lane": "lane:science", "median_age_d": 6.6, "no_checklist": 0, "open": 14, "opened": 0, "ticked": 7}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 1, "lane": "lane:security", "median_age_d": 5.6, "no_checklist": 6, "open": 11, "opened": 0, "ticked": 2}
+{"at": "2026-09-03T05:42:09Z", "closed": 0, "day": "2026-09-03", "half_done": 7, "lane": "lane:unsorted", "median_age_d": 4.0, "no_checklist": 51, "open": 177, "opened": 8, "ticked": 12}

@@ -1,0 +1,4 @@
+{"ts": "2026-08-28T01:41:23Z", "open": 192, "closed": 0, "ran": 2, "held": 5, "no_rule": 183, "refused": 2, "by_rule": {"closes-when": 0, "all-ticked": 0}}
+{"ts": "2026-08-30T01:41:43Z", "open": 274, "closed": 5, "ran": 3, "held": 2, "no_rule": 266, "refused": 1, "awaiting_receipt": 3, "by_rule": {"closes-when": 1, "all-ticked": 4}}
+{"ts": "2026-09-02T01:41:39Z", "open": 370, "closed": 1, "ran": 2, "held": 2, "no_rule": 362, "refused": 1, "awaiting_receipt": 3, "by_rule": {"closes-when": 0, "all-ticked": 1}}
+{"ts": "2026-09-03T01:41:31Z", "open": 378, "closed": 0, "ran": 2, "held": 2, "no_rule": 370, "refused": 1, "awaiting_receipt": 3, "by_rule": {"closes-when": 0, "all-ticked": 0}}

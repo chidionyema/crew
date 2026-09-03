@@ -1,70 +1,70 @@
 # Board rank, finish-first
 
-Regenerated 2026-08-27T17:35:00Z by science/velocity.py from `estate_board.py rank --top 60`.
+Regenerated 2026-09-03T05:42:09Z by science/velocity.py from `estate_board.py rank --top 60`.
 Order: fraction of checklist boxes ticked, then P0 before P1, then founder-request, then age;
 an issue whose `Blocked-on: #N` names an open issue ranks below every unblocked one.
 The top row is what a session with nothing assigned works on next.
 
 ```
-finish-first rank, 154 unclaimed of 190 open (2026-08-27T17:35:16Z)
+finish-first rank, 352 unclaimed of 380 open (2026-09-03T05:42:28Z)
+  #307  2/3   P0 lane:observability   RED ALERT P0: catalogue /catalog is a client-side 404 for th
+  #52   2/3      lane:agents          aiden WAITING alerts are 7-of-9 noise from one empty session
   #227  4/6      lane:platform        Auth v2: zero static secrets, workload identity for machines
   #239  2/3      lane:money           Reimagine mumchimp as a media company for bootstrappable bus
-  #191  6/12     lane:platform        The k3s cluster is strictly operational: fences, firewalls, 
-  #488  2/4      lane:platform        Portability extreme and cost future-proofing: the hydration 
+  #484  2/3      lane:platform        No CI job in idp has a kube path -- bin/idp-standby-drill (c
+  #583  2/4      lane:unsorted        A one-sided age bound: six instruments still grade a negativ
+  #648  3/6      lane:unsorted        Every session starts with the state of the estate: one struc
   #93   3/8      lane:process         Six placement and guard improvements, each linked to a named
+  #526  1/3   P1 lane:process         Open count never goes down: guard-filed issues carry a Close
   #459  2/6      lane:platform        Portal polish for investors: brand, god-view home, every plu
-  #96   2/8      lane:unsorted        We emit SPDX 2.3 that a regulator already bans, and we valid
+  #535  2/6      lane:platform        GitHub billing failed: private-repo Actions refused with 0 s
+  #595  1/3      lane:unsorted        Law vocabulary budget: the 50 laws say never 118 times and p
+  #96   2/8      lane:security        We emit SPDX 2.3 that a regulator already bans, and we valid
   #235  1/4      lane:money           Bytesync front door: parent AI company site, Alphabet-style;
+  #641  1/4      lane:unsorted        Audit of 2026-08-28: no code lost, one design replaced, six 
   #258  1/5      lane:observability   God View telemetry: one OTel collector, SigNoz on ClickHouse
   #495  2/10     lane:science         Science: NASA/MIL-grade engineering and platform ops at zero
+  #524  1/5      lane:platform        Hermes on the cluster runs every capability, not just the Te
   #229  1/9      lane:process         DoD v2.1: build the merge-blocking gates the policy names
+  #656  1/10     lane:unsorted        Verification layer: a claim about live state carries a measu
   #286  0/10  P0 lane:agents          Estate-as-Platform: the founder approves, agents operate, no
-  #491  0/0   P0 lane:money           MONEY LANE: switch Otto's memory from 2200-char raw text to 
-  #527  0/5   P1 lane:process         The board applies science: lanes, measured velocity, finish-
-  #529  0/0   P1 lane:unsorted        Independent certification: The Architect's hermes-v2 gateway
-  #85   0/0   P1 lane:platform        Machine overload: load 255 on 12 cores with founder at keybo
-  #116  0/0   P1 lane:unsorted        Spec: the Fly-exit rehearsal drill passes, repeatably, for £
+  #491  0/3   P0 lane:money           MONEY LANE: switch Otto's memory from 2200-char raw text to 
+  #734  0/0   P0 lane:unsorted        P0: estate back to a green baseline; Otto lockdown, spot poo
+  #736  0/5   P0 lane:unsorted        The Unbreakable Release Contract: no agent trust in the depl
+  #739  0/0   P0 lane:unsorted        FREEZE: nothing is released (founder, 2026-08-31)
+  #740  0/0   P0 lane:unsorted        P0: platform inventory matrix — every row graded by idp-oke-
+  #741  0/0   P0 lane:unsorted        P0: every session starts blind — hook output over 10 KB is c
+  #788  0/0   P0 lane:unsorted        P0: founder information protocol — one page, one channel, on
+  #529  0/3   P1 lane:unsorted        Independent certification: The Architect's hermes-v2 gateway
+  #609  0/5   P1 lane:money           Product function (stealth): audit, research, bootstrap in fi
+  #790  0/0   P1 lane:platform        INC1: chaos Kustomization fails to reconcile when the chaos-
+  #791  0/0   P1 lane:platform        INC2 and class: edge Kustomization failed once on a kyverno 
+  #13   0/5   P1 lane:agents          Retire the Hermes estate — unconditional, Hermes is disconti
+  #26   0/3   P1 lane:money           Estate spend is $866/day against a $120 cap, and one owner i
+  #32   0/3   P1 lane:money           prospector is still in ~/Documents/code — the move to ~/dev/
+  #85   0/3   P1 lane:platform        Machine overload: load 255 on 12 cores with founder at keybo
+  #116  0/3   P1 lane:platform        Spec: the Fly-exit rehearsal drill passes, repeatably, for £
   #248  0/3   P1 lane:platform        Prospector scheduler runs nowhere: no re-verification since 
-  #279  0/0   P1 lane:agents          Estate MCP needs a write-side ledger tool: architecture chan
-  #283  0/0   P1 lane:observability   Science & ML: close the 3 measured gaps before adding capabi
-  #290  0/0   P1 lane:unsorted        Continuity: reach Otto/the estate through any single loss — 
-  #313  0/3   P1 lane:unsorted        LiteLLM proxy down: colima not running, blocking CP1 photo i
+  #279  0/3   P1 lane:agents          Estate MCP needs a write-side ledger tool: architecture chan
+  #283  0/3   P1 lane:observability   Science & ML: close the 3 measured gaps before adding capabi
+  #290  0/3   P1 lane:platform        Continuity: reach Otto/the estate through any single loss — 
+  #313  0/3   P1 lane:platform        LiteLLM proxy down: colima not running, blocking CP1 photo i
   #318  0/4   P1 lane:platform        P0: MacBook load average 555/530/336 — machine is in genuine
-  #325  0/0   P1 lane:platform        idp architectural review 2026-08-26: cluster layer KEEP, REA
-  #326  0/0   P1 lane:platform        Incident: ~/.estate/guards/hooks/_router overwritten with a 
+  #325  0/3   P1 lane:platform        idp architectural review 2026-08-26: cluster layer KEEP, REA
+  #326  0/3   P1 lane:platform        Incident: ~/.estate/guards/hooks/_router overwritten with a 
   #508  0/5   P1 lane:process         Science is every lane at once: one page shows progress acros
-  #516  0/9   P1 lane:platform        Mac exit: plan and execute the move of every estate workload
-  #526  0/3   P1 lane:process         Open count never goes down: guard-filed issues carry a Close
-  #412  0/0      lane:platform        Founder dashboard is Backstage: god's view across all repos,
+  #565  0/3   P1 lane:science         science: the bootstrap ceiling states its own measurement th
+  #566  0/3   P1 lane:science         science: a --domains run skips the census but still grades t
+  #567  0/4   P1 lane:process         board: crew#527 CP1 is ticked as scheduled and nothing sched
+  #568  0/3   P1 lane:unsorted        we had an architecture for a future prrof uified provider ag
+  #607  0/5   P1 lane:unsorted        PR age: 4 machine-hours maximum — green merges itself, red g
+  #620  0/0   P1 lane:unsorted        Strict shell practice estate-wide: shellcheck, shfmt, strict
+  #626  0/7   P1 lane:unsorted        DEFECTS on the god view: guards, Kubernetes tooling, Dagster
+  #667  0/17  P1 lane:unsorted        Hazard register to zero: every open row closes by a command,
+  #668  0/5   P1 lane:unsorted        Incident ledger: every outage is a traced, classed, machine-
+  #718  0/7   P1 lane:unsorted        The founder cannot open five of the eight monitoring tools, 
+  #795  0/0   P1 lane:unsorted        Squad model: Claude plans and manages, cheap models execute,
+  #412  0/3      lane:platform        Founder dashboard is Backstage: god's view across all repos,
   #506  0/3      lane:process         Consultant review: deterministic runtime over prompt-level p
-  #88   0/0      lane:unsorted        Documentation standard: 190 documents, 0 name an owner, 4 ex
-  #91   0/3      lane:unsorted        The estate's entire spend policy is one untracked file on on
-  #92   0/3      lane:agents          Agents commit as the founder, so the git record cannot tell 
-  #94   0/0      lane:process         Laws injection is 102,649B resident in every request — split
-  #95   0/0      lane:process         goal-guard.py:236 tmp->json rename race: 62 board rows in 24
-  #101  0/0      lane:process         The estate board is a laptop file; the founder cannot see it
-  #103  0/0      lane:unsorted        CAPA: pre-work lookup landed 2026-08-21 and he repeated the 
-  #104  0/0      lane:process         Estate-wide wheel audit: 100+ components, REPLACE/KEEP verdi
-  #105  0/4      lane:process         Code review process + definition of done: the estate has nei
-  #107  0/0      lane:unsorted        Three producers write timestamps the warehouse cannot read
-  #108  0/0      lane:agents          The enforcement map was written against a 10-law AGENTS.md. 
-  #113  0/0      lane:science         science: job_timelines source is stale and no producer exist
-  #114  0/0      lane:process         Fully operational today — the day board, 2026-08-24
-  #115  0/0      lane:agents          we have 2 claude sessions stuck workng oncritical stull data
-  #117  0/0      lane:unsorted        can you give ne an update on hernes v2
-  #118  0/0      lane:unsorted        tie has been dead since 13 June, not 18 August — decide whet
-  #119  0/0      lane:process         R8: one agnostic framework — rebrand, provider onboarding ch
-  #121  0/5      lane:unsorted        Model the estate as a living organism: predict what will fai
-  #125  0/0      lane:money           prospector main was red on every push because two workflows 
-  #126  0/7      lane:unsorted        PLATFORM MIGRATION: delete the hand-rolled estate, move onto
-  #130  0/0      lane:process         Adopt pre-commit: every git-side custom guard becomes a regi
-  #132  0/0      lane:process         goal-guard: mechanical drift check at Stop (R12-no-drift)
-  #135  0/0      lane:process         STANDARDS.md needs its gate: a Standard:/Deviation: line on 
-  #136  0/4      lane:unsorted        A tool handed a list of files commits the whole index (097ec
-  #153  0/0      lane:process         dupe-work-fence refuses --body-file paths containing shell v
-  #158  0/0      lane:process         review-gate binds to a PR, not a commit: a reworked PR auto-
-  #161  0/0      lane:unsorted        Evidence links die when the branch is pruned: 8 of 40 merged
-  #164  0/0      lane:agents          A check that cannot reach its evidence returns a verdict any
-  #167  0/0      lane:unsorted        A status row whose truth is a sentence goes stale; make fast
-  #169  0/0      lane:unsorted        probe adn sudit platfron nd epxose the gaps to get to Where
+  #612  0/6      lane:unsorted        Portal experience function: UX/design architect and informat
 ```

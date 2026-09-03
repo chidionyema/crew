@@ -20,16 +20,16 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 
 GENERATED from `incidents/GUARDS.jsonl` by `scripts/incident-backfill`: one row per `tests/test_incident_*` file in the estate.
 Each one is an incident somebody paid for before this ledger existed; the class is a keyword read of the file name, so
-**78 of 107 are unclassified** until a person or the science lane names the class (crew#668 CP3).
+**79 of 108 are unclassified** until a person or the science lane names the class (crew#668 CP3).
 
-- Guards: **crew 107**, 107 in all
-- Tickets with a guard: 68
+- Guards: **crew 108**, 108 in all
+- Tickets with a guard: 69
 
 ### Classes, by how many guards they needed
 
 | Class | Means | Guards |
 |---|---|---|
-| unclassified | not read from the file name yet | 78 |
+| unclassified | not read from the file name yet | 79 |
 | gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 16 |
 | silent-green | a check reads green when it cannot measure (LAW 15) | 4 |
 | summary-over-source | a compaction summary or memory was trusted over the file or the vendor page | 2 |

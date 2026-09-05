@@ -24,7 +24,7 @@ not start yet still occupied a tick.
 ## How it is enforced
 
 A law nobody can be stopped by is a wish (LAW 44), so the rule is not only written down. The
-refusal lives in Rego, at `policy/reply.rego` in the claude-guards repository, and runs on the
+refusal lives in Rego, at `claude-guards/policy/reply.rego` in the claude-guards repository, and runs on the
 Stop hook against every reply:
 
 ```

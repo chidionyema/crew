@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 #: cross-repo reference, and CI checks out one repo, so it cannot be resolved here. Repointing the
 #: 34 bare paths into this form was most of the fix; a prefix at least tells the reader WHERE.
 SIBLINGS = {"crew", "idp", "prospector", "prospector-main", "hermes-v2", "hermes-audit",
-            "survival-stack", "maestro", "agent-guard", "ebookStore", "ecommerce-clean",
+            "survival-stack", "maestro", "agent-guard", "claude-guards", "ebookStore", "ecommerce-clean",
             "QAlgo", "mumchimp-medusa", "e26-rescue", "forex_trend_prediction"}
 
 #: A backticked token with a slash and a source-file extension. Deliberately narrow: prose is full

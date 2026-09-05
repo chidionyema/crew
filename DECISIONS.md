@@ -19,13 +19,20 @@ this file.
 ```
 PRIMARY:   hermes-v2 on this Mac, ~/dev/code/hermes-v2, launchd ai.architect.gateway
 TARGET:    hermes-v2 on Fly, app prospector-hermes — not reachable, see entry 14
-RETIRED:   the old estate, ~/.hermes, v0.16.0
+RETIRED:   the old estate, ~/.hermes, v0.16.0 — fully retired 2026-08-26
 ```
 
 **PRIMARY and TARGET swapped 2026-08-22 13:40 UTC.** The Mac is what actually
 serves. The launchd label is `ai.architect.gateway`, not `ai.hermes.gateway` —
 REQ-116 bars the second name from `launchctl list` because two gateways would
 share one bot token. Entry 14 has the measurements.
+
+**The old estate is fully retired as of 2026-08-26.** The 9.1 GB tree at
+`~/Documents/code/hermes` was moved to `~/.Trash/hermes-RETIRED-2026-08-26` and
+the `~/.hermes` symlink was removed. Nothing runs from it: 0 launchd plists,
+0 processes, 0 cron lines named the real path. The surviving copy of the
+decomposed loop lives in `~/.claude/scripts/estate/` and `~/.estate/state/`.
+Deleting the Trash entry is a founder call (LAW 11).
 
 Migration path: hermes-v2 is the test candidate for survival-stack Phase 2. When
 survival-stack is proven on a spare domain, hermes-v2 moves off Fly to the

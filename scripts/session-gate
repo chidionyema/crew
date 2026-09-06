@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# crew#85 (2026-08-24, load 255 on 12 cores): the machine was overloaded by concurrent
+# agent sessions, pytest suites and the colima Docker VM, and no session could see the
+# others. The issue's own last comment names the missing piece: "the fix is a session-start
+# gate (max N concurrent build/test-heavy sessions, queue or refuse beyond it), not another
+# one-off `find` kill."
+#
+# This is that gate. A session that is about to start a build/test-heavy run calls this
+# first. It counts how many build/test-heavy sessions are already running and refuses (or
+# queues) a new one beyond the ceiling. The inputs come from the machine, never from a
+# hand-typed number: the ceiling is cores x max_load_per_core, and the running count is
+# read from `ps`.
+#
+# Usage:
+#   scripts/session-gate            # refuse (exit 1) if the machine is already at the ceiling
+#   scripts/session-gate --wait     # wait (poll) until a slot frees, then exit 0
+#   scripts/session-gate --status   # print the current count and ceiling, exit 0
+#
+# Exit status:
+#   0  a slot is free (or --status printed)
+#   1  the machine is at the ceiling and --wait was not given
+#
+# The ceiling is the same shape the Dagster load gate uses (idp#316/#320): max_load_per_core
+# x cores, default 2.0. A session that calls this and is refused should not start its run.
+
+set -uo pipefail
+
+# Default ceiling: 2.0 runnable threads per core, the same number the estate scheduler uses.
+MAX_LOAD_PER_CORE="${SESSION_GATE_MAX_LOAD_PER_CORE:-2.0}"
+# A build/test-heavy session is one whose command line names a suite, a build or a scan.
+# This is the same class the incident measured: pytest, builds, rehearsals, syft scans.
+HEAVY_PATTERN='pytest|py.test|go build|npm run build|docker build|syft scan|k3d cluster|make build'
+
+cores="$(sysctl -n hw.ncpu 2>/dev/null || echo 12)"
+ceiling="$(awk -v c="$cores" -v m="$MAX_LOAD_PER_CORE" 'BEGIN{printf "%d", c*m}')"
+
+count_heavy() {
+  # Count live build/test-heavy processes, excluding this script's own shell and grep.
+  ps -axo args= 2>/dev/null \
+    | grep -E "$HEAVY_PATTERN" \
+    | grep -v 'grep -E' \
+    | grep -v 'session-gate' \
+    | wc -l \
+    | tr -d ' '
+}
+
+load_ok() {
+  # The 1-minute load average must stay under the ceiling. Read from the kernel, never typed.
+  local load
+  load="$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $1}')"
+  awk -v l="$load" -v c="$ceiling" 'BEGIN{exit !(l < c)}'
+}
+
+case "${1:-}" in
+  --status)
+    echo "heavy_sessions=$(count_heavy) ceiling=$ceiling cores=$cores max_load_per_core=$MAX_LOAD_PER_CORE"
+    exit 0
+    ;;
+  --wait)
+    # Poll until a slot frees. Never sits forever: give up after a bounded number of tries.
+    tries="${SESSION_GATE_MAX_WAIT_TRIES:-60}"
+    while [ "$tries" -gt 0 ]; do
+      if load_ok && [ "$(count_heavy)" -lt "$ceiling" ]; then
+        exit 0
+      fi
+      tries=$((tries - 1))
+      sleep "${SESSION_GATE_POLL_SECONDS:-5}"
+    done
+    echo "session-gate: no slot freed within the wait window; refusing" >&2
+    exit 1
+    ;;
+  *)
+    if load_ok && [ "$(count_heavy)" -lt "$ceiling" ]; then
+      exit 0
+    fi
+    echo "session-gate: machine at ceiling (heavy_sessions=$(count_heavy) ceiling=$ceiling); refusing new build/test-heavy session" >&2
+    exit 1
+    ;;
+esac

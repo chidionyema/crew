@@ -1,5 +1,5 @@
 {
- "description": "Agent certification history: one snapshot per certification run with per-test rows.",
+ "description": "Agent certification history: one snapshot per certification run. rows is an array of per-test records (id, phase, state, detail), normalised so the schema is bounded no matter how many requirements a run certifies (crew#71).",
  "field_docs": {},
  "fields": {
   "agent": [
@@ -27,7 +27,7 @@
    "int"
   ],
   "rows": [
-   "dict"
+   "list"
   ],
   "score": [
    "float"

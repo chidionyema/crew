@@ -1,5 +1,5 @@
 {
- "description": "Daily model spend per owner directory, written by the spend collector.",
+ "description": "Daily model spend per owner directory, written by the spend collector. by_owner and reqs_by_owner are arrays of per-project records (owner, usd / owner, requests), normalised so the schema is bounded no matter how many projects spend money (crew#71).",
  "field_docs": {
   "by_model": {
    "description": "usd per model served that day (claude-guards crew#371)",
@@ -26,7 +26,7 @@
    "dict"
   ],
   "by_owner": [
-   "dict"
+   "list"
   ],
   "day": [
    "str"
@@ -35,7 +35,7 @@
    "dict"
   ],
   "reqs_by_owner": [
-   "dict"
+   "list"
   ],
   "requests": [
    "int"

@@ -1,6 +1,11 @@
 {
- "description": "stuck-detector ticks and findings: sessions that stopped moving.",
- "field_docs": {},
+ "description": "stuck-detector ticks and findings: sessions that stopped moving. Two record shapes share this store, discriminated by kind: an observation row (class, cwd, evidence, idle_s, session, slug, streak, would_page) and a run-summary row (findings, rc, ts). Each row carries only its own kind's fields (crew#71).",
+ "field_docs": {
+  "kind": {
+   "description": "discriminator between the two record shapes in this store: \"observation\" (class, cwd, evidence, idle_s, session, slug, streak, would_page) or \"run_summary\" (findings, rc, ts)",
+   "pii": false
+  }
+ },
  "fields": {
   "at": [
    "str"
@@ -43,5 +48,5 @@
   ]
  },
  "owner": "claude-guards",
- "undescribed_baseline": 13
+ "undescribed_baseline": 12
 }

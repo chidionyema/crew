@@ -1,6 +1,7 @@
 # Lanes: one session, one worktree, and the two rules that stop collisions
 
-Source: crew#40. Written 2026-08-26 from the feed, not from memory.
+Source: crew#40. Written 2026-08-26 from the feed, not from memory. Updated
+2026-09-01 to record the enforcement status of rule 2 and the current lane state.
 
 ## What a lane is
 
@@ -19,6 +20,13 @@ The main checkout of any repo is not a lane. Nobody edits there.
 |---|------|----------------|-------|
 | 1 | Never `git add -A` or `git add .` in this estate. Stage named paths: `git add -- path/one path/two`. `store/` and `storage/` are tracked runtime state that pytest writes to, so add-all commits another process's output. | `~/.claude/scripts/rule-guard.py`, PreToolUse on Bash, every session | Refuse half: the guard blocked `git add -A && git commit -m x` on 2026-08-26 17:49Z. Permit half: `git add -- docs/A.md && git commit -m x` exits 0. |
 | 2 | One lane per session. Say which lane you are in before you touch it, and name what you will change. | `~/.claude/scripts/feed-guard.py` on Stop, `policy/feed.rego`: every handoff carries `🔧 TOUCHES:` and `🔀 OVERLAP:`, "none" is an answer, empty is refused (crew#259) | `feed_test.rego` |
+
+**Rule 2 is visible, not yet refused.** Nothing today stops a second session
+from writing a handoff under a lane another live session holds. The guard for
+that class is a follow-on (crew#40): `feed-guard` refuses a handoff whose lane
+was claimed by a different session in the last 2h unless `OVERLAP` names that
+session. Until that lands, rule 2 is a convention enforced by reading the last
+handoff of every live session before touching a shared file.
 
 ## What a conflict is
 
@@ -47,7 +55,7 @@ opened for. Rule 1 stops the worst damage (a stray add-all). Rule 2 makes
 the overlap visible but does not refuse it: nothing today stops a second
 session from writing a handoff under a lane another live session holds.
 
-## The lane list from crew#40 (2026-08-23), status on 2026-08-26
+## The lane list from crew#40 (2026-08-23), status on 2026-09-01
 
 | # | Lane | Issues | Open today |
 |---|------|--------|------------|
@@ -59,6 +67,10 @@ session from writing a handoff under a lane another live session holds.
 | 6 | Observability | #22 #25 | closed |
 | 7 | The Architect's Telegram | #30 | closed |
 | 8 | Maestro capability gaps | #28 | closed |
+
+Of the eight lanes listed on 2026-08-23, only #26, #32 and #33 are still
+open. Lane 2 was closed by R1 (no Fly). Lanes 6, 7 and 8 closed as their
+issues landed.
 
 Claim a lane by naming it in your feed handoff. First claim in the feed wins.
 If the lane is held, take another worktree.

@@ -20,7 +20,7 @@ learning-loop metrics for the two workstreams that issue 63 tracks.
   has 0 events; verify_on_stop OFF on the founder's only surface (Telegram).
 - **metric_after (measured 2026-08-29):** The claim gate (A2) is live on the
   gateway reply path (patch 0003, 10 tests passed both ways, demo in
-  `docs/demo/claim-gate.md`), but the verification_evidence.db count is unreadable
+  `hermes-v2/docs/demo/claim-gate.md`), but the verification_evidence.db count is unreadable
   because the Otto gateway pod is down (ImagePullBackOff on a ghcr tag ghcr never
   published, fixed by idp#778; ExternalSecret `tailscale-operator` missing,
   blocked on `bin/idp-set-root tailscale`). A1 is ticked only after an

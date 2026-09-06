@@ -204,3 +204,17 @@ Rejected: a dashboard for the `cron/output/` files, which is a second place to
 look rather than one fewer.
 → *A scheduler whose output nobody receives is a scheduler talking to itself.
 The delivery target is part of the job, and it gets a check.* (LAW 28)
+
+**16. 2026-08-26 | an empty session is idle, not a stalled agent (crew#52)**
+aiden raised 9 alerts on 2026-08-23 and 7 were WAITING lines from one empty
+`prospector-cli-cwd-slot-0` session that had no work in it. An empty transcript is
+not a stalled agent, it is an empty slot, and alerting on it is what makes the
+channel worth muting — which is the real cost, because the two alerts that mattered
+were in the same nine. The fix lives in claude-guards: `state_of` returns IDLE for a
+session with no assistant text (claude-guards#95, 2bc3968), and cg#190 (040389f)
+pins it across the idle range, pins the RUNNING short-circuit, and reconstructs the
+2026-08-23 shape through `alerts()` so nine lines collapse to one. Rejected: leaving
+the branch unpinned, which would have let the next reorder of `state_of` put the
+noise back with no run saying so (LAW 45).
+→ *A session that has never said anything is not WAITING. The fix is a guard with a
+test that fails if the branch is lost, not a one-time correction.* (LAW 45, LAW 28)

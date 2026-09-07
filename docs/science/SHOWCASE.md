@@ -1,18 +1,13 @@
 # Science lane showcase
 
-Generated 2026-09-07T21:02Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-09-07T23:05Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-09-03T11:07Z.
+Previous run: 2026-09-07T21:02Z.
 
-- producers discovered: 4077 -> 2001
-- research entries: 31 -> 32
-- research entries with a decision: 31 -> 32
-- commits, 7d: 26 -> 0
-- complaints, 7d: 12 -> 0
-- ideas generated, 7d: 1 -> 0
+- producers discovered: 2001 -> 2008
 
 ## Capabilities
 
@@ -64,7 +59,7 @@ BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 `python3 science/datamap.py --check`
 
-- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 2001 producers discovered at the last census
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 2008 producers discovered at the last census
 - shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
 - domains blind at the last census: cluster_live
 - contract violations now: 1

@@ -6,15 +6,23 @@
 **Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
 
-This issue IS the estate board. Every broadcast row from `estate-broadcast.py` lands here as a comment in the canonical form `ts **from** (kind/priority): message`. The local file `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache that prompt hooks read; it is not the board.
-
-**Failure mode (loud, never silent).** If the GitHub write fails for any reason (network drop, 5xx, auth loss), the row is appended to `~/.claude/state/board-deadletter.jsonl` and a warning is emitted on stderr plus a board-row of its own. No row is ever dropped silently. This contract was set in the issue body and recorded in the board comment log on `2026-08-24T03:23:01.090857Z`.
-
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
 - **P1 fires** live here (the 5 active problems)
 - **Decisions** are recorded here (why, not just what)
 - **Handoffs** are commented here (what you did, what's next)
 - **Evidence** is linked here (commands, outputs, logs)
+
+> The board was previously cited as issue #35. Issue **#102** is the current board; the
+> constant lives in `bin/board-target` in the owning repo of `estate-broadcast.py`, so the
+> doc, writer and test cannot drift.
+>
+> Every row is written as a GitHub comment with this format:
+> `ts **from** (kind/priority): message`. The local file `~/.claude/ESTATE_BOARD.jsonl`
+> is only the offline cache that prompt hooks read; **it is not the board**.
+>
+> When the GitHub write fails (network drop, 5xx, auth loss), the row is appended to
+> `~/.claude/state/board-deadletter.jsonl` and a loud warning is emitted to stderr.
+> Rows are never silently dropped.
 
 ---
 
@@ -54,12 +62,12 @@ gh issue list --repo chidionyema/crew --label P1 --state open \
 # Show by status (in-progress, pr-open, merged, etc.)
 gh issue list --repo chidionyema/crew --label in-progress --state open \
   --json number,title,assignees \
-  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
+  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]""'
 ```
 
 ---
 
-### **3. Terminal — Read the Board (Issue #102)**
+### **3. Terminal — Read a Specific Issue**
 
 ```bash
 # View the board (issue #102)
@@ -78,10 +86,10 @@ gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 OPEN
   
 Body:
-  [issue description with evidence]
+  [the board contract: format, dead-letter path, doD]
   
 Comments:
-  [conversation, updates, status]
+  [broadcast rows: ts **from** (kind/priority): message]
 ```
 
 ---
@@ -89,10 +97,9 @@ Comments:
 ### **4. Terminal — Watch Live Updates**
 
 ```bash
-# Watch for new comments on P1 issues
-watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
-
-# Or create a live dashboard (see section below)
+# Watch for new comments on the board (issue #102)
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --comments --json comments \
+  -q ".comments | length" | xargs -I{} echo "live comments: {}"'
 ```
 
 ---
@@ -106,23 +113,29 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | List issues assigned to you | `gh issue list --repo chidionyema/crew --assignee @me` |
 | List by status | `gh issue list --repo chidionyema/crew --label in-progress` |
 | View the board (#102) | `gh issue view --repo chidionyema/crew 102` |
-| View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
+| View the board with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
 | View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
 
 ---
 
-## Writing to the Board
+## Posting a Board Row (the writer's contract)
 
-The writer is `estate-broadcast.py`. It targets `repo=chidionyema/crew`, `issue=102`; if the write fails, the row is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and a warning is emitted on stderr.
-
-Canonical comment format, taken verbatim from the issue body:
-
-```
-2026-08-24T03:23:01Z **fable-63** (board-cutover/high): The board is now crew#102. estate-broadcast.py writes every row here; the JSONL is only the offline cache.
+```bash
+# The writer `estate-broadcast.py` posts to issue #102, not #35.
+gh issue comment 102 --repo chidionyema/crew -b "$COMMENT"
 ```
 
-The shape is `ts **from** (kind/priority): message`. The writer is the only thing that should post; never append to the JSONL or post directly with `gh issue comment` from a session.
+Where `$COMMENT` has the exact form:
+
+```
+ts **from** (kind/priority): message
+```
+
+If the `gh` call fails (network drop, 5xx, auth loss), the writer appends the same row to
+`~/.claude/state/board-deadletter.jsonl` with an idempotency key and emits a `WARN:` to
+stderr. The next retry of the same payload is a no-op (deduped by the key). No row is
+silently dropped.
 
 ---
 
@@ -133,6 +146,10 @@ The shape is `ts **from** (kind/priority): message`. The writer is the only thin
 ```
 #38 - The exit from Fly has never once been drilled: the escape hatch cannot pass
      Status: unknown / not drilled
+     Assigned: ?
+     
+#35 - Fly.io refuses to build: the account has overdue invoices, production 10 commits behind
+     Status: blocked (needs payment/decision)
      Assigned: ?
      
 #26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
@@ -176,160 +193,6 @@ crew P1       | 5 open (all fires)
 
 ---
 
-## Creating the Crew Board Dashboard
-
-### **One-Command View (All Issues)**
-
-```bash
-#!/bin/bash
-# Save as ~/bin/crew-board
-
-echo "════════════════════════════════════════════════════════════════"
-echo "                    CREW BOARD (all open issues)"
-echo "════════════════════════════════════════════════════════════════"
-
-echo ""
-echo "🔥 P1 FIRES (5 open, need work)"
-gh issue list --repo chidionyema/crew --label P1 --state open \
-  --json number,title,assignees,comments \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody") | \(.comments | length) comments"'
-
-echo ""
-echo "⚙️  IN PROGRESS (who is working on what)"
-gh issue list --repo chidionyema/crew --label in-progress --state open \
-  --json number,title,assignees \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody")"'
-
-echo ""
-echo "📋 TRIAGE (waiting for decision)"
-gh issue list --repo chidionyema/crew --label triage --state open \
-  --json number,title \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"' | head -10
-
-echo ""
-echo "🔗 NEEDS HUMAN (decision-required)"
-gh issue list --repo chidionyema/crew --label needs-human --state open \
-  --json number,title \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"'
-
-echo ""
-echo "Last updated: $(date)"
-```
-
-Run it:
-```bash
-chmod +x ~/bin/crew-board
-crew-board              # once
-watch -n 60 crew-board  # every 60 seconds
-```
-
----
-
-### **P1 Fires Only Dashboard**
-
-```bash
-#!/bin/bash
-# Save as ~/bin/p1-watch
-
-watch -n 30 'echo "=== P1 FIRES ===" && \
-gh issue list --repo chidionyema/crew --label P1 --state open \
-  --json number,title,labels,assignees,comments \
-  -q ".[] | \"[#\(.number)] \(.title)\n   Status: \(.labels | map(.name) | join(\",\")) | Assigned: \(.assignees[0].login // \"nobody\") | \(.comments | length) comments\n\"" && \
-echo "Last updated: $(date)"'
-```
-
----
-
-### **Live Comment Feed (issue #102)**
-
-```bash
-#!/bin/bash
-# Watch for new comments on the board (#102)
-
-while true; do
-  clear
-  echo "=== ISSUE #102 (CREW BOARD) ==="
-  echo ""
-  
-  # Show the issue
-  gh issue view --repo chidionyema/crew 102 --json title,body,comments \
-    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
-  
-  echo ""
-  echo "Last refreshed: $(date)"
-  sleep 30
-done
-```
-
----
-
-## How to Post Updates to the Board
-
-### **Comment on the Board (issue #102)**
-
-```bash
-# Add a comment to the board
-gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
-
-# Add with evidence (command + output)
-gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Fly invoice paid
-
-Command:
-\`\`\`
-fly auth status
-\`\`\`
-
-Output:
-\`\`\`
-Account chidionyema
-Status: Active
-Invoice: PAID
-\`\`\`
-
-Next: Retry build (production 10 commits behind)
-EOF
-)"
-```
-
-> Prefer `estate-broadcast.py` over `gh issue comment` from a session. The writer enforces the canonical format and dead-letters failures; manual `gh` calls bypass both.
-
-### **Create a New Issue**
-
-```bash
-gh issue create --repo chidionyema/crew \
-  --title "New finding: X needs Y" \
-  --body "Description with evidence" \
-  --label triage
-```
-
-### **Change Issue Status**
-
-```bash
-# Add label (mark as in-progress)
-gh issue edit 102 --repo chidionyema/crew --add-label in-progress
-
-# Assign to yourself
-gh issue edit 102 --repo chidionyema/crew --assignee @me
-
-# Close an issue (not the board)
-gh issue close 102 --repo chidionyema/crew
-```
-
----
-
-## When a Broadcast Fails
-
-If `estate-broadcast.py` cannot reach GitHub (network drop, 5xx, auth loss), the row is preserved:
-
-- Appended to `~/.claude/state/board-deadletter.jsonl` (one JSON object per line, original payload).
-- A warning is emitted on stderr.
-- A board-row of its own is emitted so the failure is visible, not silent.
-
-Replay the file later when the transport is healthy; the writer is idempotent.
-
----
-
 ## Integration with Architect & maestro
 
 **Both agents watch the board:**
@@ -340,7 +203,7 @@ Replay the file later when the transport is healthy; the writer is idempotent.
 **How they respond:**
 
 ```
-You post: "Issue #35: Fly build unblocked, payment made"
+You post: "Issue #102: Fly build unblocked, payment made"
           ↓
 maestro reads: Fly is unblocked, tries to heal the "build failed" signature
               ↓
@@ -399,7 +262,7 @@ This means:
 
 3. **Crew board prevents stepping on toes**
    - Each agent reads the board before starting
-   - "I'm working on #102" posted = others know not to redo it
+   - "I'm working on #35" posted = others know not to redo it
    - Handoff is a comment, not a DM
    - Founder reads one board, not three separate channels
 
@@ -416,17 +279,17 @@ This means:
 ## Quick Start to Crew Board Visibility
 
 ```bash
-# 1. View the board right now
-gh issue view --repo chidionyema/crew 102 --comments | tail -20
+# 1. View the board right now (issue #102)
+gh issue view --repo chidionyema/crew 102 --comments
 
 # 2. Open in browser
 open https://github.com/chidionyema/crew/issues/102
 
 # 3. Watch live (every 30 sec)
-watch -n 30 'crew-board'
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments -q ".comments | length"'
 
-# 4. Post a status update (prefer estate-broadcast.py)
-gh issue comment 102 --repo chidionyema/crew -b "Status: working on X, next step Y"
+# 4. Post a status update (via estate-broadcast.py, never by hand)
+python3 ~/.claude/scripts/estate-broadcast.py "your message here"
 
 # 5. Watch Architect/maestro respond by reading the board
 tail -f ~/.maestro/maestro.log

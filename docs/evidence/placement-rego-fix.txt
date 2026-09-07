@@ -1,0 +1,16 @@
+Documentation of fix for silent miss case in policy/placement.rego.
+
+Original defect:
+The `never-pinged` rule in `policy/placement.rego` (in the 'idp' repository)
+read `job.check.last_ping == null`. When Healthchecks became unhealthy,
+`bin/placement-audit` degraded monitored jobs to `check: null`. Rego
+evaluated `null.last_ping` as 'undefined', causing the rule to silently fail
+and stop matching. This resulted in an audit reporting 11 failures instead of 22,
+making the guard appear quieter when it lost evidence.
+
+Fix:
+The issue was fixed by explicitly denying the blinded case in `policy/placement.rego`.
+A new deny rule was added for unreadable check records.
+`bin/placement-audit` was updated to report 'BLIND' separately from 'never-pinged'.
+This fix is proven by `policy/fixtures/placement-blind.json`, an isolated fixture
+that breaks only this rule.

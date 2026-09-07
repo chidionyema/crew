@@ -1,8 +1,0 @@
-This file is a placeholder for details regarding the "failing instrument nobody reads" as referenced in issue #93, improvement #4.
-
-A Planner needs to populate this file with the specific instrument's details, including:
-- Name of the instrument
-- Location/path of the instrument
-- Current state (e.g., failing, unmonitored)
-- Reason it is considered "unread"
-- Proposed action (assign a reader or delete)

@@ -60,6 +60,9 @@ touches once.
 Reply grammar, board mechanics, and model routing live in `idp/docs/policy/` and are
 enforced by guards, not by reading.
 
+## Agent Commit Convention
+
+To distinguish agent commits from founder commits, every agent commit MUST include a `Co-authored-by: Agent Workforce <agent-workforce@example.com>` trailer. Founder commits MUST NOT include this trailer. This convention is enforced by the `agent-commit-guard` GitHub Action.
 
 ## THE EMPIRICAL PROOF RULE (founder 2026-09-05, verbatim; record: `~/.claude/docs/founder/2026-09-05T1415Z-he-generalized-rule-empirical-proof-over-synthetic-probes-a79801e5.md`)
 

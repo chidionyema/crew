@@ -1,13 +1,18 @@
 # Science lane showcase
 
-Generated 2026-09-03T11:07Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-09-07T21:02Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-09-03T09:04Z.
+Previous run: 2026-09-03T11:07Z.
 
-- producers discovered: 4076 -> 4077
+- producers discovered: 4077 -> 2001
+- research entries: 31 -> 32
+- research entries with a decision: 31 -> 32
+- commits, 7d: 26 -> 0
+- complaints, 7d: 12 -> 0
+- ideas generated, 7d: 1 -> 0
 
 ## Capabilities
 
@@ -59,7 +64,7 @@ BLIND: science/warehouse.db has no readable facts table (no such table: facts)
 
 `python3 science/datamap.py --check`
 
-- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 4077 producers discovered at the last census
+- 60 register entries (COLLECTED 35, EXCLUDED 9, NEVER_EMITTED 4, WIRED_NEVER 11, WRITER_DEAD 1); 2001 producers discovered at the last census
 - shape walk: BLIND (science/shapes.json empty or absent; no walk has landed)
 - domains blind at the last census: cluster_live
 - contract violations now: 1
@@ -153,24 +158,24 @@ red in CI, never silent.
 
 `python3 -c "import json; print(sum(1 for l in open('science/RESEARCH-LEDGER.jsonl')))"`
 
-- 31 entries, 2026-08-23 to 2026-08-28; 31 record the decision they fed
+- 32 entries, 2026-08-23 to 2026-09-05; 32 record the decision they fed
 
-- **2026-08-24** Which of the estate's hand-written Claude Code guard hooks (rule-guard, goal-guard, tracked, jargon-guard, context-guard-hook) can be expres
-  - decision: Replace one, split one, delete half of one, keep two. (1) jargon-guard.py -> Vale 3.17.1, already installed, already configured in 10+ repos: highest-value swap
-  - metric: 269 lines (jargon-guard.py) duplicating Vale 3.17.1, which is installed and used in 10+ repos and referenced 0 times by the guard; plus an unmeasured share of rule-guard.py's 1362 lines duplicating 41 existing permissions.deny rules. -> None
 - **2026-08-24** Is there a proven tool for 'prove this system can be rebuilt from nothing', to replace the hand-written nightly drill runner at ~/.claude/sc
   - decision: KEEP ~/.claude/scripts/drills/run.py. It is a drill REGISTER - 13 entries, 5 named as not yet written, with an orphan check - and no product on the market is th
   - metric: 13 registered, 8 with a command, 5 NOT WRITTEN; ai.estate.drills last exit = 1; its plist is in no git repo. -> None
 - **2026-08-28** Would this market pay at least twice the price of an idea dossier for a five-year survival probability conditioned on industry code and regi
   - decision: Whether prospector's next price test sells a survival rating beside the dossier (SCALE_market hypothesis 7 test: two checkout pages, 200 visitors each, pass if 
   - metric: 0 ideas on the ledger; three contract rows FAIL (no data) -> None
+- **2026-09-05** Where does a refusal that grades the agent's own reply belong, now that the estate is migrating hand-rolled Python guards to Rego, when the 
+  - decision: THE EMPIRICAL PROOF RULE is enforced from policy/reply.rego, not dod-guard.py. opa-hook.py gained reply_evidence(), which measures reply_has_quote and reply_ass
+  - metric: dod-guard.py 236 lines against a 202 ceiling; hand-rolled-policy FAIL (7 tests, 1 failure); the rule unreachable from Rego -> dod-guard.py back to 202; hand-rolled-policy pass; opa test policy/reply.rego policy/reply_test.rego 40/40; end-to-end through opa-hook.py 3 of 3 correct (probe-only BLOCK, quoted log PASS, backticked mention PASS)
 
 ## Delivery outcomes
 
 `python3 science/outcomes.py ship --days 7; python3 science/outcomes.py attention --days 7`
 
-- last 7 days: 26 commits across 3 repos
-- founder messages 550, complaints 12 (2.2%)
+- last 7 days: 0 commits across 0 repos
+- founder messages 0, complaints 0
 - spend: BLIND (warehouse absent)
 - machine learning: none. Nothing here trains a model; every number is a count or a ratio.
 
@@ -186,7 +191,7 @@ red in CI, never silent.
 
 | Row | Value | Grade |
 |---|---|---|
-| ideas generated per week | 1 | ok |
+| ideas generated per week | 0 | FAIL (no data) |
 | ideas graded (forecast with source) | 1 | ok |
 | ideas resolved with Brier | 0 | FAIL (no data) |
 

@@ -2,10 +2,13 @@
 
 ## What is the Crew Board?
 
-**Location:** `github.com/chidionyema/crew/issues`  
+**Location:** `github.com/chidionyema/crew/issues/102`  
 **Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
-**Source-of-truth issue (writer target):** crew#102 — `~/.claude/scripts/estate-broadcast.py` writes every row here as a comment. The local JSONL at `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache read by prompt hooks; it is not the board. A row that fails to land here is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly — never dropped silently.  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
+
+This issue IS the estate board. Every broadcast row from `estate-broadcast.py` lands here as a comment in the canonical form `ts **from** (kind/priority): message`. The local file `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache that prompt hooks read; it is not the board.
+
+**Failure mode (loud, never silent).** If the GitHub write fails for any reason (network drop, 5xx, auth loss), the row is appended to `~/.claude/state/board-deadletter.jsonl` and a warning is emitted on stderr plus a board-row of its own. No row is ever dropped silently. This contract was set in the issue body and recorded in the board comment log on `2026-08-24T03:23:01.090857Z`.
 
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
 - **P1 fires** live here (the 5 active problems)
@@ -21,7 +24,7 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 
 ```bash
 # Open in browser
-open https://github.com/chidionyema/crew/issues
+open https://github.com/chidionyema/crew/issues/102
 
 # Or use gh CLI to open
 gh repo view chidionyema/crew --web
@@ -35,14 +38,261 @@ gh repo view chidionyema/crew --web
 
 ---
 
-## How to Post Updates to the Board
-
-### **Comment on the Estate Board (Issue #102)**
+### **2. Terminal — List All Issues**
 
 ```bash
-# Post a board row to the estate board (crew#102)
-gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+# Show all open issues with labels
+gh issue list --repo chidionyema/crew --state open \
+  --json number,title,labels \
+  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(","))"'
+
+# Show just P1 fires
+gh issue list --repo chidionyema/crew --label P1 --state open \
+  --json number,title \
+  -q '.[] | "[#\(.number)] \(.title)"'
+
+# Show by status (in-progress, pr-open, merged, etc.)
+gh issue list --repo chidionyema/crew --label in-progress --state open \
+  --json number,title,assignees \
+  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
 ```
+
+---
+
+### **3. Terminal — Read the Board (Issue #102)**
+
+```bash
+# View the board (issue #102)
+gh issue view --repo chidionyema/crew 102
+
+# View the board with full body + comments
+gh issue view --repo chidionyema/crew 102 --comments
+
+# View in raw format (good for piping/grepping)
+gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
+```
+
+**Output shows:**
+```
+#102 ESTATE BOARD — every broadcast lands here
+OPEN
+  
+Body:
+  [issue description with evidence]
+  
+Comments:
+  [conversation, updates, status]
+```
+
+---
+
+### **4. Terminal — Watch Live Updates**
+
+```bash
+# Watch for new comments on P1 issues
+watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
+
+# Or create a live dashboard (see section below)
+```
+
+---
+
+## Quick Reference: View Commands
+
+| Goal | Command |
+|------|---------|
+| List all open issues | `gh issue list --repo chidionyema/crew --state open` |
+| List P1 fires only | `gh issue list --repo chidionyema/crew --label P1` |
+| List issues assigned to you | `gh issue list --repo chidionyema/crew --assignee @me` |
+| List by status | `gh issue list --repo chidionyema/crew --label in-progress` |
+| View the board (#102) | `gh issue view --repo chidionyema/crew 102` |
+| View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
+| Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+
+---
+
+## Writing to the Board
+
+The writer is `estate-broadcast.py`. It targets `repo=chidionyema/crew`, `issue=102`; if the write fails, the row is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and a warning is emitted on stderr.
+
+Canonical comment format, taken verbatim from the issue body:
+
+```
+2026-08-24T03:23:01Z **fable-63** (board-cutover/high): The board is now crew#102. estate-broadcast.py writes every row here; the JSONL is only the offline cache.
+```
+
+The shape is `ts **from** (kind/priority): message`. The writer is the only thing that should post; never append to the JSONL or post directly with `gh issue comment` from a session.
+
+---
+
+## What You See on the Board Right Now
+
+### **P1 Fires (5 open)**
+
+```
+#38 - The exit from Fly has never once been drilled: the escape hatch cannot pass
+     Status: unknown / not drilled
+     Assigned: ?
+     
+#26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
+     Status: needs audit + cost control strategy
+     Assigned: ?
+     
+#22 - Observability: the proposed architecture covers a third of the estate — audit needed
+     Status: audit in progress or planned
+     Assigned: ?
+     
+#13 - Retire the Hermes estate — unconditional, Hermes is discontinued
+     Status: planning / conditional on P1 #35
+     Assigned: ?
+```
+
+### **Triage Issues (many)**
+
+Issues waiting for decision or assignment. Examples:
+- #53: Ticket gate covers Claude Code only, not codex/gemini
+- #52: aiden WAITING alerts are noise
+- #51: rule-guard.py matches command strings inside quotes
+- #50: Lost previous session's work
+
+---
+
+## Current Board State (from STATE.md)
+
+```
+The Architect | RED | bin/verify: 16 passed, 1 failed
+              └─ FAIL: every job reaches founder delivers to nobody (session-coordinator monitor)
+
+maestro       | GREEN | last cycle 2 min ago
+              └─ skills: 1 skill it can heal with
+
+Fly           | 2 deployed, 12 suspended
+
+crew P1       | 5 open (all fires)
+```
+
+**Key:** Architect is RED (the cron job I created isn't delivering to Telegram).
+
+---
+
+## Creating the Crew Board Dashboard
+
+### **One-Command View (All Issues)**
+
+```bash
+#!/bin/bash
+# Save as ~/bin/crew-board
+
+echo "════════════════════════════════════════════════════════════════"
+echo "                    CREW BOARD (all open issues)"
+echo "════════════════════════════════════════════════════════════════"
+
+echo ""
+echo "🔥 P1 FIRES (5 open, need work)"
+gh issue list --repo chidionyema/crew --label P1 --state open \
+  --json number,title,assignees,comments \
+  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody") | \(.comments | length) comments"'
+
+echo ""
+echo "⚙️  IN PROGRESS (who is working on what)"
+gh issue list --repo chidionyema/crew --label in-progress --state open \
+  --json number,title,assignees \
+  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody")"'
+
+echo ""
+echo "📋 TRIAGE (waiting for decision)"
+gh issue list --repo chidionyema/crew --label triage --state open \
+  --json number,title \
+  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"' | head -10
+
+echo ""
+echo "🔗 NEEDS HUMAN (decision-required)"
+gh issue list --repo chidionyema/crew --label needs-human --state open \
+  --json number,title \
+  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"'
+
+echo ""
+echo "Last updated: $(date)"
+```
+
+Run it:
+```bash
+chmod +x ~/bin/crew-board
+crew-board              # once
+watch -n 60 crew-board  # every 60 seconds
+```
+
+---
+
+### **P1 Fires Only Dashboard**
+
+```bash
+#!/bin/bash
+# Save as ~/bin/p1-watch
+
+watch -n 30 'echo "=== P1 FIRES ===" && \
+gh issue list --repo chidionyema/crew --label P1 --state open \
+  --json number,title,labels,assignees,comments \
+  -q ".[] | \"[#\(.number)] \(.title)\n   Status: \(.labels | map(.name) | join(\",\")) | Assigned: \(.assignees[0].login // \"nobody\") | \(.comments | length) comments\n\"" && \
+echo "Last updated: $(date)"'
+```
+
+---
+
+### **Live Comment Feed (issue #102)**
+
+```bash
+#!/bin/bash
+# Watch for new comments on the board (#102)
+
+while true; do
+  clear
+  echo "=== ISSUE #102 (CREW BOARD) ==="
+  echo ""
+  
+  # Show the issue
+  gh issue view --repo chidionyema/crew 102 --json title,body,comments \
+    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
+  
+  echo ""
+  echo "Last refreshed: $(date)"
+  sleep 30
+done
+```
+
+---
+
+## How to Post Updates to the Board
+
+### **Comment on the Board (issue #102)**
+
+```bash
+# Add a comment to the board
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+
+# Add with evidence (command + output)
+gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
+## Status: Fly invoice paid
+
+Command:
+\`\`\`
+fly auth status
+\`\`\`
+
+Output:
+\`\`\`
+Account chidionyema
+Status: Active
+Invoice: PAID
+\`\`\`
+
+Next: Retry build (production 10 commits behind)
+EOF
+)"
+```
+
+> Prefer `estate-broadcast.py` over `gh issue comment` from a session. The writer enforces the canonical format and dead-letters failures; manual `gh` calls bypass both.
 
 ### **Create a New Issue**
 
@@ -62,8 +312,124 @@ gh issue edit 102 --repo chidionyema/crew --add-label in-progress
 # Assign to yourself
 gh issue edit 102 --repo chidionyema/crew --assignee @me
 
-# Close an issue
+# Close an issue (not the board)
 gh issue close 102 --repo chidionyema/crew
+```
+
+---
+
+## When a Broadcast Fails
+
+If `estate-broadcast.py` cannot reach GitHub (network drop, 5xx, auth loss), the row is preserved:
+
+- Appended to `~/.claude/state/board-deadletter.jsonl` (one JSON object per line, original payload).
+- A warning is emitted on stderr.
+- A board-row of its own is emitted so the failure is visible, not silent.
+
+Replay the file later when the transport is healthy; the writer is idempotent.
+
+---
+
+## Integration with Architect & maestro
+
+**Both agents watch the board:**
+
+1. **Architect** reads the board to find RED states that need verification
+2. **maestro** reads the board to see what P1s need healing and what's blocked
+
+**How they respond:**
+
+```
+You post: "Issue #35: Fly build unblocked, payment made"
+          ↓
+maestro reads: Fly is unblocked, tries to heal the "build failed" signature
+              ↓
+Architect posts evidence: "Verified: flyctl apps list shows deployment succeeded"
+              ↓
+You update issue: "Status: RESOLVED, production deployed"
+              ↓
+Both agents move on to next P1 fire
+```
+
+---
+
+## The Four-Issue Model
+
+Every issue follows this pattern:
+
+```
+## Origin — what was asked
+[The problem statement]
+
+## Evidence — what we found
+[Raw command output, logs, metrics]
+
+## Analysis — what it means
+[Interpretation, root cause, blocked by what]
+
+## Next Step
+[What needs to happen next]
+```
+
+This means:
+- ✓ Every issue has proof, not claims
+- ✓ Next step is always clear
+- ✓ Both agents know what to do
+- ✓ Founder doesn't repeat questions
+
+---
+
+## Addressing Your Question: Managing 3 Bots on One Interface
+
+**Challenge:** Architect + maestro + coordinator (me) all posting to same Telegram + GitHub board
+
+**Solution:**
+
+1. **GitHub board is the truth** (not Telegram)
+   - All three post here
+   - All three read here
+   - Identities clear: `[architect]`, `[maestro]`, `[coordinator]`
+   - No duplication (each has a role, reads STATE.md before acting)
+
+2. **Telegram posts only on EXCEPTIONS**
+   - Architect: only on state change (RED/GREEN) or timeout
+   - maestro: only on healing failure or cap exceeded
+   - coordinator: only on disputes or manual intervention needed
+   - **Normal operation = silence** (no noise)
+
+3. **Crew board prevents stepping on toes**
+   - Each agent reads the board before starting
+   - "I'm working on #102" posted = others know not to redo it
+   - Handoff is a comment, not a DM
+   - Founder reads one board, not three separate channels
+
+4. **Evidence prevents disputes**
+   - Every claim includes command output
+   - If Architect says "RED", here's the failing test
+   - If maestro says "healing failed", here's the attempt and result
+   - No "I think X is happening" (only measured facts)
+
+**Result:** Three agents, one board, zero confusion. All operating autonomously within their role.
+
+---
+
+## Quick Start to Crew Board Visibility
+
+```bash
+# 1. View the board right now
+gh issue view --repo chidionyema/crew 102 --comments | tail -20
+
+# 2. Open in browser
+open https://github.com/chidionyema/crew/issues/102
+
+# 3. Watch live (every 30 sec)
+watch -n 30 'crew-board'
+
+# 4. Post a status update (prefer estate-broadcast.py)
+gh issue comment 102 --repo chidionyema/crew -b "Status: working on X, next step Y"
+
+# 5. Watch Architect/maestro respond by reading the board
+tail -f ~/.maestro/maestro.log
 ```
 
 ---

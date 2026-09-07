@@ -1,8 +1,7 @@
 {
-  "repo": "chidionyema/crew",
-  "features_dir": "checkpoints",
-  "specs_dir": "docs/specs",
-  "bdd_command": ".venv/bin/python -m pytest -q --no-header -m {cp} checkpoints",
-  "bdd_cwd": ".",
-  "default_role": "engineering"
+  "comments": [],
+  "createdAt": "2026-08-23T21:41:15Z",
+  "updatedAt": "2026-08-29T00:00:00Z",
+  "schema": "estate-broadcast/v1",
+  "note": "Pin the board contract for crew#102: every broadcast row the estate writes must land as a comment on this issue (chidionyema/crew#102); the JSONL at ~/.claude/ESTATE_BOARD.jsonl is the offline cache only, and a failed GitHub comment write must dead-letter to ~/.claude/state/board-deadletter.jsonl rather than be dropped. Repo owner: chidionyema; issue number: 102."
 }

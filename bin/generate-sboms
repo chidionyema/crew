@@ -1,0 +1,10 @@
+#!/bin/bash
+set -euo pipefail
+
+# Generate CycloneDX SBOM
+syft . -o cyclonedx-json > reports/sbom.cyclonedx.json
+
+# Generate SPDX 3.0.1 SBOM
+syft . -o spdx-json@3 > reports/sbom.spdx3.json
+
+echo "SBOMs generated successfully."

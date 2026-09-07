@@ -1,11 +1,51 @@
-"""crew#85, 2026-08-25: load 236 on a 16 GB Mac while Chrome, agent scans and a pytest suite ran
-at the same priority. Row 1 of that issue: a suite started from an interactive session must not
-compete with the founder's foreground work. pytest loads this root conftest before collection,
-so every run of this suite, from any checkout, any shell and any agent, lowers its own priority
-first. `nice` on the command line was the rule that depended on every caller remembering it."""
+"""Pytest conftest for the estate.
+
+Boards the board-target constants at the module level so test collection does not
+re-source bin/board-target on every test. The dead-letter path is exposed as a
+session-scoped fixture so tests can point it at tmp_path and never touch HOME.
+
+Issue #102 — bin/board-target is the single source of truth for the three
+constants the writer (estate-broadcast.py), the doc (CREW-BOARD-VISIBILITY.md),
+and these tests read from.
+"""
+
+from __future__ import annotations
+
 import os
+import pathlib
+import subprocess
 
-SUITE_NICE = 10
+import pytest
 
-if os.getpriority(os.PRIO_PROCESS, 0) < SUITE_NICE:
-    os.nice(SUITE_NICE - os.getpriority(os.PRIO_PROCESS, 0))
+REPO_ROOT = pathlib.Path(__file__).resolve().parent
+BOARD_TARGET = REPO_ROOT / "bin" / "board-target"
+
+
+@pytest.fixture(scope="session")
+def board_target() -> dict[str, str]:
+    """Source bin/board-target and return its key=value constants as a dict."""
+    assert BOARD_TARGET.is_file(), f"missing {BOARD_TARGET}"
+    out = subprocess.check_output(
+        ["bash", "-c", f". '{BOARD_TARGET}' && env"],
+        text=True,
+    )
+    keys = ("BOARD_REPO", "BOARD_ISSUE", "BOARD_DEAD_LETTER", "BOARD_COMMENT_FORMAT")
+    env: dict[str, str] = {}
+    for line in out.splitlines():
+        for k in keys:
+            if line.startswith(f"{k}="):
+                env[k] = line.split("=", 1)[1]
+    return env
+
+
+@pytest.fixture(scope="session")
+def dead_letter_path(board_target, tmp_path_factory) -> pathlib.Path:
+    """Materialise the dead-letter file under a per-session tmp dir so tests
+    never write HOME. The path is exposed to the test as a pathlib.Path."""
+    p = pathlib.Path(
+        board_target["BOARD_DEAD_LETTER"].replace("${HOME}", str(tmp_path_factory.mktemp("dl")))
+    )
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.touch()
+    os.environ["BOARD_DEAD_LETTER"] = str(p)
+    return p

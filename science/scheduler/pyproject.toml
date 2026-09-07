@@ -1,0 +1,15 @@
+# Not a standalone Dagster project: the location is registered in
+# idp/scheduler/workspace.yaml and runs on the idp venv (needs only `dagster`).
+# These extras are for the dbt half in definitions.py, on a 3.12/3.13 interpreter.
+[project]
+name = "estate-dagster"
+version = "0.1.0"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "dagster",
+  "dagster-webserver",
+  "dagster-dbt",
+  "dagster-duckdb",
+  "dbt-duckdb",
+]
+

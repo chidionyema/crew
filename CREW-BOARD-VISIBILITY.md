@@ -2,7 +2,7 @@
 
 ## What is the Crew Board?
 
-**Location:** `github.com/chidionyema/crew/issues`  
+**Location:** `github.com/chidionyema/crew/issues/102` (issue 102 IS the board)  
 **Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
 
@@ -12,6 +12,8 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 - **Handoffs** are commented here (what you did, what's next)
 - **Evidence** is linked here (commands, outputs, logs)
 
+> **Cutover:** 2026-08-24. The board moved from issue 35 to issue 102 (founder ruling, 2026-08-24: "why not just use github issues? why reinvent the wheel badly"). Every `gh` command below now points at `#102`, not `#35`.
+
 ---
 
 ## Four Ways to See the Board
@@ -20,17 +22,17 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 
 ```bash
 # Open in browser
-open https://github.com/chidionyema/crew/issues
+open https://github.com/chidionyema/crew/issues/102
 
 # Or use gh CLI to open
 gh repo view chidionyema/crew --web
 ```
 
 **What you see:**
-- All open issues, grouped by label
-- Recent comments on each issue
-- Filter by label (P1, triage, needs-human, etc.)
-- Sort by activity, newest, oldest
+- All comments on issue #102 in chronological order
+- Founder directives first, then session handoffs, then alerts
+- Backfills land at the top so old rows are not lost
+- Filter by label (P1, triage, needs-human, etc.) on the issue list page
 
 ---
 
@@ -50,45 +52,43 @@ gh issue list --repo chidionyema/crew --label P1 --state open \
 # Show by status (in-progress, pr-open, merged, etc.)
 gh issue list --repo chidionyema/crew --label in-progress --state open \
   --json number,title,assignees \
-  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
+  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]'
 ```
 
 ---
 
-### **3. Terminal — Read a Specific Issue**
+### **3. Terminal — Read the Board (issue #102)**
 
 ```bash
-# View issue #35 (Fly build blocked)
-gh issue view --repo chidionyema/crew 35
+# View issue #102 (the estate board)
+gh issue view --repo chidionyema/crew 102
 
-# View issue #35 with full body + comments
-gh issue view --repo chidionyema/crew 35 --comments
+# View issue #102 with full body + comments
+gh issue view --repo chidionyema/crew 102 --comments
 
 # View in raw format (good for piping/grepping)
-gh issue view --repo chidionyema/crew 35 --json number,title,body,comments
+gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 ```
 
 **Output shows:**
 ```
-#35 Fly.io refuses to build: the account has overdue invoices
-OPEN · assigned to someone
-  
-Body:
-  [issue description with evidence]
-  
-Comments:
-  [conversation, updates, status]
-```
+#102 ESTATE BOARD — every broadcast lands here
+OPEN
 
----
+Body:
+  [the board contract: JSONL is offline cache, every row lands here as a comment,
+   failures dead-letter loudly to ~/.claude/state/board-deadletter.jsonl]
+
+Comments:
+  [every broadcast row in chronological order, oldest first]
+```
 
 ### **4. Terminal — Watch Live Updates**
 
 ```bash
-# Watch for new comments on P1 issues
-watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
-
-# Or create a live dashboard (see section below)
+# Watch for new comments on the board
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments \
+  -q ".comments | length | tostring + \" comments\""'
 ```
 
 ---
@@ -101,10 +101,10 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | List P1 fires only | `gh issue list --repo chidionyema/crew --label P1` |
 | List issues assigned to you | `gh issue list --repo chidionyema/crew --assignee @me` |
 | List by status | `gh issue list --repo chidionyema/crew --label in-progress` |
-| View issue #35 | `gh issue view --repo chidionyema/crew 35` |
-| View with comments | `gh issue view --repo chidionyema/crew 35 --comments` |
+| View the board (issue #102) | `gh issue view --repo chidionyema/crew 102` |
+| View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
-| View latest comments | `gh issue view --repo chidionyema/crew 35 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
 
 ---
 
@@ -230,15 +230,15 @@ echo "Last updated: $(date)"'
 
 ```bash
 #!/bin/bash
-# Watch for new comments on P1 #35
+# Watch for new comments on the board (issue #102)
 
 while true; do
   clear
-  echo "=== ISSUE #35 (Fly build blocked) ==="
+  echo "=== ISSUE #102 (ESTATE BOARD) ==="
   echo ""
   
   # Show the issue
-  gh issue view --repo chidionyema/crew 35 --json title,body,comments \
+  gh issue view --repo chidionyema/crew 102 --json title,body,comments \
     -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
   
   echo ""
@@ -251,14 +251,14 @@ done
 
 ## How to Post Updates to the Board
 
-### **Comment on an Issue**
+### **Comment on the Board (issue #102)**
 
 ```bash
-# Add a comment to issue #35
-gh issue comment 35 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+# Add a comment to the estate board
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
 
 # Add with evidence (command + output)
-gh issue comment 35 --repo chidionyema/crew -b "$(cat <<'EOF'
+gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
 ## Status: Fly invoice paid
 
 Command:
@@ -278,6 +278,8 @@ EOF
 )"
 ```
 
+> **Always post via `gh issue comment 102 --repo chidionyema/crew -b ...`.** Direct writes to `~/.claude/ESTATE_BOARD.jsonl` have produced 56 unparseable rows in the past — the reader repairs them on read, but the writer must use the API.
+
 ### **Create a New Issue**
 
 ```bash
@@ -291,20 +293,44 @@ gh issue create --repo chidionyema/crew \
 
 ```bash
 # Add label (mark as in-progress)
-gh issue edit 35 --repo chidionyema/crew --add-label in-progress
+gh issue edit 102 --repo chidionyema/crew --add-label in-progress
 
 # Assign to yourself
-gh issue edit 35 --repo chidionyema/crew --assignee @me
-
-# Close an issue
-gh issue close 35 --repo chidionyema/crew
+gh issue edit 102 --repo chidionyema/crew --assignee @me
 ```
+
+---
+
+## When the Board Writer Fails — Dead-Letter Path
+
+The board is **issue #102**. Every broadcast row must land there as a comment. If the `gh` write fails (network drop, 5xx, auth loss), the row **must not be dropped silently**.
+
+**On failure, the writer:**
+1. Appends `{ts, from, kind, priority, message, idempotency_key}` to `~/.claude/state/board-deadletter.jsonl`
+2. Prints a loud warning to `stderr`
+3. Emits a board-row of `kind=deadletter` so the failure is visible on the board itself
+4. Returns a non-zero exit code
+
+**Replay:**
+```bash
+# Inspect the dead-letter queue
+jq '.' ~/.claude/state/board-deadletter.jsonl
+
+# Count un-replayed rows (must be 0 in normal operation)
+jq 'length' ~/.claude/state/board-deadletter.jsonl 2>/dev/null || echo 0
+
+# Replay one row by hand (read dead-letter row, re-post to the board)
+jq -r '.[].comment' ~/.claude/state/board-deadletter.jsonl | \
+  xargs -I {} gh issue comment 102 --repo chidionyema/crew -b {}
+```
+
+The dead-letter file is **not** the board. It is the safety net that the loud failure class (board writer with no failure handling) was creating. Rows that reach it must be replayed; they cannot stay there.
 
 ---
 
 ## Integration with Architect & maestro
 
-**Both agents watch the board:**
+**Both agents watch the board (issue #102):**
 
 1. **Architect** reads the board to find RED states that need verification
 2. **maestro** reads the board to see what P1s need healing and what's blocked
@@ -388,20 +414,21 @@ This means:
 ## Quick Start to Crew Board Visibility
 
 ```bash
-# 1. View P1 fires right now
-gh issue list --repo chidionyema/crew --label P1 --json number,title
+# 1. View the board (issue #102) right now
+gh issue view --repo chidionyema/crew 102 --comments | tail -20
 
 # 2. Open in browser
-open https://github.com/chidionyema/crew/issues
+open https://github.com/chidionyema/crew/issues/102
 
 # 3. Watch live (every 30 sec)
-watch -n 30 'crew-board'
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments \
+  -q ".comments | length | tostring + \" comments\""'
 
-# 4. Post a status update
-gh issue comment 35 --repo chidionyema/crew -b "Status: working on X, next step Y"
+# 4. Post a status update to the board
+gh issue comment 102 --repo chidionyema/crew -b "Status: working on X, next step Y"
 
-# 5. Watch Architect/maestro respond by reading the board
-tail -f ~/.maestro/maestro.log
+# 5. Check the dead-letter queue is empty
+jq 'length' ~/.claude/state/board-deadletter.jsonl 2>/dev/null || echo 0
 ```
 
 ---

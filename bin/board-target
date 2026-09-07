@@ -1,8 +1,26 @@
-{
-  "repo": "chidionyema/crew",
-  "issue": 102,
-  "dead_letter": "~/.claude/state/board-deadletter.jsonl",
-  "comment_format": "ts **from** (kind/priority): message",
-  "writer": "~/.claude/scripts/estate-broadcast.py",
-  "owned_by": "agent-workforce/102"
-}
+#!/usr/bin/env bash
+# Single source of truth for the estate board target. The writer
+# (estate-broadcast.py), the contract test, and the doc all read this file
+# so the issue number, repo and dead-letter path cannot drift.
+#
+# Format: KEY=VALUE lines, one per constant. Read with `. bin/board-target`
+# or parse with `awk -F= '/^[^#]/ {print $1 "=" $2}'`.
+#
+# Bump these constants in one place when the board moves.
+# Issue 102 supersedes the #35 cited in CREW-BOARD-VISIBILITY.md.
+
+# The GitHub repo that owns the board.
+BOARD_REPO="chidionyema/crew"
+
+# The issue number the writer posts every broadcast row to.
+BOARD_ISSUE="102"
+
+# The dead-letter path for rows that fail to land on the board (network drop,
+# 5xx, auth loss). The writer appends one line per failed row with an
+# idempotency key, never silently dropping.
+BOARD_DEAD_LETTER="${HOME}/.claude/state/board-deadletter.jsonl"
+
+# The canonical comment format the issue body mandates. Pinned here so the
+# writer, test, and doc reproduce it verbatim.
+#   `ts **from** (kind/priority): message`
+BOARD_COMMENT_FORMAT='%s **%s** (%s/%s): %s'

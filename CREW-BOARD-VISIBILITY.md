@@ -3,7 +3,7 @@
 ## What is the Crew Board?
 
 **Location:** `github.com/chidionyema/crew/issues`  
-**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs. If a GitHub write fails, the row is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and a loud warning is emitted.  
+**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
 
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
@@ -11,6 +11,7 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 - **Decisions** are recorded here (why, not just what)
 - **Handoffs** are commented here (what you did, what's next)
 - **Evidence** is linked here (commands, outputs, logs)
+- Failures are dead-lettered to `~/.claude/state/board-deadletter.jsonl`.
 
 ---
 
@@ -72,10 +73,10 @@ gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 ```
 #102 ESTATE BOARD — every broadcast lands here
 OPEN · assigned to someone
-  
+
 Body:
   [issue description with evidence]
-  
+
 Comments:
   [conversation, updates, status]
 ```
@@ -116,19 +117,23 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 #38 - The exit from Fly has never once been drilled: the escape hatch cannot pass
      Status: unknown / not drilled
      Assigned: ?
-     
+
 #102 - ESTATE BOARD — every broadcast lands here
      Status: planning / conditional on P1 #35
      Assigned: ?
+
+#26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
+     Status: needs audit + cost control strategy
+     Assigned: ?
+
+#22 - Observability: the proposed architecture covers a third of the estate — audit needed
+     Status: audit in progress or planned
+     Assigned: ?
+
+#13 - Retire the Hermes estate — unconditional, Hermes is discontinued
+     Status: planning / conditional on P1 #35
+     Assigned: ?
 ```
-
-### **Triage Issues (many)**
-
-Issues waiting for decision or assignment. Examples:
-- #53: Ticket gate covers Claude Code only, not codex/gemini
-- #52: aiden WAITING alerts are noise
-- #51: rule-guard.py matches command strings inside quotes
-- #50: Lost previous session's work
 
 ---
 
@@ -243,23 +248,23 @@ done
 
 ```bash
 # Add a comment to issue #102
-gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate board configured for dead-lettering"
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate board configured to receive broadcasts"
 
 # Add with evidence (command + output)
 gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Estate board configured for dead-lettering
+## Status: Estate board configured
 
 Command:
 \`\`\`
-# Command to prove dead-lettering
+echo "Test broadcast" | estate-broadcast.py
 \`\`\`
 
 Output:
 \`\`\`
-# Output showing dead-lettering
+Broadcast sent to crew#102
 \`\`\`
 
-Next: Verify dead-lettering functionality
+Next: Verify dead-lettering on transport failure.
 EOF
 )"
 ```
@@ -298,13 +303,13 @@ gh issue close 102 --repo chidionyema/crew
 **How they respond:**
 
 ```
-You post: "Issue #102: Estate board configured for dead-lettering"
+You post: "Issue #102: Estate board configured"
           ↓
-maestro reads: Estate board is configured, tries to heal the "broadcast failed" signature
+maestro reads: Board configured, waits for broadcasts
               ↓
-Architect posts evidence: "Verified: estate-broadcast.py dead-lettering works"
+Architect posts evidence: "Verified: New broadcast landed on crew#102"
               ↓
-You update issue: "Status: RESOLVED, dead-lettering verified"
+You update issue: "Status: RESOLVED, broadcasts landing"
               ↓
 Both agents move on to next P1 fire
 ```

@@ -181,7 +181,7 @@ def verification_identity() -> list[str]:
 
 def crew_p1() -> list[str]:
     rc, out = sh("gh issue list --repo chidionyema/crew --state open --label P1 "
-                 "--json number,title -q '.[] | "#\(.number) \(.title)"'", timeout=45)
+                 "--json number,title -q '.[] | \"#\\(.number) \\(.title)\"'", timeout=45)
     if rc:
         return ["| crew P1 | NOT RUN | `gh issue list` failed |"]
     items = [ln for ln in out.splitlines() if ln.strip()]
@@ -203,8 +203,8 @@ def spend() -> list[str]:
     db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
     if not db.exists():
         return ["| estate spend | NOT RUN | no warehouse: run `science/collect.py` |"]
-    rc, out = sh(f"sqlite3 {db} "select round(avg(usd),0) from "
-                 "(select usd from spend_daily order by day desc limit 7);"", timeout=20)
+    rc, out = sh(f"sqlite3 {db} \"select round(avg(usd),0) from "
+                 "(select usd from spend_daily order by day desc limit 7);\"", timeout=20)
     if rc or not out.strip():
         return ["| estate spend | NOT RUN | `spend_daily` view did not answer |"]
     try:
@@ -301,6 +301,46 @@ def ci_row(path: pathlib.Path, now: float | None = None, stale_hours: int = 30) 
             f"({slow.get('repo')}/{slow.get('workflow')}), measured {at}{tail} (`outcomes.py ci`) |"]
 
 
+def _broadcast_strands(per_repo: list[tuple[int, float, int, str]], now: float) -> None:
+    """Tell the lane that owns a strand, once a day, on the channel it already reads.
+
+    A RED row on a page is pull, and the session that stranded the work never pulls.
+    The estate board is injected into every session at prompt time, so a row here
+    reaches the owning lane without anyone polling (crew #97 phase 2a). One row per
+    repo per day; the dedup key is the repo name before the colon.
+    """
+    board = HOME / ".claude/ESTATE_BOARD.jsonl"
+    caster = HOME / ".claude/scripts/estate-broadcast.py"
+    if not caster.exists():
+        return
+    try:
+        seen = set()
+        cutoff = now - 24 * 3600
+        lines = board.read_text().splitlines()[-500:] if board.exists() else []
+        for line in lines:
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if row.get("from") != "estate-delivery" or row.get("kind") != "stranded":
+                continue
+            try:
+                ts = dt.datetime.fromisoformat(
+                    str(row.get("ts") or row.get("timestamp")).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if ts.timestamp() >= cutoff:
+                seen.add(str(row.get("message", "")).split(":", 1)[0])
+        for n, oldest, _dirty, name in per_repo:
+            if n and oldest > 1.0 and name not in seen:
+                sh(f"python3 '{caster}' --from estate-delivery --kind stranded --message "
+                   f"'{name}: {n} commits on no remote, oldest {oldest:.1f}d. Push the branch or say "
+                   "on crew #97 why it must stay local.'",
+                   timeout=20)
+    except OSError:
+        pass
+
+
 def delivery() -> list[str]:
     """What the fleet shipped against what it stranded.
 
@@ -340,7 +380,7 @@ def delivery() -> list[str]:
             oldest = (now - min(cts)) / 86400 if cts else 0.0
             per_repo.append((len(cts), oldest, dirty, d.name))
 
-    # _broadcast_strands(per_repo, now) # Removed as estate-board-sync.py handles the read side
+    _broadcast_strands(per_repo, now)
 
     stranded = sum(r[0] for r in per_repo)
     oldest = max((r[1] for r in per_repo), default=0.0)
@@ -364,8 +404,8 @@ def delivery() -> list[str]:
     else:
         cost = ""
         db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
-        rc, rate = sh(f"sqlite3 {db} "select round(avg(usd),0) from (select usd from "
-                      "spend_daily order by day desc limit 7);"", timeout=20)
+        rc, rate = sh(f"sqlite3 {db} \"select round(avg(usd),0) from (select usd from "
+                      "spend_daily order by day desc limit 7);\"", timeout=20)
         try:
             if not rc and merged:
                 cost = ", ~$%.0f of estate spend per shipped change" % (
@@ -472,8 +512,8 @@ def founder() -> list[str]:
     db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
     if not db.exists():
         return [f"| founder cost | NOT RUN | no warehouse at {db.name} |"]
-    rc, out = sh(f"sqlite3 -separator '\t' {db} "select day, messages, complaints "
-                 "from attention_daily order by day desc limit 14;"", timeout=20)
+    rc, out = sh(f"sqlite3 -separator '\t' {db} \"select day, messages, complaints "
+                 "from attention_daily order by day desc limit 14;\"", timeout=20)
     if rc or not out.strip():
         return ["| founder cost | NOT RUN | `attention_daily` did not answer |"]
     days = []
@@ -518,8 +558,8 @@ def collectors() -> list[str]:
     db = pathlib.Path(__file__).resolve().parent.parent / "science" / "warehouse.db"
     if not db.exists():
         return [f"| collectors | NOT RUN | no warehouse at {db.name} |"]
-    rc, out = sh(f"sqlite3 -separator '\t' {db} "select source, source_mtime, status, "
-                 "max(ingested_at) from ingest_log group by source;"", timeout=20)
+    rc, out = sh(f"sqlite3 -separator '\t' {db} \"select source, source_mtime, status, "
+                 "max(ingested_at) from ingest_log group by source;\"", timeout=20)
     if rc or not out.strip():
         return ["| collectors | NOT RUN | `ingest_log` did not answer |"]
 
@@ -564,6 +604,7 @@ def collectors() -> list[str]:
             f"(`ingest_log`, checked {since_h:.0f}h ago) |"]
 
 
+
 def datamap() -> list[str]:
     """LAW 50: every producer of data carries a verdict, every gap a ticket. The gate runs
     here because this is the one scheduled job that can see the Mac, git and `gh` at once;
@@ -587,6 +628,7 @@ def datamap() -> list[str]:
     for b in bad[:3]:
         rows.append(f"| &nbsp;&nbsp;violation | | {b[:110]} |")
     return rows
+
 
 
 def runtime() -> list[str]:
@@ -703,7 +745,7 @@ def elite_grade() -> list[str]:
 
 
 def ready_to_commit() -> str:
-    """'' when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
+    """"" when the snapshot worktree exists on origin/main, otherwise the reason it does not."""
     rc, out = sh(f"cd '{ROOT}' && git fetch -q origin {BRANCH}", timeout=60)
     if rc:
         return f"git fetch origin {BRANCH} failed: {out.strip()[:200]}"
@@ -745,8 +787,8 @@ def commit(now: str) -> int:
         ("regenerate the research grade", f"cd '{ROOT}' && python3 science/research_grade.py >/dev/null; true"),
         ("copy STATE.md into the worktree", f"cp '{ROOT / 'STATE.md'}' '{SNAP_WT / 'STATE.md'}'"),
         ("copy the science ledgers into the worktree",
-         " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers()) if published_ledgers() else "true"),
-        ("stage STATE.md and the ledgers", "git add STATE.md " + " ".join(published_ledgers()) if published_ledgers() else "git add STATE.md"),
+         " && ".join(f"cp '{ROOT / rel}' '{SNAP_WT / rel}'" for rel in published_ledgers())),
+        ("stage STATE.md and the ledgers", "git add STATE.md " + " ".join(published_ledgers())),
         ("commit", f"git commit -q -m 'chore(state): estate snapshot {now} ({TICKET})'"),
         ("push", f"GIT_SSH_COMMAND='ssh -i {SNAP_KEY} -o IdentitiesOnly=yes' "
                  f"git push -q {push_url()} HEAD:{BRANCH}"),
@@ -893,7 +935,7 @@ def research() -> list[str]:
 
 #: The two lines `bin/idp-portability-drill` prints on the run, verbatim (measured on idp run
 #: 33165807800, 2026-08-28): the hydrate job's ready count and the k3s job's cost line.
-# :
+#:
 #: `ready \d+/\d+` and nothing more. This used to demand the literal word `layers`, and the drill
 #: stopped printing it -- run 33225061822 (2026-08-29) says `ready 9/42 (root-red 1 all named,
 #: cascaded 28, pending 4) on a cluster with no OCI (floor 9)`. The run was green, so the row
@@ -993,43 +1035,24 @@ def portability() -> list[str]:
     return portability_row(runs, log, log_rc=log_rc)
 
 
-# New function to fetch issue comments using gh CLI
-def fetch_issue_comments_with_gh(repo: str, issue_number: int) -> list[dict] | None:
-    """Fetches comments from a GitHub issue using the gh CLI."""
-    cmd = f"gh issue view {issue_number} --repo {repo} --json comments"
-    rc, out = sh(cmd, timeout=60)
-    if rc != 0:
-        # print(f"ERROR: `gh issue view` failed for {repo}#{issue_number}: {out}", file=sys.stderr)
-        return None
-    try:
-        issue_data = json.loads(out)
-        return issue_data.get("comments", [])
-    except json.JSONDecodeError as exc:
-        # print(f"ERROR: Failed to parse JSON from `gh issue view` for {repo}#{issue_number}: {exc}", file=sys.stderr)
-        return None
+def board_sync() -> list[str]:
+    """Rebuild the local board cache from crew#102, and say on the page whether it worked.
 
-# New function to update the local estate board cache
-def update_local_estate_board_cache() -> list[str]:
-    """Updates the local ESTATE_BOARD.jsonl from crew#102 comments."""
-    try:
-        comments = fetch_issue_comments_with_gh(repo="chidionyema/crew", issue_number=102)
-        if comments is None:
-            return [f"| estate board sync | RED | Failed to fetch comments from crew#102 using gh CLI |"]
+    The board of record is the GitHub issue; the JSONL under ~/.claude is the copy sessions
+    read at prompt time, and nothing was refilling it, so each laptop's board was whatever
+    it happened to hold. This is the one scheduled job that already runs with `gh` in hand,
+    so the read side lands here rather than in a second scheduled thing (one scheduler).
 
-        comments_json_string = json.dumps(comments)
-
-        estate_board_sync_script = ROOT / "crew/scripts/estate-board-sync.py"
-        estate_board_jsonl_path = HOME / ".claude/ESTATE_BOARD.jsonl"
-
-        # Ensure the directory for the JSONL file exists
-        estate_board_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-
-        rc, out = sh(f"python3 {estate_board_sync_script} '{comments_json_string}' '{estate_board_jsonl_path}'", timeout=60)
-        if rc != 0:
-            return [f"| estate board sync | RED | Failed to sync from crew#102: {out.strip()[:100]} |"]
-        return [f"| estate board sync | GREEN | Synced from crew#102 to {estate_board_jsonl_path.name} |"]
-    except Exception as exc:
-        return [f"| estate board sync | NOT RUN | {type(exc).__name__}: {exc} |"]
+    A failed rebuild is a RED row, never a silent skip: a stale board that looks current is
+    the failure mode this is fixing.
+    """
+    script = ROOT / "scripts" / "estate-board-sync.py"
+    cache = HOME / ".claude" / "ESTATE_BOARD.jsonl"
+    rc, out = sh(f"python3 '{script}' '{cache}'", timeout=90)
+    line = (out.strip().splitlines() or [""])[-1][:120]
+    if rc:
+        return [f"| estate board | RED | cache not rebuilt from crew#102: {line} |"]
+    return [f"| estate board | GREEN | {line} |"]
 
 
 def main() -> int:
@@ -1044,10 +1067,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    # Call the new function to update the local estate board cache early
-    rows += update_local_estate_board_cache()
-
-    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
+    for fn in (architect, board_sync, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
         datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
                portability, runtime, elite_grade):
         try:

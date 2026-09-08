@@ -86,7 +86,9 @@ Comments:
 
 ```bash
 # Watch for new comments on P1 issues
-watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
+watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open \
+  --json number,title,comments \
+  -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
 
 # Or create a live dashboard (see section below)
 ```

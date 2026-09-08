@@ -1,34 +1,18 @@
-#!/bin/bash
-# The canonical target for estate-broadcast.py.
-#
-# This file is the single source of truth for:
-# - The GitHub repository name (e.g., "crew")
-# - The GitHub issue number (e.g., "102")
-# - The dead-letter file path (e.g., "~/.claude/state/board-deadletter.jsonl")
-#
-# Any script that interacts with the estate board should read these values from here.
-#
-# Usage:
-#   REPO=$(board-target repo)
-#   ISSUE_NUMBER=$(board-target issue)
-#   DEAD_LETTER_PATH=$(board-target deadletter)
+#!/usr/bin/env bash
+# board-target — single source of truth for the estate board.
+# The writer (estate-broadcast.py), the tests, and the doc all read this file
+# rather than re-deriving repo, issue number, or dead-letter path. One edit
+# moves the whole estate to a new board (e.g. crew#104 or idp#1).
 
 set -euo pipefail
 
-COMMAND="${1:-}"
+BOARD_REPO="${BOARD_REPO:-chidionyema/crew}"
+BOARD_ISSUE="${BOARD_ISSUE:-102}"
+BOARD_DEAD_LETTER="${BOARD_DEAD_LETTER:-$HOME/.claude/state/board-deadletter.jsonl}"
 
-case "$COMMAND" in
-    repo)
-        echo "crew"
-        ;;
-    issue)
-        echo "102"
-        ;;
-    deadletter)
-        echo "~/.claude/state/board-deadletter.jsonl"
-        ;;
-    *)
-        echo "Usage: board-target [repo|issue|deadletter]"
-        exit 1
-        ;;
-esac
+cat <<EOF
+repo=$BOARD_REPO
+issue=$BOARD_ISSUE
+dead_letter=$BOARD_DEAD_LETTER
+format=\`ts\` **from** (kind/priority): message
+EOF

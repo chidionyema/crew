@@ -5,11 +5,12 @@
 **Location:** `github.com/chidionyema/crew/issues`  
 **Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
+**Dead-letter path:** `~/.claude/state/board-deadletter.jsonl` (for failed broadcasts)
 
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
 - **P1 fires** live here (the 5 active problems)
 - **Decisions** are recorded here (why, not just what)
-- **Handoffs** are commented here (what you did, what's next)
+- **Handoffs** are commented here (what you did, what\'s next)
 - **Evidence** is linked here (commands, outputs, logs)
 
 ---
@@ -40,17 +41,17 @@ gh repo view chidionyema/crew --web
 # Show all open issues with labels
 gh issue list --repo chidionyema/crew --state open \
   --json number,title,labels \
-  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(","))"'
+  -q '.[] | "\\(.number | tostring | lpad(3)) | \\(.title) | \\(.labels | map(.name) | join(","))"'
 
 # Show just P1 fires
 gh issue list --repo chidionyema/crew --label P1 --state open \
   --json number,title \
-  -q '.[] | "[#\(.number)] \(.title)"'
+  -q '.[] | "[#\\(.number)] \\(.title)"'
 
 # Show by status (in-progress, pr-open, merged, etc.)
 gh issue list --repo chidionyema/crew --label in-progress --state open \
   --json number,title,assignees \
-  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
+  -q '.[] | "[\\(.number)] \\(.title) [\\(.assignees[0].login // "unassigned")]"'
 ```
 
 ---
@@ -58,24 +59,24 @@ gh issue list --repo chidionyema/crew --label in-progress --state open \
 ### **3. Terminal — Read a Specific Issue**
 
 ```bash
-# View issue #35 (Fly build blocked)
-gh issue view --repo chidionyema/crew 35
+# View issue #102 (Estate board)
+gh issue view --repo chidionyema/crew 102
 
-# View issue #35 with full body + comments
-gh issue view --repo chidionyema/crew 35 --comments
+# View issue #102 with full body + comments
+gh issue view --repo chidionyema/crew 102 --comments
 
 # View in raw format (good for piping/grepping)
-gh issue view --repo chidionyema/crew 35 --json number,title,body,comments
+gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 ```
 
 **Output shows:**
 ```
-#35 Fly.io refuses to build: the account has overdue invoices
+#102 ESTATE BOARD — every broadcast lands here
 OPEN · assigned to someone
-  
+
 Body:
   [issue description with evidence]
-  
+
 Comments:
   [conversation, updates, status]
 ```
@@ -86,7 +87,7 @@ Comments:
 
 ```bash
 # Watch for new comments on P1 issues
-watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
+watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\\(.number)] \\(.title) (\\(.comments | length) comments)\\""'
 
 # Or create a live dashboard (see section below)
 ```
@@ -101,10 +102,10 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | List P1 fires only | `gh issue list --repo chidionyema/crew --label P1` |
 | List issues assigned to you | `gh issue list --repo chidionyema/crew --assignee @me` |
 | List by status | `gh issue list --repo chidionyema/crew --label in-progress` |
-| View issue #35 | `gh issue view --repo chidionyema/crew 35` |
-| View with comments | `gh issue view --repo chidionyema/crew 35 --comments` |
+| View issue #102 | `gh issue view --repo chidionyema/crew 102` |
+| View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
-| View latest comments | `gh issue view --repo chidionyema/crew 35 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] | "\\(.author.login): \\(.body)"'` |
 
 ---
 
@@ -116,19 +117,19 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 #38 - The exit from Fly has never once been drilled: the escape hatch cannot pass
      Status: unknown / not drilled
      Assigned: ?
-     
+
 #35 - Fly.io refuses to build: the account has overdue invoices, production 10 commits behind
      Status: blocked (needs payment/decision)
      Assigned: ?
-     
+
 #26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
      Status: needs audit + cost control strategy
      Assigned: ?
-     
+
 #22 - Observability: the proposed architecture covers a third of the estate — audit needed
      Status: audit in progress or planned
      Assigned: ?
-     
+
 #13 - Retire the Hermes estate — unconditional, Hermes is discontinued
      Status: planning / conditional on P1 #35
      Assigned: ?
@@ -140,7 +141,7 @@ Issues waiting for decision or assignment. Examples:
 - #53: Ticket gate covers Claude Code only, not codex/gemini
 - #52: aiden WAITING alerts are noise
 - #51: rule-guard.py matches command strings inside quotes
-- #50: Lost previous session's work
+- #50: Lost previous session\'s work
 
 ---
 
@@ -158,7 +159,7 @@ Fly           | 2 deployed, 12 suspended
 crew P1       | 5 open (all fires)
 ```
 
-**Key:** Architect is RED (the cron job I created isn't delivering to Telegram).
+**Key:** Architect is RED (the cron job I created isn\'t delivering to Telegram).
 
 ---
 
@@ -178,25 +179,25 @@ echo ""
 echo "🔥 P1 FIRES (5 open, need work)"
 gh issue list --repo chidionyema/crew --label P1 --state open \
   --json number,title,assignees,comments \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody") | \(.comments | length) comments"'
+  -q '.[] | "[#\\(.number | tostring | lpad(3))] \\(.title) | assigned:\\(.assignees[0].login // "nobody") | \\(.comments | length) comments"'
 
 echo ""
 echo "⚙️  IN PROGRESS (who is working on what)"
 gh issue list --repo chidionyema/crew --label in-progress --state open \
   --json number,title,assignees \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title) | assigned:\(.assignees[0].login // "nobody")"'
+  -q '.[] | "[#\\(.number | tostring | lpad(3))] \\(.title) | assigned:\\(.assignees[0].login // "nobody")"'
 
 echo ""
 echo "📋 TRIAGE (waiting for decision)"
 gh issue list --repo chidionyema/crew --label triage --state open \
   --json number,title \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"' | head -10
+  -q '.[] | "[#\\(.number | tostring | lpad(3))] \\(.title)"' | head -10
 
 echo ""
 echo "🔗 NEEDS HUMAN (decision-required)"
 gh issue list --repo chidionyema/crew --label needs-human --state open \
   --json number,title \
-  -q '.[] | "[#\(.number | tostring | lpad(3))] \(.title)"'
+  -q '.[] | "[#\\(.number | tostring | lpad(3))] \\(.title)"'
 
 echo ""
 echo "Last updated: $(date)"
@@ -220,7 +221,7 @@ watch -n 60 crew-board  # every 60 seconds
 watch -n 30 'echo "=== P1 FIRES ===" && \
 gh issue list --repo chidionyema/crew --label P1 --state open \
   --json number,title,labels,assignees,comments \
-  -q ".[] | \"[#\(.number)] \(.title)\n   Status: \(.labels | map(.name) | join(\",\")) | Assigned: \(.assignees[0].login // \"nobody\") | \(.comments | length) comments\n\"" && \
+  -q ".[] | \"[#\\(.number)] \\(.title)\\n   Status: \\(.labels | map(.name) | join(\\",\\\")) | Assigned: \\(.assignees[0].login // \\"nobody\\\") | \\(.comments | length) comments\\n\\"" && \
 echo "Last updated: $(date)"'
 ```
 
@@ -230,17 +231,17 @@ echo "Last updated: $(date)"'
 
 ```bash
 #!/bin/bash
-# Watch for new comments on P1 #35
+# Watch for new comments on P1 #102
 
 while true; do
   clear
-  echo "=== ISSUE #35 (Fly build blocked) ==="
+  echo "=== ISSUE #102 (Estate board) ==="
   echo ""
-  
+
   # Show the issue
-  gh issue view --repo chidionyema/crew 35 --json title,body,comments \
-    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
-  
+  gh issue view --repo chidionyema/crew 102 --json title,body,comments \
+    -q '"Title: " + .title + "\\n\\n" + .body + "\\n\\n--- COMMENTS ---\\n" + (.comments | map("\\(.author.login) (\\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\\(. / 60 | floor)m ago" elif . < 86400 then "\\(. / 3600 | floor)h ago" else "\\(. / 86400 | floor)d ago" end)): \\n\\(.body)\\n") | join("\\n"))'
+
   echo ""
   echo "Last refreshed: $(date)"
   sleep 30
@@ -254,26 +255,24 @@ done
 ### **Comment on an Issue**
 
 ```bash
-# Add a comment to issue #35
-gh issue comment 35 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+# Add a comment to issue #102
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate board configured for dead-lettering"
 
 # Add with evidence (command + output)
-gh issue comment 35 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Fly invoice paid
+gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
+## Status: Estate board configured for dead-lettering
 
 Command:
-\`\`\`
-fly auth status
-\`\`\`
+\\`\\`\\`
+# (command to prove dead-lettering)
+\\`\\`\\`
 
 Output:
-\`\`\`
-Account chidionyema
-Status: Active
-Invoice: PAID
-\`\`\`
+\\`\\`\\`
+# (output of the command)
+\\`\\`\\`
 
-Next: Retry build (production 10 commits behind)
+Next: Verify dead-lettering functionality
 EOF
 )"
 ```
@@ -291,13 +290,13 @@ gh issue create --repo chidionyema/crew \
 
 ```bash
 # Add label (mark as in-progress)
-gh issue edit 35 --repo chidionyema/crew --add-label in-progress
+gh issue edit 102 --repo chidionyema/crew --add-label in-progress
 
 # Assign to yourself
-gh issue edit 35 --repo chidionyema/crew --assignee @me
+gh issue edit 102 --repo chidionyema/crew --assignee @me
 
 # Close an issue
-gh issue close 35 --repo chidionyema/crew
+gh issue close 102 --repo chidionyema/crew
 ```
 
 ---
@@ -307,18 +306,18 @@ gh issue close 35 --repo chidionyema/crew
 **Both agents watch the board:**
 
 1. **Architect** reads the board to find RED states that need verification
-2. **maestro** reads the board to see what P1s need healing and what's blocked
+2. **maestro** reads the board to see what P1s need healing and what\'s blocked
 
 **How they respond:**
 
 ```
-You post: "Issue #35: Fly build unblocked, payment made"
+You post: "Issue #102: Estate board configured for dead-lettering"
           ↓
-maestro reads: Fly is unblocked, tries to heal the "build failed" signature
+maestro reads: Estate board configured, checks for related healing tasks
               ↓
-Architect posts evidence: "Verified: flyctl apps list shows deployment succeeded"
+Architect posts evidence: "Verified: estate-broadcast.py updated for dead-lettering"
               ↓
-You update issue: "Status: RESOLVED, production deployed"
+You update issue: "Status: RESOLVED, dead-lettering implemented"
               ↓
 Both agents move on to next P1 fire
 ```
@@ -347,7 +346,7 @@ This means:
 - ✓ Every issue has proof, not claims
 - ✓ Next step is always clear
 - ✓ Both agents know what to do
-- ✓ Founder doesn't repeat questions
+- ✓ Founder doesn\'t repeat questions
 
 ---
 
@@ -371,14 +370,14 @@ This means:
 
 3. **Crew board prevents stepping on toes**
    - Each agent reads the board before starting
-   - "I'm working on #35" posted = others know not to redo it
+   - "I\'m working on #102" posted = others know not to redo it
    - Handoff is a comment, not a DM
    - Founder reads one board, not three separate channels
 
 4. **Evidence prevents disputes**
    - Every claim includes command output
-   - If Architect says "RED", here's the failing test
-   - If maestro says "healing failed", here's the attempt and result
+   - If Architect says "RED", here\'s the failing test
+   - If maestro says "healing failed", here\'s the attempt and result
    - No "I think X is happening" (only measured facts)
 
 **Result:** Three agents, one board, zero confusion. All operating autonomously within their role.
@@ -398,7 +397,7 @@ open https://github.com/chidionyema/crew/issues
 watch -n 30 'crew-board'
 
 # 4. Post a status update
-gh issue comment 35 --repo chidionyema/crew -b "Status: working on X, next step Y"
+gh issue comment 102 --repo chidionyema/crew -b "Status: working on X, next step Y"
 
 # 5. Watch Architect/maestro respond by reading the board
 tail -f ~/.maestro/maestro.log

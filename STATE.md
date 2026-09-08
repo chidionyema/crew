@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-09-08 07:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-09-08 09:03 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,34 +8,34 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.27s |
+| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 2.13s |
 | &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md skills/founder-mac/SKILL.md Run bin/render to fix, or move your edit into templates/. |
 | &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| maestro | STALE | last cycle 111 min ago (`INTENT-20260908-051210-0d20f3e7.json`) |
+| maestro | STALE | last cycle 111 min ago (`INTENT-20260908-071235-0d20f3e7.json`) |
 | &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
 | Fly | NOT RUN | `flyctl apps list` failed: Error: no access token available. Please login with 'flyctl auth login' |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 258h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 292h old (bar 30h) |
-| delivery | RED | 654 commits on no remote (oldest 15.7d), 46 dirty files, 10 live repos (`git log --branches --not --remotes`) |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 260h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 294h old (bar 30h) |
+| delivery | RED | 633 commits on no remote (oldest 15.7d), 36 dirty files, 10 live repos (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | >=1000 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
 | &nbsp;&nbsp;stranded | .wt-cg-656 | 357 commits no remote holds, oldest 15.7d, 0 dirty |
-| &nbsp;&nbsp;stranded | idp | 261 commits no remote holds, oldest 4.8d, 13 dirty |
-| &nbsp;&nbsp;stranded | .wt-estate-656 | 11 commits no remote holds, oldest 14.5d, 0 dirty |
+| &nbsp;&nbsp;stranded | idp | 240 commits no remote holds, oldest 4.9d, 2 dirty |
+| &nbsp;&nbsp;stranded | .wt-estate-656 | 11 commits no remote holds, oldest 14.6d, 0 dirty |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 2 commit(s) to origin/main 16a7480, 3 local edit(s) kept |
+| live checkout | GREEN | moved 7 commit(s) to origin/main 4c9190b, 4 local edit(s) kept |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| data map | RED | 2032 producers, 8935 measurables, 376 in gaps with a ticket, 19 unexplained, blind: cluster_live (`science/datamap.py --check`) |
+| data map | RED | 2033 producers, 8938 measurables, 374 in gaps with a ticket, 19 unexplained, blind: cluster_live (`science/datamap.py --check`) |
 | &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
 | &nbsp;&nbsp;violation | | 19 producer(s) UNEXPLAINED (first: mac/ledger/~/.claude/state/command-timings.jsonl) |
 | &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): j |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 349h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 9 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 351h ago (`science/warehouse.db`) |
+| science plane: scheduler | GREEN | Dagster, 10 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
 | research | GREEN | 1 entry in 7d, 32 total, 32 with a decision fed, last 2026-09-05 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 24986 runs in 24h, 115 refused (most: rule-guard.py 81), slowest 25508 ms, 6 overturned by a marker (`hook-outcomes.jsonl`) |
+| hooks | GREEN | 32055 runs in 24h, 246 refused (most: pre-commit 117), slowest 25508 ms, 9 overturned by a marker (`hook-outcomes.jsonl`) |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | OCI verification identity | RED 0 scheduled runs in 24h | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345); the cron never fired |
 | crew P1 | 30 open | the fires nobody has put out |
@@ -69,9 +69,9 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#345 Platform-level: OCI session expires every ~1-2h, blocking all live verification — durable identity, not r | | |
 | &nbsp;&nbsp;#326 Incident: ~/.estate/guards/hooks/_router overwritten with a refuse-all stub at 17:06Z; every commit and p | | |
 | &nbsp;&nbsp;#325 idp architectural review 2026-08-26: cluster layer KEEP, README/STANDARDS/tests/sovereign REWORK | | |
-| portability | RED | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 229.8h ago (bar 194h)) |
+| portability | RED | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 231.8h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
 | laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |
 | OKE nodes | RED | `kubectl get nodes` -> 2/3 Ready (v1.35.2) |
-| OKE flux | RED | 13 of 80 Kustomizations not ready: chaos, commerce, crossplane, crossplane-providers, gvisor-runtime, nodesoftware-operator, ns-fences, observability, otto-gateway, science, searxng, temporal, To |
-| elite grade | 24 GAP, 16 BLIND | 376 ELITE of 416 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+| OKE flux | RED | 11 of 80 Kustomizations not ready: chaos, commerce, crossplane-providers, gvisor-runtime, jit, nodesoftware-operator, observability, otto-gateway, science, temporal, To |
+| elite grade | 24 GAP, 16 BLIND | 379 ELITE of 419 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |

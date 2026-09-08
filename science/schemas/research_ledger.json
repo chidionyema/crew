@@ -20,6 +20,10 @@
   "outcome": {
    "description": "Idea rows only: 0 or 1 once the question resolved; the Brier score is the mean squared error of forecast minus outcome (crew#537).",
    "pii": false
+  },
+  "abandoned": {
+   "description": "Why this row's metric will never be measured. Set instead of metric_after when the baseline cannot be re-run -- a hand count with no script, or an artefact that no longer exists in the shape it was counted in. scripts/verify.d/80-research-ledger.sh accepts it in place of a measurement; inventing a number instead would be the false success this ledger exists to catch (crew#917, 2026-09-08).",
+   "pii": false
   }
  },
  "fields": {
@@ -79,6 +83,9 @@
   "outcome": [
    "NoneType",
    "int"
+  ],
+  "abandoned": [
+   "str"
   ]
  },
  "owner": "crew/science",

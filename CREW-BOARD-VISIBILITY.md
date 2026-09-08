@@ -2,7 +2,7 @@
 
 ## What is the Crew Board?
 
-**Location:** `github.com/chidionyema/crew/issues`  
+**Location:** `github.com/chidionyema/crew/issues/102`  
 **Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
 
@@ -20,7 +20,7 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 
 ```bash
 # Open in browser
-open https://github.com/chidionyema/crew/issues
+open https://github.com/chidionyema/crew/issues/102
 
 # Or use gh CLI to open
 gh repo view chidionyema/crew --web
@@ -58,7 +58,7 @@ gh issue list --repo chidionyema/crew --label in-progress --state open \
 ### **3. Terminal — Read a Specific Issue**
 
 ```bash
-# View issue #102 (Fly build blocked)
+# View issue #102 (Estate Board)
 gh issue view --repo chidionyema/crew 102
 
 # View issue #102 with full body + comments
@@ -234,7 +234,7 @@ echo "Last updated: $(date)"'
 
 while true; do
   clear
-  echo "=== ISSUE #102 (ESTATE BOARD — every broadcast lands here) ==="
+  echo "=== ISSUE #102 (Estate Board) ==="
   echo ""
   
   # Show the issue
@@ -255,23 +255,25 @@ done
 
 ```bash
 # Add a comment to issue #102
-gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate broadcast system updated"
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate broadcast dead-lettering implemented"
 
 # Add with evidence (command + output)
 gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Estate broadcast system updated
+## Status: Estate broadcast dead-lettering implemented
 
 Command:
 \`\`\`
-python scripts/estate-broadcast.py "Test message"
+# Example command to trigger a dead-letter event
+# (This would be a test command, not a real one)
+./scripts/estate-broadcast.py --test-fail-github --message "Test dead-letter message"
 \`\`\`
 
 Output:
 \`\`\`
-2026-08-29T12:00:00Z **system** (broadcast/info): Test message
+WARN: GitHub write failed, message dead-lettered to ~/.claude/state/board-deadletter.jsonl
 \`\`\`
 
-Next: Verify dead-letter logging on failure.
+Next: Verify dead-letter file content
 EOF
 )"
 ```
@@ -310,13 +312,13 @@ gh issue close 102 --repo chidionyema/crew
 **How they respond:**
 
 ```
-You post: "Issue #102: Estate broadcast system updated"
+You post: "Issue #102: Estate broadcast dead-lettering implemented"
           ↓
-maestro reads: Estate broadcast system updated, tries to heal any related "broadcast failed" signature
+maestro reads: Dead-lettering implemented, checks for related healing tasks
               ↓
-Architect posts evidence: "Verified: estate-broadcast.py successfully posted a test message"
+Architect posts evidence: "Verified: dead-letter file contains expected entry"
               ↓
-You update issue: "Status: RESOLVED, broadcast system updated"
+You update issue: "Status: RESOLVED, dead-lettering verified"
               ↓
 Both agents move on to next P1 fire
 ```
@@ -390,7 +392,7 @@ This means:
 gh issue list --repo chidionyema/crew --label P1 --json number,title
 
 # 2. Open in browser
-open https://github.com/chidionyema/crew/issues
+open https://github.com/chidionyema/crew/issues/102
 
 # 3. Watch live (every 30 sec)
 watch -n 30 'crew-board'
@@ -408,6 +410,4 @@ tail -f ~/.maestro/maestro.log
 
 Use it. Post to it. The agents read it. No repeated questions, no confusion, maximum clarity.
 
----
-
-**Dead-letter path:** If a GitHub write fails, the message is logged to `~/.claude/state/board-deadletter.jsonl` with a loud warning.
+Dead-letter path: `~/.claude/state/board-deadletter.jsonl`

@@ -11,7 +11,7 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 - **Decisions** are recorded here (why, not just what)
 - **Handoffs** are commented here (what you did, what's next)
 - **Evidence** is linked here (commands, outputs, logs)
-- Failures are dead-lettered to `~/.claude/state/board-deadletter.jsonl`.
+- **Dead-letter path:** `~/.claude/state/board-deadletter.jsonl` for failed broadcasts.
 
 ---
 
@@ -41,7 +41,7 @@ gh repo view chidionyema/crew --web
 # Show all open issues with labels
 gh issue list --repo chidionyema/crew --state open \
   --json number,title,labels \
-  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(","))"'
+  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(\",\"))"'
 
 # Show just P1 fires
 gh issue list --repo chidionyema/crew --label P1 --state open \
@@ -59,7 +59,7 @@ gh issue list --repo chidionyema/crew --label in-progress --state open \
 ### **3. Terminal — Read a Specific Issue**
 
 ```bash
-# View issue #102 (Estate board)
+# View issue #102 (Estate Board)
 gh issue view --repo chidionyema/crew 102
 
 # View issue #102 with full body + comments
@@ -105,7 +105,7 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | View issue #102 | `gh issue view --repo chidionyema/crew 102` |
 | View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
-| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] | "\(.author.login): \(.body)"'` |
 
 ---
 
@@ -118,8 +118,8 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
      Status: unknown / not drilled
      Assigned: ?
 
-#102 - ESTATE BOARD — every broadcast lands here
-     Status: planning / conditional on P1 #35
+#35 - Fly.io refuses to build: the account has overdue invoices, production 10 commits behind
+     Status: blocked (needs payment/decision)
      Assigned: ?
 
 #26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
@@ -134,6 +134,14 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
      Status: planning / conditional on P1 #35
      Assigned: ?
 ```
+
+### **Triage Issues (many)**
+
+Issues waiting for decision or assignment. Examples:
+- #53: Ticket gate covers Claude Code only, not codex/gemini
+- #52: aiden WAITING alerts are noise
+- #51: rule-guard.py matches command strings inside quotes
+- #50: Lost previous session's work
 
 ---
 
@@ -227,13 +235,13 @@ echo "Last updated: $(date)"'
 
 while true; do
   clear
-  echo "=== ISSUE #102 (Estate board) ==="
+  echo "=== ISSUE #102 (Estate Board) ==="
   echo ""
-  
+
   # Show the issue
   gh issue view --repo chidionyema/crew 102 --json title,body,comments \
-    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
-  
+    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)): \(.body)\n") | join("\n"))'
+
   echo ""
   echo "Last refreshed: $(date)"
   sleep 30
@@ -253,18 +261,15 @@ gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate board con
 # Add with evidence (command + output)
 gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
 ## Status: Estate board configured
-
-Command:
-\`\`\`
-echo "Test broadcast" | estate-broadcast.py
-\`\`\`
-
+```
+estate-broadcast.py --test
+```
 Output:
-\`\`\`
-Broadcast sent to crew#102
-\`\`\`
+```
+Broadcast successful to crew#102
+```
 
-Next: Verify dead-lettering on transport failure.
+Next: Verify dead-letter functionality
 EOF
 )"
 ```
@@ -305,11 +310,11 @@ gh issue close 102 --repo chidionyema/crew
 ```
 You post: "Issue #102: Estate board configured"
           ↓
-maestro reads: Board configured, waits for broadcasts
+maestro reads: Board is configured, waits for broadcasts
               ↓
 Architect posts evidence: "Verified: New broadcast landed on crew#102"
               ↓
-You update issue: "Status: RESOLVED, broadcasts landing"
+You update issue: "Status: RESOLVED, board working"
               ↓
 Both agents move on to next P1 fire
 ```

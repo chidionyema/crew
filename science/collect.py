@@ -127,7 +127,7 @@ def _default_collector_config() -> Path:
 COLLECTOR_CONFIG = _env_path("OTEL_COLLECTOR_CONFIG", _default_collector_config())
 
 
-def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
+def collector_receivers(path: Path | None = None) -> set[str] | None:
     """Receiver keys the collector declares, or None when the file cannot be read.
 
     Standard library only. The first cut imported PyYAML and treated ImportError as
@@ -136,6 +136,7 @@ def collector_receivers(path: Path = COLLECTOR_CONFIG) -> set[str] | None:
     as missing evidence. The keys are the lines indented exactly one level under a
     top-level `receivers:` line, which is the shape the collector itself requires.
     """
+    path = COLLECTOR_CONFIG if path is None else path
     try:
         lines = path.read_text().splitlines()
     except OSError:
@@ -170,13 +171,14 @@ def receiver_verdict() -> tuple[list[str], str]:
     return [], f"receivers: every source lands in a declared receiver ({', '.join(sorted(keys))})"
 
 
-def load_registry(path: Path = REGISTRY) -> dict:
+def load_registry(path: Path | None = None) -> dict:
     """Read the registry, or fail loudly. There is no built-in default on purpose.
 
     A collector that silently falls back to an empty or hardcoded source list when its
     registry is missing reports a healthy run over nothing, which is the exact failure
     this whole change exists to remove.
     """
+    path = REGISTRY if path is None else path
     try:
         reg = json.loads(path.read_text())
     except FileNotFoundError:

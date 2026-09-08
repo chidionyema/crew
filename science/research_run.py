@@ -48,7 +48,8 @@ def question_for(row: dict) -> str:
     )
 
 
-def intake_row(i: int, path: pathlib.Path = INTAKE) -> dict:
+def intake_row(i: int, path: pathlib.Path | None = None) -> dict:
+    path = INTAKE if path is None else path
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
     if not 0 <= i < len(rows):
         raise rw.Refused(f"intake has {len(rows)} rows; --row {i} does not exist")

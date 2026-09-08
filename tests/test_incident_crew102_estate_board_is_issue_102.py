@@ -17,7 +17,6 @@ target moved and the crew board has drifted — fix the source of truth
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 from pathlib import Path

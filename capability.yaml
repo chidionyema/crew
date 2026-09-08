@@ -1,0 +1,12 @@
+id: auto-crew
+name: crew
+repo: crew
+path: crew
+state: HAS_CLUSTER_MANIFEST
+git_branch: main
+last_commit: '2026-08-27'
+code_files: 470
+test_files: 243
+indicators:
+- pyproject.toml
+requires_deep_review: true

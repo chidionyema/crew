@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Migrate the prospector age blob into the sops directory vault (crew#119 ruling).
+
+Reads encrypted, writes encrypted: plaintext exists only in this process's memory —
+never argv, never a temp file. Encrypts with an explicit --age recipient (the existing
+prospector identity) so no .sops.yaml discovery ambiguity; round-trips every file
+through `sops --decrypt --output-type json` and compares in memory before counting it.
+Dies on first error. MINIMAX_API_KEY is skipped: its stored value is bogus on record
+(crew#119 comment 5393600430)."""
+import json, os, subprocess, sys
+
+LEGACY = os.path.expanduser("~/dev/code/prospector-main/deploy/secrets.env.age")
+AGE_KEY = os.path.expanduser("~/.config/prospector/age-key.txt")
+VAULT = os.path.expanduser("~/dev/code/crew/secrets")
+SKIP = {"MINIMAX_API_KEY"}
+
+def run(cmd, **kw):
+    r = subprocess.run(cmd, capture_output=True, text=True, **kw)
+    if r.returncode != 0:
+        sys.exit(f"FAILED {cmd[0]} ({cmd[1] if len(cmd)>1 else ''}): {r.stderr.strip()}")
+    return r.stdout
+
+pub = run(["age-keygen", "-y", AGE_KEY]).strip()
+os.makedirs(f"{VAULT}/dev", exist_ok=True)
+plaintext = run(["age", "-d", "-i", AGE_KEY, LEGACY])
+
+env = dict(os.environ, SOPS_AGE_KEY_FILE=AGE_KEY)
+migrated = skipped = 0
+for line in plaintext.splitlines():
+    if not line:
+        continue
+    key, val = line.split("=", 1)   # first '=' only: 1 value contains '='
+    if key in SKIP:
+        print(f"SKIP {key} (bogus value on record - awaits the real key)")
+        skipped += 1
+        continue
+    doc = json.dumps({key: val})    # JSON-encoding survives quotes/whitespace/unicode
+    rel = f"secrets/dev/{key}.yaml"
+    r = subprocess.run(["sops", "--encrypt", "--filename-override", rel,
+                        "--input-type", "json", "--output-type", "yaml", "/dev/stdin"],
+                       input=doc, capture_output=True, text=True,
+                       cwd=os.path.expanduser("~/dev/code/crew"))
+    if r.returncode != 0:
+        sys.exit(f"sops encrypt failed for {key}: {r.stderr.strip()}")
+    dest = f"{VAULT}/dev/{key}.yaml"
+    with open(dest + ".tmp", "w") as f:
+        f.write(r.stdout)
+    os.replace(dest + ".tmp", dest)
+    back = json.loads(run(["sops", "--decrypt", "--output-type", "json", dest], env=env))
+    if back != {key: val}:
+        sys.exit(f"ROUND-TRIP MISMATCH for {key} - vault copy does not equal source")
+    print(f"OK {key}")
+    migrated += 1
+
+print(f"\n{migrated} migrated + round-trip verified, {skipped} skipped, into {VAULT}/dev/")
+print("source blob left in place: it stays live until the founder retires it")

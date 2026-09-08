@@ -1,0 +1,12 @@
+id: auto-scheduler
+name: scheduler
+repo: crew
+path: crew/science/scheduler
+state: HAS_CLUSTER_MANIFEST
+git_branch: main
+last_commit: never
+code_files: 7
+test_files: 3
+indicators:
+- pyproject.toml
+requires_deep_review: true

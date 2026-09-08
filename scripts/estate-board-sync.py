@@ -11,6 +11,17 @@ This is the read side: pull the comments once, parse the rows, write the cache. 
 from `scripts/estate-snapshot`, which is already scheduled, rather than on every board
 read -- a read that calls the GitHub API is a read that fails when the network does, and
 a rate limit would take the board out for every session at once.
+
+# Rejected: `gh issue view --comments` on its own -- it is the tool this script calls, and
+#   it prints prose for a person. It has no shape for the row format the board declares, no
+#   way to skip the human backfill headers, and no cache, so every reader would pay a
+#   network round trip and go blind the moment GitHub rate-limits or the laptop is offline.
+# Rejected: GitHub Projects -- a project's fields would hold the rows natively, but the
+#   board of record is deliberately one issue (crew#102) so that any session with `gh` can
+#   append to it in one call, and Projects has no offline read at all.
+# Standard: docs/STANDARDS.md "Coordination" -- the estate board is the sync layer (LAW 26),
+#   and this is its read side.
+# Deviation: none.
 """
 
 import json

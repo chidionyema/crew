@@ -86,7 +86,8 @@ def row_for(pr: dict, repo: str) -> dict | None:
             "status": "standing", "superseded_by": None, "pr": url, "repo": repo}
 
 
-def known_prs(log: pathlib.Path = LOG) -> set[str]:
+def known_prs(log: pathlib.Path | None = None) -> set[str]:
+    log = LOG if log is None else log
     if not log.exists():
         return set()
     out = set()
@@ -117,7 +118,9 @@ def fetch(repo: str, since: str) -> list[dict]:
     return [p for p in rows if p.get("merged_at") and p["merged_at"] >= since]
 
 
-def pull(log: pathlib.Path = LOG, fetcher=fetch, state: pathlib.Path = STATE, now: dt.datetime | None = None) -> int:
+def pull(log: pathlib.Path | None = None, fetcher=fetch, state: pathlib.Path | None = None, now: dt.datetime | None = None) -> int:
+    log = LOG if log is None else log
+    state = STATE if state is None else state
     now = now or dt.datetime.now(dt.UTC).replace(microsecond=0)
     st = json.loads(state.read_text()) if state.exists() else {}
     since = st.get("since") or (now - dt.timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -138,7 +141,8 @@ def pull(log: pathlib.Path = LOG, fetcher=fetch, state: pathlib.Path = STATE, no
     return 0
 
 
-def table(log: pathlib.Path = LOG) -> str:
+def table(log: pathlib.Path | None = None) -> str:
+    log = LOG if log is None else log
     per: dict[str, list[int]] = {}
     for ln in (log.read_text(encoding="utf-8", errors="replace").splitlines() if log.exists() else []):
         try:

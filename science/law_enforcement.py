@@ -277,10 +277,11 @@ def githooks():
 TRACKED_STREAMS = ("close_guard", "ledger", "board", "spend")
 SOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sources.json")
 
-def stream_paths(sources=SOURCES, home=H):
+def stream_paths(sources=None, home=H):
     """(display name, absolute path) for each tracked stream, from the registry.
     A tracked name missing from the registry is an error, not a skip: silently
     dropping it is how crew#80 happened in the other direction."""
+    sources = SOURCES if sources is None else sources
     with open(sources) as fh:
         reg = {s["name"]: s for s in json.load(fh)["sources"]}
     out = []

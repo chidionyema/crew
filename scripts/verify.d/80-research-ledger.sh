@@ -5,7 +5,9 @@
 #   FAIL when the ledger is missing or malformed,
 #   FAIL when no research entry has landed in 7 days (the ethos has stalled),
 #   FAIL when an entry older than 14 days still has metric_after: null and no
-#        abandoned marker (an improvement claimed and never measured).
+#        abandoned marker (an improvement claimed and never measured),
+#   WARN from day 7 for those same entries, so the ledger's owner is told a week
+#        before this check starts blocking every open pull request.
 LEDGER="${CREW_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}/science/RESEARCH-LEDGER.jsonl"
 echo "\$ python3 - $LEDGER"
 python3 - "$LEDGER" <<'PY'
@@ -23,6 +25,7 @@ required = {"date", "question", "decision_fed", "sources", "findings", "metric",
 today = date.today()
 newest = None
 stale_unmeasured = []
+expiring = []
 
 # Every per-line problem is collected and reported together. This check used to
 # exit on the first bad line, so a ledger with four malformed rows cost four
@@ -66,8 +69,15 @@ for i, line in enumerate(lines, 1):
         problems.append(f"line {i} date {e['date']!r} is not an ISO date")
         continue
     newest = max(newest or d, d)
-    if e.get("metric_after") is None and not e.get("abandoned") and today - d > timedelta(days=14):
-        stale_unmeasured.append(f"line {i} ({e['date']}: {e['question'][:60]})")
+    if e.get("metric_after") is None and not e.get("abandoned"):
+        age = today - d
+        if age > timedelta(days=14):
+            stale_unmeasured.append(f"line {i} ({e['date']}: {e['question'][:60]})")
+        elif age > timedelta(days=7):
+            days_left = 14 - age.days
+            expiring.append(
+                f"line {i} ({e['date']}: {e['question'][:60]}) — "
+                f"{days_left} day{'' if days_left == 1 else 's'} left")
 
 if problems:
     print(f"FAIL: {len(problems)} malformed entr{'y' if len(problems) == 1 else 'ies'}:")
@@ -80,6 +90,19 @@ if newest is None:
 if today - newest > timedelta(days=7):
     print(f"FAIL: newest entry is {newest}, over 7 days old — the research ethos has stalled")
     sys.exit(1)
+# The warning below exists because on 2026-09-07 thirteen entries dated 23-24 August
+# crossed the 14-day line together and this check went from silent to blocking with no
+# step in between. It is a required check on every pull request, so one overdue ledger
+# stopped ten unrelated PRs — documentation changes among them — and each session saw
+# only its own red tick, never the shared cause (LAW 38: a guard that refuses correct
+# work is an outage). The gate is right to block; it was wrong to do it without notice.
+# From seven days on it names what is about to expire, so the ledger's owner has a week
+# of warnings before anyone else is stopped.
+if expiring:
+    print(f"WARN: {len(expiring)} entr{'y' if len(expiring) == 1 else 'ies'} expiring — "
+          "measure or mark abandoned before this blocks every open pull request:")
+    for e in expiring:
+        print(f"  {e}")
 if stale_unmeasured:
     print("FAIL: claimed improvements never measured (metric_after still null after 14 days):")
     for s in stale_unmeasured:

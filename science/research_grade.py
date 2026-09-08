@@ -204,7 +204,7 @@ def intake(now: dt.datetime | None = None) -> dict:
     return research_intake.grade(research_intake.read_rows(), state, sources, now)
 
 
-def delivered(path: pathlib.Path = RECEIPTS) -> list[dict]:
+def delivered(path: pathlib.Path | None = None) -> list[dict]:
     """Receipts authored OUTSIDE this lane (founder 2026-08-31: self scoring is banned forever).
 
     A receipt is written by the consumer of a research output, never by the research worker,
@@ -213,6 +213,7 @@ def delivered(path: pathlib.Path = RECEIPTS) -> list[dict]:
     step is involved anywhere in this file: the pointer is machine-checkable reality, not a
     word from a person (founder 2026-08-31: "NO FOUNDER CALIBRATE").
     """
+    path = RECEIPTS if path is None else path
     rows = read_ledger(path)
     return [
         r

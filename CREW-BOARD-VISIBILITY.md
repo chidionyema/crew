@@ -2,8 +2,8 @@
 
 ## What is the Crew Board?
 
-**Location:** `github.com/chidionyema/crew/issues/102`  
-**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs. If a broadcast fails to land here, it is dead-lettered to `~/.claude/state/board-deadletter.jsonl`.
+**Location:** `github.com/chidionyema/crew/issues`  
+**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs. If a GitHub write fails, the row is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and a loud warning is emitted.  
 **Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
 
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
@@ -20,7 +20,7 @@ Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this bo
 
 ```bash
 # Open in browser
-open https://github.com/chidionyema/crew/issues/102
+open https://github.com/chidionyema/crew/issues
 
 # Or use gh CLI to open
 gh repo view chidionyema/crew --web
@@ -40,7 +40,7 @@ gh repo view chidionyema/crew --web
 # Show all open issues with labels
 gh issue list --repo chidionyema/crew --state open \
   --json number,title,labels \
-  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(\", \"))"'
+  -q '.[] | "\(.number | tostring | lpad(3)) | \(.title) | \(.labels | map(.name) | join(","))"'
 
 # Show just P1 fires
 gh issue list --repo chidionyema/crew --label P1 --state open \
@@ -50,7 +50,7 @@ gh issue list --repo chidionyema/crew --label P1 --state open \
 # Show by status (in-progress, pr-open, merged, etc.)
 gh issue list --repo chidionyema/crew --label in-progress --state open \
   --json number,title,assignees \
-  -q '.[] | "[#\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
+  -q '.[] | "[\(.number)] \(.title) [\(.assignees[0].login // "unassigned")]"'
 ```
 
 ---
@@ -58,7 +58,7 @@ gh issue list --repo chidionyema/crew --label in-progress --state open \
 ### **3. Terminal — Read a Specific Issue**
 
 ```bash
-# View issue #102 (Fly build blocked)
+# View issue #102 (Estate board)
 gh issue view --repo chidionyema/crew 102
 
 # View issue #102 with full body + comments
@@ -72,10 +72,10 @@ gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 ```
 #102 ESTATE BOARD — every broadcast lands here
 OPEN · assigned to someone
-
+  
 Body:
   [issue description with evidence]
-
+  
 Comments:
   [conversation, updates, status]
 ```
@@ -104,7 +104,7 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | View issue #102 | `gh issue view --repo chidionyema/crew 102` |
 | View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
-| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] | "\(.author.login): \(.body)"'` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
 
 ---
 
@@ -116,21 +116,9 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 #38 - The exit from Fly has never once been drilled: the escape hatch cannot pass
      Status: unknown / not drilled
      Assigned: ?
-
+     
 #102 - ESTATE BOARD — every broadcast lands here
-     Status: blocked (needs payment/decision)
-     Assigned: ?
-
-#26 - Estate spend is $431/day against a $120 cap and the only brake reaches 0.03% of it
-     Status: needs audit + cost control strategy
-     Assigned: ?
-
-#22 - Observability: the proposed architecture covers a third of the estate — audit needed
-     Status: audit in progress or planned
-     Assigned: ?
-
-#13 - Retire the Hermes estate — unconditional, Hermes is discontinued
-     Status: planning / conditional on P1 #102
+     Status: planning / conditional on P1 #35
      Assigned: ?
 ```
 
@@ -234,12 +222,12 @@ echo "Last updated: $(date)"'
 
 while true; do
   clear
-  echo "=== ISSUE #102 (ESTATE BOARD — every broadcast lands here) ==="
+  echo "=== ISSUE #102 (Estate board) ==="
   echo ""
   
   # Show the issue
   gh issue view --repo chidionyema/crew 102 --json title,body,comments \
-    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)): \(.body)\n") | join("\n"))'
+    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
   
   echo ""
   echo "Last refreshed: $(date)"
@@ -255,25 +243,23 @@ done
 
 ```bash
 # Add a comment to issue #102
-gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Estate board configured for dead-lettering"
 
 # Add with evidence (command + output)
 gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Fly invoice paid
+## Status: Estate board configured for dead-lettering
 
 Command:
 \`\`\`
-fly auth status
+# Command to prove dead-lettering
 \`\`\`
 
 Output:
 \`\`\`
-Account chidionyema
-Status: Active
-Invoice: PAID
+# Output showing dead-lettering
 \`\`\`
 
-Next: Retry build (production 10 commits behind)
+Next: Verify dead-lettering functionality
 EOF
 )"
 ```
@@ -312,13 +298,13 @@ gh issue close 102 --repo chidionyema/crew
 **How they respond:**
 
 ```
-You post: "Issue #102: Fly build unblocked, payment made"
+You post: "Issue #102: Estate board configured for dead-lettering"
           ↓
-maestro reads: Fly is unblocked, tries to heal the "build failed" signature
+maestro reads: Estate board is configured, tries to heal the "broadcast failed" signature
               ↓
-Architect posts evidence: "Verified: flyctl apps list shows deployment succeeded"
+Architect posts evidence: "Verified: estate-broadcast.py dead-lettering works"
               ↓
-You update issue: "Status: RESOLVED, production deployed"
+You update issue: "Status: RESOLVED, dead-lettering verified"
               ↓
 Both agents move on to next P1 fire
 ```
@@ -392,7 +378,7 @@ This means:
 gh issue list --repo chidionyema/crew --label P1 --json number,title
 
 # 2. Open in browser
-open https://github.com/chidionyema/crew/issues/102
+open https://github.com/chidionyema/crew/issues
 
 # 3. Watch live (every 30 sec)
 watch -n 30 'crew-board'

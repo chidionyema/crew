@@ -73,9 +73,21 @@ jobs:
           # A check that never ran is not a check that passed. PR #111 merged at
           # 2026-08-24T04:22:13Z with no review because review-gate.yml was not on main
           # yet, so its check never appeared in the rollup and nothing here refused it
-          # (incident: crew#105). These two must be PRESENT and SUCCESS, not merely
+          # (incident: crew#105). Each name below must be PRESENT and SUCCESS, not merely
           # not-failing.
-          REQUIRED = {"qa", "review-gate"}
+          #
+          # `review-gate` was in this set until 2026-09-08, and the founder deleted that
+          # workflow on 2026-08-29 (commit 9fca66c, "Retire the peer-review gate: founder
+          # 2026-08-29, review is friction"). A required check that no workflow produces
+          # can never be PRESENT, so from that day this mechanism refused every pull
+          # request in the repository and said so only in its own run log. Ten days of
+          # landings went back to the founder by hand -- the exact loop the header of this
+          # file says it exists to end. The lesson is the same shape as crew#105 in the
+          # other direction: crew#105 was a required check that was absent and read as
+          # green; this was a required check that was absent and read as red. Both come
+          # from naming a check here and nowhere else, so the name is now checked against
+          # the workflows on disk by tests/test_incident_crew_merge_bot_required_a_deleted_gate.py.
+          REQUIRED = {"qa"}
           for pr in json.load(open("prs.json")):
               why, verdict = None, "MERGE"
               labels = {l["name"].lower() for l in pr.get("labels") or []}

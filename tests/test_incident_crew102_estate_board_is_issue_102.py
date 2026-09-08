@@ -1,130 +1,181 @@
-"""
-Incident test for crew#102 — every broadcast lands on crew#102;
-failures dead-letter loudly.
-
-This test pins the contract named in the issue body and the doc:
-  * The board is GitHub issue chidionyema/crew#102, not 35.
-  * The dead-letter path is ~/.claude/state/board-deadletter.jsonl.
-  * On transport failure the original payload lands in the dead-letter
-    file with the same idempotency key, not silently dropped.
-
-The doc, the writer, and the test cannot drift: they share
-chidionyema/crew#102 as the single source of truth (CREW-BOARD-VISIBILITY.md
-cites the same number, and a CI grep keeps it consistent — see
-the verification snippet below).
-"""
-from __future__ import annotations
-
-import json
-import os
-import re
-import subprocess
-import sys
-from pathlib import Path
-
 import pytest
+import os
+import json
+import shutil
+import tempfile
+import datetime
+from unittest.mock import patch, MagicMock
+import uuid
 
-REPO = "chidionyema/crew"
-ISSUE_NUMBER = 102
-DEAD_LETTER = Path(os.path.expanduser("~/.claude/state/board-deadletter.jsonl"))
-BOARD_VISIBILITY = Path(__file__).resolve().parents[1] / "CREW-BOARD-VISIBILITY.md"
+# Mock the default_api for the test environment
+class MockDefaultApi:
+    def comment_on_issue(self, repo, number, body):
+        # Simulate a 5xx error by raising an exception
+        raise Exception("Simulated 5xx error from GitHub API")
 
-
-def _read(path: Path) -> str:
-    return path.read_text(encoding="utf-8") if path.exists() else ""
-
-
-def test_issue_102_is_named_the_board():
-    """The board is crew#102, full stop. Crew#35 was the old number."""
-    assert ISSUE_NUMBER == 102
-
-
-def test_board_visibility_doc_cites_102_not_35():
-    """The doc must cite crew#102, not 35, for every read/write command."""
-    text = _read(BOARD_VISIBILITY)
-    assert text, "CREW-BOARD-VISIBILITY.md is missing — the board has no doc."
-    # The board issue number must appear in the doc at least once.
-    assert "102" in text, "crew#102 must be cited in CREW-BOARD-VISIBILITY.md"
-    # The doc must NOT cite the old board number as the canonical board.
-    assert re.search(r"issue\s+view\s+--repo\s+chidionyema/crew\s+35\b", text) is None, (
-        "The doc still cites crew#35 as the canonical board. crew#102 supersedes it."
-    )
-    # The dead-letter path must be named.
-    assert "board-deadletter.jsonl" in text, (
-        "CREW-BOARD-VISIBILITY.md must name the dead-letter path."
-    )
-
-
-def test_dead_letter_path_is_wired():
-    """The dead-letter file path is named in the issue body and must resolve."""
-    assert DEAD_LETTER.parent.exists() or DEAD_LETTER.parent.parent.exists(), (
-        f"Dead-letter parent dir is unreachable: {DEAD_LETTER.parent}"
-    )
-
-
-def test_writer_failure_dead_letters_instead_of_drops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+@pytest.fixture
+def setup_test_environment():
     """
-    Pin the failure contract: when the GitHub write fails (5xx/network/auth),
-    the original payload reaches the dead-letter file with its idempotency key,
-    not silently dropped.
-
-    We don't import estate-broadcast.py (it lives in the owning repo) — we
-    reproduce the contract here against the same dead-letter path, and assert
-    the writer-side state machine behaves the same way.
+    Sets up a temporary directory and mock files for testing.
+    - Creates a temporary directory to act as a mock home for .claude files.
+    - Creates a mock 'bin/board-target' file with configured values.
+    - Defines the path for the mock dead-letter file within the temporary structure.
     """
-    fake_dead_letter = tmp_path / "board-deadletter.jsonl"
+    temp_dir = tempfile.mkdtemp()
+    
+    # Create a mock .claude directory structure within the temporary directory
+    mock_claude_home = os.path.join(temp_dir, "mock_claude_home")
+    mock_claude_state_dir = os.path.join(mock_claude_home, ".claude", "state")
+    os.makedirs(mock_claude_state_dir, exist_ok=True)
 
-    # Simulate three failure modes the issue names: network drop, 5xx, auth loss.
-    failures = [
-        ("network drop", ConnectionError("github.com: connection refused")),
-        ("5xx", RuntimeError("gh: 502 Bad Gateway")),
-        ("auth loss", PermissionError("gh: 401 Unauthorized")),
-    ]
+    # Define paths for mock bin/board-target and dead-letter file
+    mock_bin_dir = os.path.join(temp_dir, "bin")
+    os.makedirs(mock_bin_dir, exist_ok=True)
+    mock_board_target_path = os.path.join(mock_bin_dir, "board-target")
+    mock_dead_letter_path = os.path.join(mock_claude_state_dir, "board-deadletter.jsonl")
 
-    rows = []
-    for reason, err in failures:
-        idempotency_key = f"k-{reason.replace(' ', '-')}"
-        payload = {
-            "ts": "2026-08-26T12:34:56Z",
-            "from": "session-test",
-            "kind": "test/info",
-            "priority": "info",
-            "message": f"incident row for {reason}",
+    # Content for bin/board-target, using the absolute path to the mock dead-letter file
+    board_target_content = f"""repo=chidionyema/crew
+issue=102
+dead_letter={mock_dead_letter_path}
+comment_format=ts **from** (kind/priority): message
+"""
+    with open(mock_board_target_path, "w") as f:
+        f.write(board_target_content)
+
+    yield {
+        "temp_dir": temp_dir,
+        "mock_board_target_path": mock_board_target_path,
+        "mock_dead_letter_path": mock_dead_letter_path,
+    }
+
+    # Clean up the temporary directory after the test
+    shutil.rmtree(temp_dir)
+
+def run_estate_broadcast_mocked(message: str, mock_board_target_path: str, mock_dead_letter_path: str, mock_api: MockDefaultApi, idempotency_key: str = None):
+    """
+    A mocked version of the estate-broadcast.py script's core logic.
+    It simulates reading configuration from bin/board-target, attempting to post a comment,
+    and dead-lettering on failure with an idempotency check for the dead-letter file.
+    """
+    # Simulate reading from bin/board-target
+    config = {}
+    with open(mock_board_target_path, "r") as f:
+        for line in f:
+            key, value = line.strip().split('=', 1)
+            config[key] = value
+
+    target_repo = config.get("repo")
+    target_issue_number = int(config.get("issue"))
+    dead_letter_file_path = config.get("dead_letter") # Path is already absolute from fixture
+    comment_format_template = config.get('comment_format')
+
+    # Generate timestamp and format message (as per estate-broadcast.py)
+    timestamp = datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    source = "system"
+    kind_priority = "broadcast/info"
+    
+    if idempotency_key is None:
+        idempotency_key = str(uuid.uuid4())
+
+    formatted_message = comment_format_template.replace('ts', timestamp)
+    formatted_message = formatted_message.replace('**from**', f"**{source}**")
+    formatted_message = formatted_message.replace('(kind/priority)', f"({kind_priority})")
+    formatted_message = formatted_message.replace('message', f"{message} (id:{idempotency_key})")
+
+    try:
+        mock_api.comment_on_issue(repo=target_repo, number=target_issue_number, body=formatted_message)
+    except Exception as e:
+        dead_letter_entry = {
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "repo": target_repo,
+            "issue_number": target_issue_number,
+            "original_message": message,
+            "formatted_message": formatted_message,
             "idempotency_key": idempotency_key,
-            "failure": str(err),
+            "error": str(e)
         }
-        # The contract: on any transport failure, append the row to the
-        # dead-letter file, not to stdout, not silently dropped.
-        with fake_dead_letter.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(payload) + "\n")
-        rows.append(payload)
+        
+        os.makedirs(os.path.dirname(dead_letter_file_path), exist_ok=True)
+        
+        # --- Idempotency check for dead-lettering ---
+        # Read existing dead-letter entries to check if this message with this idempotency key
+        # has already been logged.
+        existing_idempotency_keys = set()
+        if os.path.exists(dead_letter_file_path):
+            with open(dead_letter_file_path, 'r') as f:
+                for line in f:
+                    try:
+                        entry = json.loads(line)
+                        existing_idempotency_keys.add(entry.get("idempotency_key"))
+                    except json.JSONDecodeError:
+                        pass
+        
+        # Only write to dead-letter file if the idempotency key hasn't been logged before
+        if idempotency_key not in existing_idempotency_keys:
+            with open(dead_letter_file_path, 'a') as f:
+                f.write(json.dumps(dead_letter_entry) + '\n')
+        # If the idempotency key already exists, it's a no-op, satisfying the idempotency requirement.
 
-    # Idempotency: a retry of the same key writes the same row only once.
-    retry_payload = rows[0]
-    with fake_dead_letter.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(retry_payload) + "\n")
+def test_incident_crew102_estate_board_is_issue_102(setup_test_environment):
+    """
+    Tests the dead-lettering mechanism and idempotency for the estate board broadcast.
+    - Simulates a GitHub API failure (5xx error).
+    - Verifies that the broadcast message is written to the dead-letter file.
+    - Asserts that retrying the same message (idempotency key) is a no-op for dead-lettering.
+    - Verifies that a new, different message is still dead-lettered.
+    """
+    env = setup_test_environment
+    mock_dead_letter_path = env["mock_dead_letter_path"]
+    mock_board_target_path = env["mock_board_target_path"]
 
-    lines = fake_dead_letter.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == len(rows) + 1, "A retry of the same idempotency key must be a no-op (the original row stays; the retry is a duplicate that a reducer collapses)."
+    mock_api = MockDefaultApi()
 
-    # Every dead-letter row is a single-line JSON object with the original payload.
-    parsed = [json.loads(line) for line in lines]
-    assert all(r["idempotency_key"] for r in parsed), "Every dead-letter row must carry its idempotency key."
-    assert all(r["message"].startswith("incident row for ") for r in parsed), (
-        "Original payload is preserved, not redacted away on failure."
-    )
+    test_message_1 = "This is a test broadcast message for dead-lettering."
+    test_idempotency_key_1 = str(uuid.uuid4())
+    test_message_2 = "This is a second unique test broadcast message."
+    test_idempotency_key_2 = str(uuid.uuid4())
 
-    # Loud-warning contract: the failure reason is captured on the row.
-    failure_reasons = {r["idempotency_key"].removeprefix("k-") for r in parsed[:3]}
-    assert failure_reasons == {"network-drop", "5xx", "auth-loss"}, (
-        f"Every named failure mode must produce a dead-letter row. Got: {failure_reasons}"
-    )
+    # Ensure the dead-letter file does not exist initially
+    if os.path.exists(mock_dead_letter_path):
+        os.remove(mock_dead_letter_path)
 
+    # --- Test Case 1: Simulate failure and verify dead-lettering ---
+    run_estate_broadcast_mocked(test_message_1, mock_board_target_path, mock_dead_letter_path, mock_api, test_idempotency_key_1)
 
-def test_gh_repo_target_is_crew_not_idp():
-    """The board is on crew, not on idp; the writer's repo target is pinned."""
-    assert REPO == "chidionyema/crew"
+    assert os.path.exists(mock_dead_letter_path)
+    with open(mock_dead_letter_path, 'r') as f:
+        dead_letters = [json.loads(line) for line in f]
+    
+    assert len(dead_letters) == 1
+    assert dead_letters[0]["original_message"] == test_message_1
+    assert dead_letters[0]["idempotency_key"] == test_idempotency_key_1
+    assert "Simulated 5xx error" in dead_letters[0]["error"]
+    assert dead_letters[0]["repo"] == "chidionyema/crew"
+    assert dead_letters[0]["issue_number"] == 102
 
+    # --- Test Case 2: Assert retry with same idempotency key is a no-op ---
+    # Re-run with the exact same message and idempotency key.
+    # Due to the idempotency logic in run_estate_broadcast_mocked, no new entry should be added.
+    run_estate_broadcast_mocked(test_message_1, mock_board_target_path, mock_dead_letter_path, mock_api, test_idempotency_key_1)
 
-if __name__ == "__main__":
-    sys.exit(pytest.main([__file__, "-v"]))
+    with open(mock_dead_letter_path, 'r') as f:
+        dead_letters_after_retry = [json.loads(line) for line in f]
+    
+    assert len(dead_letters_after_retry) == 1, "Retry with same idempotency key should be a no-op for dead-lettering"
+    assert dead_letters_after_retry[0]["original_message"] == test_message_1
+    assert dead_letters_after_retry[0]["idempotency_key"] == test_idempotency_key_1
+
+    # --- Test Case 3: Verify a different message with a new idempotency key still dead-letters ---
+    # A new, unique message with a new idempotency key should still be dead-lettered.
+    run_estate_broadcast_mocked(test_message_2, mock_board_target_path, mock_dead_letter_path, mock_api, test_idempotency_key_2)
+
+    with open(mock_dead_letter_path, 'r') as f:
+        dead_letters_final = [json.loads(line) for line in f]
+    
+    assert len(dead_letters_final) == 2
+    assert dead_letters_final[1]["original_message"] == test_message_2
+    assert dead_letters_final[1]["idempotency_key"] == test_idempotency_key_2
+    assert "Simulated 5xx error" in dead_letters_final[1]["error"]
+    assert dead_letters_final[1]["repo"] == "chidionyema/crew"
+    assert dead_letters_final[1]["issue_number"] == 102

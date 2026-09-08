@@ -1035,6 +1035,26 @@ def portability() -> list[str]:
     return portability_row(runs, log, log_rc=log_rc)
 
 
+def board_sync() -> list[str]:
+    """Rebuild the local board cache from crew#102, and say on the page whether it worked.
+
+    The board of record is the GitHub issue; the JSONL under ~/.claude is the copy sessions
+    read at prompt time, and nothing was refilling it, so each laptop's board was whatever
+    it happened to hold. This is the one scheduled job that already runs with `gh` in hand,
+    so the read side lands here rather than in a second scheduled thing (one scheduler).
+
+    A failed rebuild is a RED row, never a silent skip: a stale board that looks current is
+    the failure mode this is fixing.
+    """
+    script = ROOT / "scripts" / "estate-board-sync.py"
+    cache = HOME / ".claude" / "ESTATE_BOARD.jsonl"
+    rc, out = sh(f"python3 '{script}' '{cache}'", timeout=90)
+    line = (out.strip().splitlines() or [""])[-1][:120]
+    if rc:
+        return [f"| estate board | RED | cache not rebuilt from crew#102: {line} |"]
+    return [f"| estate board | GREEN | {line} |"]
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -1047,7 +1067,7 @@ def main() -> int:
             return 1
 
     rows: list[str] = []
-    for fn in (architect, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
+    for fn in (architect, board_sync, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
         datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
                portability, runtime, elite_grade):
         try:

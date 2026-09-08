@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Ensure syft is installed
+if ! command -v syft &> /dev/null
+then
+    echo "syft could not be found, please install it: https://github.com/anchore/syft"
+    exit 1
+fi
+
+# Define the target directory for SBOM generation
+SBOM_TARGET_DIR="."
+
+# Generate SPDX 2.3 SBOM
+syft scan "$SBOM_TARGET_DIR" -o spdx-json > reports/sbom.spdx.json
+
+# Generate CycloneDX 1.7 SBOM
+syft scan "$SBOM_TARGET_DIR" -o cyclonedx-json@1.7 > reports/sbom.cyclonedx.json
+
+# Generate SPDX 3.0.1 SBOM
+syft scan "$SBOM_TARGET_DIR" -o spdx-json@3 > reports/sbom.spdx3.json
+
+echo "SBOMs generated in the reports/ directory."

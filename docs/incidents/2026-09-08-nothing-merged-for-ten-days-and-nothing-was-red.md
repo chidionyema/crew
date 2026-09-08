@@ -28,7 +28,13 @@ control that lives in GitHub's settings rather than in this repository — which
 file in the tree recorded it and no gate could see it. Every crew pull request has read
 `MERGEABLE / BLOCKED, reviewDecision REVIEW_REQUIRED` since.
 
-Neither of these is a failing test. That is the whole point: **a mechanism that refuses
+**3. Every one of them was still a draft.**
+`merge-when-green.yml` refuses a draft — correctly, since a draft means the author is still
+writing. But all five finished, green pull requests were drafts, because the sessions that
+opened them never came back to mark them ready. Even with the first two causes fixed, nothing
+would have merged.
+
+Neither of the first two is a failing test, and the third is not a failure at all. That is the whole point: **a mechanism that refuses
 correct work silently is worse than one that fails loudly**, because the estate reads red as
 work to do and reads nothing at all as nothing to do.
 
@@ -36,6 +42,11 @@ work to do and reads nothing at all as nothing to do.
 
 - `REQUIRED` is `{"qa"}`. The `review-gate` name is gone, with the retirement commit named in
   the comment beside it.
+- A draft is now judged **last**, and only on a pull request that would otherwise land: a green,
+  clean, unlabelled draft is marked ready and merges on the next tick. A draft that is red,
+  conflicted or labelled `hold` / `do-not-merge` / `wip` is untouched. The founder's ask —
+  *"agents should be responsiblefor their own own"* — is met by the mechanism doing the
+  remembering, not by asking the sessions to remember better.
 - The crew ruleset's `required_approving_review_count` is `0`, matching `idp` and matching the
   founder's 2026-08-29 decision. `non_fast_forward` and `deletion` are untouched — force-push
   and branch deletion are still refused.
@@ -47,10 +58,20 @@ of `merge-when-green.yml` itself — never a copy — and resolves every name in
 jobs actually declared in `.github/workflows/`. A required check that nothing produces fails
 the suite in the pull request that introduces it, instead of ten days later in a run log.
 
+Four more tests lift the bot's decision step out of the workflow's own heredoc and run it
+over synthetic pull requests, so the draft rule is graded as behaviour and not as prose: a
+green draft returns `READY`, a red draft and a held draft both return `SKIP.`, and a ready
+green pull request still returns `MERGE`.
+
 It also refuses an empty `REQUIRED`, which is the opposite failure and the more expensive
 one: **crew#105**, where a required check was absent, "not failing" read as green, and PR #111
 merged unreviewed on 2026-08-24. Absent-reads-green and absent-reads-red are the same defect
 — a check name written in one file and produced in another — so one guard covers both.
+
+`incidents/GUARDS.jsonl` is also added to the `merge=union` list in `.gitattributes`. It is
+the most-appended ledger in the repository — every session that fixes a defect writes a row —
+and it was the only append-only file missing from that list. It conflicted for real between
+PR #904 and PR #909 while this was being written.
 
 The ruleset half cannot be guarded from inside the repository: it is GitHub account state,
 not a file. What this incident buys instead is the knowledge that it exists and that `idp`

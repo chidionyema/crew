@@ -101,9 +101,7 @@ jobs:
               bad = [c for c in done
                      if (c.get("conclusion") or "") not in ("SUCCESS", "SKIPPED", "NEUTRAL")]
               state = pr["mergeStateStatus"]
-              if pr["isDraft"]:
-                  why = "draft"
-              elif labels & HOLD:
+              if labels & HOLD:
                   why = "labelled " + ",".join(sorted(labels & HOLD))
               elif state == "BEHIND":
                   # Not a refusal. main moved while this waited, which is the exact way both
@@ -127,6 +125,18 @@ jobs:
                   why = "failing: " + ",".join(c.get("name", "?") for c in bad[:3])
               if why is not None and verdict == "MERGE":
                   verdict = "SKIP."
+              # The draft flag is judged LAST, and only on a pull request that is otherwise
+              # ready to land, so a draft that is red or conflicted is never touched.
+              #
+              # A draft used to be refused at the top of this chain, and on 2026-09-08 that
+              # was the third silent reason nothing had merged in ten days: five finished,
+              # green pull requests sat as drafts because the sessions that opened them never
+              # came back to mark them ready. "Agents should be responsible for their own"
+              # (founder, 2026-09-08) means the mechanism does the remembering. The escape is
+              # unchanged and is one word: the hold, do-not-merge or wip label, judged above,
+              # which stops this too.
+              if verdict == "MERGE" and pr["isDraft"]:
+                  verdict, why = "READY", "green draft nobody marked ready"
               # Every pull request is printed, merged or not. A queue that silently drops one is
               # how a branch waits a day for a reason nobody can see.
               print(verdict, pr["number"], why or "green, clean, unblocked",
@@ -135,6 +145,12 @@ jobs:
           cat todo.txt
           merged=0
           while read -r verdict number rest; do
+            if [ "$verdict" = "READY" ]; then
+              gh pr ready "$number" \
+                && echo "#$number was a green draft; marked ready, it lands on the next tick" \
+                || echo "could not mark #$number ready"
+              continue
+            fi
             if [ "$verdict" = "UPDATE" ]; then
               gh api --method PUT "repos/$GH_REPO/pulls/$number/update-branch" --input /dev/null \
                 && echo "refreshed #$number onto main; it lands on the next tick" \

@@ -20,21 +20,21 @@ Every row is a traced outage with its receipts, its class, the law it broke and 
 
 GENERATED from `incidents/GUARDS.jsonl` by `scripts/incident-backfill`: one row per `tests/test_incident_*` file in the estate.
 Each one is an incident somebody paid for before this ledger existed; the class is a keyword read of the file name, so
-**78 of 107 are unclassified** until a person or the science lane names the class (crew#668 CP3).
+**82 of 113 are unclassified** until a person or the science lane names the class (crew#668 CP3).
 
-- Guards: **crew 107**, 107 in all
-- Tickets with a guard: 68
+- Guards: **crew 113**, 113 in all
+- Tickets with a guard: 71
 
 ### Classes, by how many guards they needed
 
 | Class | Means | Guards |
 |---|---|---|
-| unclassified | not read from the file name yet | 78 |
-| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 16 |
+| unclassified | not read from the file name yet | 82 |
+| gate-landed-after-branch | a CI rule merged after the branch was cut; local runs stay green | 17 |
 | silent-green | a check reads green when it cannot measure (LAW 15) | 4 |
+| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | 3 |
 | summary-over-source | a compaction summary or memory was trusted over the file or the vendor page | 2 |
 | fix-proved-on-the-wrong-surface | the fix was proved on a Mac or a test and failed on the cluster | 2 |
-| instrument-nobody-reads | a log, alert or finding existed and no person or job read it (LAW 28) | 2 |
 | single-point-of-failure | one machine, provider, account or person held the whole path | 1 |
 | rule-without-guard | a law or ruling with no test or hook that can stop a session (LAW 44) | 1 |
 | founder-repeat | the founder had to say something again (R2) | 1 |
@@ -47,17 +47,17 @@ Each one is an incident somebody paid for before this ledger existed; the class 
 | crew#423 | 4 | crew |
 | crew#403 | 3 | crew |
 | crew#495 | 3 | crew |
+| crew#508 | 3 | crew |
 | crew#668 | 3 | crew |
 | crew#72 | 3 | crew |
 | crew#74 | 3 | crew |
 | crew#253 | 2 | crew |
+| crew#102 | 2 | crew |
 | crew#368 | 2 | crew |
-| crew#508 | 2 | crew |
 | crew#527 | 2 | crew |
 | crew#558 | 2 | crew |
 | crew#659 | 2 | crew |
 | crew#701 | 2 | crew |
-| crew#70 | 2 | crew |
 
 ## Incidents, newest first
 

@@ -14,7 +14,7 @@ chasing is fricion"* — record:
 **1. The merge bot required a check that no longer exists.**
 `.github/workflows/merge-when-green.yml` refuses to land a pull request unless every name in
 its `REQUIRED` set is PRESENT and SUCCESS. The set was `{"qa", "review-gate"}`. The founder
-deleted `.github/workflows/review-gate.yml` on 2026-08-29 — commit `9fca66c`, *"Retire the
+deleted `review-gate.yml` under `.github/workflows/` on 2026-08-29 — commit `9fca66c`, *"Retire the
 peer-review gate: founder 2026-08-29, review is friction"*. From that commit onward nothing
 in the repository could produce a `review-gate` check, so `PRESENT` was never true and the
 mechanism refused every pull request. It said so only inside its own run log, which nobody

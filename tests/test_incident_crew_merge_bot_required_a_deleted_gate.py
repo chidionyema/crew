@@ -3,7 +3,7 @@
 INCIDENT, 2026-09-08. `.github/workflows/merge-when-green.yml` is the mechanism that lands
 a finished pull request without a person. It refuses to merge unless every name in its
 `REQUIRED` set is PRESENT and SUCCESS in the check rollup. One of those names was
-`review-gate`, and the founder deleted `.github/workflows/review-gate.yml` on 2026-08-29
+`review-gate`, and the founder deleted `review-gate.yml` under `.github/workflows/` on 2026-08-29
 (commit 9fca66c, "Retire the peer-review gate: founder 2026-08-29, review is friction").
 
 From that day no run could ever produce a `review-gate` check, so the mechanism refused

@@ -16,6 +16,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
     "estate_board_sync", ROOT / "scripts" / "estate-board-sync.py"
 )
+#: spec_from_file_location returns None when the path is not importable, and a spec can
+#: carry no loader. Both are real failure modes -- a renamed or deleted script -- and the
+#: type checker refuses the idiom without them, so they are asserted rather than assumed.
+assert _spec is not None, "scripts/estate-board-sync.py is not where this test expects it"
+assert _spec.loader is not None, "no loader for scripts/estate-board-sync.py"
 ebs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ebs)
 

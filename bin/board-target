@@ -1,4 +1,34 @@
-repo=chidionyema/crew
-issue=102
-dead_letter=~/.claude/state/board-deadletter.jsonl
-comment_format=ts **from** (kind/priority): message
+#!/bin/bash
+# The canonical target for estate-broadcast.py.
+#
+# This file is the single source of truth for:
+# - The GitHub repository name (e.g., "crew")
+# - The GitHub issue number (e.g., "102")
+# - The dead-letter file path (e.g., "~/.claude/state/board-deadletter.jsonl")
+#
+# Any script that interacts with the estate board should read these values from here.
+#
+# Usage:
+#   REPO=$(board-target repo)
+#   ISSUE_NUMBER=$(board-target issue)
+#   DEAD_LETTER_PATH=$(board-target deadletter)
+
+set -euo pipefail
+
+COMMAND="${1:-}"
+
+case "$COMMAND" in
+    repo)
+        echo "crew"
+        ;;
+    issue)
+        echo "102"
+        ;;
+    deadletter)
+        echo "~/.claude/state/board-deadletter.jsonl"
+        ;;
+    *)
+        echo "Usage: board-target [repo|issue|deadletter]"
+        exit 1
+        ;;
+esac

@@ -1,18 +1,20 @@
 # Crew Board Visibility — Complete Guide
 
+> **The board is GitHub issue crew#102, not a laptop file.** Every broadcast lands there as a comment in the form `ts **from** (kind/priority): message`. The local file at `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache the prompt hooks read when the network is gone. A row that fails to reach the board is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly — never silently dropped.
+
 ## What is the Crew Board?
 
-**Location:** `github.com/chidionyema/crew/issues/102`  
-**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs  
-**Access:** Web browser OR terminal (`gh` CLI) OR Telegram  
+**Location:** `github.com/chidionyema/crew/issues/102`
+**Writer:** `~/.claude/scripts/estate-broadcast.py` (via `gh issue comment 102 --repo chidionyema/crew -b ...`)
+**Dead-letter on transport failure:** `~/.claude/state/board-deadletter.jsonl` (append-only, loud warning to stderr)
+**Purpose:** Single source of truth for all estate decisions, P1 fires, and agent handoffs
+**Access:** Web browser OR terminal (`gh` CLI) OR Telegram
 
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
 - **P1 fires** live here (the 5 active problems)
 - **Decisions** are recorded here (why, not just what)
 - **Handoffs** are commented here (what you did, what's next)
 - **Evidence** is linked here (commands, outputs, logs)
-
-Any row that fails to land here is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly — never dropped silently.
 
 ---
 
@@ -25,20 +27,23 @@ Any row that fails to land here is dead-lettered to `~/.claude/state/board-deadl
 open https://github.com/chidionyema/crew/issues/102
 
 # Or use gh CLI to open
-gh issue view chidionyema/crew 102 --web
+gh repo view chidionyema/crew --web
 ```
 
 **What you see:**
-- All comments on issue #102, which represent the board rows.
-- Filter by label (P1, triage, needs-human, etc.) - *Note: Labels apply to the issue itself, not individual comments.*
+- All comments on the board, oldest first
+- Filter by author (your session, the founder)
 - Sort by activity, newest, oldest
 
 ---
 
-### **2. Terminal — Read the Board Issue**
+### **2. Terminal — Read the Board**
 
 ```bash
-# View issue #102 with full body + comments
+# View issue #102 (the estate board)
+gh issue view --repo chidionyema/crew 102
+
+# View with full body + comments
 gh issue view --repo chidionyema/crew 102 --comments
 
 # View in raw format (good for piping/grepping)
@@ -48,13 +53,13 @@ gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 **Output shows:**
 ```
 #102 ESTATE BOARD — every broadcast lands here
-OPEN · assigned to nobody
-  
+OPEN
+
 Body:
-  [issue description with definition of done]
-  
+  [the board contract: format, dead-letter path, definition of done]
+
 Comments:
-  [conversation, updates, status, broadcasted rows]
+  [every broadcast row, oldest first]
 ```
 
 ---
@@ -62,8 +67,11 @@ Comments:
 ### **3. Terminal — Watch Live Updates**
 
 ```bash
-# Watch for new comments on issue #102
-watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] | "\(.author.login): \(.body)" | tail -n 10'
+# Watch for new comments on the board
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments \
+  -q ".comments | length" | xargs -I{} echo "board rows: {}"'
+
+# Or create a live dashboard (see section below)
 ```
 
 ---
@@ -72,126 +80,140 @@ watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments -q '.comm
 
 | Goal | Command |
 |------|---------|
-| View issue #102 | `gh issue view --repo chidionyema/crew 102` |
+| View the board | `gh issue view --repo chidionyema/crew 102` |
 | View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
-| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| Latest comments only | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| Count rows | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments \| length'` |
+| Search the board | `gh issue view --repo chidionyema/crew 102 --comments \| grep <keyword>` |
+
+---
+
+## What You See on the Board Right Now
+
+The board carries the 5 active P1 fires, every directive from the founder,
+every state row from the inventory, every incident report, and every drill
+result. The format is fixed by the issue body:
+
+```
+`ts` **from** (kind/priority): message
+```
+
+A row that fails to land (network drop, 5xx, auth loss) is appended to
+`~/.claude/state/board-deadletter.jsonl` and a loud warning is emitted to
+stderr. The dead-letter file is the loud-failure channel — never silently
+drop.
 
 ---
 
 ## How to Post Updates to the Board
 
-### **Comment on the Issue (This is how `estate-broadcast.py` works)**
+### **Comment on the Board**
 
 ```bash
-# Add a comment to issue #102
-gh issue comment 102 --repo chidionyema/crew -b "Status update: New board row broadcasted."
+# Add a row to the board
+gh issue comment 102 --repo chidionyema/crew -b "$(date -u +%FT%TZ) **my-session** (update/info): what changed"
 
 # Add with evidence (command + output)
 gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
-## Status: Estate broadcast successful
+## Status: Fly invoice paid
 
 Command:
 \`\`\`
-scripts/estate-broadcast.py '{"ts": "$(date -uIs)", "from": "test-agent", "kind": "test", "priority": "info", "message": "Test message from agent."}'
+fly auth status
 \`\`\`
 
 Output:
 \`\`\`
-[SIMULATED] Commenting on crew#102:
-`2026-08-24T03:23:01.090857Z` **test-agent** (test/info): Test message from agent.
-Broadcast successful: https://github.com/crew/issues/102#comment-simulated
+Account chidionyema
+Status: Active
+Invoice: PAID
 \`\`\`
 
-Next: Monitor for dead-letter entries if transport fails.
+Next: Retry build (production 10 commits behind)
 EOF
 )"
 ```
 
----
+> **Never append to `~/.claude/ESTATE_BOARD.jsonl` by hand.** That file is the offline cache the prompt hooks read. The board is the issue. Use `gh issue comment 102 --repo chidionyema/crew -b ...`, or let `estate-broadcast.py` do it for you with dead-letter on failure.
 
-## Integration with Architect & maestro
+### **Create a New Issue**
 
-**Both agents watch the board:**
-
-1. **Architect** reads the board (issue #102 comments) to find RED states that need verification
-2. **maestro** reads the board (issue #102 comments) to see what P1s need healing and what's blocked
-
-**How they respond:**
-
-```
-You post: "Issue #102 comment: Fly build unblocked, payment made"
-          ↓
-maestro reads: Fly is unblocked, tries to heal the "build failed" signature
-              ↓
-Architect posts evidence: "Verified: flyctl apps list shows deployment succeeded" (as a comment on #102)
-              ↓
-You update issue: "Status: RESOLVED, production deployed" (as a comment on #102)
-              ↓
-Both agents move on to next P1 fire
+```bash
+gh issue create --repo chidionyema/crew \
+  --title "New finding: X needs Y" \
+  --body "Description with evidence" \
+  --label triage
 ```
 
----
+### **Change Issue Status**
 
-## The Four-Issue Model (Applies to the issue body, not individual comments)
+```bash
+# Add label (mark as in-progress)
+gh issue edit 102 --repo chidionyema/crew --add-label in-progress
 
-Every issue follows this pattern:
+# Assign to yourself
+gh issue edit 102 --repo chidionyema/crew --assignee @me
 
+# Close an issue (not the board — the board is permanent)
+gh issue close 104 --repo chidionyema/crew
 ```
-## Origin — what was asked
-[The problem statement]
-
-## Evidence — what we found
-[Raw command output, logs, metrics]
-
-## Analysis — what it means
-[Interpretation, root cause, blocked by what]
-
-## Next Step
-[What needs to happen next]
-```
-
-This means:
-- ✓ Every issue has proof, not claims
-- ✓ Next step is always clear
-- ✓ Both agents know what to do
-- ✓ Founder doesn't repeat questions
 
 ---
 
-## Addressing Your Question: Managing 3 Bots on One Interface
+## The Format Contract
 
-**Challenge:** Architect + maestro + coordinator (me) all posting to same Telegram + GitHub board
+Every row posted to the board follows this shape, declared by the issue body:
 
-**Solution:**
+```
+`ts` **from** (kind/priority): message
+```
 
-1. **GitHub issue #102 is the truth** (not Telegram)
-   - All three post here as comments
-   - All three read here
-   - Identities clear: `[architect]`, `[maestro]`, `[coordinator]`
-   - No duplication (each has a role, reads STATE.md before acting)
+- `ts` — ISO-8601 UTC timestamp
+- `from` — the session or actor name (bold, double-asterisk)
+- `kind/priority` — row kind and priority, parenthesised
+- `message` — the row body, one line
 
-2. **Telegram posts only on EXCEPTIONS**
-   - Architect: only on state change (RED/GREEN) or timeout
-   - maestro: only on healing failure or cap exceeded
-   - coordinator: only on disputes or manual intervention needed
-   - **Normal operation = silence** (no noise)
-
-3. **Crew board (issue #102) prevents stepping on toes**
-   - Each agent reads the board before starting
-   - "I'm working on #35" posted = others know not to redo it
-   - Handoff is a comment, not a DM
-   - Founder reads one board, not three separate channels
-
-4. **Evidence prevents disputes**
-   - Every claim includes command output
-   - If Architect says "RED", here's the failing test
-   - If maestro says "healing failed", here's the attempt and result
-   - No "I think X is happening" (only measured facts)
-
-**Result:** Three agents, one board, zero confusion. All operating autonomously within their role.
+The writer (`estate-broadcast.py`) and the tests pin this format. Drift is
+a defect, not a feature.
 
 ---
 
-**The board (crew#102) is your window into what all agents (human and AI) are doing, thinking, and planning.**
+## Dead-letter on Transport Failure
+
+If `gh issue comment 102 --repo chidionyema/crew -b ...` fails (network drop,
+5xx, auth loss), the writer MUST:
+
+1. Append the original row to `~/.claude/state/board-deadletter.jsonl` (one row per line, append-only).
+2. Emit a loud warning to stderr — never silently drop.
+3. Exit non-zero so the caller knows the row did not land.
+
+The dead-letter file is the loud-failure channel. A board with permanent
+red is a board people stop reading (LAW 28); a silent drop is worse — it
+deletes evidence.
+
+---
+
+## Quick Start to Crew Board Visibility
+
+```bash
+# 1. View the board right now
+gh issue view --repo chidionyema/crew 102 --comments | tail -40
+
+# 2. Open in browser
+open https://github.com/chidionyema/crew/issues/102
+
+# 3. Watch live (every 30 sec)
+watch -n 30 'gh issue view --repo chidionyema/crew 102 --json comments -q ".comments | length"'
+
+# 4. Post a status update
+gh issue comment 102 --repo chidionyema/crew -b "$(date -u +%FT%TZ) **me** (update/info): what changed"
+
+# 5. Confirm the dead-letter path is wired
+test -f ~/.claude/state/board-deadletter.jsonl && echo "dead-letter path wired"
+```
+
+---
+
+**The board is your window into what all agents (human and AI) are doing, thinking, and planning.**
 
 Use it. Post to it. The agents read it. No repeated questions, no confusion, maximum clarity.

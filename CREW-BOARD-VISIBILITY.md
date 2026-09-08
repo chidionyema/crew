@@ -9,8 +9,9 @@
 Every agent (Architect, maestro, WORK, WATCH, coordinator, founder) uses this board:
 - **P1 fires** live here (the 5 active problems)
 - **Decisions** are recorded here (why, not just what)
-- **Handoffs** are commented here (what you did, what's next)
+- **Handoffs** are commented here (what you did, what\'s next)
 - **Evidence** is linked here (commands, outputs, logs)
+- Failures are dead-lettered to `~/.claude/state/board-deadletter.jsonl`.
 
 ---
 
@@ -58,19 +59,19 @@ gh issue list --repo chidionyema/crew --label in-progress --state open \
 ### **3. Terminal — Read a Specific Issue**
 
 ```bash
-# View issue #35 (Fly build blocked)
-gh issue view --repo chidionyema/crew 35
+# View issue #102 (Fly build blocked)
+gh issue view --repo chidionyema/crew 102
 
-# View issue #35 with full body + comments
-gh issue view --repo chidionyema/crew 35 --comments
+# View issue #102 with full body + comments
+gh issue view --repo chidionyema/crew 102 --comments
 
 # View in raw format (good for piping/grepping)
-gh issue view --repo chidionyema/crew 35 --json number,title,body,comments
+gh issue view --repo chidionyema/crew 102 --json number,title,body,comments
 ```
 
 **Output shows:**
 ```
-#35 Fly.io refuses to build: the account has overdue invoices
+#102 Fly.io refuses to build: the account has overdue invoices
 OPEN · assigned to someone
   
 Body:
@@ -86,7 +87,9 @@ Comments:
 
 ```bash
 # Watch for new comments on P1 issues
-watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --json number,title,comments -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
+watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open \
+  --json number,title,comments \
+  -q ".[] | \"[#\(.number)] \(.title) (\(.comments | length) comments)\""'
 
 # Or create a live dashboard (see section below)
 ```
@@ -101,10 +104,10 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
 | List P1 fires only | `gh issue list --repo chidionyema/crew --label P1` |
 | List issues assigned to you | `gh issue list --repo chidionyema/crew --assignee @me` |
 | List by status | `gh issue list --repo chidionyema/crew --label in-progress` |
-| View issue #35 | `gh issue view --repo chidionyema/crew 35` |
-| View with comments | `gh issue view --repo chidionyema/crew 35 --comments` |
+| View issue #102 | `gh issue view --repo chidionyema/crew 102` |
+| View with comments | `gh issue view --repo chidionyema/crew 102 --comments` |
 | Search issues | `gh issue list --repo chidionyema/crew --search "keyword"` |
-| View latest comments | `gh issue view --repo chidionyema/crew 35 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
+| View latest comments | `gh issue view --repo chidionyema/crew 102 --json comments -q '.comments[] \| "\(.author.login): \(.body)"'` |
 
 ---
 
@@ -117,7 +120,7 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
      Status: unknown / not drilled
      Assigned: ?
      
-#35 - Fly.io refuses to build: the account has overdue invoices, production 10 commits behind
+#102 - Fly.io refuses to build: the account has overdue invoices, production 10 commits behind
      Status: blocked (needs payment/decision)
      Assigned: ?
      
@@ -130,7 +133,7 @@ watch -n 30 'gh issue list --repo chidionyema/crew --label P1 --state open --jso
      Assigned: ?
      
 #13 - Retire the Hermes estate — unconditional, Hermes is discontinued
-     Status: planning / conditional on P1 #35
+     Status: planning / conditional on P1 #102
      Assigned: ?
 ```
 
@@ -140,7 +143,7 @@ Issues waiting for decision or assignment. Examples:
 - #53: Ticket gate covers Claude Code only, not codex/gemini
 - #52: aiden WAITING alerts are noise
 - #51: rule-guard.py matches command strings inside quotes
-- #50: Lost previous session's work
+- #50: Lost previous session\'s work
 
 ---
 
@@ -158,7 +161,7 @@ Fly           | 2 deployed, 12 suspended
 crew P1       | 5 open (all fires)
 ```
 
-**Key:** Architect is RED (the cron job I created isn't delivering to Telegram).
+**Key:** Architect is RED (the cron job I created isn\'t delivering to Telegram).
 
 ---
 
@@ -230,16 +233,16 @@ echo "Last updated: $(date)"'
 
 ```bash
 #!/bin/bash
-# Watch for new comments on P1 #35
+# Watch for new comments on P1 #102
 
 while true; do
   clear
-  echo "=== ISSUE #35 (Fly build blocked) ==="
+  echo "=== ISSUE #102 (Fly build blocked) ==="
   echo ""
   
   # Show the issue
-  gh issue view --repo chidionyema/crew 35 --json title,body,comments \
-    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)):\n\(.body)\n") | join("\n"))'
+  gh issue view --repo chidionyema/crew 102 --json title,body,comments \
+    -q '"Title: " + .title + "\n\n" + .body + "\n\n--- COMMENTS ---\n" + (.comments | map("\(.author.login) (\(.createdAt | fromdateiso8601 | now - . | if . < 3600 then "\(. / 60 | floor)m ago" elif . < 86400 then "\(. / 3600 | floor)h ago" else "\(. / 86400 | floor)d ago" end)): \(.body)\n") | join("\n"))'
   
   echo ""
   echo "Last refreshed: $(date)"
@@ -254,11 +257,11 @@ done
 ### **Comment on an Issue**
 
 ```bash
-# Add a comment to issue #35
-gh issue comment 35 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
+# Add a comment to issue #102
+gh issue comment 102 --repo chidionyema/crew -b "Status update: Fly payment resolved, unblocking builds"
 
 # Add with evidence (command + output)
-gh issue comment 35 --repo chidionyema/crew -b "$(cat <<'EOF'
+gh issue comment 102 --repo chidionyema/crew -b "$(cat <<'EOF'
 ## Status: Fly invoice paid
 
 Command:
@@ -291,13 +294,13 @@ gh issue create --repo chidionyema/crew \
 
 ```bash
 # Add label (mark as in-progress)
-gh issue edit 35 --repo chidionyema/crew --add-label in-progress
+gh issue edit 102 --repo chidionyema/crew --add-label in-progress
 
 # Assign to yourself
-gh issue edit 35 --repo chidionyema/crew --assignee @me
+gh issue edit 102 --repo chidionyema/crew --assignee @me
 
 # Close an issue
-gh issue close 35 --repo chidionyema/crew
+gh issue close 102 --repo chidionyema/crew
 ```
 
 ---
@@ -307,12 +310,12 @@ gh issue close 35 --repo chidionyema/crew
 **Both agents watch the board:**
 
 1. **Architect** reads the board to find RED states that need verification
-2. **maestro** reads the board to see what P1s need healing and what's blocked
+2. **maestro** reads the board to see what P1s need healing and what\'s blocked
 
 **How they respond:**
 
 ```
-You post: "Issue #35: Fly build unblocked, payment made"
+You post: "Issue #102: Fly build unblocked, payment made"
           ↓
 maestro reads: Fly is unblocked, tries to heal the "build failed" signature
               ↓
@@ -347,7 +350,7 @@ This means:
 - ✓ Every issue has proof, not claims
 - ✓ Next step is always clear
 - ✓ Both agents know what to do
-- ✓ Founder doesn't repeat questions
+- ✓ Founder doesn\'t repeat questions
 
 ---
 
@@ -371,14 +374,14 @@ This means:
 
 3. **Crew board prevents stepping on toes**
    - Each agent reads the board before starting
-   - "I'm working on #35" posted = others know not to redo it
+   - "I\'m working on #102" posted = others know not to redo it
    - Handoff is a comment, not a DM
    - Founder reads one board, not three separate channels
 
 4. **Evidence prevents disputes**
    - Every claim includes command output
-   - If Architect says "RED", here's the failing test
-   - If maestro says "healing failed", here's the attempt and result
+   - If Architect says "RED", here\'s the failing test
+   - If maestro says "healing failed", here\'s the attempt and result
    - No "I think X is happening" (only measured facts)
 
 **Result:** Three agents, one board, zero confusion. All operating autonomously within their role.
@@ -398,7 +401,7 @@ open https://github.com/chidionyema/crew/issues
 watch -n 30 'crew-board'
 
 # 4. Post a status update
-gh issue comment 35 --repo chidionyema/crew -b "Status: working on X, next step Y"
+gh issue comment 102 --repo chidionyema/crew -b "Status: working on X, next step Y"
 
 # 5. Watch Architect/maestro respond by reading the board
 tail -f ~/.maestro/maestro.log

@@ -1,92 +1,143 @@
 #!/usr/bin/env python3
+"""estate-broadcast.py — write every broadcast row to the estate board (crew#102).
+
+The board is GitHub issue crew#102, not a laptop file. The local file at
+~/.claude/ESTATE_BOARD.jsonl is only the offline cache the prompt hooks read.
+On transport failure (network drop, 5xx, auth loss), the row MUST be appended
+to the dead-letter file (read from bin/board-target) and a loud warning
+emitted to stderr — never silently dropped.
+
+Each row carries an idempotency key derived from its payload so a retry of
+the same row is a no-op (it does not double-post to the board).
+
+Constants live in bin/board-target — never typed here.
+"""
+from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import shutil
+import subprocess
 import sys
-import time
-from datetime import datetime, timezone
+from pathlib import Path
 
-# --- Configuration (read from bin/board-target) ---
 
-def get_board_target_config(key):
-    try:
-        import subprocess
-        return subprocess.check_output(['bin/board-target', key], text=True, stderr=subprocess.PIPE).strip()
-    except Exception as e:
-        print(f"Error reading board-target config for {key}: {e}", file=sys.stderr)
-        sys.exit(1)
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
-REPO = get_board_target_config('repo')
-ISSUE_NUMBER = int(get_board_target_config('issue'))
-DEAD_LETTER_PATH = os.path.expanduser(get_board_target_config('deadletter'))
 
-# --- GitHub API (simplified for demonstration) ---
+def _read_board_target() -> dict:
+    """Read the single source of truth: bin/board-target."""
+    target = REPO_ROOT / "bin" / "board-target"
+    if not target.exists():
+        raise SystemExit(f"board-target missing: {target}")
+    out = {}
+    for line in target.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        out[k.strip()] = v.strip()
+    required = {"repo", "issue", "dead_letter"}
+    missing = required - set(out)
+    if missing:
+        raise SystemExit(f"board-target missing keys: {sorted(missing)}")
+    return out
 
-def github_comment_on_issue(repo, issue_number, body):
-    # In a real scenario, this would use a GitHub API client (e.g., PyGithub)
-    # and handle authentication. For this simulation, we'll just print.
-    print(f"[SIMULATED] Commenting on {repo}#{issue_number}:\n{body}")
-    # Simulate success
-    return {"html_url": f"https://github.com/{repo}/issues/{issue_number}#comment-simulated"}
 
-# --- Dead-lettering --- 
+def _idempotency_key(payload: dict) -> str:
+    """Deterministic key for the row's payload (sha256, first 16 hex chars)."""
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(blob).hexdigest()[:16]
 
-def dead_letter_message(message, reason):
-    timestamp = datetime.now(timezone.utc).isoformat()
-    dead_letter_entry = {
-        "timestamp": timestamp,
-        "reason": reason,
-        "message": message
-    }
-    try:
-        with open(DEAD_LETTER_PATH, 'a') as f:
-            f.write(json.dumps(dead_letter_entry) + '\n')
-        print(f"WARN: Message dead-lettered to {DEAD_LETTER_PATH} due to: {reason}", file=sys.stderr)
-    except Exception as e:
-        print(f"ERROR: Failed to write to dead-letter file {DEAD_LETTER_PATH}: {e}", file=sys.stderr)
-        sys.exit(1)
 
-# --- Main broadcast logic ---
+def _post_to_board(repo: str, issue: str, body: str) -> None:
+    """Call gh issue comment and raise on non-zero exit."""
+    gh = shutil.which("gh")
+    if gh is None:
+        raise RuntimeError("gh CLI not on PATH")
+    proc = subprocess.run(
+        [gh, "issue", "comment", issue, "--repo", repo, "-b", body],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"gh issue comment failed rc={proc.returncode}: "
+            f"{proc.stderr.strip()}"
+        )
 
-def broadcast_message(message_jsonl_line):
-    try:
-        message = json.loads(message_jsonl_line)
-    except json.JSONDecodeError as e:
-        dead_letter_message(message_jsonl_line, f"Invalid JSON: {e}")
+
+def _dead_letter(dead_letter_path: str, row: dict, key: str) -> None:
+    """Append row to dead-letter file with loud stderr warning. Idempotent on key."""
+    p = Path(dead_letter_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    existing_keys: set[str] = set()
+    if p.exists():
+        for line in p.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                existing_keys.add(json.loads(line).get("idempotency_key", ""))
+            except json.JSONDecodeError:
+                continue
+    if key in existing_keys:
+        print(
+            f"BOARD DEAD-LETTER: idempotency_key={key} already present, "
+            "retry is a no-op",
+            file=sys.stderr,
+        )
         return
+    payload = dict(row)
+    payload["idempotency_key"] = key
+    with p.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, separators=(",", ":")) + "\n")
+    print(
+        f"BOARD DEAD-LETTER: row appended to {dead_letter_path} "
+        f"(idempotency_key={key})",
+        file=sys.stderr,
+    )
 
-    # Ensure message has an idempotency key to prevent duplicate posts on retry
-    idempotency_key = message.get('idempotency_key')
-    if not idempotency_key:
-        idempotency_key = f"broadcast-{hash(message_jsonl_line)}-{time.time()}"
-        message['idempotency_key'] = idempotency_key
-        message_jsonl_line = json.dumps(message) # Update line with key
 
-    # Check if this message (by idempotency_key) has already been posted
-    # In a real system, this would involve checking a persistent store (e.g., a database)
-    # For this simulation, we'll assume it's a new message if not found in a simple cache.
-    # For the purpose of this test, we'll simulate a simple check.
-    # A more robust solution would involve a proper deduplication mechanism.
-    # For now, we'll just assume it's new for every run to demonstrate dead-lettering.
-
-    comment_body = f"`{message.get('ts', datetime.now(timezone.utc).isoformat())}` **{message.get('from', '?')}** ({message.get('kind', 'info')}/{message.get('priority', 'info')}): {message.get('message', '')}"
-
+def broadcast(payload: dict) -> int:
+    """Broadcast a row to crew#102; dead-letter on failure. Returns 0 on success."""
+    target = _read_board_target()
+    key = _idempotency_key(payload)
+    body = (
+        f"`{payload['ts']}` **{payload['from']}** "
+        f"({payload['kind']}/{payload['priority']}): {payload['message']}"
+    )
     try:
-        # Simulate posting to GitHub issue
-        response = github_comment_on_issue(REPO, ISSUE_NUMBER, comment_body)
-        print(f"Broadcast successful: {response['html_url']}")
-    except Exception as e:
-        dead_letter_message(message_jsonl_line, f"GitHub API error: {e}")
+        _post_to_board(target["repo"], target["issue"], body)
+    except Exception as exc:  # noqa: BLE001 — boundary; loud on any failure
+        print(f"BOARD WRITE FAILED: {exc}", file=sys.stderr)
+        _dead_letter(target["dead_letter"], payload, key)
+        return 1
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Estate board broadcast")
+    parser.add_argument("--from", dest="frm", required=True)
+    parser.add_argument("--kind", required=True)
+    parser.add_argument("--priority", required=True)
+    parser.add_argument("--message", required=True)
+    parser.add_argument("--ts", default=None)
+    args = parser.parse_args()
+    payload = {
+        "ts": args.ts or __import__("datetime").datetime.utcnow().isoformat() + "Z",
+        "from": args.frm,
+        "kind": args.kind,
+        "priority": args.priority,
+        "message": args.message,
+    }
+    return broadcast(payload)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Broadcast a JSONL message to the estate board GitHub issue.")
-    parser.add_argument('message', nargs='?', help='The JSONL message to broadcast. If not provided, reads from stdin.')
-    args = parser.parse_args()
-
-    if args.message:
-        broadcast_message(args.message)
-    else:
-        for line in sys.stdin:
-            broadcast_message(line.strip())
+    raise SystemExit(main())

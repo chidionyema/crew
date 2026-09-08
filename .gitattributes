@@ -15,6 +15,11 @@ science/attention.jsonl       merge=union
 science/predictions.jsonl     merge=union
 science/ships.jsonl           merge=union
 risk/REGISTER.jsonl           merge=union
+# Added 2026-09-08 after it conflicted for real: PR #909 and PR #904 each appended one
+# guard row, and the second could not merge. Every session that fixes a defect appends
+# here, so this is the most-appended ledger in the repository and was the only one
+# missing from this list.
+incidents/GUARDS.jsonl        merge=union
 #
 # WHAT IT COSTS, stated so nobody discovers it later: a union merge appends the other side's
 # lines to yours, so rows land in MERGE order and not in date order. Every row carries its own

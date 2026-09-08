@@ -1,70 +1,100 @@
-
-import json
+import pytest
+import subprocess
 import os
-import pathlib
-import tempfile
-import datetime
+import json
+from unittest.mock import patch, MagicMock
 
-# This function simulates the dead-letter writing logic that would be in estate-broadcast.py
-# For the purpose of this test in the 'crew' repo, we assume this function exists
-# and is called when a broadcast fails.
-def write_to_dead_letter_file(message: str, idempotency_key: str, error_message: str, dead_letter_path: pathlib.Path):
-    entry = {
-        "ts": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
-        "from": "test-broadcast",
-        "kind": "test",
-        "priority": "P0",
-        "message": message,
-        "idempotency_key": idempotency_key,
-        "error": error_message
-    }
+# Mock the gh command to simulate failures
+def mock_gh_issue_comment_fail(*args, **kwargs):
+    if "--body" in kwargs:
+        # Simulate a 5xx error by raising an exception
+        raise subprocess.CalledProcessError(returncode=1, cmd="gh issue comment", stderr="HTTP 500: Internal Server Error")
+    return MagicMock(stdout="{}")
 
-    # Check for idempotency before writing
-    if dead_letter_path.exists():
-        with open(dead_letter_path, "r") as f:
+def mock_gh_issue_comment_success(*args, **kwargs):
+    return MagicMock(stdout="{}")
+
+@pytest.fixture
+def setup_deadletter_file(tmp_path):
+    # Use a temporary directory for HOME to isolate dead-letter file
+    temp_home = tmp_path / "temp_home"
+    deadletter_dir = temp_home / ".claude" / "state"
+    deadletter_path = deadletter_dir / "board-deadletter.jsonl"
+    os.makedirs(deadletter_dir, exist_ok=True)
+
+    with patch.dict(os.environ, {"HOME": str(temp_home)}):
+        yield deadletter_path
+
+# This function simulates the core logic of estate-broadcast.py for dead-lettering
+def simulate_estate_broadcast_deadletter(payload, mock_gh_function):
+    deadletter_file = os.path.expanduser("~/.claude/state/board-deadletter.jsonl")
+    
+    # Check for idempotency key in existing dead-letter file
+    existing_keys = set()
+    if os.path.exists(deadletter_file):
+        with open(deadletter_file, "r") as f:
             for line in f:
                 try:
-                    existing_entry = json.loads(line)
-                    if existing_entry.get("idempotency_key") == idempotency_key:
-                        return # Already written, do nothing
+                    data = json.loads(line)
+                    if "idempotency_key" in data:
+                        existing_keys.add(data["idempotency_key"])
                 except json.JSONDecodeError:
-                    continue
+                    pass # Ignore malformed lines
 
-    with open(dead_letter_path, "a") as f:
-        f.write(json.dumps(entry) + "\n")
+    if "idempotency_key" in payload and payload["idempotency_key"] in existing_keys:
+        return False # Already dead-lettered, no-op
 
-def test_dead_letter_file_records_failure_and_is_idempotent():
-    with tempfile.TemporaryDirectory() as tmpdir:
-        dead_letter_path = pathlib.Path(tmpdir) / "board-deadletter.jsonl"
+    try:
+        # Simulate the gh issue comment call
+        mock_gh_function(
+            "102",
+            repo="chidionyema/crew",
+            _b=json.dumps(payload) # Assuming the payload is passed as a JSON string in the body
+        )
+    except subprocess.CalledProcessError:
+        # If gh call fails, dead-letter the payload
+        with open(deadletter_file, "a") as f:
+            f.write(json.dumps(payload) + "\n")
+        return False
+    return True
 
-        test_message = "This is a test message for dead-lettering."
-        idempotency_key = "unique-broadcast-id-1"
-        error_msg = "GitHub API returned 500 Internal Server Error."
+def test_broadcast_failure_dead_letters_payload(setup_deadletter_file):
+    deadletter_path = setup_deadletter_file
+    payload = {"ts": "2026-08-29T10:00:00Z", "from": "test", "kind": "info", "message": "Test broadcast"}
 
-        # First attempt to write to dead-letter file
-        write_to_dead_letter_file(test_message, idempotency_key, error_msg, dead_letter_path)
+    # Simulate gh command failing
+    with patch("subprocess.run", side_effect=mock_gh_issue_comment_fail):
+        success = simulate_estate_broadcast_deadletter(payload, subprocess.run)
+        assert not success
 
-        assert dead_letter_path.exists()
-        content_lines = dead_letter_path.read_text().strip().splitlines()
-        assert len(content_lines) == 1
+    # Verify payload is in dead-letter file
+    with open(deadletter_path, "r") as f:
+        dead_letter_content = f.read()
+        assert json.dumps(payload) + "\n" in dead_letter_content
 
-        first_entry = json.loads(content_lines[0])
-        assert first_entry["message"] == test_message
-        assert first_entry["idempotency_key"] == idempotency_key
-        assert first_entry["error"] == error_msg
+def test_retry_with_same_idempotency_key_is_no_op(setup_deadletter_file):
+    deadletter_path = setup_deadletter_file
+    idempotency_key = "unique-key-123"
+    payload_1 = {"ts": "2026-08-29T10:00:00Z", "from": "test", "kind": "info", "message": "First broadcast", "idempotency_key": idempotency_key}
+    payload_2 = {"ts": "2026-08-29T10:01:00Z", "from": "test", "kind": "info", "message": "Second broadcast (same key)", "idempotency_key": idempotency_key}
+    payload_3 = {"ts": "2026-08-29T10:02:00Z", "from": "test", "kind": "info", "message": "Third broadcast (different key)", "idempotency_key": "another-key"}
 
-        # Second attempt with the same idempotency key should not add a new entry
-        write_to_dead_letter_file(test_message, idempotency_key, "Another error", dead_letter_path)
+    # First broadcast fails and dead-letters
+    with patch("subprocess.run", side_effect=mock_gh_issue_comment_fail):
+        simulate_estate_broadcast_deadletter(payload_1, subprocess.run)
 
-        content_lines_after_second_attempt = dead_letter_path.read_text().strip().splitlines()
-        assert len(content_lines_after_second_attempt) == 1 # Still only one entry
+    # Second broadcast with same key, should be a no-op for dead-lettering
+    with patch("subprocess.run", side_effect=mock_gh_issue_comment_fail):
+        simulate_estate_broadcast_deadletter(payload_2, subprocess.run)
 
-        # Third attempt with a different idempotency key should add a new entry
-        new_idempotency_key = "unique-broadcast-id-2"
-        write_to_dead_letter_file("Another message", new_idempotency_key, "Different error", dead_letter_path)
+    # Third broadcast with different key, should dead-letter
+    with patch("subprocess.run", side_effect=mock_gh_issue_comment_fail):
+        simulate_estate_broadcast_deadletter(payload_3, subprocess.run)
 
-        content_lines_after_third_attempt = dead_letter_path.read_text().strip().splitlines()
-        assert len(content_lines_after_third_attempt) == 2
-
-        second_entry = json.loads(content_lines_after_third_attempt[1])
-        assert second_entry["idempotency_key"] == new_idempotency_key
+    # Verify dead-letter file content
+    with open(deadletter_path, "r") as f:
+        dead_letter_lines = f.readlines()
+        assert len(dead_letter_lines) == 2 # Only payload_1 and payload_3 should be there
+        assert json.dumps(payload_1) + "\n" in dead_letter_lines
+        assert json.dumps(payload_3) + "\n" in dead_letter_lines
+        assert json.dumps(payload_2) + "\n" not in dead_letter_lines

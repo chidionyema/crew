@@ -42,11 +42,13 @@ def now_utc() -> dt.datetime:
     return dt.datetime.now(dt.UTC).replace(microsecond=0)
 
 
-def watched(path: pathlib.Path = SOURCES) -> list[dict]:
+def watched(path: pathlib.Path | None = None) -> list[dict]:
+    path = SOURCES if path is None else path
     return json.loads(path.read_text())["watch"]
 
 
-def read_rows(path: pathlib.Path = INTAKE) -> list[dict]:
+def read_rows(path: pathlib.Path | None = None) -> list[dict]:
+    path = INTAKE if path is None else path
     if not path.exists():
         return []
     return [json.loads(ln) for ln in path.read_text().splitlines() if ln.strip()]

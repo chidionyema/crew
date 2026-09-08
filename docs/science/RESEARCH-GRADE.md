@@ -1,10 +1,10 @@
 # Research capability, graded
 
-Generated 2026-09-03 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
+Generated 2026-09-08 by `python3 science/research_grade.py`. Two directions, graded separately (R37): **Outward** is what the estate learned from the world, **Inward** is what it learned about itself. Every row re-runs; no number is typed by hand.
 
 | Direction | Grade | One sentence |
 |---|---|---|
-| Outward | **GAP** | 31 of 31 questions fed a decision; 0 stale, 0 with no source; intake RED, 4 candidates (0 late); ideas: 0 scored in 1d of 1 ever. |
+| Outward | **GAP** | 32 of 32 questions fed a decision; 0 stale, 0 with no source; intake RED, 4 candidates (4 late); ideas: 0 scored in 1d of 1 ever. |
 | Inward | **GAP** | foresight trained; 0 of 11 predictions scored. |
 
 ## Delivered — receipts authored outside this lane
@@ -19,14 +19,14 @@ Source: `science/RESEARCH-LEDGER.jsonl`.
 
 | What | Value | How it is counted |
 |---|---|---|
-| Questions asked | 31 | rows in `science/RESEARCH-LEDGER.jsonl` |
-| Decisions fed | 31 (100%) | rows whose `decision_fed` carries text |
+| Questions asked | 32 | rows in `science/RESEARCH-LEDGER.jsonl` |
+| Decisions fed | 32 (100%) | rows whose `decision_fed` carries text |
 | Questions still open | 0 | rows with no `decision_fed` |
 | Median question to decision | 0.0h | `decided_at` - `asked_at`, else day granularity |
-| Sources cited | 342 total, median 9 per question (min 1, max 40) | `len(row['sources'])` |
+| Sources cited | 347 total, median 8.5 per question (min 1, max 40) | `len(row['sources'])` |
 | Questions with no source | 0 | `sources` empty |
 
-31 of 31 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
+32 of 32 fed rows record only a day, not a timestamp, so they count as 0h. The median is a floor, not a measurement, until the ledger carries `asked_at` and `decided_at`.
 
 ## Outward — ideas for the store front (crew#659)
 
@@ -49,11 +49,18 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-30T03:29:58+00:00 (RED, 4.3d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-30T03:29:58+00:00 (RED, 9.1d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
 | Releases filed | 26 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
-| Candidates unanswered | 4 (0 RED, >7d) | `status == candidate` |
+| Candidates unanswered | 4 (4 RED, >7d) | `status == candidate` |
 | Adopted / declined | 0 / 0 | `status` with a ticket |
+
+| Age | Row | Release | Ticket |
+|---|---|---|---|
+| RED 9d | Secrets | [FiloSottile/age v1.3.2](https://github.com/FiloSottile/age/releases/tag/v1.3.2) | - |
+| RED 9d | Agent traces | [langfuse/langfuse v4.24.0](https://github.com/langfuse/langfuse/releases/tag/v4.24.0) | - |
+| RED 9d | Scheduling | [dagster-io/dagster 1.13.20](https://github.com/dagster-io/dagster/releases/tag/1.13.20) | - |
+| RED 9d | Code quality | [astral-sh/ruff 0.16.5](https://github.com/astral-sh/ruff/releases/tag/0.16.5) | - |
 
 | Seen | Row | Release | Status |
 |---|---|---|---|

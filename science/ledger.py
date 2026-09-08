@@ -66,7 +66,8 @@ def validate(e: dict) -> dict:
     return out
 
 
-def append(e: dict, ledger: pathlib.Path = LEDGER) -> dict:
+def append(e: dict, ledger: pathlib.Path | None = None) -> dict:
+    ledger = LEDGER if ledger is None else ledger
     e = validate(e)
     with ledger.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(e, ensure_ascii=False) + "\n")

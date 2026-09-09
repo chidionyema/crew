@@ -1,11 +1,11 @@
 {
  "domains": {
   "mac": 676,
-  "cluster": 519,
+  "cluster": 528,
   "endpoint": 13,
   "hook": 34,
   "mcp": 1,
-  "github": 658,
+  "github": 663,
   "transcript": 34,
   "act": 8
  },

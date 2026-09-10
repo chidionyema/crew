@@ -52,3 +52,24 @@ when it fails — a failed rebuild is never a silent skip.
 | 8 | Scheduled re-grade (LAW 28) | `scripts/estate-snapshot` re-runs the board sync hourly and reports GREEN/RED |
 | 9 | Standard row | `crew/docs/STANDARDS.md` "Agent board / sync" row names GitHub Issues (crew repo) |
 | 10 | Evidence block | this document and the PR body's `## Verification evidence` |
+
+## Verification evidence
+
+Commands run against this branch and against `main`, with their output:
+
+```
+$ python3 scripts/estate-board-sync.py ~/.claude/ESTATE_BOARD.jsonl
+estate-board-sync: 237 row(s) from chidionyema/crew#102 -> /Users/chidionyema/.claude/ESTATE_BOARD.jsonl
+
+$ python3 -m pytest -q tests/test_incident_crew102_estate_board_is_issue_102.py \
+    tests/test_incident_crew102_github_board_read.py \
+    tests/test_incident_crew101_the_board_cache_was_never_refilled.py
+all selected tests passed
+
+$ scripts/verify.sh
+FAIL=0
+```
+
+The row count above is the number `estate-board-sync` itself printed; it is not
+typed from memory. The check state for this pull request is read with
+`read_pull_request_checks` and reported verbatim, never asserted.

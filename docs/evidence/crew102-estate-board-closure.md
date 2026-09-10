@@ -33,7 +33,7 @@ and warned loudly — never silently dropped.
 python3 scripts/estate-board-sync.py ~/.claude/ESTATE_BOARD.jsonl
 ```
 
-Expected output: `estate-board-sync: <n> row(s) from chidionyema/crew#102 -> ~/.claude/ESTATE_BOARD.jsonl`
+Expected output: `estate-board-sync: <n> row(s) from chidionyema/crew#102 -> /Users/chidionyema/.claude/ESTATE_BOARD.jsonl`
 
 The snapshot's `estate board` row reads GREEN when the rebuild succeeds and RED
 when it fails — a failed rebuild is never a silent skip.

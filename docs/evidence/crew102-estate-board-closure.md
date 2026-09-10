@@ -73,3 +73,11 @@ FAIL=0
 The row count above is the number `estate-board-sync` itself printed; it is not
 typed from memory. The check state for this pull request is read with
 `read_pull_request_checks` and reported verbatim, never asserted.
+
+## What this branch adds, and what it does not
+
+This branch adds evidence only. It does not re-implement the board, does not
+re-run the suite as a separate step (the suite is a gate, not a step), and does
+not hunt the board history for a founder receipt (the receipt is the board's own
+comment history, already on the record). The board mechanism and its evidence
+are already merged on `main`; this branch is the closure record for crew#102.

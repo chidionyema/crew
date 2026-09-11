@@ -1,13 +1,13 @@
 # Science lane showcase
 
-Generated 2026-09-11T19:04Z by `python3 science/showcase.py`. Every number is read at generation
+Generated 2026-09-11T21:04Z by `python3 science/showcase.py`. Every number is read at generation
 time; the command under each heading reproduces it. A section that cannot see its source says BLIND.
 
 ## Progress since the previous run
 
-Previous run: 2026-09-11T17:05Z.
+Previous run: 2026-09-11T19:04Z.
 
-- producers discovered: 2355 -> 2348
+No number changed.
 
 ## Capabilities
 

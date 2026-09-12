@@ -49,7 +49,7 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | What | Value | How it is counted |
 |---|---|---|
-| Last pull | 2026-08-30T03:29:58+00:00 (RED, 13.0d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
+| Last pull | 2026-08-30T03:29:58+00:00 (RED, 13.1d ago) | `science/research-intake-state.json` `last_pull`, red past 2 days |
 | Repos watched | 22 (0 unreachable on the last pull) | `research-sources.json` `watch` |
 | Releases filed | 26 (22 baseline) | rows on the intake ledger; baseline = first release seen per repo |
 | Candidates unanswered | 4 (4 RED, >7d) | `status == candidate` |
@@ -57,10 +57,10 @@ Source: `science/RESEARCH-INTAKE.jsonl`, watch list `science/research-sources.js
 
 | Age | Row | Release | Ticket |
 |---|---|---|---|
-| RED 12d | Secrets | [FiloSottile/age v1.3.2](https://github.com/FiloSottile/age/releases/tag/v1.3.2) | - |
-| RED 12d | Agent traces | [langfuse/langfuse v4.24.0](https://github.com/langfuse/langfuse/releases/tag/v4.24.0) | - |
-| RED 12d | Scheduling | [dagster-io/dagster 1.13.20](https://github.com/dagster-io/dagster/releases/tag/1.13.20) | - |
-| RED 12d | Code quality | [astral-sh/ruff 0.16.5](https://github.com/astral-sh/ruff/releases/tag/0.16.5) | - |
+| RED 13d | Secrets | [FiloSottile/age v1.3.2](https://github.com/FiloSottile/age/releases/tag/v1.3.2) | - |
+| RED 13d | Agent traces | [langfuse/langfuse v4.24.0](https://github.com/langfuse/langfuse/releases/tag/v4.24.0) | - |
+| RED 13d | Scheduling | [dagster-io/dagster 1.13.20](https://github.com/dagster-io/dagster/releases/tag/1.13.20) | - |
+| RED 13d | Code quality | [astral-sh/ruff 0.16.5](https://github.com/astral-sh/ruff/releases/tag/0.16.5) | - |
 
 | Seen | Row | Release | Status |
 |---|---|---|---|

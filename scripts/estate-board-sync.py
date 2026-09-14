@@ -39,6 +39,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime
 
 #: The format the board issue's own body declares: `ts` **from** (kind/priority): message.
@@ -54,6 +55,13 @@ COMMENT_SIMPLE_RE = re.compile(
 BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+#: The dead-letter channel the loud-failure contract names. Every row that fails to reach
+#: GitHub lands here, append-only, and emits a WARN to stderr -- never silently dropped
+#: (LAW 28). Module-level constants so a session can override by monkeypatch in tests.
+BOARD_DEAD_LETTER = pathlib.Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
+#: The sync-side state file. Holds the ETag of the last successful body fetch, the row count
+#: at that time, and `last_pulled_at`. Atomic write, tmp -> rename, missing/corrupt -> {}.
+BOARD_STATE = pathlib.Path.home() / ".claude" / "state" / "board-sync-state.json"
 
 
 def parse_comment(comment_body: str) -> dict | None:
@@ -194,6 +202,240 @@ def sync_delta(comments, output_file, last_id: str | None) -> int:
     return sync_estate_board(comments, output_file)
 
 
+#: ---------------------------------------------------------------------------
+#: crew#102 stale-only sync: state file + ETag + dead-letter.
+#:
+#: The prompt hook fires on every UserPromptSubmit (potentially many times per minute).
+#: A full sync on every prompt would be a GitHub rate-limit trip the second any
+#: session opened. The state file holds the ETag from the last successful body fetch
+#: plus the row count at that time; the next sync short-circuits unless the issue
+#: has actually moved. Any gh failure dead-letters the attempt -- never silent.
+#: ---------------------------------------------------------------------------
+
+
+def load_state(state_path) -> dict:
+    """Read the sync state file. Returns {} on missing or corrupt JSON.
+
+    A state file that exists but is unreadable JSON, or holds anything but a dict,
+    is treated the same as a missing file: the next sync starts from scratch. A
+    silent partial is the failure mode the watermark module already rejected;
+    the same contract holds here.
+    """
+    p = pathlib.Path(state_path)
+    try:
+        text = p.read_text()
+    except (OSError, FileNotFoundError):
+        return {}
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return data
+
+
+def save_state(state_path, state) -> None:
+    """Write the sync state file atomically. tmp -> rename, mkdir -p.
+
+    Crash safety mirrors the cache writer: a failing rename leaves the previous
+    state file in place, never a half-written one. A state file that does not
+    exist yet is fine; the next sync treats it as the first run.
+    """
+    p = pathlib.Path(state_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps(state, separators=(",", ":"), sort_keys=True) + "\n")
+    tmp.replace(p)
+
+
+def fetch_issue_comment_count(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> int | None:
+    """The board's current comment count. Returns None on a failed read.
+
+    Used by `sync_if_stale` to short-circuit when the count agrees with the state
+    file: the cheap path that proves nothing changed without paying for a body
+    fetch. A count of None is a failure and falls through to the body fetch.
+    """
+    try:
+        out = subprocess.run(
+            ["gh", "api", f"repos/{repo}/issues/{issue}", "--jq", ".comments"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return None
+    try:
+        return int(out)
+    except (ValueError, TypeError):
+        return None
+
+
+def fetch_comments_with_etag(
+    repo: str,
+    issue: int,
+    *,
+    etag: str | None = None,
+) -> tuple[list[dict], str | None, bool]:
+    """Fetch the comments list with an optional ETag. Returns (comments, new_etag, not_modified).
+
+    A 304 from GitHub is `not_modified=True` with an empty list and the same ETag: the
+    state file carries forward unchanged. Any 2xx with a body returns the parsed
+    comments and the ETag from `ETag:` (or None when the server omits it). Other
+    non-zero exits raise so the caller can dead-letter.
+
+    The body shape is what `rows_from` already consumes: a list of dicts with a `body`
+    field. No second parser is written here.
+    """
+    cmd = ["gh", "api", "-i", f"repos/{repo}/issues/{issue}/comments"]
+    if etag:
+        cmd += ["-H", f"If-None-Match: {etag}"]
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        # `gh api -i` prints the body on stdout and exits 0; on a 304 it also exits 0
+        # with no body and an `HTTP/2 304` status header at the top. A non-zero exit is
+        # therefore a real failure and the caller dead-letters.
+        raise
+    raw = proc.stdout
+    # Headers and body are separated by a blank line.
+    if "\r\n\r\n" in raw:
+        header_block, body = raw.split("\r\n\r\n", 1)
+    elif "\n\n" in raw:
+        header_block, body = raw.split("\n\n", 1)
+    else:
+        header_block, body = raw, ""
+    status_line = header_block.splitlines()[0] if header_block else ""
+    if "304" in status_line:
+        return [], etag, True
+    new_etag: str | None = None
+    for line in header_block.splitlines():
+        # ETag header is `ETag: "..."` per RFC 7232; gh prints it verbatim.
+        if line.lower().startswith("etag:"):
+            value = line.split(":", 1)[1].strip()
+            new_etag = value.strip('"') or value
+            break
+    try:
+        comments = json.loads(body) if body.strip() else []
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"could not parse comments body: {exc}") from exc
+    if not isinstance(comments, list):
+        comments = []
+    return comments, new_etag, False
+
+
+def _record_dead_letter(exc, *, repo=BOARD_REPO, issue=BOARD_ISSUE, command="gh issue view") -> None:
+    """Append one JSON line to BOARD_DEAD_LETTER. Atomic. Never raises.
+
+    The dead-letter file is the loud-failure channel. Any gh failure (CalledProcessError,
+    TimeoutExpired, OSError, ValueError) lands here with ts/error/repo/issue/command --
+    enough to reproduce and retry without guessing. A silent drop is worse than a
+    red board (LAW 28), and the dead-letter is the only writer allowed to fail
+    without raising because a) the caller cannot do anything with the failure and
+    b) the noise on stderr is the second channel already.
+    """
+    try:
+        path = pathlib.Path(BOARD_DEAD_LETTER)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(
+            {
+                "ts": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "error": f"{type(exc).__name__}: {exc}",
+                "repo": repo,
+                "issue": issue,
+                "command": command,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        with tmp.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+        tmp.replace(path)
+    except Exception:                                    # noqa: BLE001
+        # The dead-letter is the last line of defence; a failure to write it is
+        # already loud via the stderr print below, and there is nothing left to do.
+        pass
+
+
+def sync_if_stale(cache, state_path=BOARD_STATE, min_age_s: int = 300) -> tuple[int, str]:
+    """Prompt-hook sync: skip work when nothing changed; otherwise fetch, write, dead-letter on failure.
+
+    Returns (rows_written, status). `status` is one of "fresh", "updated", "dead-letter".
+
+    Logic:
+      * load state.
+      * If `now - last_pulled_at < min_age_s` AND the live count == state["last_row_count"]:
+        short-circuit. No fetch, no write, status "fresh", n=0.
+      * Otherwise call `fetch_comments_with_etag(repo, issue, etag=state.get("etag"))`.
+        A 304 returns status "fresh", n=0, state unchanged.
+        A 200 parses through `rows_from`, writes atomically via `sync_estate_board`,
+        saves state with the new ETag and counts. status "updated", n=rows.
+      * Any CalledProcessError / OSError / ValueError -> `_record_dead_letter`,
+        stderr print, return (0, "dead-letter"). Never raises.
+    """
+    state = load_state(state_path)
+    last_pulled_at = state.get("last_pulled_at")
+    last_row_count = state.get("last_row_count")
+    state_etag = state.get("etag")
+
+    now = time.time()
+    if isinstance(last_pulled_at, (int, float)) and (now - float(last_pulled_at)) < min_age_s:
+        live_count = fetch_issue_comment_count()
+        if isinstance(live_count, int) and isinstance(last_row_count, int) and live_count == last_row_count:
+            return 0, "fresh"
+
+    try:
+        comments, new_etag, not_modified = fetch_comments_with_etag(
+            BOARD_REPO, BOARD_ISSUE, etag=state_etag
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError) as exc:
+        _record_dead_letter(exc, repo=BOARD_REPO, issue=BOARD_ISSUE,
+                            command="gh issue view")
+        print(
+            f"estate-board-sync: stale-only -> dead-letter; {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 0, "dead-letter"
+
+    if not_modified:
+        # 304: server says nothing changed. Persist the touch so the count
+        # short-circuit has a fresh `last_pulled_at`.
+        state["last_pulled_at"] = now
+        try:
+            save_state(state_path, state)
+        except OSError:
+            pass
+        return 0, "fresh"
+
+    try:
+        n = sync_estate_board(comments, cache)
+        save_state(state_path, {
+            "last_pulled_at": now,
+            "last_row_count": n,
+            "etag": new_etag,
+            "repo": BOARD_REPO,
+            "issue": BOARD_ISSUE,
+        })
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError) as exc:
+        _record_dead_letter(exc, repo=BOARD_REPO, issue=BOARD_ISSUE,
+                            command="gh issue view")
+        print(
+            f"estate-board-sync: stale-only -> dead-letter; {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return 0, "dead-letter"
+
+    return n, "updated"
+
+
 def sync(comments_or_json_string, output_file, mode: str = "full") -> tuple[int, str]:
     """Top-level sync with a watermark fast path.
 
@@ -262,17 +504,30 @@ def sync(comments_or_json_string, output_file, mode: str = "full") -> tuple[int,
 
 
 def main(argv: list[str]) -> int:
-    """`estate-board-sync.py [cache-path]` -- reads the board, writes the cache.
+    """`estate-board-sync.py [cache-path]` [-- --stale-only] -- reads the board, writes the cache.
 
-    argv[1] is the cache path (default ~/.claude/ESTATE_BOARD.jsonl). argv[2:]
-    may include `--check` to short-circuit a no-op run; the existing read/parse/
-    write path still runs on a fresh cache.
+    argv[1] is the cache path (default ~/.claude/ESTATE_BOARD.jsonl). `--stale-only`
+    switches to the prompt-hook path: short-circuit on state and ETag, dead-letter
+    on gh failure, never raise. The legacy full sync path is unchanged: existing
+    callers and the verify gate keep byte-identical output.
 
     The watermark fast path is enabled by default. Pass ESTATE_BOARD_SYNC_MODE=full
     to force a full fetch (a hand-edit to the cache, or a one-off after the
     watermark was rotated). Pass ESTATE_BOARD_NOOP=1 to enable the --check style
     short-circuit even on a non-empty cache.
     """
+    if "--stale-only" in argv:
+        cache = pathlib.Path(BOARD_REPO) if False else DEFAULT_CACHE  # noqa: E712
+        # cache stays the same default the legacy path uses; the only difference
+        # is the path through `sync_if_stale`.
+        cache = DEFAULT_CACHE
+        n, status = sync_if_stale(cache)
+        print(
+            f"estate-board-sync: stale-only -> {status}, {n} row(s) "
+            f"from {BOARD_REPO}#{BOARD_ISSUE} -> {cache}"
+        )
+        return 0
+
     cache = pathlib.Path(argv[1]) if len(argv) > 1 else DEFAULT_CACHE
     wm = _load_watermark_module()
     gq = _load_graphql_module()
@@ -316,6 +571,8 @@ def main(argv: list[str]) -> int:
         try:
             comments = fetch_comments()
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, OSError) as exc:
+            _record_dead_letter(exc, repo=BOARD_REPO, issue=BOARD_ISSUE,
+                                command="gh issue view")
             print(
                 f"estate-board-sync: could not rebuild {cache}: {type(exc).__name__}: {exc}",
                 file=sys.stderr,

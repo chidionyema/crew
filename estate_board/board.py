@@ -21,7 +21,9 @@ from typing import Any, Iterable
 
 ISSUE_NUMBER = 102
 CACHE_PATH = Path(os.environ.get("ESTATE_BOARD_CACHE", "~/.claude/ESTATE_BOARD.jsonl")).expanduser()
-DEADLETTER_PATH = Path(os.environ.get("ESTATE_BOARD_DEADLETTER", "~/.claude/state/board-deadletter.jsonl")).expanduser()
+DEADLETTER_PATH = Path(
+    os.environ.get("ESTATE_BOARD_DEADLETTER", "~/.claude/state/board-deadletter.jsonl")
+).expanduser()
 ISSUE_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 
 
@@ -56,8 +58,8 @@ def _format_comment(obj: dict[str, Any]) -> str:
     kind = obj.get("kind", "info")
     priority = obj.get("priority", "info")
     msg = obj.get("message", "")
-    header = f"`{ts}` **{src}** ({kind}/{priority}):".rstrip(":")
-    return f"{header} {msg}".strip()
+    header = f"`{ts}` **{src}** ({kind}/{priority})".rstrip(":")
+    return f"{header}: {msg}".strip()
 
 
 def _append_jsonl(path: Path, obj: dict[str, Any]) -> None:
@@ -74,14 +76,18 @@ def _dead_letter(obj: dict[str, Any], reason: str) -> Path:
     return DEADLETTER_PATH
 
 
-def _gh_comment(body: str) -> None:
-    """Post a comment on the board issue via `gh`. Raises on failure."""
-    cmd = [
-        "gh", "issue", "comment", str(ISSUE_NUMBER),
-        "--repo", ISSUE_REPO,
-        "--body", body,
-    ]
+def _gh_comment(repo: str, number: int, body: str) -> None:
+    cmd = ["gh", "issue", "comment", str(number), "--repo", repo, "--body", body]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+
+def _repair_pretty_printed(block: str) -> dict[str, Any] | None:
+    """Repair a legacy pretty-printed JSON block that was appended to a JSONL file."""
+    try:
+        obj = json.loads(block)
+    except json.JSONDecodeError:
+        return None
+    return obj if isinstance(obj, dict) else None
 
 
 class Board:
@@ -107,7 +113,7 @@ class Board:
         """
         comment = _format_comment(row)
         try:
-            _gh_comment_for(self.issue_repo, self.issue_number, comment)
+            _gh_comment(self.issue_repo, self.issue_number, comment)
         except Exception as exc:  # noqa: BLE001 — surface as dead-letter
             _dead_letter(row, f"issue comment failed: {exc}")
         _append_jsonl(self.cache_path, row)
@@ -140,20 +146,6 @@ class Board:
 
     def dead_letter(self, row: dict[str, Any], reason: str) -> Path:
         return _dead_letter(row, reason)
-
-
-def _gh_comment_for(repo: str, number: int, body: str) -> None:
-    cmd = ["gh", "issue", "comment", str(number), "--repo", repo, "--body", body]
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
-
-
-def _repair_pretty_printed(block: str) -> dict[str, Any] | None:
-    """Repair a legacy pretty-printed JSON block that was appended to a JSONL file."""
-    try:
-        obj = json.loads(block)
-    except json.JSONDecodeError:
-        return None
-    return obj if isinstance(obj, dict) else None
 
 
 def iter_rows(limit: int | None = None) -> Iterable[dict[str, Any]]:

@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Round-trip smoke test for crew.bin.broadcast (R2/R7/R8).
+
+Posts a known row, then reads the comments back via `gh issue view
+--comments --json comments` and prints both. Used by the PR conversation
+to prove the board is reachable from a phone and from a tool, with the
+output pasted in the PR conversation.
+"""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "crew"))
+
+from bin.broadcast import broadcast  # noqa: E402
+
+REPO = "chidionyema/crew"
+ISSUE = 102
+
+
+def main() -> int:
+    row = {
+        "ts": "2026-09-01T00:00:00Z",
+        "from": "agent-workforce/102",
+        "kind": "info",
+        "priority": "info",
+        "message": "board-test round-trip: writer reachable, JSON readback works",
+    }
+    url = broadcast(row)
+    print(f"posted -> {url}")
+    out = subprocess.check_output(
+        [
+            "gh",
+            "issue",
+            "view",
+            str(ISSUE),
+            "--repo",
+            REPO,
+            "--comments",
+            "--json",
+            "comments",
+        ],
+        text=True,
+    )
+    comments = json.loads(out).get("comments", [])
+    print(f"comments on #{ISSUE} (last 3):")
+    for c in comments[-3:]:
+        print(f"  - {c.get('createdAt')}  {c.get('body', '')[:80]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -9,6 +9,8 @@ is one JSON object per line in time order.
 import importlib.util
 import json
 import pathlib
+import subprocess
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: The script's name carries a hyphen, so it is loaded by path, the way this suite loads
@@ -116,3 +118,102 @@ def test_a_failed_read_is_a_loud_non_zero_exit(tmp_path, monkeypatch, capsys) ->
     assert ebs.main(["estate-board-sync.py", str(tmp_path / "board.jsonl")]) == 1
     assert "network is down" in capsys.readouterr().err
     assert not (tmp_path / "board.jsonl").exists()
+
+
+# ---------------------------------------------------------------------------
+# crew#102 stale-only sync: state file + ETag + dead-letter
+# (the four named tests the spec pins).
+# ---------------------------------------------------------------------------
+
+
+def test_sync_short_circuits_when_state_is_fresh(tmp_path, monkeypatch) -> None:
+    """A fresh state file + matching live count -> no body fetch, no cache write."""
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({
+        "last_pulled_at": time.time(),
+        "last_row_count": 7,
+        "etag": "W/\"abc\"",
+    }))
+
+    cache = tmp_path / "ESTATE_BOARD.jsonl"
+
+    # The body fetch and the gh subprocess are both off-limits when the state
+    # proves nothing changed.
+    def body_boom(*_a, **_k):
+        raise AssertionError("fetch_comments_with_etag must not run when state is fresh")
+
+    def sub_boom(*_a, **_k):
+        raise AssertionError("subprocess.run must not run when state is fresh")
+
+    monkeypatch.setattr(ebs, "fetch_comments_with_etag", body_boom)
+    monkeypatch.setattr(subprocess, "run", sub_boom)
+    monkeypatch.setattr(ebs, "fetch_issue_comment_count", lambda *a, **k: 7)
+
+    n, status = ebs.sync_if_stale(cache, state_path=state_path, min_age_s=300)
+    assert status == "fresh", status
+    assert n == 0
+    assert not cache.exists()
+
+
+def test_sync_skips_body_fetch_on_etag_match(tmp_path, monkeypatch) -> None:
+    """A stale state with a cached etag -> 304 -> 'fresh', no cache rewrite."""
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({
+        "last_pulled_at": time.time() - 3600,
+        "last_row_count": 7,
+        "etag": "W/\"abc\"",
+    }))
+
+    cache = tmp_path / "ESTATE_BOARD.jsonl"
+    cache.write_text(
+        json.dumps({"ts": "t", "from": "x", "kind": "k", "priority": "p", "message": "m"}) + "\n"
+    )
+    original = cache.read_text()
+
+    monkeypatch.setattr(
+        ebs,
+        "fetch_comments_with_etag",
+        lambda *a, **k: ([], "W/\"abc\"", True),
+    )
+
+    n, status = ebs.sync_if_stale(cache, state_path=state_path, min_age_s=0)
+    assert status == "fresh"
+    assert n == 0
+    # Cache was not rewritten on a 304.
+    assert cache.read_text() == original
+
+
+def test_sync_writes_dead_letter_on_gh_failure(tmp_path, monkeypatch) -> None:
+    """A CalledProcessError from gh -> one JSON line in BOARD_DEAD_LETTER, status dead-letter."""
+    cache = tmp_path / "ESTATE_BOARD.jsonl"
+    dead = tmp_path / "deadletter.jsonl"
+    monkeypatch.setattr(ebs, "BOARD_DEAD_LETTER", dead)
+
+    monkeypatch.setattr(
+        ebs,
+        "fetch_comments_with_etag",
+        lambda *a, **k: (_ for _ in ()).throw(
+            subprocess.CalledProcessError(1, ["gh"], stderr="rate limit")
+        ),
+    )
+
+    n, status = ebs.sync_if_stale(cache, state_path=tmp_path / "state.json", min_age_s=0)
+    assert status == "dead-letter"
+    assert n == 0
+    assert dead.exists()
+    lines = [ln for ln in dead.read_text().splitlines() if ln.strip()]
+    assert len(lines) == 1, lines
+    row = json.loads(lines[0])
+    assert row["repo"] == ebs.BOARD_REPO
+    assert row["issue"] == ebs.BOARD_ISSUE
+    assert "rate limit" in row["error"] or "CalledProcessError" in row["error"]
+
+
+def test_state_file_writes_atomically(tmp_path) -> None:
+    """save_state writes the file and never leaves a sibling .tmp behind."""
+    state_path = tmp_path / "state.json"
+    ebs.save_state(state_path, {"etag": "W/\"x\"", "last_row_count": 3})
+    assert state_path.exists()
+    assert not (tmp_path / "state.json.tmp").exists()
+    roundtrip = ebs.load_state(state_path)
+    assert roundtrip == {"etag": "W/\"x\"", "last_row_count": 3}

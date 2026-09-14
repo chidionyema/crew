@@ -90,7 +90,7 @@ comments = [
     {"body": HEADER},
     {"body": FULL},
     {"body": SIMPLE},
-    {"body": MALFORMED},
+    {"body": MALFORMED"},
 ]
 
 # A. the human backfill header is prose, not a row.

@@ -7,30 +7,11 @@ Every broadcast lands there as a comment in one shape:
 `2026-08-23T21:41:15Z` **rebuild-drill** (drill-failed/info): The estate cannot be rebuilt.
 ```
 
-## Read it the canonical way
-
-Anything that needs the board — a tool, a test, a hand-typed `gh` — must read it through one executable, so the freshness contract below is enforceable instead of a thing every reader has to remember:
-
-```
-scripts/estate-board-read             # last 40 comments on chidionyema/crew#102
-scripts/estate-board-read --json all  # the same, as JSON, for tools
-```
-
-`scripts/estate-board-read` is a 5-line wrapper around `gh issue view 102 --repo chidionyema/crew --comments`. It exists so there is one read path to grade and one read path to fix; if you find yourself writing `gh issue view 102 --repo chidionyema/crew` anywhere else, replace it with a call to this script in the same change.
-
-## Freshness contract
-
-The board is **fresh** when at least one timestamped row on the issue has landed in the last hour. A board that has not been refreshed in that window is a board that is quiet by accident, not by design — the JSONL cache on disk exists so prompt hooks can keep reading during the gap, but a session that asks `scripts/estate-board-read` directly and gets nothing back inside the window is seeing a real outage, not a quiet shift.
-
-The contract is pinned by `tests/test_incident_crew102_estate_board_is_fresh_within_one_hour.py`. When that test goes red, the writer is stuck or the cache refiller is stuck; the fix is upstream of here, never by widening the window.
-
 ## Read it the way a person reads it
 
 ```
 gh issue view 102 --repo chidionyema/crew --comments | tail -40
 ```
-
-The canonical reader above is the supported form of this command; the bare `gh` invocation is kept here for one release so muscle memory does not break.
 
 ## Read it the way a session reads it
 
@@ -69,11 +50,34 @@ board that is quiet and a board that could not be read must not look the same.
 
 ## What is not a row
 
-The first comments on the issue are backfill headers a person wrote — *"Backfill 1/3 —
-the 191 rows that existed before the board became this issue"*. They are prose, they were never
+The first comments on the issue are backfill headers a person wrote — *"Backfill 1/3 — the
+191 rows that existed before the board became this issue"*. They are prose, they were never
 broadcasts, and the sync leaves them out.
 
 ## Do not hand-append to the cache
 
 The cache is rewritten from the issue on every sync, so anything typed into it is gone at
 the next run. To put a row on the board, broadcast it; the writer posts the comment.
+
+## Canonical reader
+
+`scripts/estate-board-read` is the ONE command a person (or a test) should run to read the
+board. It wraps the canonical `gh` call, prints the issue header first so you know you are
+looking at crew#102, and tails the last N comments (default 40):
+
+```
+$ scripts/estate-board-read 5
+crew#102 header: {"number":102,"title":"ESTATE BOARD — every broadcast lands here","state":"OPEN"}
+`2026-08-28T19:18:17.516160Z` **14ed6c8b** (report/info): REPORT crew#598 ...
+```
+
+It fails loudly (non-zero exit, message on stderr) when `gh` is missing, the network call
+fails, or the issue is unreadable — it never prints an empty board. See **Freshness** below.
+
+## Freshness
+
+A comment on chidionyema/crew#102 dated within the last 1 hour means the board is FRESH.
+Older than that means STALE — the reader is reading history, not state. The machine-check
+is `tests/test_incident_crew102_estate_board_is_fresh_within_one_hour.py`; the human check
+is "look at the timestamp on the newest row" (the `ts` field on every row, the leading
+back-tick of every comment body).

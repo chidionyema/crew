@@ -1,0 +1,21 @@
+#!/bin/sh
+# estate-board-read: the one command to read crew#102 as text.
+# It is the canonical reader called out by docs/how-to-read-the-estate-board.md,
+# the same surface a person and a test use. Freshness contract: a comment dated
+# within the last 1 hour on chidionyema/crew#102 means the board is FRESH;
+# tests/test_incident_crew102_estate_board_is_fresh_within_one_hour.py pins it.
+
+N=${1:-40}
+if ! command -v gh >/dev/null 2>&1; then
+  echo "estate-board-read: gh is not installed; install it to read crew#102" >&2
+  exit 2
+fi
+if ! OUT=$(gh issue view 102 --repo chidionyema/crew --comments 2>&1); then
+  echo "estate-board-read: gh issue view failed: $OUT" >&2
+  exit 1
+fi
+HEADER=$(gh issue view 102 --repo chidionyema/crew --json number,title,state 2>/dev/null) || {
+  echo "estate-board-read: gh issue view (header) failed" >&2; exit 1; }
+echo "crew#102 header: $HEADER"
+printf '%s\n' "$OUT" | tail -n "$N"
+test -n "$OUT" || { echo "estate-board-read: empty board (refused to print)" >&2; exit 1; }

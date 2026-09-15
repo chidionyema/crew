@@ -1,83 +1,33 @@
-# How to read the estate board
+"""Append the dead-letter section to docs/how-to-read-the-estate-board.md on the branch."""
+PATH = "docs/how-to-read-the-estate-board.md"
+NEW_SECTION = """
+## What happens to a broadcast that fails to land
 
-The board of record is a GitHub issue: **[chidionyema/crew#102](https://github.com/chidionyema/crew/issues/102)**.
-Every broadcast lands there as a comment in one shape:
+The board of record is the GitHub issue, and every broadcast must land there as a comment in
+the declared format. When a broadcast cannot land (network down, GitHub rate-limit, comment
+format refused) the writer does NOT drop it. The writer appends one JSON object per line to:
 
-```
-`2026-08-23T21:41:15Z` **rebuild-drill** (drill-failed/info): The estate cannot be rebuilt.
-```
+    ~/.claude/state/board-deadletter.jsonl
 
-## Read it the way a person reads it
+The path is canonical: parent directory `~/.claude/state/`, file name `board-deadletter.jsonl`,
+absolute. The path itself is part of the contract — a session cannot rename the file and lose
+the failure channel by accident. Each entry carries at minimum:
 
-```
-gh issue view 102 --repo chidionyema/crew --comments | tail -40
-```
+    {"ts": "...", "reason": "...", "row": "..."}
 
-## Read it the way a session reads it
+A dropped row is NEVER silent. A board that quietly drops rows is a board that quietly
+disagrees with itself, and a dropped founder directive is a dropped founder directive even
+when the rest of the system is healthy. The dead-letter file is the loud-failure channel
+(LAW 28: an instrument must be readable, and a silent failure channel is not one).
 
-A session does not call GitHub at prompt time — a board that needs the network is a board
-that is empty whenever the network is, and a rate limit would take it out for every session
-at once. Sessions read a local cache:
-
-```
-tail -5 ~/.claude/ESTATE_BOARD.jsonl
-```
-
-One JSON object per line, oldest first:
-
-```json
-{"ts": "2026-08-23T21:41:15Z", "from": "rebuild-drill", "kind": "drill-failed", "priority": "info", "message": "The estate cannot be rebuilt."}
-```
-
-## What refills the cache, and how to force it
-
-`scripts/estate-board-sync.py` reads the issue's comments and rewrites the cache. Before
-crew#101 nothing did, so each laptop's board was whatever it happened to hold — an
-instrument nobody can trust is an instrument nobody reads (LAW 28).
-
-It runs on every `scripts/estate-snapshot`, which is already scheduled, and prints a row on
-the snapshot page saying how many rows landed. To rebuild it by hand:
-
-```
-python3 scripts/estate-board-sync.py                 # writes ~/.claude/ESTATE_BOARD.jsonl
-python3 scripts/estate-board-sync.py /tmp/b.jsonl    # or anywhere else
-```
-
-Expect: `estate-board-sync: 41 row(s) from chidionyema/crew#102 -> /Users/…/ESTATE_BOARD.jsonl`
-
-A read that fails exits 1 and says why on stderr. It never writes an empty cache, because a
-board that is quiet and a board that could not be read must not look the same.
-
-## What is not a row
-
-The first comments on the issue are backfill headers a person wrote — *"Backfill 1/3 — the
-191 rows that existed before the board became this issue"*. They are prose, they were never
-broadcasts, and the sync leaves them out.
-
-## Do not hand-append to the cache
-
-The cache is rewritten from the issue on every sync, so anything typed into it is gone at
-the next run. To put a row on the board, broadcast it; the writer posts the comment.
-
-## Canonical reader
-
-`scripts/estate-board-read` is the ONE command a person (or a test) should run to read the
-board. It wraps the canonical `gh` call, prints the issue header first so you know you are
-looking at crew#102, and tails the last N comments (default 40):
-
-```
-$ scripts/estate-board-read 5
-crew#102 header: {"number":102,"title":"ESTATE BOARD — every broadcast lands here","state":"OPEN"}
-`2026-08-28T19:18:17.516160Z` **14ed6c8b** (report/info): REPORT crew#598 ...
-```
-
-It fails loudly (non-zero exit, message on stderr) when `gh` is missing, the network call
-fails, or the issue is unreadable — it never prints an empty board. See **Freshness** below.
-
-## Freshness
-
-A comment on chidionyema/crew#102 dated within the last 1 hour means the board is FRESH.
-Older than that means STALE — the reader is reading history, not state. The machine-check
-is `tests/test_incident_crew102_estate_board_is_fresh_within_one_hour.py`; the human check
-is "look at the timestamp on the newest row" (the `ts` field on every row, the leading
-back-tick of every comment body).
+This is the read side of the contract on `chidionyema/crew#102`:
+- The board target is GitHub issue #102.
+- The dead-letter writer lives in `claude-guards` and is exercised (not merely probed) by
+  `tests/test_incident_crew102_dead_letter_is_exercised.py`, which appends a synthetic
+  failed-broadcast row, asserts the file ends with that row, parses it as JSON, and asserts
+  a second append produces a second trailing row (so a dropped row is observable).
+- A failed read of the issue body itself (`scripts/estate-board-sync.py`) exits 1 and writes
+  its own dead-letter entry on the snapshot that noticed the failure. The snapshot does NOT
+  gate on a successful board rebuild — board work fails visibly, not silently, and the rest
+  of the snapshot still completes.
+"""

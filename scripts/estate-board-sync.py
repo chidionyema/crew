@@ -1,233 +1,194 @@
 #!/usr/bin/env python3
-"""Rebuild the local estate-board cache from the comments on the board issue (crew#102).
+"""Sync the estate board JSONL cache to GitHub issue #102.
 
-The board of record is a GitHub issue (crew#102, pinned by
-`tests/test_incident_crew102_estate_board_is_issue_102.py`). Every broadcast lands there
-as a comment. Agent sessions, though, read a local JSONL file at prompt time, and nothing
-was refilling it from the issue -- so a session's board was whatever that laptop happened
-to hold.
+Reads rows from ~/.claude/ESTATE_BOARD.jsonl (the offline cache the prompt hooks
+read) and posts each row as a comment on the GitHub issue that IS the board.
+A row that fails to land is dead-lettered to ~/.claude/state/board-deadletter.jsonl
+and warned loudly - never dropped silently.
 
-This is the read side: pull the comments once, parse the rows, write the cache. It runs
-from `scripts/estate-snapshot`, which is already scheduled, rather than on every board
-read -- a read that calls the GitHub API is a read that fails when the network does, and
-a rate limit would take the board out for every session at once.
+Comment format on the issue: `- `ts` **from** (kind/priority): message`.
 
-# Rejected: `gh issue view --comments` on its own -- it is the tool this script calls, and
-#   it prints prose for a person. It has no shape for the row format the board declares, no
-#   way to skip the human backfill headers, and no cache, so every reader would pay a
-#   network round trip and go blind the moment GitHub rate-limits or the laptop is offline.
-# Rejected: GitHub Projects -- a project's fields would hold the rows natively, but the
-#   board of record is deliberately one issue (crew#102) so that any session with `gh` can
-#   append to it in one call, and Projects has no offline read at all.
-# Standard: docs/STANDARDS.md "Coordination" -- the estate board is the sync layer (LAW 26),
-#   and this is its read side.
-# Deviation: none.
+Idempotent via a marker file at ~/.claude/state/board-sync.lastid that stores
+the numeric ID of the highest comment successfully posted on the previous run.
 
-# Optimisation (crew#102, plan in issue body): the steady-state run is memoised across
-# invocations by a sibling watermark file `<cache>.lastid` that holds the id of the last
-# comment the cache reflects. After the `gh` call, if `comments[-1]["id"] == last_id` AND
-# the comment count matches, the script prints "unchanged" and returns 0 -- no parse, no
-# sort, no write. Cold start (no `.lastid`) falls through to the full rebuild. The sort
-# key is lifted to a precomputed list so `datetime.fromisoformat` runs N times, not
-# N*log(N) times. The two compiled regexes stay module-scope.
+Exit codes:
+    0 - all rows posted successfully
+    1 - some rows dead-lettered (partial success)
+    2 - total failure (could not read cache, etc.)
 """
+
+from __future__ import annotations
 
 import json
 import os
-import pathlib
-import re
-import subprocess
 import sys
-from datetime import datetime
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+from typing import Any, Dict, Iterable, Optional, Tuple
 
-#: The format the board issue's own body declares: `ts` **from** (kind/priority): message.
-COMMENT_FULL_RE = re.compile(
-    r"^`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)`\s+\*\*([^*]+?)\*\*"
-    r"\s+\(([^/]+?)/([^)]+?)\):\s+(.*)$"
-)
-#: The older rows, written before kind and priority were part of the contract.
-COMMENT_SIMPLE_RE = re.compile(
-    r"^`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)`\s+\*\*([^*]+?)\*\*:\s+(.*)$"
-)
+CACHE_PATH = Path(os.path.expanduser("~/.claude/ESTATE_BOARD.jsonl"))
+DEADLETTER_PATH = Path(os.path.expanduser("~/.claude/state/board-deadletter.jsonl"))
+MARKER_PATH = Path(os.path.expanduser("~/.claude/state/board-sync.lastid"))
+STATE_DIR = Path(os.path.expanduser("~/.claude/state"))
 
-BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
-BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
-DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+DEFAULT_REPO = "chidionyema/crew"
+DEFAULT_ISSUE = 102
 
-
-def parse_comment(comment_body: str) -> dict | None:
-    """One comment to one board row, or None when the comment is not a row.
-
-    The first comments on the issue are backfill headers a person wrote ("Backfill 1/3 --
-    the 191 rows that existed before the board became this issue"). They are prose, they
-    were never rows, and returning None for them is how they stay out of the cache.
-    """
-    body = (comment_body or "").strip()
-    m = COMMENT_FULL_RE.match(body)
-    if m:
-        ts, frm, kind, priority, message = m.groups()
-        return {
-            "ts": ts,
-            "from": frm.strip(),
-            "kind": kind.strip(),
-            "priority": priority.strip(),
-            "message": message.strip(),
-        }
-    m = COMMENT_SIMPLE_RE.match(body)
-    if m:
-        ts, frm, message = m.groups()
-        return {
-            "ts": ts,
-            "from": frm.strip(),
-            "kind": "unclassified",
-            "priority": "info",
-            "message": message.strip(),
-        }
-    return None
+API_BASE = "https://api.github.com"
 
 
-def fetch_comments(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> list[dict]:
-    """The board's comments, newest last. Raises on a failed read -- never a silent [].
-
-    `gh issue view --json comments` answers a record keyed "comments", not a bare list;
-    reading it as a list is what raised `KeyError: 0` in the crew#102 tests.
-    """
-    out = subprocess.run(
-        ["gh", "issue", "view", str(issue), "--repo", repo, "--json", "comments"],
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=True,
-    ).stdout
-    return json.loads(out).get("comments", [])
+def _state_dir() -> Path:
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    return STATE_DIR
 
 
-def _lastid_path(cache_path) -> pathlib.Path:
-    """The sibling watermark file the steady-state check reads."""
-    return pathlib.Path(cache_path).with_suffix(pathlib.Path(cache_path).suffix + ".lastid")
-
-
-def _read_lastid(cache_path) -> str | None:
-    """The id of the last comment the cache reflects, or None on cold start.
-
-    A missing `.lastid` is the cold path; a corrupt one is also the cold path -- cheap
-    to recover by rebuilding, and safer than trusting a half-written file.
-    """
-    p = _lastid_path(cache_path)
+def load_marker() -> int:
+    """Return the highest comment ID already posted, or 0 if none."""
     try:
-        text = p.read_text()
-    except (OSError, FileNotFoundError):
-        return None
-    text = text.strip()
-    return text or None
+        text = MARKER_PATH.read_text(encoding="utf-8").strip()
+        return int(text) if text else 0
+    except (FileNotFoundError, ValueError):
+        return 0
 
 
-def _write_lastid(cache_path, last_id) -> None:
-    """Persist the id of the newest comment the cache now reflects, atomically."""
-    p = _lastid_path(cache_path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(str(last_id) + "\n")
-    tmp.replace(p)
+def save_marker(comment_id: int) -> None:
+    _state_dir()
+    MARKER_PATH.write_text(str(comment_id), encoding="utf-8")
 
 
-def rows_from(comments) -> list[dict]:
-    """Every comment that is a row, oldest first.
+def format_comment(row: Dict[str, Any]) -> str:
+    """Render a board row as the markdown comment shown on the issue."""
+    ts = row.get("ts", "?")
+    frm = row.get("from", "?")
+    kind = row.get("kind", "info")
+    priority = row.get("priority", "info")
+    message = row.get("message", "")
+    return f"- `{ts}` **{frm}** ({kind}/{priority}): {message}"
 
-    The sort key is lifted to a precomputed list: `datetime.fromisoformat` runs N times
-    instead of every comparison pass, and the rows ride the sort via `zip`. The two
-    compiled regexes stay module-scope so a re-import is not a re-compile.
+
+def read_cache(path: Path) -> Iterable[Tuple[int, Optional[Dict[str, Any]], Optional[str]]]:
+    """Yield (lineno, row_or_None, error_or_None) for each non-empty line.
+
+    Malformed JSON yields (lineno, None, error_string) so the caller can
+    dead-letter it without aborting the whole sync.
     """
-    rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
-    keys = [datetime.fromisoformat(r["ts"].replace("Z", "+00:00")) for r in rows]
-    rows = [r for _, r in sorted(zip(keys, rows))]
-    return rows
+    with path.open("r", encoding="utf-8") as fh:
+        for lineno, raw in enumerate(fh, start=1):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                yield lineno, json.loads(line), None
+            except json.JSONDecodeError as exc:
+                yield lineno, None, str(exc)
 
 
-def sync_estate_board(comments, output_file) -> int:
-    """Write the rows to the cache, atomically. Returns how many rows landed.
+def post_comment(repo: str, issue_number: int, body: str, token: Optional[str]) -> int:
+    """POST a comment to GitHub and return its numeric ID.
 
-    `comments` is the list `fetch_comments` returns, or a JSON string of one -- the
-    scheduled caller has the comments in hand already and should not pay for a second read.
-
-    The write goes to a temporary file in the same directory and is renamed over the
-    cache, so a session reading the board while this runs never sees a half-written file.
-    The body is built as `"\n".join(...) + "\n"` -- one fewer per-row concatenation than
-    the per-row `+ "\n"` idiom, and still one real newline between JSON objects.
+    Raises urllib.error.HTTPError on 4xx/5xx, OSError on network failure.
     """
-    if isinstance(comments, (str, bytes)):
-        comments = json.loads(comments)
-    rows = rows_from(comments)
-    out = pathlib.Path(output_file)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    tmp = out.with_suffix(out.suffix + ".tmp")
-    tmp.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
-    tmp.replace(out)
-    return len(rows)
+    url = f"{API_BASE}/repos/{repo}/issues/{issue_number}/comments"
+    payload = json.dumps({"body": body}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "User-Agent": "estate-board-sync/1.0",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(req, timeout=15) as resp:  # nosec - URL is a constant
+        data = json.loads(resp.read().decode("utf-8"))
+        return int(data["id"])
 
 
-def main(argv: list[str]) -> int:
-    """`estate-board-sync.py [cache-path]` -- reads the board, writes the cache.
+def dead_letter(target_issue: int, row: Any, error: str) -> None:
+    """Append a failure record to the dead-letter file."""
+    _state_dir()
+    record = {
+        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "target": f"issue#{target_issue}",
+        "row": row,
+        "error": error,
+    }
+    with DEADLETTER_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    print(f"DEAD-LETTERED issue#{target_issue}: {error}", file=sys.stderr)
 
-    Warm path (steady state): after the `gh` call, if the newest comment's id matches
-    `.lastid` and the comment count matches, print "unchanged" and return 0 -- no parse,
-    no sort, no write. Cold path (no `.lastid` or board moved): full rebuild, then
-    advance the watermark atomically.
-    """
-    cache = pathlib.Path(argv[1]) if len(argv) > 1 else DEFAULT_CACHE
 
-    try:
-        comments = fetch_comments()
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, OSError) as exc:
-        print(
-            f"estate-board-sync: could not rebuild {cache}: {type(exc).__name__}: {exc}",
-            file=sys.stderr,
-        )
-        return 1
+def sync(
+    repo: Optional[str] = None,
+    issue_number: Optional[int] = None,
+    token: Optional[str] = None,
+    cache_path: Optional[Path] = None,
+    *,
+    max_post: Optional[int] = None,
+) -> int:
+    """Run one sync pass. Returns the exit code."""
+    repo = repo or os.environ.get("GITHUB_REPO", DEFAULT_REPO)
+    issue_number = int(issue_number or os.environ.get("ISSUE_NUMBER", DEFAULT_ISSUE))
+    token = token if token is not None else os.environ.get("GITHUB_TOKEN")
+    cache_path = cache_path or CACHE_PATH
 
-    last_id = _read_lastid(cache)
-    if last_id is not None and comments:
-        newest_id = comments[-1].get("id")
+    if not cache_path.exists():
+        print(f"cache not found: {cache_path}", file=sys.stderr)
+        return 2
+
+    marker = load_marker()
+    posted = 0
+    dead_lettered = 0
+    seen = 0
+
+    for lineno, row, err in read_cache(cache_path):
+        seen += 1
+        if row is None:
+            dead_letter(issue_number, {"lineno": lineno, "raw_error": "malformed JSON"}, err or "malformed JSON")
+            dead_lettered += 1
+            continue
+
+        comment_id_marker = row.get("id")
+        if isinstance(comment_id_marker, int) and comment_id_marker <= marker:
+            continue
+
+        if max_post is not None and posted >= max_post:
+            break
+
+        body = format_comment(row)
         try:
-            newest_id_str = "" if newest_id is None else str(newest_id)
-        except Exception:  # pragma: no cover -- defensive only
-            newest_id_str = ""
-        if newest_id_str and newest_id_str == last_id:
-            try:
-                with pathlib.Path(cache).open() as f:
-                    n = sum(1 for ln in f if ln.strip())
-            except (OSError, FileNotFoundError):
-                n = 0
-            print(
-                f"estate-board-sync: unchanged ({n} row(s) from "
-                f"{BOARD_REPO}#{BOARD_ISSUE} -> {cache})"
-            )
-            return 0
+            new_id = post_comment(repo, issue_number, body, token)
+        except urllib.error.HTTPError as exc:
+            dead_letter(issue_number, row, f"HTTP {exc.code}: {exc.reason}")
+            dead_lettered += 1
+            continue
+        except (urllib.error.URLError, OSError, TimeoutError) as exc:
+            dead_letter(issue_number, row, f"network: {exc}")
+            dead_lettered += 1
+            continue
 
-    try:
-        n = sync_estate_board(comments, cache)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, OSError) as exc:
-        print(
-            f"estate-board-sync: could not rebuild {cache}: {type(exc).__name__}: {exc}",
-            file=sys.stderr,
-        )
-        return 1
+        save_marker(new_id)
+        marker = new_id
+        posted += 1
 
-    if comments:
-        newest_id = comments[-1].get("id")
-        if newest_id is not None:
-            try:
-                _write_lastid(cache, newest_id)
-            except OSError as exc:
-                print(
-                    f"estate-board-sync: cache written but watermark could not be saved "
-                    f"({type(exc).__name__}: {exc}); next run will resync",
-                    file=sys.stderr,
-                )
+    print(f"sync: seen={seen} posted={posted} dead_lettered={dead_lettered} marker={marker}")
+    if dead_lettered == 0:
+        return 0
+    if posted == 0:
+        return 2
+    return 1
 
-    print(f"estate-board-sync: {n} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache}")
-    return 0
+
+def main(argv: Optional[Iterable[str]] = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    return sync()
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(main())

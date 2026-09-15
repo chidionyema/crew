@@ -1,7 +1,16 @@
-"""Append the dead-letter section to docs/how-to-read-the-estate-board.md on the branch."""
-PATH = "docs/how-to-read-the-estate-board.md"
-NEW_SECTION = """
+"""Append the dead-letter section to docs/how-to-read-the-estate-board.md on the branch.
+
+The file must remain the human-facing doc that ends with:
+
 ## What happens to a broadcast that fails to land
+...
+"""
+from pathlib import Path
+from typing import Optional
+
+PATH = "docs/how-to-read-the-estate-board.md"
+NEW_SECTION_TITLE = "## What happens to a broadcast that fails to land"
+NEW_SECTION_BODY = """## What happens to a broadcast that fails to land
 
 The board of record is the GitHub issue, and every broadcast must land there as a comment in
 the declared format. When a broadcast cannot land (network down, GitHub rate-limit, comment

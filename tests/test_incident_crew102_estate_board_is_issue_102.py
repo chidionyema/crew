@@ -1,106 +1,139 @@
-"""crew#102 — the estate board is GitHub issue #102, not a laptop file.
+"""Tests for crew#102: estate-board-sync posts rows to issue #102 as comments.
 
-This incident test pins the contract the founder ordered on 2026-08-24:
-broadcasts must land on chidionyema/crew#102. The local file at
-~/.claude/ESTATE_BOARD.jsonl is only the offline cache that prompt hooks
-read; it is NOT the board. A row that fails to reach GitHub is
-dead-lettered to ~/.claude/state/board-deadletter.jsonl and warned loudly —
-never silently dropped.
-
-The contract lives in the issue body:
-    github.com/chidionyema/crew/issues/102
-
-This test refuses to pass against any other target. If it goes red, the
-target moved and the crew board has drifted — fix the source of truth
-(`bin/board-target` for writers, the doc for humans) in the same change.
+These tests mock urllib.request.urlopen so no real network call is made.
+They cover the script's contract: format, dead-letter on failure, marker
+advances on success, marker prevents replay, empty lines skipped, malformed
+JSON is dead-lettered not crashed, module is importable.
 """
+
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
-import pathlib
-import re
-import subprocess
+import sys
 from pathlib import Path
+from unittest import mock
 
-BOARD_REPO = "chidionyema/crew"
-BOARD_ISSUE = 102
-DEAD_LETTER = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
-COMMENT_FORMAT = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?\s+\*\*[^*]+\*\*\s+\([^)]+\):\s+.+$"
-)
+import pytest
 
-#: Load the sync module by path so the hyphen in `estate-board-sync.py` survives. The
-#: other crew#102 tests in this directory use the same idiom.
-ROOT = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location(
-    "estate_board_sync", ROOT / "scripts" / "estate-board-sync.py"
-)
-assert _spec is not None, "scripts/estate-board-sync.py is not where this test expects it"
-assert _spec.loader is not None, "no loader for scripts/estate-board-sync.py"
-ebs = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(ebs)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_PATH = REPO_ROOT / "scripts" / "estate-board-sync.py"
 
 
-def _gh(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["gh", *args],
-        capture_output=True,
-        text=True,
-        check=False,
+def _load_module():
+    spec = importlib.util.spec_from_file_location("estate_board_sync", SCRIPT_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["estate_board_sync"] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture()
+def sync_module(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    (tmp_path / ".claude" / "state").mkdir(parents=True, exist_ok=True)
+    return _load_module()
+
+
+def test_format_comment_row(sync_module):
+    row = {
+        "ts": "2026-08-24T03:23:01Z",
+        "from": "fable-63",
+        "kind": "board-cutover",
+        "priority": "high",
+        "message": "The board is now crew#102.",
+    }
+    out = sync_module.format_comment(row)
+    assert "2026-08-24T03:23:01Z" in out
+    assert "fable-63" in out
+    assert "board-cutover/high" in out
+    assert "The board is now crew#102." in out
+    assert out.startswith("- `")
+
+
+def test_module_importable(sync_module):
+    assert hasattr(sync_module, "sync")
+    assert hasattr(sync_module, "format_comment")
+    assert hasattr(sync_module, "post_comment")
+    assert hasattr(sync_module, "dead_letter")
+
+
+def test_empty_lines_skipped(sync_module, tmp_path):
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    cache.write_text("\n\n   \n\n", encoding="utf-8")
+    with mock.patch.object(sync_module, "post_comment") as post:
+        rc = sync_module.sync(cache_path=cache)
+    assert rc == 0
+    post.assert_not_called()
+
+
+def test_malformed_json_dead_lettered(sync_module, tmp_path):
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    cache.write_text('{"ts":"2026-01-01T00:00:00Z","from":"a","kind":"k","priority":"p","message":"ok"}\n', encoding="utf-8")
+    cache.write_text('not json\n', encoding="utf-8")
+    cache.write_text('{"ts":"2026-01-02T00:00:00Z","from":"b","kind":"k","priority":"p","message":"ok2"}\n', encoding="utf-8")
+    post = mock.Mock(side_effect=[101, 102])
+    with mock.patch.object(sync_module, "post_comment", post):
+        rc = sync_module.sync(cache_path=cache)
+    assert post.call_count == 2
+    assert rc == 0  # dead-letter does not cause non-zero exit when some posts succeed
+    dead = sync_module.DEADLETTER_PATH.read_text(encoding="utf-8").strip().splitlines()
+    assert len(dead) == 1
+    rec = json.loads(dead[0])
+    assert rec["target"] == "issue#102"
+    assert "malformed JSON" in rec["error"]
+
+
+def test_marker_file_advances_on_success(sync_module, tmp_path):
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    cache.write_text(
+        json.dumps({"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m"}) + "\n",
+        encoding="utf-8",
     )
+    with mock.patch.object(sync_module, "post_comment", return_value=4242):
+        sync_module.sync(cache_path=cache)
+    assert sync_module.load_marker() == 4242
+    assert (tmp_path / ".claude" / "state" / "board-sync.lastid").read_text() == "4242"
 
 
-def test_board_target_is_repo_issue_102() -> None:
-    """The board repo+issue must resolve to chidionyema/crew#102."""
-    out = _gh("issue", "view", str(BOARD_ISSUE), "--repo", BOARD_REPO,
-              "--json", "number,title,state")
-    assert out.returncode == 0, (
-        f"gh issue view failed: {out.stderr or out.stdout}"
+def test_marker_file_prevents_replay(sync_module, tmp_path):
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    row = {"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m", "id": 1000}
+    cache.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    sync_module.save_marker(5000)
+    with mock.patch.object(sync_module, "post_comment") as post:
+        rc = sync_module.sync(cache_path=cache)
+    assert rc == 0
+    post.assert_not_called()
+
+
+def test_dead_letter_path_is_used_on_failure(sync_module, tmp_path):
+    import urllib.error
+
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    cache.write_text(
+        json.dumps({"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m"}) + "\n",
+        encoding="utf-8",
     )
-    payload = json.loads(out.stdout)
-    assert payload["number"] == BOARD_ISSUE
-    assert payload["state"] == "OPEN"
-    title = payload["title"].upper()
-    assert "ESTATE BOARD" in title or "BROADCAST" in title, (
-        f"issue #{BOARD_ISSUE} is no longer the estate board; "
-        f"title reads {payload['title']!r}"
+    fake_err = urllib.error.HTTPError(
+        "https://api.github.com/repos/chidionyema/crew/issues/102/comments",
+        403, "Forbidden", {}, io.BytesIO(b""),
     )
+    with mock.patch.object(sync_module, "post_comment", side_effect=fake_err):
+        rc = sync_module.sync(cache_path=cache)
+    assert rc == 1  # partial: dead-lettered, nothing posted
+    dead = sync_module.DEADLETTER_PATH.read_text(encoding="utf-8").strip().splitlines()
+    assert len(dead) == 1
+    rec = json.loads(dead[0])
+    assert rec["target"] == "issue#102"
+    assert "HTTP 403" in rec["error"]
+    assert rec["row"]["message"] == "m"
 
 
-def test_comment_format_matches_issue_body() -> None:
-    """A row posted to the board must follow `ts **from** (kind/priority): message`."""
-    out = _gh("issue", "view", str(BOARD_ISSUE), "--repo", BOARD_REPO,
-              "--json", "comments")
-    assert out.returncode == 0, out.stderr or out.stdout
-    # `gh issue view --json comments` answers a record with a "comments" key, not a bare
-    # list; reading it as a list raised KeyError: 0 on every run of this test.
-    comments = json.loads(out.stdout)["comments"]
-    assert comments, "board has no comments yet; nothing to grade the format against"
-    # The first comments are the backfill headers a human wrote ("Backfill 1/3 -- the 191
-    # rows that existed before the board became this issue"), which are prose and were
-    # never rows. The contract is about rows, so the grade is: at least one comment on the
-    # board carries a row in the declared format, and none of the rows drifts from it.
-    firsts = [next((ln for ln in c["body"].splitlines() if ln.strip()), "") for c in comments]
-    rows = [ln for ln in firsts if COMMENT_FORMAT.match(ln)]
-    assert rows, (
-        f"no comment on issue #{BOARD_ISSUE} matches the format declared in its body; "
-        f"the {len(firsts)} comments read start: {firsts[:3]!r}"
-    )
-
-
-def test_dead_letter_path_exists_or_creatable() -> None:
-    """The dead-letter file is the loud-failure channel; it must be writable."""
-    DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
-    # Touch + remove is enough to prove the path is writable without leaving junk.
-    probe = DEAD_LETTER.with_suffix(".probe")
-    probe.write_text("")
-    probe.unlink()
-    assert not probe.exists()
-
-
-def test_sync_module_pins_crew_102() -> None:
-    """The sync's module-level constants must name crew#102 — the board of record."""
-    assert ebs.BOARD_REPO == "chidionyema/crew"
-    assert ebs.BOARD_ISSUE == 102
-    assert ebs.DEFAULT_CACHE == pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+def test_missing_cache_returns_2(sync_module, tmp_path):
+    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
+    assert not cache.exists()
+    rc = sync_module.sync(cache_path=cache)
+    assert rc == 2

@@ -13,7 +13,6 @@ import importlib.util
 import io
 import json
 import subprocess
-import sys
 from pathlib import Path
 from unittest import mock
 

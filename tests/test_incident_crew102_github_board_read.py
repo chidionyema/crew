@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
-from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -34,36 +33,29 @@ _spec.loader.exec_module(ebs)
 
 def test_fetch_comments_targets_crew_102() -> None:
     """`fetch_comments` targets the board of record (chidionyema/crew#102)."""
-    fake_stdout = '{"comments": []}'
-    with patch.object(__import__("subprocess").run, "__call__") as _mock:
-        # `subprocess.run` is imported in the module under test as `subprocess.run`; we
-        # patch the real subprocess module's run attribute, which is what the call site
-        # resolves to at import time.
-        import subprocess as _sp
+    import subprocess as _sp
 
-        original = _sp.run
+    class _Resp:
+        returncode = 0
+        stdout = '{"comments": []}'
 
-        class _Resp:
-            returncode = 0
-            stdout = fake_stdout
+        def __init__(self):
+            pass
 
-            def __init__(self):
-                pass
+    def _fake_run(cmd, *args, **kwargs):
+        joined = " ".join(str(c) for c in cmd)
+        assert "chidionyema/crew" in joined, joined
+        assert "102" in joined, joined
+        assert "--json" in joined and "comments" in joined, joined
+        return _Resp()
 
-        def _fake_run(cmd, *args, **kwargs):
-            # `fetch_comments` checks `.returncode`/`.stdout` on the result.
-            joined = " ".join(str(c) for c in cmd)
-            assert "chidionyema/crew" in joined, joined
-            assert "102" in joined, joined
-            assert "--json" in joined and "comments" in joined, joined
-            return _Resp()
-
-        try:
-            _sp.run = _fake_run
-            comments = ebs.fetch_comments()
-        finally:
-            _sp.run = original
-        assert comments == []
+    original = _sp.run
+    try:
+        _sp.run = _fake_run
+        comments = ebs.fetch_comments()
+    finally:
+        _sp.run = original
+    assert comments == []
 
 
 def test_parse_comment_accepts_full_format() -> None:

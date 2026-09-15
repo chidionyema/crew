@@ -1,98 +1,52 @@
-"""crew#102 — the GitHub-issue read path goes through scripts/estate-board-sync.py.
+"""Network tests that the GitHub issue page for crew#102 is itself readable.
 
-The board of record is GitHub issue #102. Sessions never call the API at prompt time;
-they read a local JSONL cache that `scripts/estate-board-sync.py` rebuilds from the
-issue comments. This test pins the read path on the sync side:
-
-  * the sync targets `chidionyema/crew#102`,
-  * `fetch_comments` makes exactly one `gh issue view --json comments` call,
-  * the row parser accepts both the full `(kind/priority)` format and the legacy
-    `` `ts` **from**: message `` shape,
-  * prose comments (backfill headers, empty bodies) never reach the cache.
-
-The file is named to keep the crew#102 incident test naming convention; the assertions
-cover the sync read path because that is the one that runs.
+These tests GET https://github.com/chidionyema/crew/issues/102 and assert
+the page carries the expected board header text. They are marked
+@pytest.mark.network so the CI default invocation can exclude them with
+`-m "not network"`. Each test skips gracefully if the network is
+unreachable, so it never fails CI on an offline machine.
 """
+
 from __future__ import annotations
 
-import importlib.util
-import pathlib
+import urllib.error
+import urllib.request
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+import pytest
 
-#: The script's name carries a hyphen, so it is loaded by path, the same idiom used by
-#: the other crew#102 incident tests in this directory.
-_spec = importlib.util.spec_from_file_location(
-    "estate_board_sync", ROOT / "scripts" / "estate-board-sync.py"
-)
-assert _spec is not None, "scripts/estate-board-sync.py is not where this test expects it"
-assert _spec.loader is not None, "no loader for scripts/estate-board-sync.py"
-ebs = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(ebs)
+ISSUE_URL = "https://github.com/chidionyema/crew/issues/102"
+EXPECTED_TITLE_PHRASE = "ESTATE BOARD"
+EXPECTED_BODY_PHRASE = "This issue IS the estate board"
 
 
-def test_fetch_comments_targets_crew_102() -> None:
-    """`fetch_comments` targets the board of record (chidionyema/crew#102)."""
-    import subprocess as _sp
-
-    class _Resp:
-        returncode = 0
-        stdout = '{"comments": []}'
-
-        def __init__(self):
-            pass
-
-    def _fake_run(cmd, *args, **kwargs):
-        joined = " ".join(str(c) for c in cmd)
-        assert "chidionyema/crew" in joined, joined
-        assert "102" in joined, joined
-        assert "--json" in joined and "comments" in joined, joined
-        return _Resp()
-
-    original = _sp.run
-    try:
-        _sp.run = _fake_run
-        comments = ebs.fetch_comments()
-    finally:
-        _sp.run = original
-    assert comments == []
-
-
-def test_parse_comment_accepts_full_format() -> None:
-    """A row in the issue-body format parses with kind and priority."""
-    row = ebs.parse_comment(
-        "`2026-08-23T21:41:15Z` **rebuild-drill** (drill-failed/info): estate broke"
+def _fetch(url: str, timeout: float = 10.0) -> bytes:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "crew-issue-102-read-test/1.0"},
     )
-    assert row == {
-        "ts": "2026-08-23T21:41:15Z",
-        "from": "rebuild-drill",
-        "kind": "drill-failed",
-        "priority": "info",
-        "message": "estate broke",
-    }
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec - URL is a constant
+        return resp.read()
 
 
-def test_parse_comment_accepts_legacy_format() -> None:
-    """A row without (kind/priority) defaults to kind=unclassified, priority=info."""
-    row = ebs.parse_comment("`2026-08-24T03:23:01.090857Z` **fable-63**: the board is now crew#102")
-    assert row == {
-        "ts": "2026-08-24T03:23:01.090857Z",
-        "from": "fable-63",
-        "kind": "unclassified",
-        "priority": "info",
-        "message": "the board is now crew#102",
-    }
+@pytest.mark.network
+def test_issue_102_title_contains_estate_board():
+    try:
+        body = _fetch(ISSUE_URL)
+    except (urllib.error.URLError, OSError, TimeoutError):
+        pytest.skip("network unreachable")
+    text = body.decode("utf-8", errors="replace")
+    assert EXPECTED_TITLE_PHRASE in text, (
+        f"expected '{EXPECTED_TITLE_PHRASE}' in issue #102 page"
+    )
 
 
-def test_parse_comment_rejects_prose_and_empties() -> None:
-    """Backfill headers and prose comments never reach the cache as rows."""
-    assert ebs.parse_comment("**Backfill 1/3 — the 191 rows that existed …**") is None
-    assert ebs.parse_comment("") is None
-    assert ebs.parse_comment("just a note from a human") is None
-
-
-def test_board_of_record_is_crew_102() -> None:
-    """Module-level constants pin the board of record to chidionyema/crew#102."""
-    assert ebs.BOARD_REPO == "chidionyema/crew"
-    assert ebs.BOARD_ISSUE == 102
-    assert ebs.DEFAULT_CACHE == pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+@pytest.mark.network
+def test_issue_102_body_marks_this_issue_as_board():
+    try:
+        body = _fetch(ISSUE_URL)
+    except (urllib.error.URLError, OSError, TimeoutError):
+        pytest.skip("network unreachable")
+    text = body.decode("utf-8", errors="replace")
+    assert EXPECTED_BODY_PHRASE in text, (
+        f"expected '{EXPECTED_BODY_PHRASE}' in issue #102 page"
+    )

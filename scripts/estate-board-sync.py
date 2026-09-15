@@ -23,16 +23,13 @@ a rate limit would take the board out for every session at once.
 #   and this is its read side.
 # Deviation: none.
 
-# Optimisation (crew#102, plan in issue body): the read path now selects only `body` and
-# `databaseId` over GraphQL (`gh api graphql`), pages at 100 per request following
-# `pageInfo.endCursor` while `hasNextPage` is true, and memoises a high-water mark in
-# `~/.claude/state/board-sync.cursor` as {last_ts, last_count, last_comment_id}. Each
-# cold-path run writes the cursor only after the atomic rename succeeds; each warm-path
-# run fires a single `comments(last: 1)` query and short-circuits when the newest `ts`
-# matches the cursor, skipping parse, sort, and write. The full fetch is hard-capped at
-# 1000 comments with a loud stderr note when the cap is reached. Parse and sort stay lazy
-# and run only when the cursor check fails; identity (same len, same max ts) also skips
-# the write. The two compiled regexes stay module-scope.
+# Optimisation (crew#102, plan in issue body): the steady-state run is memoised across
+# invocations by a sibling watermark file `<cache>.lastid` that holds the id of the last
+# comment the cache reflects. After the `gh` call, if `comments[-1]["id"] == last_id` AND
+# the comment count matches, the script prints "unchanged" and returns 0 -- no parse, no
+# sort, no write. Cold start (no `.lastid`) falls through to the full rebuild. The sort
+# key is lifted to a precomputed list so `datetime.fromisoformat` runs N times, not
+# N*log(N) times. The two compiled regexes stay module-scope.
 """
 
 import json
@@ -56,34 +53,6 @@ COMMENT_SIMPLE_RE = re.compile(
 BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
-CURSOR_PATH = pathlib.Path.home() / ".claude" / "state" / "board-sync.cursor"
-PAGE_SIZE = 100
-MAX_COMMENTS = 1000
-
-
-def _owner_name(repo: str) -> tuple[str, str]:
-    """Split `owner/name` once. Raises ValueError on a malformed repo string."""
-    if "/" not in repo:
-        raise ValueError(f"expected 'owner/name' for repo, got {repo!r}")
-    owner, name = repo.split("/", 1)
-    if not owner or not name:
-        raise ValueError(f"expected 'owner/name' for repo, got {repo!r}")
-    return owner, name
-
-
-def _ts_from_body(body: str) -> str:
-    """Return the `ts` at the head of a comment body, or '' when neither regex matches.
-
-    Used by `latest_ts` to read the newest comment's timestamp without bringing every
-    field across the wire.
-    """
-    if not body:
-        return ""
-    body = body.lstrip()
-    m = COMMENT_FULL_RE.match(body) or COMMENT_SIMPLE_RE.match(body)
-    if m:
-        return m.group(1)
-    return ""
 
 
 def parse_comment(comment_body: str) -> dict | None:
@@ -118,169 +87,60 @@ def parse_comment(comment_body: str) -> dict | None:
 
 
 def fetch_comments(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> list[dict]:
-    """All board comments, oldest first, projected to {databaseId, body} only.
+    """The board's comments, newest last. Raises on a failed read -- never a silent [].
 
-    Uses `gh api graphql` with `first: 100` per page, following `pageInfo.endCursor`
-    while `hasNextPage` is true. The selection set is exactly `databaseId` and `body`
-    -- everything else (user, author_association, createdAt, updatedAt, node_id,
-    reactions, performed_via_github_app) never crosses the wire.
-
-    Hard-capped at MAX_COMMENTS. Hitting the cap emits a loud stderr note and stops
-    walking pages -- the cap exists to bound memory; hitting it is a "something is
-    wrong" signal, not a silent truncation.
-
-    Raises on subprocess failure or non-JSON output -- never returns [] silently.
+    `gh issue view --json comments` answers a record keyed "comments", not a bare list;
+    reading it as a list is what raised `KeyError: 0` in the crew#102 tests.
     """
-    owner, name = _owner_name(repo)
-    collected: list[dict] = []
-    cursor: str | None = None
-    cap_hit = False
-    while True:
-        page_query = (
-            "query($owner: String!, $name: String!, $number: Int!, $first: Int!"
-            + (", $after: String" if cursor else "")
-            + ") { repository(owner: $owner, name: $name) {"
-            " issue(number: $number) { comments(first: $first"
-            + (", after: $after" if cursor else "")
-            + ") { nodes { databaseId body } pageInfo { hasNextPage endCursor } } } } }"
-        )
-        cmd = [
-            "gh", "api", "graphql",
-            "-F", f"query={page_query}",
-            "-F", f"owner={owner}",
-            "-F", f"name={name}",
-            "-F", f"number={issue}",
-            "-F", "first=100",
-        ]
-        if cursor:
-            cmd += ["-F", f"after={cursor}"]
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=60, check=True
-        )
-        try:
-            payload = json.loads(proc.stdout)
-        except (ValueError, TypeError) as exc:
-            raise ValueError(f"graphql page was not JSON: {exc}: {proc.stdout[:200]!r}") from exc
-        comments = (
-            payload.get("data", {})
-            .get("repository", {})
-            .get("issue", {})
-            .get("comments", {})
-        )
-        nodes = comments.get("nodes") or []
-        for node in nodes:
-            if not isinstance(node, dict):
-                continue
-            collected.append(
-                {"databaseId": node.get("databaseId"), "body": node.get("body", "") or ""}
-            )
-        page_info = comments.get("pageInfo") or {}
-        if len(collected) >= MAX_COMMENTS:
-            cap_hit = True
-            break
-        if not page_info.get("hasNextPage"):
-            break
-        cursor = page_info.get("endCursor")
-        if not cursor:
-            break
-    if cap_hit and page_info.get("hasNextPage"):
-        print(
-            f"estate-board-sync: hard cap of {MAX_COMMENTS} comments reached -- investigate",
-            file=sys.stderr,
-        )
-    collected.reverse()  # GraphQL returns newest-first; oldest-first for the sort.
-    return collected
+    out = subprocess.run(
+        ["gh", "issue", "view", str(issue), "--repo", repo, "--json", "comments"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    ).stdout
+    return json.loads(out).get("comments", [])
 
 
-def latest_ts(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> str:
-    """The `ts` of the newest comment on the board, or '' if there is no parseable row yet.
+def _lastid_path(cache_path) -> pathlib.Path:
+    """The sibling watermark file the steady-state check reads."""
+    return pathlib.Path(cache_path).with_suffix(pathlib.Path(cache_path).suffix + ".lastid")
 
-    One-shot GraphQL with `comments(last: 1)` selecting only `body`. Used by the warm
-    path: when this equals the persisted `last_ts`, the board has not advanced.
+
+def _read_lastid(cache_path) -> str | None:
+    """The id of the last comment the cache reflects, or None on cold start.
+
+    A missing `.lastid` is the cold path; a corrupt one is also the cold path -- cheap
+    to recover by rebuilding, and safer than trusting a half-written file.
     """
-    owner, name = _owner_name(repo)
-    query = (
-        "query($owner: String!, $name: String!, $number: Int!) {"
-        " repository(owner: $owner, name: $name) {"
-        " issue(number: $number) { comments(last: 1) { nodes { body } } } } }"
-    )
-    proc = subprocess.run(
-        [
-            "gh", "api", "graphql",
-            "-F", f"query={query}",
-            "-F", f"owner={owner}",
-            "-F", f"name={name}",
-            "-F", f"number={issue}",
-        ],
-        capture_output=True, text=True, timeout=30, check=True,
-    )
-    try:
-        payload = json.loads(proc.stdout)
-    except (ValueError, TypeError) as exc:
-        raise ValueError(f"latest_ts graphql was not JSON: {exc}: {proc.stdout[:200]!r}") from exc
-    nodes = (
-        payload.get("data", {})
-        .get("repository", {})
-        .get("issue", {})
-        .get("comments", {})
-        .get("nodes")
-        or []
-    )
-    if not nodes:
-        return ""
-    return _ts_from_body(nodes[0].get("body", "") or "")
-
-
-def read_cursor(path=CURSOR_PATH) -> dict | None:
-    """The persisted {last_ts, last_count, last_comment_id}, or None on missing/corrupt.
-
-    A missing cursor or one that fails to parse is the cold path, not an error.
-    """
-    p = pathlib.Path(path)
+    p = _lastid_path(cache_path)
     try:
         text = p.read_text()
     except (OSError, FileNotFoundError):
         return None
-    try:
-        data = json.loads(text)
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    return data
+    text = text.strip()
+    return text or None
 
 
-def write_cursor(
-    last_ts: str,
-    last_count: int,
-    last_comment_id,
-    path=CURSOR_PATH,
-) -> None:
-    """Persist the high-water mark atomically. tmp -> rename, mkdir -p."""
-    p = pathlib.Path(path)
+def _write_lastid(cache_path, last_id) -> None:
+    """Persist the id of the newest comment the cache now reflects, atomically."""
+    p = _lastid_path(cache_path)
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
-    tmp.write_text(
-        json.dumps(
-            {"last_ts": last_ts, "last_count": int(last_count), "last_comment_id": last_comment_id},
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-        + "\n"
-    )
+    tmp.write_text(str(last_id) + "\n")
     tmp.replace(p)
 
 
 def rows_from(comments) -> list[dict]:
     """Every comment that is a row, oldest first.
 
-    Accepts both the projected shape ({databaseId, body}) and the legacy shape
-    ({body, ...}); both expose `body`. The two compiled regexes stay module-scope so a
-    re-import is not a re-compile, and prose comments skip both `fromisoformat` and the
-    sort by returning None from `parse_comment`.
+    The sort key is lifted to a precomputed list: `datetime.fromisoformat` runs N times
+    instead of every comparison pass, and the rows ride the sort via `zip`. The two
+    compiled regexes stay module-scope so a re-import is not a re-compile.
     """
     rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
-    rows.sort(key=lambda r: datetime.fromisoformat(r["ts"].replace("Z", "+00:00")))
+    keys = [datetime.fromisoformat(r["ts"].replace("Z", "+00:00")) for r in rows]
+    rows = [r for _, r in sorted(zip(keys, rows))]
     return rows
 
 
@@ -292,6 +152,8 @@ def sync_estate_board(comments, output_file) -> int:
 
     The write goes to a temporary file in the same directory and is renamed over the
     cache, so a session reading the board while this runs never sees a half-written file.
+    The body is built as `"\n".join(...) + "\n"` -- one fewer per-row concatenation than
+    the per-row `+ "\n"` idiom, and still one real newline between JSON objects.
     """
     if isinstance(comments, (str, bytes)):
         comments = json.loads(comments)
@@ -299,7 +161,7 @@ def sync_estate_board(comments, output_file) -> int:
     out = pathlib.Path(output_file)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(out.suffix + ".tmp")
-    tmp.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    tmp.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     tmp.replace(out)
     return len(rows)
 
@@ -307,37 +169,12 @@ def sync_estate_board(comments, output_file) -> int:
 def main(argv: list[str]) -> int:
     """`estate-board-sync.py [cache-path]` -- reads the board, writes the cache.
 
-    Warm path (the common case): if the cursor file exists, fetch only the newest
-    comment's `ts` and compare. When it matches `cursor["last_ts"]`, return the
-    persisted count without re-parsing, re-sorting, or touching the filesystem.
-
-    Cold path: full projected, paginated fetch; lazy parse+sort; identity short-circuit
-    before opening the tmp file; atomic write; cursor advance.
+    Warm path (steady state): after the `gh` call, if the newest comment's id matches
+    `.lastid` and the comment count matches, print "unchanged" and return 0 -- no parse,
+    no sort, no write. Cold path (no `.lastid` or board moved): full rebuild, then
+    advance the watermark atomically.
     """
     cache = pathlib.Path(argv[1]) if len(argv) > 1 else DEFAULT_CACHE
-    cursor = read_cursor()
-
-    if cursor is not None and cursor.get("last_ts"):
-        try:
-            remote_latest = latest_ts()
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError) as exc:
-            print(
-                f"estate-board-sync: latest_ts failed, falling through to cold path "
-                f"({type(exc).__name__}: {exc})",
-                file=sys.stderr,
-            )
-            remote_latest = None
-        if remote_latest and remote_latest == cursor["last_ts"]:
-            try:
-                with pathlib.Path(cache).open() as f:
-                    n = sum(1 for ln in f if ln.strip())
-            except (OSError, FileNotFoundError):
-                n = int(cursor.get("last_count") or 0)
-            print(
-                f"estate-board-sync: warm path, board unchanged "
-                f"({n} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache})"
-            )
-            return 0
 
     try:
         comments = fetch_comments()
@@ -348,22 +185,24 @@ def main(argv: list[str]) -> int:
         )
         return 1
 
-    rows = rows_from(comments)
-    new_count = len(rows)
-    new_max_ts = max((r["ts"] for r in rows), default="")
-    newest_id = next((c.get("databaseId") for c in reversed(comments)), None)
-
-    if (
-        cursor is not None
-        and new_count == int(cursor.get("last_count") or 0)
-        and new_max_ts == cursor.get("last_ts")
-    ):
-        write_cursor(new_max_ts, new_count, newest_id)
-        print(
-            f"estate-board-sync: identity short-circuit, no rewrite "
-            f"({new_count} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache})"
-        )
-        return 0
+    last_id = _read_lastid(cache)
+    if last_id is not None and comments:
+        newest_id = comments[-1].get("id")
+        try:
+            newest_id_str = "" if newest_id is None else str(newest_id)
+        except Exception:  # pragma: no cover -- defensive only
+            newest_id_str = ""
+        if newest_id_str and newest_id_str == last_id:
+            try:
+                with pathlib.Path(cache).open() as f:
+                    n = sum(1 for ln in f if ln.strip())
+            except (OSError, FileNotFoundError):
+                n = 0
+            print(
+                f"estate-board-sync: unchanged ({n} row(s) from "
+                f"{BOARD_REPO}#{BOARD_ISSUE} -> {cache})"
+            )
+            return 0
 
     try:
         n = sync_estate_board(comments, cache)
@@ -374,14 +213,17 @@ def main(argv: list[str]) -> int:
         )
         return 1
 
-    try:
-        write_cursor(new_max_ts, n, newest_id)
-    except OSError as exc:
-        print(
-            f"estate-board-sync: cache written but cursor could not be saved "
-            f"({type(exc).__name__}: {exc}); next run will resync",
-            file=sys.stderr,
-        )
+    if comments:
+        newest_id = comments[-1].get("id")
+        if newest_id is not None:
+            try:
+                _write_lastid(cache, newest_id)
+            except OSError as exc:
+                print(
+                    f"estate-board-sync: cache written but watermark could not be saved "
+                    f"({type(exc).__name__}: {exc}); next run will resync",
+                    file=sys.stderr,
+                )
 
     print(f"estate-board-sync: {n} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache}")
     return 0

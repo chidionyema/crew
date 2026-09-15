@@ -30,20 +30,11 @@ from pathlib import Path
 DEAD_LETTER = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
 EXPECTED_PARENT = Path.home() / ".claude" / "state"
 EXPECTED_NAME = "board-deadletter.jsonl"
-#: The dead-letter contract: at minimum a timestamp. The writer (in
-#: claude-guards) carries `reason` and `row` and so does this test --
-#: opening the schema wider than what the issue body names is a silent
-#: contract change.
 TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
 
 
 def _isolated_copy() -> Path:
-    """A line of the dead-letter file we can append to without disturbing the real one.
-
-    The real file is append-only by contract, so a test that wants a known
-    starting point cannot truncate it. We grab the LAST appended row (if
-    any), capture its line count, then append synthetically from there.
-    """
+    """Touch the file if it does not exist; never replace it."""
     DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
     if not DEAD_LETTER.exists():
         DEAD_LETTER.touch()
@@ -51,7 +42,7 @@ def _isolated_copy() -> Path:
 
 
 def _append(payload: dict) -> None:
-    """One append — the only thing the contract grants."""
+    """One append. The only thing the contract grants."""
     DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
     with DEAD_LETTER.open("a", encoding="utf-8") as fh:
@@ -110,7 +101,8 @@ def test_dead_letter_writer_is_exercised_and_appends_a_real_row() -> None:
 def test_a_second_append_lands_below_the_first_so_a_drop_is_observable() -> None:
     """Append-only: two appends produce two trailing lines, in order, no replacement."""
     _isolated_copy()
-    base_count_before = sum(1 for ln in DEAD_LETTER.read_text(encoding="utf-8").splitlines() if ln.strip())
+    body_before = DEAD_LETTER.read_text(encoding="utf-8") if DEAD_LETTER.exists() else ""
+    base_count_before = sum(1 for ln in body_before.splitlines() if ln.strip())
     rid = uuid.uuid4().hex[:12]
     p1 = {"ts": _now_iso(), "reason": f"synthetic drop A {rid}", "row": {"message": f"A {rid}"}}
     p2 = {"ts": _now_iso(), "reason": f"synthetic drop B {rid}", "row": {"message": f"B {rid}"}}
@@ -119,9 +111,6 @@ def test_a_second_append_lands_below_the_first_so_a_drop_is_observable() -> None
     body = DEAD_LETTER.read_text(encoding="utf-8").splitlines()
     non_empty = [ln for ln in body if ln.strip()]
     assert non_empty, "dead-letter file is empty after two appends"
-    # The last two entries MUST be ours (writer is append-only; prior rows are
-    # untouched). A drop followed by another drop is therefore observable as
-    # two trailing rows, in order, not one row replacing the other.
     assert len(non_empty) >= base_count_before + 2, (
         f"append-only violated: before={base_count_before} after={len(non_empty)}"
     )
@@ -130,7 +119,6 @@ def test_a_second_append_lands_below_the_first_so_a_drop_is_observable() -> None
     parsed1 = json.loads(last_two[1])
     assert parsed0["row"]["message"].endswith(f"A {rid}"), parsed0
     assert parsed1["row"]["message"].endswith(f"B {rid}"), parsed1
-    # Order preserved: cache is replace; dead-letter is append-and-keep-order.
     assert parsed0["ts"] <= parsed1["ts"], (
         f"out of order: {parsed0['ts']!r} then {parsed1['ts']!r}"
     )

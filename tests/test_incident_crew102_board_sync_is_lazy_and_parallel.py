@@ -37,9 +37,7 @@ def _gh(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_script_parses_known_full_rows() -> None:
-    """The parser handles both the full `(kind/priority)` rows and the older
-    backfill rows that lack kind and priority. Two parsed dicts from the live
-    board are enough; the rest of the cache is covered by the issue test."""
+    """The parser handles the full `(kind/priority)` rows declared by the board."""
     out = _gh("issue", "view", "102", "--repo", "chidionyema/crew", "--json", "comments")
     assert out.returncode == 0, out.stderr or out.stdout
     comments = json.loads(out.stdout)["comments"]
@@ -63,11 +61,11 @@ def test_script_parses_known_full_rows() -> None:
 def test_atomic_write_uses_tmp_then_replace(tmp_path: pathlib.Path) -> None:
     """A sync that hits a missing cache leaves no half-written file behind.
 
-    We exercise `sync_estate_board` directly with an empty comments list so the
-    test never hits the network. The atomic-rename contract is: the live cache
-    exists after the call (with the rows we asked for), no `.tmp` lingers, and
-    any reader that opened the path mid-run would have seen ENOENT, not a
-    truncated file."""
+    We exercise `sync_estate_board` directly with a known row set so the test
+    never hits the network. The atomic-rename contract is: the live cache exists
+    after the call (with the rows we asked for), no `.tmp` lingers, and a reader
+    that opened the path mid-run would have seen ENOENT, not a truncated file.
+    """
     sys.path.insert(0, str(ROOT / "scripts"))
     import importlib
     mod = importlib.import_module("estate-board-sync")
@@ -96,13 +94,13 @@ def test_proof_file_is_written_on_sync(tmp_path: pathlib.Path) -> None:
 
     The sync writes ~/.claude/estate-board-sync.state.json. The proof command
     is `jq -r '.last_ts' ~/.claude/estate-board-sync.state.json` and it must
-    equal the timestamp of the most recent row the sync wrote."""
+    equal the timestamp of the most recent row the sync wrote.
+    """
     sys.path.insert(0, str(ROOT / "scripts"))
     import importlib
     mod = importlib.import_module("estate-board-sync")
     importlib.reload(mod)
 
-    # Redirect the proof path for the test so we do not touch the real one.
     proof = tmp_path / "estate-board-sync.state.json"
     mod.PROOF_STATE = proof
 
@@ -121,20 +119,18 @@ def test_proof_file_is_written_on_sync(tmp_path: pathlib.Path) -> None:
     assert state["total_count"] == "270"
 
 
-def test_cursor_is_a_tail_filter() -> None:
-    """--cursor=<iso-ts> names the highest ts already in the cache; the read
-    drops anything older. The prompt hook becomes free: it never re-parses the
-    head of the board."""
-    # The contract lives in `main`'s last_ts_in_cache + the GraphQL `since=`
-    # variable the script sets. We exercise last_ts_in_cache directly here.
+def test_cursor_is_a_tail_filter(tmp_path: pathlib.Path) -> None:
+    """`last_ts_in_cache` returns the highest ts in the cache, or None when empty.
+
+    `main`'s caller uses this to drive the GraphQL `since=` cursor on the next
+    sync so only rows strictly newer than the cache tail are merged.
+    """
     sys.path.insert(0, str(ROOT / "scripts"))
     import importlib
     mod = importlib.import_module("estate-board-sync")
     importlib.reload(mod)
 
-    cache = pathlib.Path("/tmp/crew102-empty-cache-for-cursor-test.jsonl")
-    if cache.exists():
-        cache.unlink()
+    cache = tmp_path / "ESTATE_BOARD.jsonl"
     assert mod.last_ts_in_cache(cache) is None
 
     cache.write_text(
@@ -144,7 +140,6 @@ def test_cursor_is_a_tail_filter() -> None:
         encoding="utf-8",
     )
     assert mod.last_ts_in_cache(cache) == "2026-08-24T03:23:01.090857Z"
-    cache.unlink()
 
 
 def test_script_runs_clean_on_a_clean_checkout() -> None:

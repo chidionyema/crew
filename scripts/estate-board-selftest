@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# estate-board-selftest — round-trip the writer against GitHub issue #102.
+#
+# Usage:  bash scripts/estate-board-selftest
+# Exit:   0 on confirmed round-trip, 1 otherwise. Whatever the Python
+#         module returns, this script returns.
+#
+# The Python module:
+#   - posts a self-marker row via `gh issue comment`
+#   - reads the comments back via `gh issue view --comments`
+#   - verifies the marker is present
+# See docs/ESTATE-BOARD.md for the failure contract.
+
+set -euo pipefail
+
+# Find the repo root regardless of where this script is invoked from.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+cd "${REPO_ROOT}"
+exec python -m crew.estate_board --selftest

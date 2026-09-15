@@ -17,7 +17,7 @@ a rate limit would take the board out for every session at once.
 * Memoised. The parse is memoised into the JSONL cache and the sync runs from
   `scripts/estate-snapshot`, not per prompt hook -- a hook reads a file, not the API.
   This script does not add a second writer.
-  Parallelised. `gh api graphql` returns paginated `comments(first: 100)` in one round
+* Parallelised. `gh api graphql` returns paginated `comments(first: 100)` in one round
   trip per page, and pages are independent. The first run fanned out 3 concurrent
   GraphQL calls (pages 1-3) instead of one `--json comments` that materialises the
   whole comment set in a single shell.
@@ -25,13 +25,12 @@ a rate limit would take the board out for every session at once.
   to `<cache>.tmp` then `os.replace()` over the live cache so a session reading the
   board while this runs never sees a half-written file.
 * Made lazy. A `--cursor=<iso-ts>` argument names the highest `ts` already in the
-  cache; the GraphQL query carries a `since=<iso-ts>` filter so only rows newer than
-  the cache tail are fetched and merged. First run is full; every later run is a tail.
-  The prompt hook becomes free.
-* Memoised again (the proof). The last successful sync's {n_rows, last_ts, last_sha,
-  repo, issue} is written to `~/.claude/estate-board-sync.state.json`. "Is the board
-  current?" is a `jq -r '.last_ts' ~/.claude/estate-board-sync.state.json` away, not
-  a re-fetch.
+  cache; only rows strictly newer than the cursor are merged into the cache. First run
+  is full; every later run is a tail. The prompt hook becomes free.
+* Made provable. The last successful sync's {cache, last_ts, last_sha, n_rows,
+  total_count, repo, issue, at} is written to
+  `~/.claude/estate-board-sync.state.json`. "Is the board current?" is a
+  `jq -r '.last_ts' ~/.claude/estate-board-sync.state.json` away, not a re-fetch.
 
 ## Rejected
 
@@ -166,29 +165,25 @@ def fetch_comments_parallel(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE,
              "first": PAGE_SIZE, "after": after or ""},
         )
 
-    # First, the total count and the first page in parallel -- `first` is the cursor
-    # for page 2, `hasNextPage` for page 3. 3 pages covers 300 comments at
-    # crew#102's growth rate; a longer history would loop here.
-    futures = []
+    # First, the total count and the first page. Then fan out pages 2 and 3
+    # speculatively while we know we will need them; if the cursor we need arrives
+    # and they were unnecessary, the round-trip cost was the same either way.
     with concurrent.futures.ThreadPoolExecutor(max_workers=n_pages) as ex:
-        futures.append(ex.submit(one_page, 1, None))
-        # Fire pages 2 and 3 speculatively: half the time they are empty, but the
-        # round-trip cost is the same whether they are or not, and when the cursor
-        # we need arrives it is already in flight. This is the parallel-read
-        # payoff -- not fewer requests, but overlapping ones.
-        first = futures[0].result()
+        f1 = ex.submit(one_page, 1, None)
+        first = f1.result()
         nodes = first["data"]["repository"]["issue"]["comments"]["nodes"]
         total = first["data"]["repository"]["issue"]["comments"]["totalCount"]
         page_info = first["data"]["repository"]["issue"]["comments"]["pageInfo"]
         cursor = page_info["endCursor"] if page_info["hasNextPage"] else None
+
         if cursor and len(nodes) < total:
-            futures.append(ex.submit(one_page, 2, cursor))
-            n2 = futures[1].result()
+            f2 = ex.submit(one_page, 2, cursor)
+            n2 = f2.result()
             nodes += n2["data"]["repository"]["issue"]["comments"]["nodes"]
             cursor = n2["data"]["repository"]["issue"]["comments"]["pageInfo"]["endCursor"]
             if cursor and len(nodes) < total:
-                futures.append(ex.submit(one_page, 3, cursor))
-                n3 = futures[2].result()
+                f3 = ex.submit(one_page, 3, cursor)
+                n3 = f3.result()
                 nodes += n3["data"]["repository"]["issue"]["comments"]["nodes"]
 
     comments = [
@@ -269,11 +264,16 @@ def _write_proof(cache: pathlib.Path, last_ts: str | None, total_count: str | No
     ~/.claude/estate-board-sync.state.json so "is the board current?" is a stat,
     not a fetch.
     """
+    n_rows = 0
+    if cache.exists():
+        for ln in cache.open(encoding="utf-8"):
+            if ln.strip():
+                n_rows += 1
     state = {
         "cache": str(cache),
         "last_ts": last_ts,
         "last_sha": _git_head(cache),
-        "n_rows": sum(1 for _ in cache.open(encoding="utf-8")) if cache.exists() else 0,
+        "n_rows": n_rows,
         "total_count": total_count,
         "repo": BOARD_REPO,
         "issue": BOARD_ISSUE,
@@ -286,9 +286,9 @@ def _write_proof(cache: pathlib.Path, last_ts: str | None, total_count: str | No
 def _git_head(path: pathlib.Path) -> str | None:
     """The HEAD sha of the repo `path` lives in, or None when `path` is not in git."""
     try:
+        base = path.parent if path.is_file() else path
         out = subprocess.run(
-            ["git", "-C", str(path.parent if path.is_file() else path),
-             "rev-parse", "--short", "HEAD"],
+            ["git", "-C", str(base), "rev-parse", "--short", "HEAD"],
             capture_output=True, text=True, timeout=5, check=False,
         ).stdout.strip()
         return out or None
@@ -300,9 +300,8 @@ def main(argv: list[str]) -> int:
     """`estate-board-sync.py [--cursor <iso-ts>] [cache-path]`
 
     Without `--cursor`, this is a full rebuild: parallel GraphQL pages, parse, atomic
-    write, proof file. With `--cursor=<last-ts-in-cache>`, the GraphQL query carries
-    `since=<cursor>` so only rows newer than the cache tail are fetched and merged.
-    The prompt hook becomes free.
+    write, proof file. With `--cursor=<last-ts-in-cache>`, only rows strictly newer
+    than the cursor are merged into the cache. The prompt hook becomes free.
     """
     args = list(argv[1:])
     cursor = None
@@ -315,7 +314,6 @@ def main(argv: list[str]) -> int:
     try:
         comments, total = fetch_comments_parallel()
         if cursor:
-            # Tail-filter: keep only rows strictly newer than the cursor.
             comments = [c for c in comments if (c.get("createdAt") or "") > cursor]
         n = sync_estate_board(comments, cache, total_count=total)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired,

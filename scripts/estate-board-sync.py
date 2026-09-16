@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Rebuild the local estate-board cache from the comments on the board issue (crew#102).
 
-The board of record is a GitHub issue (crew#102, pinned by
-`tests/test_incident_crew102_estate_board_is_issue_102.py`). Every broadcast lands there
-as a comment. Agent sessions, though, read a local JSONL file at prompt time, and nothing
+The board of record is one GitHub issue (crew#102). Every broadcast lands there as a
+comment. Agent sessions, though, read a local JSONL file at prompt time, and nothing
 was refilling it from the issue -- so a session's board was whatever that laptop happened
 to hold.
 
@@ -30,6 +29,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from datetime import datetime
 
 #: The format the board issue's own body declares: `ts` **from** (kind/priority): message.
 COMMENT_FULL_RE = re.compile(
@@ -94,15 +94,9 @@ def fetch_comments(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> list[dic
 
 
 def rows_from(comments) -> list[dict]:
-    """Every comment that is a row, oldest first.
-
-    ISO-8601 timestamps with a fixed `Z` suffix are bytewise-ordered, so the sort key
-    is the raw `ts` string -- no `datetime.fromisoformat` constructor calls and no
-    `str.replace("Z","+00:00")` allocations per row. The order is identical to a
-    parsed-datetime sort; the work is gone.
-    """
+    """Every comment that is a row, oldest first."""
     rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
-    rows.sort(key=lambda r: r["ts"])
+    rows.sort(key=lambda r: datetime.fromisoformat(r["ts"].replace("Z", "+00:00")))
     return rows
 
 

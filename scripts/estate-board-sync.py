@@ -12,20 +12,6 @@ from `scripts/estate-snapshot`, which is already scheduled, rather than on every
 read -- a read that calls the GitHub API is a read that fails when the network does, and
 a rate limit would take the board out for every session at once.
 
-# crew#102 read-side hardening
-
-The script now (1) passes `--paginate` to `gh issue view --json comments` so a board
-over 100 comments is read in one logical call rather than the first page, (2) retries
-once after a 2-second sleep on the two transient failure modes that look identical to
-a scheduled snapshot (subprocess.TimeoutExpired and a CalledProcessError whose stderr
-mentions HTTP 5xx or "rate limit"), and (3) memoises the parsed comment list in-process
-keyed on (repo, issue) so a re-entrant call from the same script never pays for a second
-`gh` round trip. The memo is invalidated at the start of every retry, so a stale payload
-is never served past one failed attempt. The memo is per-process; nothing is written
-to disk outside the cache file itself, and a session reading the cache while this
-script runs never sees a half-written file because the write goes through the same
-atomic tmp-rename as before.
-
 # Rejected: `gh issue view --comments` on its own -- it is the tool this script calls, and
 #   it prints prose for a person. It has no shape for the row format the board declares, no
 #   way to skip the human backfill headers, and no cache, so every reader would pay a
@@ -44,8 +30,6 @@ import pathlib
 import re
 import subprocess
 import sys
-import time
-from datetime import datetime
 
 #: The format the board issue's own body declares: `ts` **from** (kind/priority): message.
 COMMENT_FULL_RE = re.compile(
@@ -60,18 +44,6 @@ COMMENT_SIMPLE_RE = re.compile(
 BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
-
-#: In-process memo of `fetch_comments` return values, keyed on (repo, issue). Lives only
-#: for the lifetime of this script process; nothing is written to disk. A retry in
-#: `_gh_call` invalidates the entry for the (repo, issue) it is about to re-fetch, so a
-#: stale payload is never served past one failed attempt.
-_FETCH_MEMO: dict[tuple[str, int], list[dict]] = {}
-
-#: Patterns that mark a `gh` subprocess failure as transient and worth one retry. The
-#: retry sleeps 2 seconds (a small, bounded wait) and runs the call again; a second
-#: failure propagates so `main()` exits loud, which is what
-#: `test_a_failed_read_is_a_loud_non_zero_exit` pins.
-_RETRY_SLEEP_S = 2.0
 
 
 def parse_comment(comment_body: str) -> dict | None:
@@ -105,76 +77,32 @@ def parse_comment(comment_body: str) -> dict | None:
     return None
 
 
-def _gh_call(args: list[str], *, timeout: int = 60) -> subprocess.CompletedProcess[str]:
-    """One `gh` subprocess call. No retry, no memo -- the caller decides both.
-
-    Extracted so `fetch_comments` can wrap it in the in-process memo and the transient
-    retry without obscuring the shape of either, and so the test suite can monkeypatch
-    a single boundary instead of reaching into `subprocess.run` directly.
-    """
-    return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=False)
-
-
-def _is_transient(err: subprocess.CalledProcessError) -> bool:
-    """True when a gh failure looks like a network blip or rate limit, not a logic bug."""
-    stderr = (err.stderr or "") if err.stderr is not None else ""
-    return bool(re.search(r"5\d\d|rate limit", stderr, re.IGNORECASE))
-
-
 def fetch_comments(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> list[dict]:
-    """The board's comments, oldest first. Raises on a failed read -- never a silent [].
+    """The board's comments, newest last. Raises on a failed read -- never a silent [].
 
     `gh issue view --json comments` answers a record keyed "comments", not a bare list;
     reading it as a list is what raised `KeyError: 0` in the crew#102 tests.
-
-    The call passes `--paginate` so `gh` follows the REST Link headers itself and
-    returns the full comment set in one logical request, which is what makes a board
-    over 100 comments survive a refresh. The call is wrapped in one transient retry
-    (timeout, HTTP 5xx, or "rate limit" in stderr) and in an in-process memo keyed on
-    (repo, issue). The memo is invalidated on retry so a stale payload is never served
-    past one failure.
     """
-    key = (repo, int(issue))
-    if key in _FETCH_MEMO:
-        return _FETCH_MEMO[key]
-
-    args = [
-        "gh", "issue", "view", str(issue), "--repo", repo,
-        "--paginate", "--json", "comments",
-    ]
-
-    try:
-        proc = _gh_call(args)
-    except subprocess.TimeoutExpired:
-        # Invalidate before the retry so the memo cannot return a half-built payload.
-        _FETCH_MEMO.pop(key, None)
-        time.sleep(_RETRY_SLEEP_S)
-        proc = _gh_call(args)
-
-    if proc.returncode != 0:
-        err = subprocess.CalledProcessError(proc.returncode, args, output=proc.stdout, stderr=proc.stderr)
-        if _is_transient(err):
-            _FETCH_MEMO.pop(key, None)
-            time.sleep(_RETRY_SLEEP_S)
-            proc = _gh_call(args)
-            if proc.returncode != 0:
-                raise subprocess.CalledProcessError(
-                    proc.returncode, args,
-                    output=proc.stdout, stderr=proc.stderr,
-                )
-        else:
-            raise err
-
-    payload = json.loads(proc.stdout)
-    comments = payload.get("comments", [])
-    _FETCH_MEMO[key] = comments
-    return comments
+    out = subprocess.run(
+        ["gh", "issue", "view", str(issue), "--repo", repo, "--json", "comments"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=True,
+    ).stdout
+    return json.loads(out).get("comments", [])
 
 
 def rows_from(comments) -> list[dict]:
-    """Every comment that is a row, oldest first."""
+    """Every comment that is a row, oldest first.
+
+    ISO-8601 timestamps with a fixed `Z` suffix are bytewise-ordered, so the sort key
+    is the raw `ts` string -- no `datetime.fromisoformat` constructor calls and no
+    `str.replace("Z","+00:00")` allocations per row. The order is identical to a
+    parsed-datetime sort; the work is gone.
+    """
     rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
-    rows.sort(key=lambda r: datetime.fromisoformat(r["ts"].replace("Z", "+00:00")))
+    rows.sort(key=lambda r: r["ts"])
     return rows
 
 

@@ -1,143 +1,119 @@
 #!/usr/bin/env python3
-"""estate-broadcast.py — append a single broadcast row to crew#102.
+"""
+estate-broadcast.py — write one row to the estate board.
 
-This is a minimal, dependency-free implementation that the crew can call from
-any session. It writes to the offline JSONL cache and prints a payload ready to
-post as a comment on https://github.com/chidionyema/crew/issues/102.
+The estate board is GitHub issue chidionyema/crew#102. Every broadcast
+must land there as a comment in the format:
 
-If the GitHub token is set in $GITHUB_TOKEN and the issue number is exported in
-$CREW_BOARD_ISSUE, it will also POST the row as a comment via the GitHub REST
-API. Rows that fail to land on the issue are appended to the dead-letter file
-so they can be replayed later.
+    `ts` **from** (kind/priority): message
+
+This script is the writer. It also maintains an offline cache at
+~/.claude/ESTATE_BOARD.jsonl so prompt hooks can read the board
+without a network call. Rows that fail to land on GitHub are
+dead-lettered to ~/.claude/state/board-deadletter.jsonl and warned
+loudly — never dropped silently.
 
 Usage:
-    estate-broadcast.py --from board --kind note --priority info --message "..."
-
-Schema (single line of JSON, in the order columns appear in the issue body):
-    {
-      "ts":      ISO-8601 UTC timestamp,
-      "from":    short name of the sender,
-      "kind":    one of: broadcast, directive, alert, finding, note, ...,
-      "priority": one of: info, p0, p1, high, normal, low,
-      "message": the human-readable body
-    }
+    estate-broadcast.py --from session-foo --kind broadcast --priority P0 --message "hello"
+    echo '{"from":"x","kind":"info","priority":"P3","message":"hi"}' | estate-broadcast.py --stdin
 """
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import json
 import os
+import subprocess
 import sys
-import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 REPO = "chidionyema/crew"
-CACHE = Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
-DEADLETTER = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
-ALLOWED_KIND = {
-    "broadcast", "directive", "alert", "finding", "note", "test",
-    "board-cutover", "drill-passed", "drill-failed", "state",
-    "high-alert", "red-zone",
-}
-ALLOWED_PRIORITY = {"info", "p0", "p1", "high", "normal", "low"}
+ISSUE_NUMBER = 102
+CACHE_PATH = Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+DEADLETTER_PATH = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
 
 
-def utc_now() -> str:
-    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+def _now() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def build_row(args: argparse.Namespace) -> dict:
-    row = {
-        "ts": utc_now(),
-        "from": args.from_,
-        "kind": args.kind,
-        "priority": args.priority,
-        "message": args.message,
-    }
-    if row["kind"] not in ALLOWED_KIND:
-        raise SystemExit(f"refused: kind={row['kind']!r} not in {sorted(ALLOWED_KIND)}")
-    if row["priority"] not in ALLOWED_PRIORITY:
-        raise SystemExit(
-            f"refused: priority={row['priority']!r} not in {sorted(ALLOWED_PRIORITY)}"
-        )
-    return row
+def _render_comment(row: dict) -> str:
+    ts = row.get("ts") or _now()
+    src = row.get("from") or "?"
+    kind = row.get("kind") or "info"
+    pri = row.get("priority") or "info"
+    msg = row.get("message") or ""
+    return f"`{ts}` **{src}** ({kind}/{pri}): {msg}"
 
 
-def append_cache(row: dict) -> None:
-    CACHE.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps(row, ensure_ascii=False, separators=(",", ":"))
-    with CACHE.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+def _append_jsonl(path: Path, row: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def post_to_github(row: dict) -> tuple[bool, str]:
-    token = os.environ.get("GITHUB_TOKEN", "")
-    issue = os.environ.get("CREW_BOARD_ISSUE", "102")
-    if not token:
-        return False, "no GITHUB_TOKEN set; cache-only write"
-    body = (
-        f"`{row['ts']}` **{row['from']}** "
-        f"({row['kind']}/{row['priority']}): {row['message']}"
-    )
-    payload = json.dumps({"body": body}).encode("utf-8")
-    req = urllib.request.Request(
-        f"https://api.github.com/repos/{REPO}/issues/{issue}/comments",
-        data=payload,
-        method="POST",
-        headers={
-            "Accept": "application/vnd.github+json",
-            "Authorization": f"Bearer {token}",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-            "User-Agent": "estate-broadcast/1.0",
-        },
-    )
+def _post_comment(body: str) -> tuple[bool, str]:
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return True, f"posted as comment id={data.get('id')}"
-    except urllib.error.HTTPError as exc:
-        return False, f"HTTP {exc.code} {exc.reason}"
-    except urllib.error.URLError as exc:
-        return False, f"network error: {exc.reason}"
+        out = subprocess.run(
+            ["gh", "api", f"repos/{REPO}/issues/{ISSUE_NUMBER}/comments",
+             "-f", f"body={body}"],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return False, "`gh` CLI not on PATH"
+    if out.returncode != 0:
+        return False, (out.stderr or out.stdout).strip()
+    return True, out.stdout.strip()
 
 
-def dead_letter(row: dict, why: str) -> None:
-    DEADLETTER.parent.mkdir(parents=True, exist_ok=True)
-    line = json.dumps({"row": row, "why": why}, ensure_ascii=False)
-    with DEADLETTER.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+def _deadletter(row: dict, reason: str) -> None:
+    DEADLETTER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"row": row, "reason": reason, "dead_lettered_at": _now()}
+    with DEADLETTER_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str]) -> int:
     p = argparse.ArgumentParser(description="Post a row to the estate board (crew#102).")
-    p.add_argument("--from", dest="from_", required=True, help="sender short name")
-    p.add_argument("--kind", required=True, help="row kind (broadcast, directive, ...)")
-    p.add_argument("--priority", default="info", help="row priority (info, p0, p1, high, normal, low)")
-    p.add_argument("--message", required=True, help="the message body")
-    p.add_argument("--cache-only", action="store_true", help="write the cache and exit, do not POST")
+    p.add_argument("--from", dest="src", help="sender name (e.g. session-foo)")
+    p.add_argument("--kind", default="info", help="row kind (info, drill, alert, directive, ...)")
+    p.add_argument("--priority", default="info", help="priority (P0..P3 or info)")
+    p.add_argument("--message", help="message body")
+    p.add_argument("--stdin", action="store_true",
+                   help="read a single JSON row from stdin instead of --message")
     args = p.parse_args(argv)
 
-    row = build_row(args)
-    append_cache(row)
-    if args.cache_only:
-        print(json.dumps({"cache": str(CACHE), "row": row}))
-        return 0
-    ok, info = post_to_github(row)
+    if args.stdin:
+        raw = sys.stdin.read().strip()
+        if not raw:
+            print("error: stdin was empty", file=sys.stderr)
+            return 2
+        try:
+            row = json.loads(raw)
+        except json.JSONDecodeError as e:
+            print(f"error: invalid JSON on stdin: {e}", file=sys.stderr)
+            return 2
+    else:
+        if not args.message:
+            print("error: --message is required (or pass --stdin)", file=sys.stderr)
+            return 2
+        row = {"from": args.src, "kind": args.kind,
+               "priority": args.priority, "message": args.message}
+
+    row.setdefault("ts", _now())
+    body = _render_comment(row)
+
+    ok, info = _post_comment(body)
     if ok:
-        print(json.dumps({"row": row, "posted": info}))
+        _append_jsonl(CACHE_PATH, row)
+        print(f"posted to {REPO}#{ISSUE_NUMBER}: {body}")
         return 0
-    dead_letter(row, info)
-    print(
-        json.dumps(
-            {"row": row, "posted": False, "dead_letter": str(DEADLETTER), "why": info}
-        ),
-        file=sys.stderr,
-    )
+
+    _deadletter(row, info)
+    print(f"WARN: broadcast failed, dead-lettered to {DEADLETTER_PATH}: {info}",
+          file=sys.stderr)
     return 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

@@ -1,139 +1,113 @@
-"""Tests for crew#102: estate-board-sync posts rows to issue #102 as comments.
+"""Pins the board target (crew/estate_board.py) and the row format.
 
-These tests mock urllib.request.urlopen so no real network call is made.
-They cover the script's contract: format, dead-letter on failure, marker
-advances on success, marker prevents replay, empty lines skipped, malformed
-JSON is dead-lettered not crashed, module is importable.
+Issue crew#102 names the contract:
+  * repo = chidionyema/crew
+  * issue_number = 102
+  * format = f"{ts} **{from}** ({kind}/{priority}): {message}"
+  * dead-letter on any failure (loud WARN, never silent)
+  * format_comment raises on a missing key or a bad priority
 """
-
 from __future__ import annotations
 
 import importlib.util
-import io
-import json
-import sys
-from pathlib import Path
-from unittest import mock
+import pathlib
 
-import pytest
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_PATH = REPO_ROOT / "scripts" / "estate-board-sync.py"
+WRITER = pathlib.Path(__file__).resolve().parents[1] / "crew" / "estate_board.py"
 
 
-def _load_module():
-    spec = importlib.util.spec_from_file_location("estate_board_sync", SCRIPT_PATH)
+def _load():
+    spec = importlib.util.spec_from_file_location("estate_board_under_test", WRITER)
     assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["estate_board_sync"] = module
-    spec.loader.exec_module(module)
-    return module
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
-@pytest.fixture()
-def sync_module(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    (tmp_path / ".claude" / "state").mkdir(parents=True, exist_ok=True)
-    return _load_module()
+def test_writer_pins_repo_and_issue():
+    mod = _load()
+    board = mod.Board()
+    assert board.repo == "chidionyema/crew", board.repo
+    assert board.issue_number == 102, board.issue_number
 
 
-def test_format_comment_row(sync_module):
+def test_format_comment_round_trip():
+    mod = _load()
     row = {
-        "ts": "2026-08-24T03:23:01Z",
+        "ts": "2026-08-24T03:23:01.090857Z",
         "from": "fable-63",
         "kind": "board-cutover",
         "priority": "high",
         "message": "The board is now crew#102.",
     }
-    out = sync_module.format_comment(row)
-    assert "2026-08-24T03:23:01Z" in out
-    assert "fable-63" in out
-    assert "board-cutover/high" in out
+    out = mod.format_comment(row)
+    assert "2026-08-24T03:23:01.090857Z" in out
+    assert "**fable-63**" in out
+    assert "(board-cutover/high)" in out
     assert "The board is now crew#102." in out
-    assert out.startswith("- `")
 
 
-def test_module_importable(sync_module):
-    assert hasattr(sync_module, "sync")
-    assert hasattr(sync_module, "format_comment")
-    assert hasattr(sync_module, "post_comment")
-    assert hasattr(sync_module, "dead_letter")
+def test_format_comment_rejects_missing_key():
+    import pytest
+
+    mod = _load()
+    bad = {
+        "ts": "2026-08-24T03:23:01.090857Z",
+        "from": "fable-63",
+        # kind missing
+        "priority": "high",
+        "message": "x",
+    }
+    with pytest.raises(ValueError, match="kind"):
+        mod.format_comment(bad)
 
 
-def test_empty_lines_skipped(sync_module, tmp_path):
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    cache.write_text("\n\n   \n\n", encoding="utf-8")
-    with mock.patch.object(sync_module, "post_comment") as post:
-        rc = sync_module.sync(cache_path=cache)
-    assert rc == 0
-    post.assert_not_called()
+def test_format_comment_rejects_bad_priority():
+    import pytest
+
+    mod = _load()
+    bad = {
+        "ts": "2026-08-24T03:23:01.090857Z",
+        "from": "fable-63",
+        "kind": "board-cutover",
+        "priority": "P5",  # not in ALLOWED_PRIORITIES
+        "message": "x",
+    }
+    with pytest.raises(ValueError, match="priority"):
+        mod.format_comment(bad)
 
 
-def test_malformed_json_dead_lettered(sync_module, tmp_path):
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    cache.write_text('{"ts":"2026-01-01T00:00:00Z","from":"a","kind":"k","priority":"p","message":"ok"}\n', encoding="utf-8")
-    cache.write_text('not json\n', encoding="utf-8")
-    cache.write_text('{"ts":"2026-01-02T00:00:00Z","from":"b","kind":"k","priority":"p","message":"ok2"}\n', encoding="utf-8")
-    post = mock.Mock(side_effect=[101, 102])
-    with mock.patch.object(sync_module, "post_comment", post):
-        rc = sync_module.sync(cache_path=cache)
-    assert post.call_count == 2
-    assert rc == 0  # dead-letter does not cause non-zero exit when some posts succeed
-    dead = sync_module.DEADLETTER_PATH.read_text(encoding="utf-8").strip().splitlines()
-    assert len(dead) == 1
-    rec = json.loads(dead[0])
-    assert rec["target"] == "issue#102"
-    assert "malformed JSON" in rec["error"]
+def test_writer_exposes_deadletter_path_helper():
+    mod = _load()
+    # The deadletter path lives under ~/.claude/state/ and is named
+    # board-deadletter.jsonl. The exact path depends on $HOME, so we only
+    # assert the file name, not the directory.
+    assert mod._deadletter_path().name == "board-deadletter.jsonl"  # noqa: SLF001
 
 
-def test_marker_file_advances_on_success(sync_module, tmp_path):
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    cache.write_text(
-        json.dumps({"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m"}) + "\n",
-        encoding="utf-8",
-    )
-    with mock.patch.object(sync_module, "post_comment", return_value=4242):
-        sync_module.sync(cache_path=cache)
-    assert sync_module.load_marker() == 4242
-    assert (tmp_path / ".claude" / "state" / "board-sync.lastid").read_text() == "4242"
+def test_board_post_dead_letters_on_gh_failure(capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    mod = _load()
+    board = mod.Board()
 
+    def fake_gh(repo, issue_number, body):  # always fails
+        raise mod._GhError("synthetic 403 for the unit test")  # noqa: SLF001
 
-def test_marker_file_prevents_replay(sync_module, tmp_path):
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    row = {"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m", "id": 1000}
-    cache.write_text(json.dumps(row) + "\n", encoding="utf-8")
-    sync_module.save_marker(5000)
-    with mock.patch.object(sync_module, "post_comment") as post:
-        rc = sync_module.sync(cache_path=cache)
-    assert rc == 0
-    post.assert_not_called()
-
-
-def test_dead_letter_path_is_used_on_failure(sync_module, tmp_path):
-    import urllib.error
-
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    cache.write_text(
-        json.dumps({"ts": "t", "from": "a", "kind": "k", "priority": "p", "message": "m"}) + "\n",
-        encoding="utf-8",
-    )
-    fake_err = urllib.error.HTTPError(
-        "https://api.github.com/repos/chidionyema/crew/issues/102/comments",
-        403, "Forbidden", {}, io.BytesIO(b""),
-    )
-    with mock.patch.object(sync_module, "post_comment", side_effect=fake_err):
-        rc = sync_module.sync(cache_path=cache)
-    assert rc == 1  # partial: dead-lettered, nothing posted
-    dead = sync_module.DEADLETTER_PATH.read_text(encoding="utf-8").strip().splitlines()
-    assert len(dead) == 1
-    rec = json.loads(dead[0])
-    assert rec["target"] == "issue#102"
-    assert "HTTP 403" in rec["error"]
-    assert rec["row"]["message"] == "m"
-
-
-def test_missing_cache_returns_2(sync_module, tmp_path):
-    cache = tmp_path / ".claude" / "ESTATE_BOARD.jsonl"
-    assert not cache.exists()
-    rc = sync_module.sync(cache_path=cache)
-    assert rc == 2
+    monkeypatch.setattr(mod, "_gh_issue_comment", fake_gh)
+    row = {
+        "ts": "2026-08-24T03:23:01.090857Z",
+        "from": "fable-63",
+        "kind": "selftest",
+        "priority": "info",
+        "message": "this row is dead-lettered",
+    }
+    landed = board.post(row)
+    assert landed is False
+    captured = capsys.readouterr()
+    assert "WARN" in captured.err, captured.err
+    dead = mod._deadletter_path().read_text(encoding="utf-8")  # noqa: SLF001
+    assert "this row is dead-lettered" in dead
+    rec = dead.strip().splitlines()[0]
+    import json
+    parsed = json.loads(rec)
+    assert parsed["row"]["from"] == "fable-63"
+    assert "synthetic 403" in parsed["error"]

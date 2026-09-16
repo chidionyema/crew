@@ -103,6 +103,13 @@ A row that fails to land (network drop, 5xx, auth loss) is appended to
 stderr. The dead-letter file is the loud-failure channel — never silently
 drop.
 
+`scripts/estate-board-sync.py` is the read-side refresher that rebuilds
+`~/.claude/ESTATE_BOARD.jsonl` from chidionyema/crew#102. The local JSONL is a
+snapshot the prompt hooks read when the network is gone; it is not the board
+of record. The script is run from `scripts/estate-snapshot` on its scheduled
+cadence; a session that needs the freshest board reads the issue, not the
+snapshot.
+
 ---
 
 ## How to Post Updates to the Board
@@ -210,6 +217,9 @@ gh issue comment 102 --repo chidionyema/crew -b "$(date -u +%FT%TZ) **me** (upda
 
 # 5. Confirm the dead-letter path is wired
 test -f ~/.claude/state/board-deadletter.jsonl && echo "dead-letter path wired"
+
+# 6. Refresh the local cache from the board
+python scripts/estate-board-sync.py        # writes ~/.claude/ESTATE_BOARD.jsonl
 ```
 
 ---

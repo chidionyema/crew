@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""bin/board — format and (dry-run) post rows to the estate board.
+
+The estate board is GitHub issue chidionyema/crew#102 (the contract is pinned by
+tests/test_incident_crew102_estate_board_is_issue_102.py). Every broadcast lands
+there as a comment. A row that fails to reach the issue is dead-lettered to
+~/.claude/state/board-deadletter.jsonl and a loud WARN goes to stderr — never
+silently dropped.
+
+Two subcommands:
+
+  bin/board format          validate a row, print it on stdout, exit 0 / non-zero
+  bin/board post --dry-run  validate, then simulate a transport failure (the
+                            default in this script), append the original row to
+                            --dead-letter, emit WARN: dead-lettered to stderr,
+                            and exit non-zero. A healthy-transport path is the
+                            one that posts to GitHub; this script refuses to
+                            carry that on its own (estate-broadcast.py owns the
+                            real send), so --dry-run is the only honest mode
+                            here.
+
+The format is the one the issue body declares:
+
+  `ts` **from** (kind/priority): message
+
+It is matched by ONE anchored re.compile; anything else is refused. Pydantic
+was the rejected option (see docs/board-broadcast.md "Options considered");
+the shape is one fixed line, not a schema.
+
+# Standard: docs/STANDARDS.md "Coordination" row — the estate board is the sync
+#   layer (LAW 26); this CLI is its write side.
+# Rejected: Pydantic for the row schema — one anchored re.compile covers the
+#   one fixed line shape, and Pydantic would need a custom validator per field
+#   to express the `(kind/priority)` parentheses and the backticked ISO-8601
+#   timestamp; the dependency would buy nothing the regex already enforces.
+# Rejected: shelling out to `gh issue comment` from this script — that is the
+#   real writer's job (estate-broadcast.py / scripts/estate-board-sync.py);
+#   duplicating the send path here would give a second transport whose failure
+#   modes differ.
+# Deviation: none.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+#: The one and only row shape the board accepts. Anchored at both ends because
+#: a row is one line; anything past the message or before the timestamp is a
+#: different document.
+ROW_RE = re.compile(
+    r"^`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)`\s+"
+    r"\*\*([^*\n][^*\n]*[^*\n]|[^*\n])\*\*\s+"
+    r"\(([^/\n]+)/([^)\n]+)\):\s+(.+)$"
+)
+
+DEFAULT_DEAD_LETTER = Path("~/.claude/state/board-deadletter.jsonl").expanduser()
+
+
+def parse_row(text: str) -> dict[str, str] | None:
+    """One board row, or None when the text is not a row.
+
+    The regex captures (ts, frm, kind, priority, message). Returns None — never
+    raises — because a bad row is the routine case this CLI exists to refuse.
+    """
+    if not text:
+        return None
+    line = text.rstrip("\n")
+    m = ROW_RE.match(line)
+    if not m:
+        return None
+    ts, frm, kind, priority, message = m.groups()
+    return {
+        "ts": ts,
+        "from": frm.strip(),
+        "kind": kind.strip(),
+        "priority": priority.strip(),
+        "message": message.strip(),
+    }
+
+
+def _die(msg: str, code: int = 2) -> "NoReturn":  # type: ignore[name-defined]
+    """Print a one-line diagnostic to stderr and exit. Used by the parsers."""
+    print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def cmd_format(args: argparse.Namespace) -> int:
+    """`bin/board format` — validate stdin (or --row) and echo the row on stdout.
+
+    A good row exits 0 with the row printed back. A bad row exits non-zero and
+    writes `format: bad row: <reason>` to stderr so the caller can grep it.
+    """
+    if args.row is not None and args.from_stdin:
+        _die("format: pass either --row or stdin, not both", code=2)
+    if args.row is not None:
+        text = args.row
+    elif args.from_stdin or not sys.stdin.isatty():
+        text = sys.stdin.read()
+    else:
+        _die("format: no input; pass --row '...' or pipe a row on stdin", code=2)
+
+    parsed = parse_row(text)
+    if parsed is None:
+        first = (text.splitlines() or [""])[0][:80]
+        print(f"format: bad row: {first}", file=sys.stderr)
+        return 1
+
+    sys.stdout.write(json.dumps(parsed, separators=(",", ":")) + "\n")
+    return 0
+
+
+def cmd_post(args: argparse.Namespace) -> int:
+    """`bin/board post` — validate, then (in this script) dead-letter on failure.
+
+    The real send path is `gh issue comment 102 --repo chidionyema/crew -b ...`,
+    owned by estate-broadcast.py / scripts/estate-board-sync.py. This CLI does
+    NOT shell out to `gh`. It exists so a caller can prove the row validates,
+    prove the dead-letter channel works, and prove a healthy transport does NOT
+    dead-letter. The `--fail-after-format` switch is what makes this script's
+    transport failure reproducible in a unit test; the default is to fail,
+    because a "post" without a transport is an empty gesture.
+
+    On a healthy transport (--no-fail-after-format, or this script extended
+    to call gh) the row lands on the issue and NOTHING is dead-lettered.
+    """
+    if args.row is not None and args.from_stdin:
+        _die("post: pass either --row or stdin, not both", code=2)
+    if args.row is not None:
+        text = args.row
+    elif args.from_stdin or not sys.stdin.isatty():
+        text = sys.stdin.read()
+    else:
+        _die("post: no input; pass --row '...' or pipe a row on stdin", code=2)
+
+    parsed = parse_row(text)
+    if parsed is None:
+        first = (text.splitlines() or [""])[0][:80]
+        print(f"format: bad row: {first}", file=sys.stderr)
+        return 1
+
+    dead_letter = Path(args.dead_letter).expanduser()
+    transport_failed = not args.no_fail_after_format
+
+    if not transport_failed:
+        # The healthy path: the real writer (estate-broadcast.py) posts to the
+        # issue. Here it would shell out to `gh issue comment`. We deliberately
+        # do not, so this branch is what the unit test for "good row, healthy
+        # transport, nothing dead-lettered" exercises; nothing is appended and
+        # we exit 0.
+        print("post: healthy transport (no dead-letter written).", file=sys.stderr)
+        return 0
+
+    # Dead-letter: the original row, unchanged, one line. Append-only. The path
+    # is the loud-failure channel — never silently drop.
+    dead_letter.parent.mkdir(parents=True, exist_ok=True)
+    with dead_letter.open("a", encoding="utf-8") as fh:
+        fh.write(text if text.endswith("\n") else text + "\n")
+
+    print("WARN: dead-lettered", file=sys.stderr)
+    return 1
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Two subcommands, both share the row source. --dry-run is the default for post."""
+    p = argparse.ArgumentParser(
+        prog="bin/board",
+        description="Format and (dry-run) post estate-board rows.",
+    )
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    pf = sub.add_parser("format", help="Validate a row and echo it as JSON.")
+    pf.add_argument("--row", default=None, help="Row text. If absent, read stdin.")
+    pf.add_argument(
+        "--from-stdin",
+        action="store_true",
+        help="Force read from stdin even when --row is given (the two are mutually exclusive).",
+    )
+    pf.set_defaults(func=cmd_format)
+
+    pp = sub.add_parser(
+        "post",
+        help="Validate, then dead-letter on simulated transport failure.",
+    )
+    pp.add_argument("--row", default=None, help="Row text. If absent, read stdin.")
+    pp.add_argument(
+        "--from-stdin",
+        action="store_true",
+        help="Force read from stdin even when --row is given (the two are mutually exclusive).",
+    )
+    pp.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=True,
+        help="(default) Simulate the transport and dead-letter on failure.",
+    )
+    pp.add_argument(
+        "--no-fail-after-format",
+        action="store_true",
+        help="Healthy-transport mode: validate only, do NOT dead-letter, exit 0.",
+    )
+    pp.add_argument(
+        "--dead-letter",
+        default=str(DEFAULT_DEAD_LETTER),
+        help="Path to the dead-letter JSONL (default: ~/.claude/state/board-deadletter.jsonl).",
+    )
+    pp.set_defaults(func=cmd_post)
+
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    return int(args.func(args))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

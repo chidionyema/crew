@@ -11,35 +11,42 @@ This test pins the read path so that:
   * the same contract as `test_incident_crew102_estate_board_is_issue_102`
     holds against the read command the doc tells people to use.
 
-If any of these go red, either the writer broke or the doc drifted; the
-fix is in the writer or in CREW-BOARD-VISIBILITY.md, never by widening
-this test.
-
-The ``board_issue`` fixture (see tests/conftest.py) already fetched
-``number,title,state,comments`` in one ``gh`` call; this file grades
-that payload against the contract — no further ``gh`` shells.
+The board payload is fetched once per pytest run by the `board_issue`
+fixture in tests/conftest.py; a broken `gh` call fails every consumer
+loudly (LAW 31: PASS and NOT RUN are different states). If any of these
+go red, either the writer broke or the doc drifted; the fix is in the
+writer or in CREW-BOARD-VISIBILITY.md, never by widening this test.
 """
 from __future__ import annotations
 
 import re
 
+BOARD_REPO = "chidionyema/crew"
+BOARD_ISSUE = 102
 ROW_PATTERN = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?\s+\*\*[^*]+\*\*\s+\([^)]+\):\s+.+$"
 )
 
 
 def test_read_command_documented_in_board_doc_runs_clean(board_issue: dict) -> None:
-    """The exact `gh issue view --comments` command from CREW-BOARD-VISIBILITY.md works."""
-    # The fixture's `--json number,title,state,comments` is the same union of fields
-    # the documented `gh issue view --comments --json number,state,comments` reads.
-    assert board_issue["number"] == 102
+    """The exact `gh issue view --comments` command from CREW-BOARD-VISIBILITY.md works.
+
+    The fixture calls the documented read command once for the whole run
+    and every consumer inspects the same payload. Failure mode: upstream
+    `gh issue view` failed -> this test fails (the fixture surfaces
+    that). Nothing else is read.
+    """
+    assert board_issue["number"] == BOARD_ISSUE
     assert board_issue["state"] == "OPEN"
     assert board_issue["comments"], "board returned zero comments — writer is broken"
 
 
 def test_a_board_row_matches_the_declared_row_format(board_issue: dict) -> None:
-    """At least one comment on the board follows the format the issue body declares."""
-    # `--json comments` answers a record keyed "comments", not a bare list.
+    """At least one comment on the board follows the format the issue body declares.
+
+    Failure mode: upstream `gh issue view` failed -> this test fails
+    (the fixture surfaces that). Nothing else is read.
+    """
     comments = board_issue["comments"]
     assert comments, "board returned zero comments -- the writer is broken"
     # The leading comments are the human-written backfill headers, not rows; the contract

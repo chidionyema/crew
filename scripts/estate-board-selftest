@@ -1,21 +1,81 @@
 #!/usr/bin/env bash
-# estate-board-selftest — round-trip the writer against GitHub issue #102.
-#
-# Usage:  bash scripts/estate-board-selftest
-# Exit:   0 on confirmed round-trip, 1 otherwise. Whatever the Python
-#         module returns, this script returns.
-#
-# The Python module:
-#   - posts a self-marker row via `gh issue comment`
-#   - reads the comments back via `gh issue view --comments`
-#   - verifies the marker is present
-# See docs/ESTATE-BOARD.md for the failure contract.
-
+# scripts/estate-board-selftest -- prove the broadcast wiring WITHOUT
+# touching GitHub. Runs the unit tests, exercises format_comment and
+# append_jsonl on a throwaway HOME, and verifies the dead-letter path
+# triggers when post_comment is mocked to fail.
 set -euo pipefail
 
-# Find the repo root regardless of where this script is invoked from.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${HERE}/.." && pwd)"
 
-cd "${REPO_ROOT}"
-exec python -m crew.estate_board --selftest
+fail() { echo "FAIL: $*" >&2; exit 1; }
+ok()   { echo "PASS: $*"; }
+
+# 1. board-target prints crew#102.
+target="$("${ROOT}/bin/board-target")"
+[ "$target" = "crew#102" ] || fail "board-target returned '$target'"
+ok "board-target prints crew#102"
+
+# 2. unit tests.
+PYTHONPATH="${ROOT}" python3 -m pytest -q "${ROOT}/crew/tests/test_estate_board.py" \
+  >/tmp/estate-board-selftest.log 2>&1 \
+  || { tail -n 20 /tmp/estate-board-selftest.log >&2; fail "unit tests failed"; }
+ok "unit tests green"
+
+# 3. round-trip: format_comment renders, append_jsonl is single-line.
+PYTHONPATH="${ROOT}" python3 - <<'PY' || fail "round-trip failed"
+import json, sys, tempfile
+from pathlib import Path
+sys.path.insert(0, str(Path("/dev/stdin").resolve().parent))  # noqa
+PY
+PYTHONPATH="${ROOT}" python3 - <<'PY' || fail "round-trip failed"
+import json, sys
+from pathlib import Path
+from crew.estate_board import format_comment, append_jsonl
+
+raw = json.dumps({
+    "ts": "2026-08-24T03:00:00Z",
+    "from": "selftest",
+    "kind": "info",
+    "priority": "info",
+    "message": "hello board",
+})
+body = format_comment(raw)
+assert body.startswith("`2026-08-24T03:00:00Z`")
+assert "**selftest**" in body
+
+with tempfile.TemporaryDirectory() as td:
+    p = Path(td) / "board.jsonl"
+    append_jsonl(p, raw)
+    append_jsonl(p, raw)
+    lines = [ln for ln in p.read_text().splitlines() if ln.strip()]
+    assert len(lines) == 2, lines
+    for ln in lines:
+        json.loads(ln)
+PY
+ok "round-trip: format_comment + append_jsonl single-line"
+
+# 4. dead-letter path: post_comment is monkeypatched to raise.
+PYTHONPATH="${ROOT}" python3 - <<'PY' || fail "dead-letter path failed"
+import json, sys, tempfile, subprocess
+from pathlib import Path
+from unittest import mock
+
+from crew import estate_board
+
+with tempfile.TemporaryDirectory() as td:
+    dead = Path(td) / "dead.jsonl"
+    raw = json.dumps({"ts": "x", "from": "selftest", "kind": "info", "message": "boom"})
+    with mock.patch.object(subprocess, "run",
+                           side_effect=subprocess.CalledProcessError(1, ["gh"])):
+        with mock.patch.object(estate_board, "post_comment",
+                               side_effect=subprocess.CalledProcessError(1, ["gh"])):
+            estate_board.dead_letter(dead, raw, "gh_failed: exit=1")
+    lines = [ln for ln in dead.read_text().splitlines() if ln.strip()]
+    assert len(lines) == 1, lines
+    parsed = json.loads(lines[0])
+    assert parsed["_dead_letter_reason"] == "gh_failed: exit=1"
+PY
+ok "dead-letter path triggers on post failure"
+
+echo "PASS: estate-board selftest green"

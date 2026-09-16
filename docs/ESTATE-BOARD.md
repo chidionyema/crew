@@ -1,94 +1,68 @@
-# The Estate Board — operator doc
+# Estate board
 
-The **estate board** is GitHub issue
-[`chidionyema/crew#102`](https://github.com/chidionyema/crew/issues/102).
-Every broadcast the estate makes — by any session, job, or human — lands there
-as a comment. Reading the board from any phone means opening that issue in a
-browser. There is no second place to look and there is no second protocol.
+The estate board is the GitHub issue named by `bin/board-target`
+(`crew#102` today). Every row an estate job, agent or session wants to
+broadcast lands there as a comment. Nothing else.
 
-This module — `crew/estate_board.py` — is the writer. The on-disk JSONL file
-at `~/.claude/ESTATE_BOARD.jsonl` is the *offline cache* the prompt hooks
-read; it is not the board. If a row ever fails to land on GitHub, the writer
-does not silently drop it: it appends the same row to the deadletter and
-warns loudly to stderr. Never silent, never dropped.
+## Three sinks, one truth
 
-## Comment format (pinned, exact)
+1. **GitHub comment on the board issue -- the truth.** If a row does not
+   appear here, it did not happen, as far as the rest of the estate is
+   concerned. The comment format is fixed:
+   `ts` **from** (kind/priority): message. Anything that cannot render
+   that format is dead-lettered, not silently dropped.
+2. **`~/.claude/ESTATE_BOARD.jsonl` -- the offline cache.** Prompt hooks
+   read from this file when the network is down or a comment API call
+   would be too slow. It is best-effort: a row may be missing because
+   the cache write raced with a crash. The board comment is still the
+   truth.
+3. **`~/.claude/state/board-deadletter.jsonl` -- the failure sink.**
+   Every row that could not be posted as a comment lands here with the
+   failure reason attached. A dead-lettered row must be re-driven by a
+   human, not silently forgotten.
 
-Every row that reaches the board becomes an issue comment of the form:
+## Producer contract
 
+A producer (a job, a guard, a session) MUST:
+
+* Call `bin/estate-broadcast.py` (or `scripts/estate-broadcast.py`,
+  which is functionally identical) with exactly one JSON object on
+  stdin, single-line.
+* Use the fields `ts` (RFC 3339 UTC), `from` (who is sending), `kind`
+  (broadcast|directive|finding|...) and `priority` (p0|p1|info|...).
+* Treat any non-zero exit as a failure to broadcast; do NOT retry
+  blindly, the dead-letter file is the safety net.
+
+A producer MUST NOT:
+
+- Append to `~/.claude/ESTATE_BOARD.jsonl` directly. The writer in
+  `crew/estate_board.py` is the single point that enforces the
+  single-line invariant and the parent-directory contract.
+- Mutate or delete existing dead-letter rows. They are an audit trail.
+- "Reinvent the wheel" by posting to anywhere but the board issue.
+
+## Operator quick reference
+
+```sh
+# What is the board target?
+bin/board-target
+# -> crew#102
+
+# Post one row.
+echo '{"ts":"2026-08-24T03:00:00Z","from":"me","kind":"info","message":"hi"}' \
+  | bin/estate-broadcast.py
+
+# Self-test (no network, prints PASS / FAIL).
+scripts/estate-board-selftest
+
+# Tests (pytest, stdlib only).
+python3 -m pytest -q crew/tests/test_estate_board.py
 ```
-<ts> **<from>** (<kind>/<priority>): <message>
-```
 
-That string is produced by `crew.estate_board.format_comment(row)` and is the
-only legal shape. The row is validated before it is formatted; required keys
-are `ts` (ISO-8601 UTC string), `from` (string), `kind` (string), `priority`
-(one of `P0`, `P1`, `P2`, `P3`, `info`, `low`, `high`), `message` (string).
+## Why a GitHub issue, not a file
 
-## On-disk locations
-
-| Path | Role |
-|---|---|
-| `https://github.com/chidionyema/crew/issues/102` | The board. Read this. |
-| `~/.claude/ESTATE_BOARD.jsonl` | Offline cache read by prompt hooks. Not the board. |
-| `~/.claude/state/board-deadletter.jsonl` | Dead-letter for rows that failed to reach GitHub. One JSON object per line. |
-
-## How to write a row
-
-```bash
-python -m crew.estate_board --post \
-  '{"from":"me","kind":"note","priority":"info","message":"hi","ts":"2026-09-05T00:00:00Z"}'
-```
-
-Exit codes:
-
-- `0` — the row landed on GitHub as a comment on `#102`.
-- `1` — `gh` failed; the row was appended to the deadletter AND a `WARN: ...`
-  line was printed to stderr. Re-run later to replay from the deadletter
-  (the deadletter replay is out of scope for this PR — file a follow-up).
-
-The writer shells out to the `gh` binary; no new auth surface is invented.
-You must already be authenticated for `chidionyema/crew` for the call to
-succeed.
-
-## How to run the round-trip selftest
-
-```bash
-bash scripts/estate-board-selftest
-# or, directly:
-python -m crew.estate_board --selftest
-```
-
-The selftest posts a row whose message contains a unique marker, then reads
-the issue's comments back via `gh issue view --comments` and verifies the
-marker is present. Exit `0` = confirmed round-trip. Exit `1` = anything else.
-
-Use this in CI or before claiming the board is reachable from a new host.
-
-## Failure contract — never silent, never dropped
-
-If `gh` returns non-zero, raises, or returns empty stdout, the writer:
-
-1. Appends the failed row (plus rendered body, error, and timestamp) to
-   `~/.claude/state/board-deadletter.jsonl` as a single-line JSON object
-   (JSONL invariant — never pretty-printed).
-2. Prints `WARN: estate-board write to issue #102 failed; row dead-lettered
-   to <path>` to stderr.
-3. Returns `False` (CLI: exit code `1`).
-
-The row is never dropped silently. The deadletter is a recovery surface,
-not a board; rows on it must be replayed out-of-band.
-
-## Reference
-
-- `crew#102` — this issue, the board itself.
-- `crew/estate_board.py` — the writer.
-- `crew/tests/test_estate_board.py` — pytest coverage of validation,
-  formatting, deadletter, and the selftest (no real network).
-- `scripts/estate-board-selftest` — bash shim that runs the selftest.
-
-## What this PR does *not* claim
-
-Per `ESTATE_STATE.md` R16, only the founder declares a component `live` /
-`core` / `operational` / `done`. This module does not declare anything. The
-founder remains the one who can move the board from "merged" to "live".
+Founder ruling, 2026-08-24: "why not just use github issues? why reinvent
+the wheel badly." A file-only board had a writer and no reader; sessions
+broadcast, nobody received. The issue is read from any phone, has a
+stable URL, and a comment is the same data shape the rest of the
+estate already handles.

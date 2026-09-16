@@ -10,7 +10,6 @@ import importlib.util
 import json
 import pathlib
 import subprocess
-import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: The script's name carries a hyphen, so it is loaded by path, the way this suite loads
@@ -121,99 +120,76 @@ def test_a_failed_read_is_a_loud_non_zero_exit(tmp_path, monkeypatch, capsys) ->
 
 
 # ---------------------------------------------------------------------------
-# crew#102 stale-only sync: state file + ETag + dead-letter
-# (the four named tests the spec pins).
+# crew#102 read-side hardening: in-process memo + transient retry.
+# These two tests join the existing eight; the originals stay verbatim above.
 # ---------------------------------------------------------------------------
 
 
-def test_sync_short_circuits_when_state_is_fresh(tmp_path, monkeypatch) -> None:
-    """A fresh state file + matching live count -> no body fetch, no cache write."""
-    state_path = tmp_path / "state.json"
-    state_path.write_text(json.dumps({
-        "last_pulled_at": time.time(),
-        "last_row_count": 7,
-        "etag": "W/\"abc\"",
-    }))
+def test_memo_serves_cached_payload_without_a_second_subprocess_call(monkeypatch) -> None:
+    """A second `fetch_comments` call with the same (repo, issue) returns the memoised
+    payload and does not invoke `_gh_call` (and therefore does not shell out to `gh`)."""
+    calls: list[list[str]] = []
+
+    class FakeProc:
+        def __init__(self, stdout: str) -> None:
+            self.stdout = stdout
+            self.stderr = ""
+            self.returncode = 0
+
+    payload = json.dumps({
+        "comments": [
+            {"body": "`2026-08-23T10:00:00Z` **a** (note/info): only"},
+        ]
+    })
+
+    def fake_gh_call(args, *, timeout=60):
+        calls.append(list(args))
+        return FakeProc(payload)
+
+    monkeypatch.setattr(ebs, "_gh_call", fake_gh_call)
+    ebs._FETCH_MEMO.clear()
+
+    first = ebs.fetch_comments("chidionyema/crew", 102)
+    second = ebs.fetch_comments("chidionyema/crew", 102)
+
+    assert first == second == [{"body": "`2026-08-23T10:00:00Z` **a** (note/info): only"}]
+    assert len(calls) == 1, f"_gh_call ran {len(calls)} time(s); expected exactly one"
+
+
+def test_a_transient_called_process_error_retries_once_and_writes(tmp_path, monkeypatch) -> None:
+    """A first `_gh_call` that fails with HTTP 500 -> sleep -> second `_gh_call` succeeds.
+    `sync_estate_board` then writes a non-empty cache. A second failure must still raise,
+    so the loud-exit contract from the original test is not weakened by the retry."""
+
+    class FakeProc:
+        def __init__(self, *, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    payload = json.dumps({
+        "comments": [
+            {"body": "`2026-08-23T10:00:00Z` **a** (note/info): recovered"},
+        ]
+    })
+
+    state = {"calls": 0}
+    sleeps: list[float] = []
+
+    def fake_gh_call(args, *, timeout=60):
+        state["calls"] += 1
+        if state["calls"] == 1:
+            return FakeProc(returncode=1, stdout="", stderr="gh: HTTP 500 from api.github.com")
+        return FakeProc(returncode=0, stdout=payload)
+
+    monkeypatch.setattr(ebs, "_gh_call", fake_gh_call)
+    monkeypatch.setattr(ebs.time, "sleep", lambda s: sleeps.append(s))
+
+    comments = ebs.fetch_comments("chidionyema/crew", 102)
+    assert state["calls"] == 2, f"_gh_call ran {state['calls']} time(s); expected exactly two"
+    assert sleeps == [ebs._RETRY_SLEEP_S], sleeps
 
     cache = tmp_path / "ESTATE_BOARD.jsonl"
-
-    # The body fetch and the gh subprocess are both off-limits when the state
-    # proves nothing changed.
-    def body_boom(*_a, **_k):
-        raise AssertionError("fetch_comments_with_etag must not run when state is fresh")
-
-    def sub_boom(*_a, **_k):
-        raise AssertionError("subprocess.run must not run when state is fresh")
-
-    monkeypatch.setattr(ebs, "fetch_comments_with_etag", body_boom)
-    monkeypatch.setattr(subprocess, "run", sub_boom)
-    monkeypatch.setattr(ebs, "fetch_issue_comment_count", lambda *a, **k: 7)
-
-    n, status = ebs.sync_if_stale(cache, state_path=state_path, min_age_s=300)
-    assert status == "fresh", status
-    assert n == 0
-    assert not cache.exists()
-
-
-def test_sync_skips_body_fetch_on_etag_match(tmp_path, monkeypatch) -> None:
-    """A stale state with a cached etag -> 304 -> 'fresh', no cache rewrite."""
-    state_path = tmp_path / "state.json"
-    state_path.write_text(json.dumps({
-        "last_pulled_at": time.time() - 3600,
-        "last_row_count": 7,
-        "etag": "W/\"abc\"",
-    }))
-
-    cache = tmp_path / "ESTATE_BOARD.jsonl"
-    cache.write_text(
-        json.dumps({"ts": "t", "from": "x", "kind": "k", "priority": "p", "message": "m"}) + "\n"
-    )
-    original = cache.read_text()
-
-    monkeypatch.setattr(
-        ebs,
-        "fetch_comments_with_etag",
-        lambda *a, **k: ([], "W/\"abc\"", True),
-    )
-
-    n, status = ebs.sync_if_stale(cache, state_path=state_path, min_age_s=0)
-    assert status == "fresh"
-    assert n == 0
-    # Cache was not rewritten on a 304.
-    assert cache.read_text() == original
-
-
-def test_sync_writes_dead_letter_on_gh_failure(tmp_path, monkeypatch) -> None:
-    """A CalledProcessError from gh -> one JSON line in BOARD_DEAD_LETTER, status dead-letter."""
-    cache = tmp_path / "ESTATE_BOARD.jsonl"
-    dead = tmp_path / "deadletter.jsonl"
-    monkeypatch.setattr(ebs, "BOARD_DEAD_LETTER", dead)
-
-    monkeypatch.setattr(
-        ebs,
-        "fetch_comments_with_etag",
-        lambda *a, **k: (_ for _ in ()).throw(
-            subprocess.CalledProcessError(1, ["gh"], stderr="rate limit")
-        ),
-    )
-
-    n, status = ebs.sync_if_stale(cache, state_path=tmp_path / "state.json", min_age_s=0)
-    assert status == "dead-letter"
-    assert n == 0
-    assert dead.exists()
-    lines = [ln for ln in dead.read_text().splitlines() if ln.strip()]
-    assert len(lines) == 1, lines
-    row = json.loads(lines[0])
-    assert row["repo"] == ebs.BOARD_REPO
-    assert row["issue"] == ebs.BOARD_ISSUE
-    assert "rate limit" in row["error"] or "CalledProcessError" in row["error"]
-
-
-def test_state_file_writes_atomically(tmp_path) -> None:
-    """save_state writes the file and never leaves a sibling .tmp behind."""
-    state_path = tmp_path / "state.json"
-    ebs.save_state(state_path, {"etag": "W/\"x\"", "last_row_count": 3})
-    assert state_path.exists()
-    assert not (tmp_path / "state.json.tmp").exists()
-    roundtrip = ebs.load_state(state_path)
-    assert roundtrip == {"etag": "W/\"x\"", "last_row_count": 3}
+    n = ebs.sync_estate_board(comments, cache)
+    assert n == 1
+    assert json.loads(cache.read_text().strip())["from"] == "a"

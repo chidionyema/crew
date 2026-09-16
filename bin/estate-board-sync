@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Exposed CLI for the board cache reader.
+#
+# Discovery matters: scripts/estate-board-sync.py works exactly as it sits,
+# but the only thing that called it was the snapshot, so nobody outside
+# the lane that wrote it knew the path existed. This shim puts the entry
+# point on the conventional bin/<name> axis (bin/crew, bin/founder-demo,
+# bin/law-vocab, bin/product-readiness, bin/supply-chain) and exec()s the
+# script unchanged so it stays one place. The wrapper is intentionally
+# trivial: any change to the script is picked up automatically, and the
+# snapshot now invokes the same path humans type, so the scheduled and
+# interactive runs share one entry point.
+#
+# Arguments are passed through verbatim. The script accepts an optional
+# cache-path positional; it prints "estate-board-sync: N row(s) from
+# chidionyema/crew#102 -> <cache>" on success, names the exception on
+# failure, and exits non-zero so a failed read is never a quiet empty
+# cache (LAW 28). See docs/how-to-read-the-estate-board.md for the
+# reader contract; the board of record is chidionyema/crew#102 and the
+# JSONL at ~/.claude/ESTATE_BOARD.jsonl is the offline cache, not the
+# source. See docs/onboarding/estate-board-sync.md for the how-to.
+set -euo pipefail
+exec "$(dirname "$0")/../scripts/estate-board-sync.py" "$@"

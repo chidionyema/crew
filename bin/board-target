@@ -1,18 +1,7 @@
 #!/usr/bin/env bash
-# board-target — single source of truth for the estate board.
-# The writer (estate-broadcast.py), the tests, and the doc all read this file
-# rather than re-deriving repo, issue number, or dead-letter path. One edit
-# moves the whole estate to a new board (e.g. crew#104 or idp#1).
-
+# bin/board-target -- prints the issue number that IS the estate board
+# and exits 0. Single source of truth for any tool that needs to know
+# where to land a broadcast. CI / cron / agents MUST source this, not
+# hard-code the issue number.
 set -euo pipefail
-
-BOARD_REPO="${BOARD_REPO:-chidionyema/crew}"
-BOARD_ISSUE="${BOARD_ISSUE:-102}"
-BOARD_DEAD_LETTER="${BOARD_DEAD_LETTER:-$HOME/.claude/state/board-deadletter.jsonl}"
-
-cat <<EOF
-repo=$BOARD_REPO
-issue=$BOARD_ISSUE
-dead_letter=$BOARD_DEAD_LETTER
-format=\`ts\` **from** (kind/priority): message
-EOF
+echo "crew#102"

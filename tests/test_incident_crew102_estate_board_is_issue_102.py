@@ -10,40 +10,48 @@ never silently dropped.
 The contract lives in the issue body:
     github.com/chidionyema/crew/issues/102
 
-This test refuses to pass against any other target. If it goes red, the
-target moved and the crew board has drifted — fix the source of truth
-(`bin/board-target` for writers, the doc for humans) in the same change.
-
-The ``board_issue`` fixture (see tests/conftest.py) fetches
-``number,title,state,comments`` in a single ``gh`` call shared with the
-other board-read tests; this file no longer shells ``gh`` itself.
+These tests refuse to pass against any other target. The board payload
+is fetched once per pytest run by the `board_issue` fixture in
+tests/conftest.py; a broken `gh` call fails every consumer loudly
+(LAW 31: PASS and NOT RUN are different states). If a test goes red,
+the target moved and the crew board has drifted — fix the source of
+truth (`bin/board-target` for writers, the doc for humans) in the same
+change.
 """
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-import pytest
-
+BOARD_REPO = "chidionyema/crew"
+BOARD_ISSUE = 102
+DEAD_LETTER = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
 COMMENT_FORMAT = re.compile(
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?\s+\*\*[^*]+\*\*\s+\([^)]+\):\s+.+$"
 )
-DEAD_LETTER = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
 
 
 def test_board_target_is_repo_issue_102(board_issue: dict) -> None:
-    """The board repo+issue must resolve to chidionyema/crew#102."""
-    assert board_issue["number"] == 102
+    """The board repo+issue must resolve to chidionyema/crew#102.
+
+    Failure mode: upstream `gh issue view` failed -> this test fails
+    (the fixture surfaces that). Nothing else is read.
+    """
+    assert board_issue["number"] == BOARD_ISSUE
     assert board_issue["state"] == "OPEN"
     title = board_issue["title"].upper()
     assert "ESTATE BOARD" in title or "BROADCAST" in title, (
-        f"issue #102 is no longer the estate board; "
+        f"issue #{BOARD_ISSUE} is no longer the estate board; "
         f"title reads {board_issue['title']!r}"
     )
 
 
 def test_comment_format_matches_issue_body(board_issue: dict) -> None:
-    """A row posted to the board must follow `ts **from** (kind/priority): message`."""
+    """A row posted to the board must follow `ts **from** (kind/priority): message`.
+
+    Failure mode: upstream `gh issue view` failed -> this test fails
+    (the fixture surfaces that). Nothing else is read.
+    """
     # `gh issue view --json comments` answers a record with a "comments" key, not a bare
     # list; reading it as a list raised KeyError: 0 on every run of this test.
     comments = board_issue["comments"]
@@ -55,13 +63,18 @@ def test_comment_format_matches_issue_body(board_issue: dict) -> None:
     firsts = [next((ln for ln in c["body"].splitlines() if ln.strip()), "") for c in comments]
     rows = [ln for ln in firsts if COMMENT_FORMAT.match(ln)]
     assert rows, (
-        f"no comment on issue #102 matches the format declared in its body; "
+        f"no comment on issue #{BOARD_ISSUE} matches the format declared in its body; "
         f"the {len(firsts)} comments read start: {firsts[:3]!r}"
     )
 
 
 def test_dead_letter_path_exists_or_creatable() -> None:
-    """The dead-letter file is the loud-failure channel; it must be writable."""
+    """The dead-letter file is the loud-failure channel; it must be writable.
+
+    This test is fs-only by design — it proves the channel the writer
+    uses when `gh` rejects a row is real, and it does not need the
+    board payload to do that.
+    """
     DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
     # Touch + remove is enough to prove the path is writable without leaving junk.
     probe = DEAD_LETTER.with_suffix(".probe")

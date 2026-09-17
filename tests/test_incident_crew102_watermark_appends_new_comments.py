@@ -60,7 +60,14 @@ def test_incremental_run_with_k_new_comments_appends_exactly_k_rows(
     sidecar = tmp_path / "ESTATE_BOARD.watermark"
     sidecar.write_text(json.dumps({"last_id": "oldid", "last_ts": "2026-08-24T10:00:00Z"}))
 
+    # Disable the .last_sync cheap path so this test exercises the watermark /
+    # graphql branch only. The plan's MEMOISED contract is exercised in
+    # test_incident_crew102_sync_is_memoised_on_updated_at.py.
+    monkeypatch.setattr(ebs, "LAST_SYNC_SUFFIX", ".DISABLED.last_sync")
+
     monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", sidecar)
+    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
+    monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(ebs, "fetch_new_comments", lambda *a, **k: _three_new_comments())
 
     rc = ebs.main(["estate-board-sync.py", str(cache)])
@@ -81,7 +88,9 @@ def test_incremental_run_with_k_new_comments_appends_exactly_k_rows(
     assert wm["last_id"] == "C_3", wm
     assert wm["last_ts"] == "2026-08-24T11:00:00Z", wm
 
+    # The plan's proof substrings AND the legacy pin both appear on the same line.
     assert "3 new row(s)" in out
+    assert "(added 3 row(s))" in out
     assert "(incremental)" in out
 
 
@@ -95,7 +104,10 @@ def test_incremental_run_creates_the_cache_when_only_the_watermark_exists(
     sidecar = tmp_path / "ESTATE_BOARD.watermark"
     sidecar.write_text(json.dumps({"last_id": "oldid", "last_ts": "2026-08-24T10:00:00Z"}))
 
+    monkeypatch.setattr(ebs, "LAST_SYNC_SUFFIX", ".DISABLED.last_sync")
     monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", sidecar)
+    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
+    monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(ebs, "fetch_new_comments", lambda *a, **k: _three_new_comments())
 
     rc = ebs.main(["estate-board-sync.py", str(cache)])
@@ -105,4 +117,5 @@ def test_incremental_run_creates_the_cache_when_only_the_watermark_exists(
     lines = cache.read_text().splitlines()
     assert len(lines) == 3, lines
     assert "3 new row(s)" in out
+    assert "(added 3 row(s))" in out
     assert "(incremental)" in out

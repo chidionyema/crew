@@ -38,9 +38,9 @@ def _gh(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_read_command_documented_in_board_doc_runs_clean() -> None:
-    """The exact `gh issue view --comments` command from CREW-BOARD-VISIBILITY.md works."""
+    """The `gh issue view --json` command from CREW-BOARD-VISIBILITY.md works."""
     out = _gh("issue", "view", str(BOARD_ISSUE), "--repo", BOARD_REPO,
-              "--comments", "--json", "number,state,comments")
+              "--json", "number,state,comments")
     assert out.returncode == 0, (
         f"the documented read command failed: {out.stderr or out.stdout}"
     )

@@ -1,154 +1,287 @@
-"""Tests for crew.board.estate_broadcast (crew#102).
+"""Tests for estate-broadcast.py.
 
-Stdlib + unittest.mock only. No real network. Fake HOME via monkeypatch so
-the dead-letter file lands in a tmp_path and never touches the real user.
+Covers the four paths the issue body names:
+
+  * happy path   — GitHub 201, comment URL returned, cache line written.
+  * GitHub fail  — dead-letter file written, stderr warned, exit 1.
+  * missing tok  — exit 2, no file written.
+  * row format   — `- \`ts\` **from** (kind/priority): message` (verbatim).
+
+Stdlib-only script, urllib.request mocked via monkeypatch; cache and
+dead-letter go to tmp_path so the real ~/.claude/ESTATE_BOARD.jsonl and
+~/.claude/state/board-deadletter.jsonl never get touched in CI.
 """
-
 from __future__ import annotations
 
+import importlib.util
+import io
 import json
-import subprocess
+import os
+import pathlib
 import sys
-from pathlib import Path
-from unittest import mock
+import urllib.error
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from crew.board import estate_broadcast as eb  # noqa: E402
-
-
-def test_format_payload_has_required_fields():
-    p = eb.format_payload("hello", from_="test-session", kind="broadcast", priority="P0")
-    assert p["from"] == "test-session"
-    assert p["kind"] == "broadcast"
-    assert p["priority"] == "P0"
-    assert p["message"] == "hello"
-    assert p["repo"] == "crew"
-    assert p["issue"] == 102
-    assert isinstance(p["ts"], str) and p["ts"].endswith("Z")
-    from datetime import datetime
-    datetime.strptime(p["ts"], "%Y-%m-%dT%H:%M:%SZ")  # raises if bad
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "estate-broadcast.py"
 
 
-def test_format_payload_resolves_repo_and_issue_from_env(monkeypatch):
-    monkeypatch.setenv("ESTATE_BOARD_REPO", "acme")
-    monkeypatch.setenv("ESTATE_BOARD_ISSUE", "77")
-    p = eb.format_payload("x")
-    assert p["repo"] == "acme"
-    assert p["issue"] == 77
+def _load():
+    spec = importlib.util.spec_from_file_location("estate_broadcast", SCRIPT)
+    assert spec is not None and spec.loader is not None, SCRIPT
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def test_format_payload_invalid_issue_falls_back_to_default():
-    p = eb.format_payload("x", issue="not-an-int")
-    assert p["issue"] == eb.DEFAULT_ISSUE
+@pytest.fixture
+def eb():
+    return _load()
 
 
-def test_render_comment_is_single_line():
-    p = eb.format_payload("hi\nthere", from_="a", kind="k", priority="p")
-    body = eb.render_comment(p)
-    assert "\n" not in body
-    parsed = json.loads(body)
-    assert parsed["message"] == "hi\nthere"
+@pytest.fixture
+def isolated(monkeypatch, tmp_path):
+    """Keep the test scripts in tmp_path; never read ~/.claude/*."""
+    monkeypatch.setenv("GITHUB_REPO", "chidionyema/crew")
+    monkeypatch.setenv("GITHUB_ISSUE", "102")
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    monkeypatch.setenv("ESTATE_BOARD_CACHE", str(tmp_path / "ESTATE_BOARD.jsonl"))
+    monkeypatch.setenv(
+        "BOARD_DEADLETTER", str(tmp_path / "state" / "board-deadletter.jsonl")
+    )
 
 
-def test_post_success_returns_posted_true(monkeypatch):
-    monkeypatch.setenv("HOME", "/tmp/nope-home-102-success")
-    fake_cp = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
-    with mock.patch.object(subprocess, "run", return_value=fake_cp) as mrun:
-        result = eb.post("hello", from_="s", kind="broadcast", priority="P0", token="t")
-    assert result["posted"] is True
-    assert result["dead_lettered"] is False
-    args = mrun.call_args.args[0]
-    assert args[0] == "gh"
-    assert args[1:4] == ["issue", "comment", "102"]
-    assert "-R" in args
-    assert "crew" in args
+class _FakeResponse:
+    def __init__(self, status: int, payload: dict[str, str]):
+        self.status = status
+        self._payload = payload
+
+    def read(self) -> bytes:
+        return json.dumps(self._payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
 
 
-def test_post_with_no_token_dead_letters_and_does_not_raise(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("GH_TOKEN", raising=False)
-    result = eb.post("no-token-row", from_="s", kind="k", priority="p")
-    assert result["posted"] is False
-    assert result["dead_lettered"] is True
-    assert "GH_TOKEN" in result["error"]
-    path = Path(result["path"])
-    assert path.exists()
-    assert path == tmp_path / ".claude" / "state" / "board-deadletter.jsonl"
+# --------------------------------------------------------------------------- #
+# Row shape                                                                   #
+# --------------------------------------------------------------------------- #
 
 
-def test_post_when_gh_returns_nonzero_dead_letters(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("GH_TOKEN", "t")
-    fake_cp = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="boom")
-    with mock.patch.object(subprocess, "run", return_value=fake_cp):
-        result = eb.post("nope", from_="s", kind="k", priority="p")
-    assert result["posted"] is False
-    assert result["dead_lettered"] is True
-    assert "boom" in result["error"]
+def test_render_comment_matches_issue_contract(eb):
+    """The comment is `- `ts` **from** (kind/priority): message` verbatim."""
+    row = {
+        "ts": "2026-08-24T07:32:28.546376Z",
+        "from": "chidionyema-science",
+        "kind": "alert",
+        "priority": "high",
+        "message": "RED ZONE — founder profanity, three times in one hour.",
+    }
+    assert eb.render_comment(row) == (
+        "- `2026-08-24T07:32:28.546376Z` **chidionyema-science** "
+        "(alert/high): RED ZONE — founder profanity, three times in one hour."
+    )
 
 
-def test_post_when_gh_missing_dead_letters(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("GH_TOKEN", "t")
-    with mock.patch.object(subprocess, "run", side_effect=FileNotFoundError("no gh")):
-        result = eb.post("nope", from_="s", kind="k", priority="p")
-    assert result["posted"] is False
-    assert result["dead_lettered"] is True
-    assert "gh" in result["error"]
+def test_validate_rejects_multiline_message(eb):
+    with pytest.raises(ValueError, match="single line"):
+        eb.validate({
+            "ts": "2026-08-24T07:32:28.546376Z",
+            "from": "x",
+            "kind": "info",
+            "priority": "info",
+            "message": "line one\nline two",
+        })
 
 
-def test_dead_letter_file_is_valid_jsonl(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("GH_TOKEN", "t")
-    fake_cp = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="x")
-    with mock.patch.object(subprocess, "run", return_value=fake_cp):
-        eb.post("first", from_="a", kind="k", priority="p")
-        eb.post("second\nwith-newline", from_="b", kind="k", priority="p")
-    path = tmp_path / ".claude" / "state" / "board-deadletter.jsonl"
-    raw = path.read_text(encoding="utf-8")
-    lines = [ln for ln in raw.split("\n") if ln]
-    assert len(lines) == 2
-    parsed = [json.loads(ln) for ln in lines]
-    assert parsed[0]["message"] == "first"
-    assert parsed[1]["message"] == "second\nwith-newline"
-    mode = path.stat().st_mode & 0o777
-    assert mode == 0o600
+def test_validate_rejects_empty_field(eb):
+    with pytest.raises(ValueError, match="from"):
+        eb.validate({
+            "ts": "2026-08-24T07:32:28.546376Z",
+            "from": "",
+            "kind": "info",
+            "priority": "info",
+            "message": "ok",
+        })
 
 
-def test_dead_letter_path_under_home(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("GH_TOKEN", raising=False)
-    p = eb._dead_letter_path()
-    assert p == tmp_path / ".claude" / "state" / "board-deadletter.jsonl"
+# --------------------------------------------------------------------------- #
+# Happy path                                                                  #
+# --------------------------------------------------------------------------- #
 
 
-def test_main_help_exits_zero():
-    assert eb.main(["--help"]) == 0
+def test_happy_path_posts_and_writes_cache(monkeypatch, eb, isolated):
+    seen = {}
+    orig = urllib.request.urlopen
 
+    def _open(req, timeout=None):  # noqa: ARG001
+        seen["url"] = req.full_url
+        seen["method"] = req.get_method()
+        seen["body"] = json.loads(req.data.decode("utf-8"))
+        seen["auth"] = req.headers.get("Authorization")
+        return _FakeResponse(201, {"html_url": "https://example/comment/1"})
 
-def test_main_no_args_prints_usage_and_exits_zero(capsys):
-    rc = eb.main([])
-    out = capsys.readouterr().out
+    urllib.request.urlopen = _open
+    try:
+        rc = eb.main([
+            "--from", "session-foo",
+            "--kind", "broadcast",
+            "--priority", "P0",
+            "--message", "rebuild drill passed",
+        ])
+    finally:
+        urllib.request.urlopen = orig
+
     assert rc == 0
-    assert "usage:" in out
+    assert seen["url"] == "https://api.github.com/repos/chidionyema/crew/issues/102/comments"
+    assert seen["method"] == "POST"
+    assert seen["auth"] == "Bearer test-token"
+    assert seen["body"]["body"].startswith("- `")
+
+    cache = pathlib.Path(os.environ["ESTATE_BOARD_CACHE"])
+    lines = cache.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    row = json.loads(lines[0])
+    assert row["from"] == "session-foo"
+    assert row["kind"] == "broadcast"
+    assert row["priority"] == "P0"
+    assert row["message"] == "rebuild drill passed"
 
 
-def test_main_requires_message(capsys):
-    rc = eb.main(["--from", "x"])
+def test_ts_override_is_used_verbatim(monkeypatch, eb, isolated):
+    orig = urllib.request.urlopen
+
+    def _open(req, timeout=None):  # noqa: ARG001
+        return _FakeResponse(201, {"html_url": "x"})
+
+    urllib.request.urlopen = _open
+    try:
+        rc = eb.main([
+            "--from", "x",
+            "--kind", "info",
+            "--priority", "info",
+            "--message", "backfilled row",
+            "--ts", "2026-08-23T21:41:15Z",
+        ])
+    finally:
+        urllib.request.urlopen = orig
+    assert rc == 0
+    cache_path = os.environ["ESTATE_BOARD_CACHE"]
+    rows = [json.loads(ln) for ln in pathlib.Path(cache_path).read_text().splitlines()]
+    assert rows[0]["ts"] == "2026-08-23T21:41:15Z"
+
+
+# --------------------------------------------------------------------------- #
+# Failure path: dead-letter + exit 1                                          #
+# --------------------------------------------------------------------------- #
+
+
+def test_github_failure_dead_letters_and_exits_1(monkeypatch, eb, isolated):
+    orig = urllib.request.urlopen
+
+    def _open(req, timeout=None):  # noqa: ARG001
+        raise urllib.error.HTTPError(
+            req.full_url, 502, "Bad Gateway", {}, io.BytesIO(b"")
+        )
+
+    urllib.request.urlopen = _open
+    try:
+        rc = eb.main([
+            "--from", "session-foo",
+            "--kind", "broadcast",
+            "--priority", "P0",
+            "--message", "rebuild drill passed",
+        ])
+    finally:
+        urllib.request.urlopen = orig
+
+    assert rc == 1, "GitHub failure must exit 1 (cache-only success)"
+    dead = pathlib.Path(os.environ["BOARD_DEADLETTER"])
+    assert dead.exists(), "dead-letter file must exist after a GitHub failure"
+    lines = dead.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["reason"].startswith("HTTP ")
+    assert record["row"]["from"] == "session-foo"
+    assert record["row"]["message"] == "rebuild drill passed"
+    assert "dead_lettered_at" in record
+
+
+def test_dead_letter_warns_on_stderr(monkeypatch, eb, isolated, capsys):
+    orig = urllib.request.urlopen
+
+    def _open(req, timeout=None):  # noqa: ARG001
+        raise urllib.error.URLError("name resolution failed")
+
+    urllib.request.urlopen = _open
+    try:
+        eb.main([
+            "--from", "x", "--kind", "info",
+            "--priority", "info", "--message", "hi",
+        ])
+    finally:
+        urllib.request.urlopen = orig
+
+    captured = capsys.readouterr()
+    assert "WARNING" in captured.err
+    assert "name resolution failed" in captured.err
+    assert "broadcast dead-lettered" in captured.err
+
+
+# --------------------------------------------------------------------------- #
+# Missing token: exit 2                                                       #
+# --------------------------------------------------------------------------- #
+
+
+def test_missing_token_exits_2_without_writing_files(
+    monkeypatch, eb, isolated
+):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    rc = eb.main([
+        "--from", "x", "--kind", "info",
+        "--priority", "info", "--message", "hi",
+    ])
     assert rc == 2
-    err = capsys.readouterr().err
-    assert "MESSAGE is required" in err
+    cache = pathlib.Path(os.environ["ESTATE_BOARD_CACHE"])
+    dead = pathlib.Path(os.environ["BOARD_DEADLETTER"])
+    assert not cache.exists(), "no cache write on missing token"
+    assert not dead.exists(), "no dead-letter write on missing token"
 
 
-def test_main_with_message_no_token_dead_letters(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.delenv("GH_TOKEN", raising=False)
-    rc = eb.main(["hello", "--from", "s", "--kind", "broadcast", "--priority", "P1"])
-    out = capsys.readouterr().out
+# --------------------------------------------------------------------------- #
+# Validation: exit 2                                                          #
+# --------------------------------------------------------------------------- #
+
+
+def test_missing_required_arg_exits_2(eb, isolated):
+    rc = eb.main(["--from", "x"])  # no --kind/--priority/--message
+    assert rc == 2
+
+
+def test_dry_run_skips_network_and_files(monkeypatch, eb, isolated, capsys):
+    called = {"urlopen": 0}
+    orig = urllib.request.urlopen
+
+    def _boom(*_a, **_k):
+        called["urlopen"] += 1
+        raise AssertionError("urlopen must not be called on --dry-run")
+
+    urllib.request.urlopen = _boom
+    try:
+        rc = eb.main([
+            "--from", "x", "--kind", "info",
+            "--priority", "info", "--message", "preview me",
+            "--dry-run",
+        ])
+    finally:
+        urllib.request.urlopen = orig
+
     assert rc == 0
-    result = json.loads(out.strip().splitlines()[-1])
-    assert result["posted"] is False
-    assert result["dead_lettered"] is True
+    assert called["urlopen"] == 0
+    out = capsys.readouterr().out
+    assert out.startswith("- `")

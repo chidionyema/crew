@@ -7,11 +7,13 @@ already) and a delta run must not write rows the cache already holds.
 
 This test pins three properties of the delta path:
 
-  1. DELTA -- the cache gains ONLY the new rows. A pre-seeded row that is also in the
-     fetched comments must NOT be duplicated.
-  2. HOT -- after the cold path, a second run on the same updatedAt is a no-op.
-  3. ORDER -- the new row, when there is one, lands at the END of the cache (the
-     append path appends to the bottom of the file).
+  1. FULL fetch -- the cache gains exactly the parsed rows. A pre-seeded row that is
+     also in the fetched comments must NOT be duplicated. The full-rebuild path
+     (`--full`) sorts by ts and writes once; the seed row in the cache is replaced
+     by the deduplicated, sorted full set.
+  2. HOT -- after a full rebuild, a second run on the same updatedAt is a no-op.
+  3. ORDER -- the new row, when there is one, lands in sorted position (oldest
+     first), and the seed row is still present after the run.
 
 The plan calls this LAZY: only the rows whose id is greater than the max id already
 in the cache are parsed and written. The script's `rows_from` dedupes by sorting on
@@ -20,7 +22,9 @@ ts; the test pins that on a re-fetch, the seeded row appears exactly once.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
 from unittest import mock
@@ -42,13 +46,37 @@ def _load(path: pathlib.Path, name: str):
 ebs = _load(SYNC, "ebs_delta")
 
 
+def _run(argv: list[str], **mocks) -> tuple[int, str]:
+    """Run `ebs.main` with a redirected stdout; return (rc, captured_stdout)."""
+    buf = io.StringIO()
+    patches = [
+        mock.patch.object(ebs, name, value=value) for name, value in mocks.items()
+    ]
+    for p in patches:
+        p.start()
+    try:
+        with contextlib.redirect_stdout(buf):
+            rc = ebs.main(argv)
+    finally:
+        for p in patches:
+            p.stop()
+    return rc, buf.getvalue()
+
+
 # ---------------------------------------------------------------------------
-# 1. Full fetch -> cache contains exactly the parsed rows, no duplicates.
+# 1. FULL fetch -- the cache holds each row exactly once.
 # ---------------------------------------------------------------------------
 
 
 def test_full_fetch_writes_each_row_exactly_once(tmp_path) -> None:
-    """A cache pre-seeded with one row and a fetch returning [seed, new] leaves 2 rows."""
+    """A cache pre-seeded with one row and a fetch returning [seed, new] leaves 2 rows.
+
+    The full-rebuild path (`--full`) sorts every parsed row by ts and writes the whole
+    cache in one atomic rename, so a row that appears in BOTH the cache and the fetch
+    is in the final cache exactly once. This is the deduplication the LAZY contract
+    depends on at startup; once the .last_sync sidecar is in place the LAZY path takes
+    over and skips re-parsing rows it already holds.
+    """
     cache = tmp_path / "ESTATE_BOARD.jsonl"
     seed = {
         "ts": "2026-08-24T09:00:00Z",
@@ -64,15 +92,13 @@ def test_full_fetch_writes_each_row_exactly_once(tmp_path) -> None:
         {"body": "`2026-08-24T10:00:00Z` **new** (note/info): delta"},
     ]
 
-    import io, contextlib
-    buf = io.StringIO()
-    with mock.patch.object(ebs, "fetch_comments", return_value=fetch_return), \
-         mock.patch.object(ebs, "_load_meta_module", return_value=None), \
-         mock.patch.object(ebs, "_load_graphql_module", return_value=None), \
-         mock.patch.object(ebs, "_issue_updated_at", return_value="2026-08-24T10:30:00Z"), \
-         contextlib.redirect_stdout(buf):
-        rc = ebs.main(["estate-board-sync.py", str(cache), "--full"])
-    out = buf.getvalue()
+    rc, out = _run(
+        ["estate-board-sync.py", str(cache), "--full"],
+        fetch_comments=lambda *a, **k: fetch_return,
+        _load_meta_module=lambda: None,
+        _load_graphql_module=lambda: None,
+        _issue_updated_at=lambda *a, **k: "2026-08-24T10:30:00Z",
+    )
     assert rc == 0, out
 
     lines = [json.loads(ln) for ln in cache.read_text().splitlines() if ln.strip()]
@@ -100,42 +126,42 @@ def test_second_run_after_full_is_idempotent(tmp_path) -> None:
         {"body": "`2026-08-24T09:15:00Z` **b** (note/info): second"},
     ]
 
-    # First run: COLD path.
-    with mock.patch.object(ebs, "fetch_comments", return_value=fetch_return), \
-         mock.patch.object(ebs, "_load_meta_module", return_value=None), \
-         mock.patch.object(ebs, "_load_graphql_module", return_value=None), \
-         mock.patch.object(ebs, "_issue_updated_at", return_value="2026-08-24T09:30:00Z"):
-        assert ebs.main(["estate-board-sync.py", str(cache)]) == 0
+    rc, _ = _run(
+        ["estate-board-sync.py", str(cache)],
+        fetch_comments=lambda *a, **k: fetch_return,
+        _load_meta_module=lambda: None,
+        _load_graphql_module=lambda: None,
+        _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
+    )
+    assert rc == 0
 
     lines_after_first = cache.read_text().splitlines()
     assert len(lines_after_first) == 2
     sidecar = tmp_path / "ESTATE_BOARD.jsonl.last_sync"
     assert sidecar.exists()
 
-    # Second run: same updatedAt; fetch must not be called.
-    import io, contextlib
-    buf = io.StringIO()
     def _boom(*_a, **_k):
         raise AssertionError("fetch must not run on a HOT path")
-    with mock.patch.object(ebs, "fetch_comments", side_effect=_boom), \
-         mock.patch.object(ebs, "_issue_updated_at", return_value="2026-08-24T09:30:00Z"), \
-         contextlib.redirect_stdout(buf):
-        rc = ebs.main(["estate-board-sync.py", str(cache)])
-    out = buf.getvalue()
-    assert rc == 0
-    assert "0 new row(s)" in out
-    assert "(added 0 row(s))" in out
+
+    rc2, out2 = _run(
+        ["estate-board-sync.py", str(cache)],
+        fetch_comments=_boom,
+        _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
+    )
+    assert rc2 == 0
+    assert "0 new row(s)" in out2
+    assert "(added 0 row(s))" in out2
     # No duplicate rows.
     assert cache.read_text().splitlines() == lines_after_first
 
 
 # ---------------------------------------------------------------------------
-# 3. Order: the new row lands at the END (append semantics).
+# 3. Order: a new row lands in sorted position relative to the seed.
 # ---------------------------------------------------------------------------
 
 
-def test_new_row_appends_to_the_end_of_the_cache(tmp_path) -> None:
-    """The append path puts the new row after the seed row, sorted by ts."""
+def test_new_row_lands_in_sorted_position(tmp_path) -> None:
+    """A new row with a later ts lands after the seed row in the sorted cache."""
     cache = tmp_path / "ESTATE_BOARD.jsonl"
     seed = {
         "ts": "2026-08-24T08:00:00Z",
@@ -147,22 +173,20 @@ def test_new_row_appends_to_the_end_of_the_cache(tmp_path) -> None:
     cache.write_text(json.dumps(seed) + "\n")
 
     fetch_return = [
-        {"body": "`2026-08-24T09:00:00Z` **new** (note/info): appended-last"},
+        {"body": "`2026-08-24T09:00:00Z` **new** (note/info): appended"},
     ]
 
-    import io, contextlib
-    buf = io.StringIO()
-    with mock.patch.object(ebs, "fetch_comments", return_value=fetch_return), \
-         mock.patch.object(ebs, "_load_meta_module", return_value=None), \
-         mock.patch.object(ebs, "_load_graphql_module", return_value=None), \
-         mock.patch.object(ebs, "_issue_updated_at", return_value="2026-08-24T09:30:00Z"), \
-         contextlib.redirect_stdout(buf):
-        rc = ebs.main(["estate-board-sync.py", str(cache)])
-    out = buf.getvalue()
-    assert rc == 0, out
+    rc, _ = _run(
+        ["estate-board-sync.py", str(cache)],
+        fetch_comments=lambda *a, **k: fetch_return,
+        _load_meta_module=lambda: None,
+        _load_graphql_module=lambda: None,
+        _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
+    )
+    assert rc == 0
 
     lines = [json.loads(ln) for ln in cache.read_text().splitlines() if ln.strip()]
     assert len(lines) == 2, lines
-    # New row is the last line.
-    assert lines[-1]["message"] == "appended-last", lines
+    # New row is the last line (sorted oldest-first).
+    assert lines[-1]["message"] == "appended", lines
     assert lines[-1]["ts"] > lines[0]["ts"], lines

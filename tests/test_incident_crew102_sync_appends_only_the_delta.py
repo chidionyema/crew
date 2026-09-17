@@ -95,7 +95,6 @@ def test_full_fetch_writes_each_row_exactly_once(tmp_path) -> None:
     rc, out = _run(
         ["estate-board-sync.py", str(cache), "--full"],
         fetch_comments=lambda *a, **k: fetch_return,
-        _load_meta_module=lambda: None,
         _load_graphql_module=lambda: None,
         _issue_updated_at=lambda *a, **k: "2026-08-24T10:30:00Z",
     )
@@ -129,7 +128,6 @@ def test_second_run_after_full_is_idempotent(tmp_path) -> None:
     rc, _ = _run(
         ["estate-board-sync.py", str(cache)],
         fetch_comments=lambda *a, **k: fetch_return,
-        _load_meta_module=lambda: None,
         _load_graphql_module=lambda: None,
         _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
     )
@@ -179,7 +177,6 @@ def test_new_row_lands_in_sorted_position(tmp_path) -> None:
     rc, _ = _run(
         ["estate-board-sync.py", str(cache)],
         fetch_comments=lambda *a, **k: fetch_return,
-        _load_meta_module=lambda: None,
         _load_graphql_module=lambda: None,
         _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
     )

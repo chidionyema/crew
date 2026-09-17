@@ -25,6 +25,12 @@ The four plan-named optimisations:
   BATCHED        `hashlib.sha256` over the joined would-be JSONL output; the cache
                  rename is skipped on a hash match.
 
+The plan's printed-row contract: an incremental run prints
+`estate-board-sync: N new row(s) from <repo>#<issue> -> <cache> (added N row(s)) (incremental)`
+so the founder's hot-path proof (`0 new row(s) (added 0 row(s))`) and the delta proof
+(`added 1 row(s)`) both appear in the same line. The existing watermark tests pin the
+`N new row(s)` half; this script is the source of truth for both halves.
+
 Rejected: `gh issue view --comments` on its own -- it is the tool this script calls, and
   it prints prose for a person. It has no shape for the row format the board declares, no
   way to skip the human backfill headers, and no cache, so every reader would pay a
@@ -33,7 +39,7 @@ Rejected: GitHub Projects -- a project's fields would hold the rows natively, bu
   board of record is deliberately one issue (crew#102) so that any session with `gh` can
   append to it in one call, and Projects has no offline read at all.
 Standard: docs/STANDARDS.md "Coordination" -- the estate board is the sync layer (LAW 26),
-  and this is its read side.
+   and this is its read side.
 Deviation: none.
 """
 
@@ -62,6 +68,11 @@ _LAZY_SNIFF_RE = re.compile(r"^`\d{4}-")
 BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+#: Sidecar next to the cache that records the issue's `updatedAt` at the last write.
+#: Default lives next to DEFAULT_CACHE so an offline run on /tmp/board.jsonl writes
+#: /tmp/board.jsonl.last_sync, never under ~/.claude. The .last_sync path is what the
+#: plan names and what the founder's proof commands clean up with `rm -f`.
+LAST_SYNC_SUFFIX = ".last_sync"
 #: Watermark sidecar -- last-seen comment id + ts. Lazy on startup, atomic on update.
 WATERMARK_DEFAULT = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.watermark"
 #: Meta sidecar -- the issue's updatedAt + the cache's sha256. Used by the MEMOISED arm.
@@ -71,6 +82,16 @@ PAGE_SIZE = 50
 
 def _here() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parent
+
+
+def _last_sync_path(cache: pathlib.Path) -> pathlib.Path:
+    """`<cache>.last_sync` -- the sidecar the plan's proof commands clean up.
+
+    The sidecar is sibling to the cache, not under ~/.claude, so an offline test on
+    /tmp/board.jsonl gets /tmp/board.jsonl.last_sync with no env var. The default
+    under ~/.claude follows the same rule: ~/.claude/ESTATE_BOARD.jsonl.last_sync.
+    """
+    return pathlib.Path(str(cache) + LAST_SYNC_SUFFIX)
 
 
 def _load_meta_module():
@@ -248,6 +269,47 @@ def save_watermark_atomic(path: pathlib.Path | str, data: dict) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
     tmp.write_text(json.dumps(data))
+    tmp.replace(p)
+
+
+def load_last_sync(path: pathlib.Path | str | None = None) -> str | None:
+    """Read `<cache>.last_sync` if it exists. Returns the stored updatedAt or None.
+
+    The sidecar holds the issue's `updatedAt` from the last successful sync, JSON-encoded
+    as a plain string. A missing, unreadable, or non-string sidecar is treated as None,
+    which the caller turns into "do a real fetch". No partial reads, no silent defaults.
+    """
+    p = pathlib.Path(path) if path is not None else None
+    if p is None:
+        return None
+    try:
+        text = p.read_text()
+    except (OSError, FileNotFoundError):
+        return None
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    if isinstance(data, str):
+        return data
+    if isinstance(data, dict):
+        ts = data.get("updatedAt")
+        if isinstance(ts, str):
+            return ts
+    return None
+
+
+def save_last_sync_atomic(path: pathlib.Path | str, updated_at: str) -> None:
+    """Atomically write the `<cache>.last_sync` sidecar with the current updatedAt.
+
+    The plan's MEMOISED contract: the next sync compares this string against the issue's
+    current updatedAt via `_issue_updated_at()`. On match, the read is skipped entirely.
+    On mismatch, this file is rewritten at the end of the successful fetch.
+    """
+    p = pathlib.Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps({"updatedAt": updated_at}))
     tmp.replace(p)
 
 
@@ -455,6 +517,40 @@ def _try_cache_hit(cache: pathlib.Path) -> bool:
     return True
 
 
+def _try_last_sync_hit(cache: pathlib.Path) -> bool:
+    """Plan-named MEMOISED short-circuit, keyed by the issue's updatedAt.
+
+    The plan says the cheap `gh api /repos/<repo>/issues/<n> --jq .updated_at` is
+    enough to skip the heavy `gh issue view --json comments` when the board hasn't
+    moved. The sidecar at `<cache>.last_sync` holds the last-seen updatedAt; on
+    match we exit 0 with the plan's "0 new row(s) (added 0 row(s))" line and
+    skip the fetch entirely.
+
+    The .last_sync short-circuit is the common path (board changes a handful of
+    times per hour; the snapshot ticks 24x/hour). The meta.json / sha256 check
+    in `_try_cache_hit` is the secondary guard for when updatedAt matches but
+    the cache file was hand-edited, rotated, or truncated.
+    """
+    sidecar = _last_sync_path(cache)
+    stored = load_last_sync(sidecar)
+    if not stored:
+        return False
+    current = _issue_updated_at()
+    if current is None or current != stored:
+        return False
+    n = 0
+    if cache.exists():
+        try:
+            n = sum(1 for ln in cache.open() if ln.strip())
+        except OSError:
+            n = 0
+    print(
+        f"estate-board-sync: {n} new row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache} "
+        f"(added {n} row(s)) (incremental)"
+    )
+    return True
+
+
 def main(argv: list[str]) -> int:
     """`estate-board-sync.py [cache-path] [--full|--prove]` -- incremental by default.
 
@@ -464,12 +560,15 @@ def main(argv: list[str]) -> int:
     a defect (LAW 28).
 
     Order of checks:
-      1. MEMOISED/BATCHED -- meta sidecar matches the issue's current updatedAt AND
-         the cache's sha256 matches the stored sha. On a hit, log and return 0.
-      2. --prove -- never touches the cache, never fetches if the meta matches,
-         prints the pinned summary line shape.
-      3. --full -- legacy 4-step full rebuild.
-      4. Default -- incremental via the watermark + graphql fan-out (PARALLELISED).
+      1. .last_sync short-circuit (plan-named MEMOISED cheap path). On a hit, log the
+         plan's "N new row(s) (added N row(s))" line and return 0 without reading
+         comments.
+      2. MEMOISED/BATCHED -- meta sidecar matches the issue's current updatedAt AND
+         the cache's sha256 matches the stored sha. On a hit, log the two plan-named
+         strings and return 0.
+      3. --prove -- never touches the cache, prints the pinned summary line shape.
+      4. --full -- legacy 4-step full rebuild.
+      5. Default -- incremental via the watermark + graphql fan-out (PARALLELISED).
     """
     args = list(argv[1:])
     prove = "--prove" in args
@@ -478,8 +577,12 @@ def main(argv: list[str]) -> int:
     cache = pathlib.Path(args[0]) if args else DEFAULT_CACHE
 
     try:
-        # (1) MEMOISED / BATCHED -- cache-hit short-circuit. No fetch on a hit.
-        if _try_cache_hit(cache):
+        # (1) MEMOISED cheap path: issue's updatedAt matches the sidecar.
+        if not prove and not force_full and _try_last_sync_hit(cache):
+            return 0
+
+        # (2) MEMOISED / BATCHED -- cache-hit short-circuit. No fetch on a hit.
+        if not prove and not force_full and _try_cache_hit(cache):
             if prove:
                 # The prove-mode test expects the pinned summary line shape; the
                 # cache-hit path already logs the two plan-named strings, but the
@@ -491,7 +594,7 @@ def main(argv: list[str]) -> int:
             return 0
 
         if prove:
-            # (2) Prove path: simulate a fetch with the prove-friendly stub. The
+            # (3) Prove path: simulate a fetch with the prove-friendly stub. The
             # prove-mode tests mock fetch_comments, _load_meta_module, and
             # _load_graphql_module. We honour those mocks here.
             comments = fetch_comments()
@@ -507,7 +610,7 @@ def main(argv: list[str]) -> int:
         if force_full:
             return _do_full(cache, prove=False)
 
-        # (4) Incremental default.
+        # (5) Incremental default.
         watermark = load_watermark(WATERMARK_DEFAULT)
         if not watermark.get("last_id") or not watermark.get("last_ts"):
             # Silent fallback is a defect -- the print still says (full).
@@ -548,8 +651,14 @@ def main(argv: list[str]) -> int:
         save_watermark_atomic(WATERMARK_DEFAULT, new_wm)
         # Refresh the meta sidecar so the next run can short-circuit on a hash match.
         _save_meta_for_cache(cache, comments)
+        # Plan's MEMOISED contract: write the issue's updatedAt so the next sync
+        # can short-circuit before the heavy fetch.
+        updated_at = _issue_updated_at()
+        if updated_at is not None:
+            save_last_sync_atomic(_last_sync_path(cache), updated_at)
         print(
-            f"estate-board-sync: {n} new row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache} (incremental)"
+            f"estate-board-sync: {n} new row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache} "
+            f"(added {n} row(s)) (incremental)"
         )
         return 0
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, OSError) as exc:

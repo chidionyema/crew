@@ -28,17 +28,27 @@ def test_incremental_run_with_no_new_comments_is_a_byte_identical_noop(
 ) -> None:
     """K=0: cache bytes are unchanged, watermark bytes are unchanged, exit 0."""
     cache = tmp_path / "ESTATE_BOARD.jsonl"
+    sidecar = tmp_path / "ESTATE_BOARD.jsonl.last_sync"
     seed_row = {"ts": "2026-08-24T09:00:00Z", "from": "seed", "kind": "note", "priority": "info", "message": "seed"}
     cache.write_text(json.dumps(seed_row) + "\n")
     before = cache.read_bytes()
 
-    sidecar = tmp_path / "ESTATE_BOARD.watermark"
+    wm_sidecar = tmp_path / "ESTATE_BOARD.watermark"
     wm_before = {"last_id": "X", "last_ts": "2026-08-24T10:00:00Z"}
-    sidecar.write_text(json.dumps(wm_before))
-    wm_bytes_before = sidecar.read_bytes()
+    wm_sidecar.write_text(json.dumps(wm_before))
+    wm_bytes_before = wm_sidecar.read_bytes()
+
+    # Disable the plan's MEMOISED .last_sync cheap path so this test exercises the
+    # watermark / graphql branch only. The MEMOISED short-circuit is exercised
+    # in test_incident_crew102_sync_is_memoised_on_updated_at.py.
+    monkeypatch.setattr(ebs, "LAST_SYNC_SUFFIX", ".DISABLED.last_sync")
+    if sidecar.exists():
+        sidecar.unlink()
 
     # Point the script at the tmp sidecar instead of ~/.claude/ESTATE_BOARD.watermark.
-    monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", sidecar)
+    monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", wm_sidecar)
+    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
+    monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(
         ebs,
         "fetch_new_comments",
@@ -49,10 +59,12 @@ def test_incremental_run_with_no_new_comments_is_a_byte_identical_noop(
     out = capsys.readouterr().out
 
     assert rc == 0
+    # The plan's proof substrings AND the legacy pin both appear on the same line.
     assert "0 new row(s)" in out
+    assert "(added 0 row(s))" in out
     assert "(incremental)" in out
     # The cache must be byte-identical -- nothing was appended, nothing was rewritten.
     assert cache.read_bytes() == before
     # The watermark sidecar must also be unchanged (or at most a byte-identical rewrite;
     # the contract is "byte-identical", which is stricter).
-    assert sidecar.read_bytes() == wm_bytes_before
+    assert wm_sidecar.read_bytes() == wm_bytes_before

@@ -93,7 +93,7 @@
 **Status:** open  
 **Blocked by:** N/A  
 **Description:** Three namespaces — `hermes-agent`, `otto-golden`, and `otto-gateway` — have all held Telegram credentials at different points in the estate's history. There is no `OWNER.yaml` (or equivalent declared ownership artifact in git) that designates `otto-gateway` as the one legal writer for the Telegram webhook. Any operator or future deployment can inadvertently activate a competing setWebhook call from a different namespace, immediately invalidating the registration held by otto-gateway. This is the root architectural gap that permits the entire class of 409 / webhook-conflict incidents.  
-**Fix:** Create `platform/ownership/OWNER.yaml` (or a sibling file in the `crew/` mono-repo root) that explicitly declares: owner=`otto-gateway`, resource=`telegram-webhook`, constraint=`single-writer`. Delete or disable all ExternalSecrets surfacing the live bot token into any namespace other than `otto-gateway`. Add a CI lint rule (`bin/idp-rules run`) that fails if `TELEGRAM_BOT_TOKEN` appears in an ExternalSecret spec outside the declared owner namespace.
+**Fix:** Create `idp/platform/ownership/OWNER.yaml` (or a sibling file in the `crew/` mono-repo root) that explicitly declares: owner=`otto-gateway`, resource=`telegram-webhook`, constraint=`single-writer`. Delete or disable all ExternalSecrets surfacing the live bot token into any namespace other than `otto-gateway`. Add a CI lint rule (`bin/idp-rules run`) that fails if `TELEGRAM_BOT_TOKEN` appears in an ExternalSecret spec outside the declared owner namespace.
 
 ---
 
@@ -662,7 +662,7 @@ Target: 86/86 READY. Each Kustomization that remains NOT READY after its root ca
 >
 > **Actual state (verified 2026-09-16 by reading source):** `otto.memory.conversation` is the **active** conversation store in the production answering path. `pipeline.py:843` calls `conversation.record()` and `pipeline.py:661` calls `conversation.recent_messages()`, both backed by `otto_turns` table in the estate's Postgres database (`OTTO_MEMORY_DATABASE_URL`). PR #99 ("a conversation that outlives the pod that held it") implemented this correctly.
 >
-> **`thread.py`'s `SqliteConversationStore` is not wired into the production answering path at all.** It is unused code — the `Worker` in `otto/ingress/worker.py` calls `answer_envelope()` which bypasses `thread.py` entirely. T017's migration prescription ("migrate SqliteConversationStore to Postgres") was implemented by PR #99 through a different abstraction.
+> **`thread.py`'s `SqliteConversationStore` is not wired into the production answering path at all.** It is unused code — the `Worker` in `hermes-v2/otto/ingress/worker.py` calls `answer_envelope()` which bypasses `thread.py` entirely. T017's migration prescription ("migrate SqliteConversationStore to Postgres") was implemented by PR #99 through a different abstraction.
 >
 > **T017 is demoted to T017b** (verify memory DB is configured and `otto_turns` has rows) and the conversation emptyDir risk is reclassified. The real risk is not emptyDir state but whether `OTTO_MEMORY_DATABASE_URL` is set and the schema is migrated.
 
@@ -723,7 +723,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Priority:** P2  
 **Phase:** 4  
 **Status:** open  
-**Description:** `otto/ingress/thread.py` contains a complete `ConversationStore` protocol and `SqliteConversationStore` implementation with a 12-hour idle timeout, 24-turn cap, and per-principal thread logic. It is never instantiated in `__main__.py` or passed to `Worker`. The production answering path uses `otto.memory.conversation` (Postgres). `thread.py` is dead code.  
+**Description:** `hermes-v2/otto/ingress/thread.py` contains a complete `ConversationStore` protocol and `SqliteConversationStore` implementation with a 12-hour idle timeout, 24-turn cap, and per-principal thread logic. It is never instantiated in `__main__.py` or passed to `Worker`. The production answering path uses `otto.memory.conversation` (Postgres). `thread.py` is dead code.  
 **Risk:** A future developer sees the protocol, wires `SqliteConversationStore` backed by `/data/conversations.db` (emptyDir), and introduces the exact problem T017 described. The dead code is a trap.  
 **Fix:** Either (a) delete `thread.py` and the SQLite thread implementation entirely, since `otto.memory.conversation` covers the same function with better durability, or (b) wire a `PostgresConversationStore` backed by `otto_turns` to implement the `ConversationStore` protocol for the universal gateway path, replacing `otto.memory.conversation.recent_messages()` call in pipeline.py with a unified interface. Option (a) is the conservative choice.
 
@@ -842,7 +842,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **PR:** #63 ("Telegram buttons and voice notes in")  
 **Description:** PR #63 added support for Telegram inline keyboard buttons. When Otto sends a message with an inline keyboard, tapping a button generates a `callback_query` update — a different Telegram update type from a regular `message`. The gateway must handle `callback_query` events, extract the callback data, and route them through the same pipeline as text messages.  
 **Gaps to verify:** (1) Search `grep -rn "callback_query" otto/` — verify the surface binding handles this update type. (2) Build a test: trigger Otto to send a message with buttons (find which pipeline path produces them) and tap a button. (3) Verify the callback appears in otto-gateway logs as a processed event, not a dropped unknown type.  
-**Fix:** If `callback_query` is not handled, add it to `otto/surface/bindings/telegram.py`'s normalize path. The callback data should be surfaced as the message content of a synthetic user turn.
+**Fix:** If `callback_query` is not handled, add it to `hermes-v2/otto/surface/bindings/telegram.py`'s normalize path. The callback data should be surfaced as the message content of a synthetic user turn.
 
 ---
 
@@ -929,9 +929,9 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Phase:** feature  
 **Status:** open  
 **PR:** #85 ("answer through the bot a message came in on")  
-**Description:** `worker.py:190` checks `envelope.reply_binding` — if present, it looks up `find_by_external_id()` to get the specific bot's outbound credential. This field must be stamped by `otto/ingress/gateway.py` when it mints the `TaskEnvelope`, using the matched `ChannelBinding.external_id`. If the field is absent (None), the worker falls back to `find_by_tenant()` which picks whichever bot row comes first — breaking multi-bot routing when two bots serve the same tenant.  
+**Description:** `worker.py:190` checks `envelope.reply_binding` — if present, it looks up `find_by_external_id()` to get the specific bot's outbound credential. This field must be stamped by `hermes-v2/otto/ingress/gateway.py` when it mints the `TaskEnvelope`, using the matched `ChannelBinding.external_id`. If the field is absent (None), the worker falls back to `find_by_tenant()` which picks whichever bot row comes first — breaking multi-bot routing when two bots serve the same tenant.  
 **Gaps to verify:** (1) `grep -rn "reply_binding" otto/ingress/` — verify the gateway stamps it. (2) Check the `TaskEnvelope` Pydantic model: does `reply_binding` exist as a field? (3) Verify a NATS-published envelope has a non-None `reply_binding` field by adding a log line or checking OTel traces.  
-**Fix:** If `reply_binding` is never set: find where `TaskEnvelope` is built in `gateway.py`, add `reply_binding=binding.external_id` to the constructor call. If the field doesn't exist in the schema, add it to `otto/spine/envelope.py`.
+**Fix:** If `reply_binding` is never set: find where `TaskEnvelope` is built in `gateway.py`, add `reply_binding=binding.external_id` to the constructor call. If the field doesn't exist in the schema, add it to `hermes-v2/otto/spine/envelope.py`.
 
 ---
 
@@ -942,7 +942,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Phase:** immediate  
 **Status:** fixed (2026-09-16, branch `fix/otel-degraded-readyz`)  
 **Root cause:** `otto/boot/pipeline.py:134` hardcoded `notifier=InMemoryNotifier()`. The `Notifier` protocol docstring says "tests use memory, the deployment wires Telegram" — but the wiring never happened. Every NEEDS_HUMAN and QUEUED_BUDGET event since launch was swallowed into a list object that is garbage-collected with the process.  
-**Fix applied:** Created `otto/router/telegram_notifier.py` — a stdlib-only `TelegramNotifier` that POSTs to `api.telegram.org/bot{token}/sendMessage`. Updated `_router()` in `pipeline.py` to call `TelegramNotifier.from_env()` first; falls back to `InMemoryNotifier` with a `WARNING` log if `OTTO_TELEGRAM_BOT_TOKEN` or `OTTO_OPERATOR_CHAT_ID` is absent.  
+**Fix applied:** Created `hermes-v2/otto/router/operator_alert.py` — a stdlib-only `OperatorAlert` that POSTs to `api.telegram.org/bot{token}/sendMessage`. Updated `_router()` in `pipeline.py` to call `OperatorAlert.from_env()` first; falls back to `InMemoryNotifier` with a `WARNING` log if `OTTO_TELEGRAM_BOT_TOKEN` or `OTTO_OPERATOR_CHAT_ID` is absent.  
 **Remaining work:** (1) Add `OTTO_OPERATOR_CHAT_ID` to otto-gateway's ExternalSecret/Kustomization — the value is the founder's Telegram chat id. (2) After deploy, verify a deliberately-triggered NEEDS_HUMAN (kill LiteLLM mid-request) produces a Telegram message to the operator.
 
 ---
@@ -953,7 +953,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Priority:** P1  
 **Phase:** feature  
 **Status:** open  
-**Root cause:** `otto/verify/reply_judge.py` catches all exceptions from `client.complete()` and returns `None`. The router's verify lane treats `None` identically to "lane not budgeted" and "lane offline" — three distinct situations produce identical silent non-verification. The founder sees an unverified response with no indication of which condition applies.  
+**Root cause:** `hermes-v2/otto/verify/reply_judge.py` catches all exceptions from `client.complete()` and returns `None`. The router's verify lane treats `None` identically to "lane not budgeted" and "lane offline" — three distinct situations produce identical silent non-verification. The founder sees an unverified response with no indication of which condition applies.  
 **Gaps to verify:** (1) Read `reply_judge.py` and identify every `except` block that returns `None`. (2) Check whether the calling router lane logs the `None` outcome with a distinct reason code. (3) Verify whether the OTel span for a `None` outcome carries a `verify.outcome = "exception"` vs `"offline"` vs `"budget_exhausted"` attribute.  
 **Fix:** Replace the bare `return None` on exception with a logged warning and a distinct sentinel value or raised exception so the router can distinguish "lane broken" from "lane unavailable". At minimum, log `logger.warning("verify lane failed: %s", exc)` before returning `None`.
 
@@ -965,7 +965,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Priority:** P1  
 **Phase:** 4  
 **Status:** open  
-**Root cause:** `otto/memory/fast_recall.py` `configured()` returns `""` (empty string, falsy) when the `otto_facts` table is missing — indistinguishable from "OTTO_MEMORY_DATABASE_URL not set". A Postgres migration failure or a fresh schema with the table not yet created silences recall entirely with no log and no metric.  
+**Root cause:** `hermes-v2/otto/memory/fast_recall.py` `configured()` returns `""` (empty string, falsy) when the `otto_facts` table is missing — indistinguishable from "OTTO_MEMORY_DATABASE_URL not set". A Postgres migration failure or a fresh schema with the table not yet created silences recall entirely with no log and no metric.  
 **Gaps to verify:** (1) Verify `otto_facts` table exists: `psql -c "\dt otto_facts"`. (2) Check whether `fast_recall.configured()` returns `""` when the table is absent vs when the env var is absent. (3) Confirm the caller in `pipeline.py` acts identically on both cases.  
 **Fix:** In `configured()`: after verifying the env var is set and the Postgres connection succeeds, run `SELECT 1 FROM otto_facts LIMIT 0` and raise or log a distinct error if the table is absent. Return a non-empty string only when both the connection and the schema are confirmed. This turns a silent misconfiguration into an observable startup warning.
 
@@ -977,7 +977,7 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 **Priority:** P1  
 **Phase:** 1  
 **Status:** open  
-**Root cause:** `otto/boot/server.py` `do_POST` returns 404 for all requests — the `POST /telegram-webhook` route was intentionally removed (the module docstring at line 13-21 explains why). However, otto-golden has `OTTO_TELEGRAM_BOT_TOKEN` injected from `otto-staging-telegram` secret, and if a webhook was ever registered for that token pointing to otto-golden's service URL, Telegram is receiving 404s silently. Telegram retries failed webhooks with exponential backoff and eventually stops delivering.  
+**Root cause:** `hermes-v2/otto/boot/server.py` `do_POST` returns 404 for all requests — the `POST /telegram-webhook` route was intentionally removed (the module docstring at line 13-21 explains why). However, otto-golden has `OTTO_TELEGRAM_BOT_TOKEN` injected from `otto-staging-telegram` secret, and if a webhook was ever registered for that token pointing to otto-golden's service URL, Telegram is receiving 404s silently. Telegram retries failed webhooks with exponential backoff and eventually stops delivering.  
 **Gaps to verify:** (1) Determine whether `OTTO_TELEGRAM_BOT_TOKEN` in `otto-staging-telegram` is a different bot from otto-gateway's token or the same. If the same: one of the two deployments is receiving all messages and the other gets nothing. If different: otto-golden is a separate staging bot that drops all messages. (2) Call `getWebhookInfo` for the otto-golden token: `curl "https://api.telegram.org/bot<token>/getWebhookInfo"`. (3) If a webhook is registered: call `deleteWebhook` to stop Telegram sending to a 404 endpoint.  
 **Fix:** If staging bot (different token): deregister the webhook and decommission otto-golden's Telegram wiring (remove the secret mount, remove the `OTTO_TELEGRAM_BOT_TOKEN` env var from otto-golden's deployment). If same token as gateway: this is a two-writer violation — the token must be consolidated to otto-gateway only and the webhook re-registered there.
 

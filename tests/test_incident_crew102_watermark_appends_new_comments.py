@@ -5,6 +5,10 @@ cache, the watermark sidecar is rewritten atomically (via Path.replace on a .tmp
 sibling -- never by overwriting in place), and the snapshot row reports K. The first run
 after a fresh watermark must also create the cache file with exactly K rows even when
 no cache file existed to seed.
+
+The MEMOISED .last_sync short-circuit is exercised in
+`test_incident_crew102_sync_is_memoised_on_updated_at.py`; here we disable it so this
+test pins only the watermark + delta branch.
 """
 
 from __future__ import annotations
@@ -66,7 +70,6 @@ def test_incremental_run_with_k_new_comments_appends_exactly_k_rows(
     monkeypatch.setattr(ebs, "LAST_SYNC_SUFFIX", ".DISABLED.last_sync")
 
     monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", sidecar)
-    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
     monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(ebs, "fetch_new_comments", lambda *a, **k: _three_new_comments())
 
@@ -106,7 +109,6 @@ def test_incremental_run_creates_the_cache_when_only_the_watermark_exists(
 
     monkeypatch.setattr(ebs, "LAST_SYNC_SUFFIX", ".DISABLED.last_sync")
     monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", sidecar)
-    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
     monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(ebs, "fetch_new_comments", lambda *a, **k: _three_new_comments())
 

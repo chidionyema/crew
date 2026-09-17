@@ -20,7 +20,7 @@
 # WHAT IT CHECKS (paired arms, LAW 38: a guard only ever seen refusing has
 # never been shown to permit).
 #   A  the writer pins repo=chidionyema/crew and BOARD_ISSUE=102
-#   B  the writer exports format_comment and rejects rows with bad priority
+#   B  the writer exposes format_comment and rejects rows with bad priority
 #   C  the incident test pins the same target (chidionyema/crew#102)
 #   D  the dead-letter path ~/.claude/state/board-deadletter.jsonl is writable
 #   E  the doc names the repo, the issue number, the cache path, the dead-letter path

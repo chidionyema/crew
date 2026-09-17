@@ -1,119 +1,109 @@
-"""Estate board primitives.
+"""crew/estate_board.py — write-side primitives for the estate board.
 
-Three sinks, one truth:
-  1. GitHub comment on the board issue -- the truth.
-  2. ~/.claude/ESTATE_BOARD.jsonl            -- offline cache for prompt hooks.
-  3. ~/.claude/state/board-deadletter.jsonl  -- every row that did not land
-                                                on the board lands here, loudly.
+The board of record is GitHub issue chidionyema/crew#102 (pinned by
+`tests/test_incident_crew102_estate_board_is_issue_102.py`). Every broadcast
+lands there as a comment. The local file `~/.claude/ESTATE_BOARD.jsonl` is
+only the offline cache the prompt hooks read; a row that fails to reach
+the issue is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and
+warned loudly — never silently dropped.
 
-No row is ever dropped silently (LAW 28).
+The three constants — repo, issue, dead-letter path — are the single source
+of truth the writer, the reader (`scripts/estate-board-sync.py`) and the
+incident test all read. `bin/board-target` is the shell-side twin; this
+module is the Python-side twin. Neither may be edited without editing the
+other, and `scripts/verify.d/15-estate-board.sh` is the gate that proves
+they still agree.
 """
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
-JSONL_DEFAULT = Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
-DEADLETTER_DEFAULT = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
+#: The board of record. crew#102 per founder ruling 2026-08-24
+#: ("why not just use github issues? why reinvent the wheel badly").
+repo: str = "chidionyema/crew"
+issue_number: int = 102
+
+#: The offline cache prompt hooks read. Read-only outside the reader.
+DEFAULT_CACHE: Path = Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
+
+#: The loud-failure channel. Every row that did NOT land on the issue
+#: lands here, one line, with a reason. Append-only.
+DEFAULT_DEAD_LETTER: Path = Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
+
+#: Priorities the format accepts. Anything else is refused at the format step
+#: and never reaches the issue. Pinned here so a writer that drifted is the
+#: only thing a row can drift from, never the format.
+ALLOWED_PRIORITIES: frozenset[str] = frozenset({"p0", "p1", "p2", "p3", "info", "high", "normal"})
 
 
-def _parse(raw: str) -> dict[str, Any]:
-    """Parse a single broadcast line into a dict. Raises ValueError on bad JSON."""
-    try:
-        obj = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"not valid JSON: {exc}") from exc
-    if not isinstance(obj, dict):
-        raise ValueError("broadcast row must be a JSON object")
-    return obj
-
-
-def format_comment(raw: str) -> str:
-    """Render a one-line JSON row as the comment body posted to the board.
+def format_comment(row: dict) -> str:
+    """Render one board row as the comment body posted to crew#102.
 
     Format: `ts` **from** (kind/priority): message
-    Missing fields are tolerated so a malformed row still lands visibly.
+
+    Raises ValueError when `row` is missing `ts`, `from`, `kind`, `priority`
+    or `message`, or when `priority` is not in ALLOWED_PRIORITIES. The
+    `scripts/verify.d/15-estate-board.sh` gate pins both arms so a writer
+    that drifts cannot pass CI.
     """
-    obj = _parse(raw)
-    ts = str(obj.get("ts", "?-?"))
-    who = str(obj.get("from", "?"))
-    kind = str(obj.get("kind", "info"))
-    priority = str(obj.get("priority", "info"))
-    msg = str(obj.get("message", obj.get("note", "")))
-    if not msg:
-        msg = json.dumps(obj, ensure_ascii=False)
-    return f"`{ts}` **{who}** ({kind}/{priority}): {msg}"
-
-
-def post_comment(issue: str, body: str) -> None:
-    """Post `body` as a comment on `owner/repo#N` via `gh api`.
-
-    `gh` is the standard CLI on this estate; surfacing its error verbatim
-    is part of the loud-failure contract. Raises subprocess.CalledProcessError.
-    """
-    repo, _, number = issue.partition("#")
-    if not repo or not number:
-        raise ValueError(f"issue must be owner/repo#N, got {issue!r}")
-    payload = json.dumps({"body": body}, ensure_ascii=False)
-    subprocess.run(  # noqa: S603 -- intentional, gh is the transport
-        [
-            "gh",
-            "api",
-            "-X",
-            "POST",
-            f"/repos/{repo}/issues/{number}/comments",
-            "--input",
-            "-",
-        ],
-        input=payload,
-        text=True,
-        check=True,
-        capture_output=True,
-        env={**os.environ},
+    missing = [k for k in ("ts", "from", "kind", "priority", "message") if k not in row]
+    if missing:
+        raise ValueError(f"row missing required fields: {missing}")
+    if row["priority"] not in ALLOWED_PRIORITIES:
+        raise ValueError(
+            f"priority {row['priority']!r} not in {sorted(ALLOWED_PRIORITIES)}"
+        )
+    if not isinstance(row["ts"], str) or not row["ts"]:
+        raise ValueError(f"ts must be a non-empty ISO 8601 string, got {row['ts']!r}")
+    return (
+        f"`{row['ts']}` **{row['from']}** "
+        f"({row['kind']}/{row['priority']}): {row['message']}"
     )
 
 
-def append_jsonl(path: Path, raw: str) -> None:
-    """Append `raw` as a single JSON line. Creates parent dirs. Re-lens bad rows."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    line = raw.strip()
-    try:
-        # Round-trip to confirm it parses; if not, keep the original line.
-        json.loads(line)
-    except json.JSONDecodeError:
-        # Repair: wrap as {"raw": line}.
-        line = json.dumps({"raw": line}, ensure_ascii=False)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
+def dead_letter_path() -> Path:
+    """The path the writer uses when the transport fails. Materialised on demand."""
+    DEFAULT_DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
+    return DEFAULT_DEAD_LETTER
 
 
-def dead_letter(path: Path, raw: str, reason: str) -> None:
-    """Append a row that failed to land on the board, with the reason.
+def prove_dead_letter_reachable() -> bool:
+    """One-call proof the loud-failure channel is open.
 
-    The dead-letter row carries the original payload plus the failure reason
-    so the row can be re-driven by hand later. Loud warn to stderr.
+    `scripts/verify.d/15-estate-board.sh` calls this through its probe; CI
+    fails the PR if the probe cannot write. Returns True on success,
+    False on a failed probe. Never raises — the loud channel must not
+    raise of its own failure.
     """
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        obj = _parse(raw)
-    except Exception:
-        obj = {"raw": raw}
-    obj = {**obj, "_dead_letter_reason": reason, "_dead_letter_at": _now_iso()}
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(obj, ensure_ascii=False) + "\n")
-    print(
-        f"estate-board: DEAD LETTER ({reason}) -> {path}",
-        file=sys.stderr,
-    )
+        dead_letter_path().touch()
+        return True
+    except OSError as exc:
+        print(
+            f"crew/estate_board.py: dead-letter probe failed: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
+        return False
 
 
-def _now_iso() -> str:
-    from datetime import datetime, timezone
+def load_constants() -> dict[str, object]:
+    """One dict carrying the three constants the writer and the reader share.
 
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    Used by `bin/board-target` and any caller that wants to avoid hard-coding
+    the repo and issue number. The values are the source of truth; tests
+    read them through this helper, not by re-typing the strings.
+    """
+    return {
+        "repo": repo,
+        "issue_number": issue_number,
+        "cache": str(DEFAULT_CACHE),
+        "dead_letter": str(DEFAULT_DEAD_LETTER),
+        "allowed_priorities": sorted(ALLOWED_PRIORITIES),
+    }
+
+
+if __name__ == "__main__":  # pragma: no cover - manual probe entrypoint
+    print(json.dumps(load_constants(), indent=2))
+    raise SystemExit(0 if prove_dead_letter_reachable() else 1)

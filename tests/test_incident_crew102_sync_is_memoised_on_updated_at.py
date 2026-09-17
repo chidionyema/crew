@@ -142,7 +142,6 @@ def test_cold_path_writes_the_cache_and_the_sidecar(tmp_path) -> None:
     rc, out = _run(
         ["estate-board-sync.py", str(cache)],
         fetch_comments=lambda *a, **k: fetch_return,
-        _load_meta_module=lambda: None,
         _load_graphql_module=lambda: None,
         _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
     )
@@ -172,7 +171,6 @@ def test_second_run_with_unchanged_updated_at_is_idempotent(tmp_path) -> None:
     rc, _ = _run(
         ["estate-board-sync.py", str(cache)],
         fetch_comments=lambda *a, **k: fetch_return,
-        _load_meta_module=lambda: None,
         _load_graphql_module=lambda: None,
         _issue_updated_at=lambda *a, **k: "2026-08-24T09:30:00Z",
     )

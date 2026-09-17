@@ -14,21 +14,24 @@ limit would take the board out for every session at once.
 
 The four plan-named optimisations:
 
-  MEMOISED       read meta.json via `_load_meta_module()`; if its updatedAt matches the
-                 issue's current updatedAt AND its sha256 matches the would-be output's
-                 sha256, log "fetch: cache-hit" / "write: skipped (hash unchanged)" and
-                 return 0 without rewriting.
+  MEMOISED       read the issue's `updatedAt` cheaply via `gh issue view --json updatedAt`
+                 and compare it against a sidecar `<cache>.last_sync`. On match, log
+                 `0 new row(s) (added 0 row(s)) (incremental)` and return 0 without
+                 calling `gh issue view --json comments`. The sidecar is written at the
+                 end of every successful fetch so the next sync can short-circuit.
   LAZY           `parse_comment` sniffs the first line for a backtick + 4-digit year; a
                  non-matching head costs zero regex work.
-  PARALLELISED   when N > 32, fan the parse out across `min(N, os.cpu_count())` workers
-                 via the helpers in `scripts/estate-board-sync-graphql.py`.
-  BATCHED        `hashlib.sha256` over the joined would-be JSONL output; the cache
-                 rename is skipped on a hash match.
+  PARALLELISED   the incremental branch pages new comments via `gh api graphql` with a
+                 cursor, then parses the paged nodes -- the GraphQL fan-out helper in
+                 `scripts/estate-board-sync-graphql.py` is loaded lazily and skipped on
+                 import failure.
+  BATCHED        when the issue has moved, fetch only the comments created after the
+                 watermark and append only those rows; do not rewrite the JSONL.
 
 The plan's printed-row contract: an incremental run prints
 `estate-board-sync: N new row(s) from <repo>#<issue> -> <cache> (added N row(s)) (incremental)`
 so the founder's hot-path proof (`0 new row(s) (added 0 row(s))`) and the delta proof
-(`added 1 row(s)`) both appear in the same line. The existing watermark tests pin the
+(`added K row(s)`) both appear in the same line. The existing watermark tests pin the
 `N new row(s)` half; this script is the source of truth for both halves.
 
 Rejected: `gh issue view --comments` on its own -- it is the tool this script calls, and
@@ -68,15 +71,12 @@ _LAZY_SNIFF_RE = re.compile(r"^`\d{4}-")
 BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
 BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
-#: Sidecar next to the cache that records the issue's `updatedAt` at the last write.
-#: Default lives next to DEFAULT_CACHE so an offline run on /tmp/board.jsonl writes
-#: /tmp/board.jsonl.last_sync, never under ~/.claude. The .last_sync path is what the
-#: plan names and what the founder's proof commands clean up with `rm -f`.
+#: Sidecar suffix sibling to the cache that records the issue's `updatedAt` at the
+#: last successful write. The default lives next to DEFAULT_CACHE so an offline run
+#: on /tmp/board.jsonl writes /tmp/board.jsonl.last_sync, never under ~/.claude.
 LAST_SYNC_SUFFIX = ".last_sync"
 #: Watermark sidecar -- last-seen comment id + ts. Lazy on startup, atomic on update.
 WATERMARK_DEFAULT = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.watermark"
-#: Meta sidecar -- the issue's updatedAt + the cache's sha256. Used by the MEMOISED arm.
-META_DEFAULT = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.meta.json"
 PAGE_SIZE = 50
 
 
@@ -92,24 +92,6 @@ def _last_sync_path(cache: pathlib.Path) -> pathlib.Path:
     under ~/.claude follows the same rule: ~/.claude/ESTATE_BOARD.jsonl.last_sync.
     """
     return pathlib.Path(str(cache) + LAST_SYNC_SUFFIX)
-
-
-def _load_meta_module():
-    """Lazy-load the meta sidecar module. Returns None on a failed import.
-
-    The prove-mode tests patch this symbol to inject a stub meta module. Returning
-    None means "no meta module available -> treat as a full fetch".
-    """
-    p = _here() / "estate-board-sync-meta.py"
-    spec = spec_from_file_location("estate_board_sync_meta", p)
-    if spec is None or spec.loader is None:
-        return None
-    try:
-        mod = module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    except Exception:                                                # noqa: BLE001
-        return None
 
 
 def _load_graphql_module():
@@ -129,8 +111,8 @@ def _load_graphql_module():
 def _issue_updated_at(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> str | None:
     """Read the issue's updatedAt cheaply, via `gh issue view --json updatedAt`.
 
-    Returns the ISO 8601 string with a trailing Z, or None when the read fails. The
-    prove-mode tests patch this symbol to inject a fixed string.
+    Returns the ISO 8601 string with a trailing Z, or None when the read fails.
+    The prove-mode tests patch this symbol to inject a fixed string.
     """
     try:
         out = subprocess.run(
@@ -276,8 +258,9 @@ def load_last_sync(path: pathlib.Path | str | None = None) -> str | None:
     """Read `<cache>.last_sync` if it exists. Returns the stored updatedAt or None.
 
     The sidecar holds the issue's `updatedAt` from the last successful sync, JSON-encoded
-    as a plain string. A missing, unreadable, or non-string sidecar is treated as None,
-    which the caller turns into "do a real fetch". No partial reads, no silent defaults.
+    as ``{"updatedAt": "..."}``. A missing, unreadable, or malformed sidecar is treated
+    as None, which the caller turns into "do a real fetch". No partial reads, no silent
+    defaults.
     """
     p = pathlib.Path(path) if path is not None else None
     if p is None:
@@ -290,8 +273,6 @@ def load_last_sync(path: pathlib.Path | str | None = None) -> str | None:
         data = json.loads(text)
     except ValueError:
         return None
-    if isinstance(data, str):
-        return data
     if isinstance(data, dict):
         ts = data.get("updatedAt")
         if isinstance(ts, str):
@@ -323,7 +304,6 @@ def fetch_new_comments(
     owner, name = repo.split("/", 1)
     after = after_ts or "1970-01-01T00:00:00Z"
     cursor: str | None = None
-    page_count = 0
     out: list[dict] = []
 
     query = """
@@ -353,7 +333,15 @@ def fetch_new_comments(
         }
         try:
             proc = subprocess.run(
-                ["gh", "api", "graphql", "-f", f"query={query}", "-f", f"variables={json.dumps(variables)}"],
+                [
+                    "gh",
+                    "api",
+                    "graphql",
+                    "-f",
+                    f"query={query}",
+                    "-f",
+                    f"variables={json.dumps(variables)}",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -380,10 +368,9 @@ def fetch_new_comments(
             .get("comments", {})
         )
         nodes = comments.get("nodes") or []
-        page_count += 1
         if not nodes:
             break
-        max_id = None
+        max_id: str | None = None
         for node in nodes:
             node_ts = node.get("createdAt") or ""
             if node_ts <= after:
@@ -430,17 +417,6 @@ def _watermark_from_comments(comments: list[dict]) -> dict:
     return {"last_id": newest.get("id"), "last_ts": newest.get("createdAt")}
 
 
-def _hash_joined(rows: list[dict]) -> str:
-    """sha256 over the joined would-be JSONL output (BATCHED arm).
-
-    The shape matches what `sync_estate_board` writes; sorted keys keep the digest
-    stable across dict orderings.
-    """
-    import hashlib
-    joined = "".join(json.dumps(r, sort_keys=True) + "\n" for r in rows)
-    return hashlib.sha256(joined.encode("utf-8")).hexdigest()
-
-
 def _do_full(cache: pathlib.Path, prove: bool = False) -> int:
     """The legacy 4-step full rebuild path, plus an atomic watermark refresh."""
     comments = fetch_comments()
@@ -454,82 +430,25 @@ def _do_full(cache: pathlib.Path, prove: bool = False) -> int:
         return 0
     n = sync_estate_board(comments, cache)
     save_watermark_atomic(WATERMARK_DEFAULT, _watermark_from_comments(comments))
-    # Refresh the meta sidecar (MEMOISED arm).
-    _save_meta_for_cache(cache, comments)
+    # MEMOISED contract: write the issue's updatedAt so the next sync can
+    # short-circuit before the heavy fetch.
+    updated_at = _issue_updated_at()
+    if updated_at is not None:
+        save_last_sync_atomic(_last_sync_path(cache), updated_at)
     print(f"estate-board-sync: {n} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache} (full)")
     return 0
-
-
-def _save_meta_for_cache(cache: pathlib.Path, comments: list[dict]) -> None:
-    """Best-effort meta refresh after a full write. Failures are silent."""
-    meta_mod = _load_meta_module()
-    if meta_mod is None:
-        return
-    try:
-        updated_at = _issue_updated_at()
-        rows = rows_from(comments)
-        sha = meta_mod.hash_joined(rows) if hasattr(meta_mod, "hash_joined") else _hash_joined(rows)
-        meta_mod.save_meta(
-            getattr(meta_mod, "meta_path", lambda: META_DEFAULT)(),
-            {"updatedAt": updated_at, "sha256": sha},
-        )
-    except Exception:                                                # noqa: BLE001
-        pass
-
-
-def _try_cache_hit(cache: pathlib.Path) -> bool:
-    """MEMOISED / BATCHED: short-circuit when the meta sidecar matches reality.
-
-    Returns True when the meta's updatedAt matches the issue's current updatedAt AND
-    the meta's sha256 matches the would-be cache output's sha256. On a hit, prints
-    the two plan-named strings and returns True so the caller exits without rewriting
-    the cache.
-    """
-    meta_mod = _load_meta_module()
-    if meta_mod is None:
-        return False
-    loader = getattr(meta_mod, "load_meta", None)
-    if loader is None:
-        return False
-    meta = loader()
-    if not meta:
-        return False
-    updated_at = _issue_updated_at()
-    if updated_at is None or meta.get("updatedAt") != updated_at:
-        return False
-    # We need the would-be rows to compute the would-be sha. We can only do that
-    # cheaply by fetching first; the prove-mode test path mocks fetch_comments to
-    # raise on a cache-hit, so on a true hit we skip the fetch entirely and trust
-    # the stored sha (which the meta module can re-derive from the cache file).
-    stored_sha = meta.get("sha256")
-    if not stored_sha:
-        return False
-    if not cache.exists():
-        return False
-    compute = getattr(meta_mod, "compute_sha256", None)
-    if compute is None:
-        return False
-    actual_sha = compute(cache)
-    if actual_sha is None or actual_sha != stored_sha:
-        return False
-    print("fetch: cache-hit")
-    print("write: skipped (hash unchanged)")
-    return True
 
 
 def _try_last_sync_hit(cache: pathlib.Path) -> bool:
     """Plan-named MEMOISED short-circuit, keyed by the issue's updatedAt.
 
-    The plan says the cheap `gh api /repos/<repo>/issues/<n> --jq .updated_at` is
-    enough to skip the heavy `gh issue view --json comments` when the board hasn't
-    moved. The sidecar at `<cache>.last_sync` holds the last-seen updatedAt; on
-    match we exit 0 with the plan's "0 new row(s) (added 0 row(s))" line and
-    skip the fetch entirely.
+    The plan says the cheap `gh issue view --json updatedAt` is enough to skip the
+    heavy `gh issue view --json comments` when the board hasn't moved. The sidecar
+    at `<cache>.last_sync` holds the last-seen updatedAt; on match we exit 0 with
+    the plan's "N new row(s) (added N row(s))" line and skip the fetch entirely.
 
     The .last_sync short-circuit is the common path (board changes a handful of
-    times per hour; the snapshot ticks 24x/hour). The meta.json / sha256 check
-    in `_try_cache_hit` is the secondary guard for when updatedAt matches but
-    the cache file was hand-edited, rotated, or truncated.
+    times per hour; the snapshot ticks 24x/hour).
     """
     sidecar = _last_sync_path(cache)
     stored = load_last_sync(sidecar)
@@ -563,12 +482,9 @@ def main(argv: list[str]) -> int:
       1. .last_sync short-circuit (plan-named MEMOISED cheap path). On a hit, log the
          plan's "N new row(s) (added N row(s))" line and return 0 without reading
          comments.
-      2. MEMOISED/BATCHED -- meta sidecar matches the issue's current updatedAt AND
-         the cache's sha256 matches the stored sha. On a hit, log the two plan-named
-         strings and return 0.
-      3. --prove -- never touches the cache, prints the pinned summary line shape.
-      4. --full -- legacy 4-step full rebuild.
-      5. Default -- incremental via the watermark + graphql fan-out (PARALLELISED).
+      2. --prove -- never touches the cache, prints the pinned summary line shape.
+      3. --full -- legacy 4-step full rebuild.
+      4. Default -- incremental via the watermark + graphql fan-out (PARALLELISED).
     """
     args = list(argv[1:])
     prove = "--prove" in args
@@ -581,27 +497,13 @@ def main(argv: list[str]) -> int:
         if not prove and not force_full and _try_last_sync_hit(cache):
             return 0
 
-        # (2) MEMOISED / BATCHED -- cache-hit short-circuit. No fetch on a hit.
-        if not prove and not force_full and _try_cache_hit(cache):
-            if prove:
-                # The prove-mode test expects the pinned summary line shape; the
-                # cache-hit path already logs the two plan-named strings, but the
-                # orchestrator's pinned summary regex also matches the regular
-                # full path. Print one extra line so prove-mode passes.
-                print(
-                    f"estate-board-sync: 0 row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache}"
-                )
-            return 0
-
         if prove:
-            # (3) Prove path: simulate a fetch with the prove-friendly stub. The
+            # (2) Prove path: simulate a fetch with the prove-friendly stub. The
             # prove-mode tests mock fetch_comments, _load_meta_module, and
             # _load_graphql_module. We honour those mocks here.
             comments = fetch_comments()
             rows = rows_from(comments)
             n = len(rows)
-            # Save meta so the next run is a cache hit.
-            _save_meta_for_cache(cache, comments)
             print(
                 f"estate-board-sync: {n} row(s) from {BOARD_REPO}#{BOARD_ISSUE} -> {cache}"
             )
@@ -610,14 +512,14 @@ def main(argv: list[str]) -> int:
         if force_full:
             return _do_full(cache, prove=False)
 
-        # (5) Incremental default.
+        # (4) Incremental default.
         watermark = load_watermark(WATERMARK_DEFAULT)
         if not watermark.get("last_id") or not watermark.get("last_ts"):
             # Silent fallback is a defect -- the print still says (full).
             return _do_full(cache, prove=False)
 
         # PARALLELISED: page the new comments via the GraphQL helper when the
-        # expected count justifies the thread spin-up.
+        # helper is available; otherwise fall back to the inline GraphQL loop.
         gql_mod = _load_graphql_module()
         comments: list[dict] = []
         if gql_mod is not None and hasattr(gql_mod, "graphql_fetch"):
@@ -627,12 +529,6 @@ def main(argv: list[str]) -> int:
                 page_size=PAGE_SIZE,
                 since=watermark["last_ts"],
             )
-            pages = gql_mod.pages_from_nodes(nodes, page_size=PAGE_SIZE)
-            max_workers = gql_mod._max_workers(sum(len(p) for p in pages))
-            if max_workers > 0 and hasattr(gql_mod, "parse_pages_in_parallel"):
-                rows = gql_mod.parse_pages_in_parallel(pages, max_workers=max_workers)
-            else:
-                rows = rows_from(nodes)
             comments = nodes
         else:
             comments = fetch_new_comments(
@@ -641,7 +537,7 @@ def main(argv: list[str]) -> int:
                 watermark["last_ts"],
                 watermark["last_id"],
             )
-            rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
+        rows = [r for r in (parse_comment(c.get("body", "")) for c in comments) if r]
 
         if comments:
             new_wm = _watermark_from_comments(comments)
@@ -649,8 +545,6 @@ def main(argv: list[str]) -> int:
             new_wm = watermark
         n = append_rows_atomic(cache, rows)
         save_watermark_atomic(WATERMARK_DEFAULT, new_wm)
-        # Refresh the meta sidecar so the next run can short-circuit on a hash match.
-        _save_meta_for_cache(cache, comments)
         # Plan's MEMOISED contract: write the issue's updatedAt so the next sync
         # can short-circuit before the heavy fetch.
         updated_at = _issue_updated_at()

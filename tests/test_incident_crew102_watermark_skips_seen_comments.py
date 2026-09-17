@@ -5,6 +5,11 @@ no-op: the cache file is byte-identical and the watermark sidecar is untouched. 
 the steady-state behaviour the hourly snapshot is sized for (K=0 most of the time), and
 the property the optimistic append path exists to preserve -- rewriting the JSONL would
 do O(N) disk I/O every hour for no reason.
+
+The MEMOISED .last_sync short-circuit is exercised separately in
+`test_incident_crew102_sync_is_memoised_on_updated_at.py`; here we disable it so this
+test pins only the watermark + delta branch and the printed line carries both
+`0 new row(s)` and `(added 0 row(s))`.
 """
 
 from __future__ import annotations
@@ -29,7 +34,13 @@ def test_incremental_run_with_no_new_comments_is_a_byte_identical_noop(
     """K=0: cache bytes are unchanged, watermark bytes are unchanged, exit 0."""
     cache = tmp_path / "ESTATE_BOARD.jsonl"
     sidecar = tmp_path / "ESTATE_BOARD.jsonl.last_sync"
-    seed_row = {"ts": "2026-08-24T09:00:00Z", "from": "seed", "kind": "note", "priority": "info", "message": "seed"}
+    seed_row = {
+        "ts": "2026-08-24T09:00:00Z",
+        "from": "seed",
+        "kind": "note",
+        "priority": "info",
+        "message": "seed",
+    }
     cache.write_text(json.dumps(seed_row) + "\n")
     before = cache.read_bytes()
 
@@ -47,7 +58,6 @@ def test_incremental_run_with_no_new_comments_is_a_byte_identical_noop(
 
     # Point the script at the tmp sidecar instead of ~/.claude/ESTATE_BOARD.watermark.
     monkeypatch.setattr(ebs, "WATERMARK_DEFAULT", wm_sidecar)
-    monkeypatch.setattr(ebs, "_load_meta_module", lambda: None)
     monkeypatch.setattr(ebs, "_load_graphql_module", lambda: None)
     monkeypatch.setattr(
         ebs,

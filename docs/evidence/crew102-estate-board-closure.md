@@ -1,7 +1,7 @@
 # Crew #102 — Estate board closure (evidence file)
 
 Branch: agent-workforce/102
-PR: https://github.com/chidionyema/crew/pull/931
+PR: https://github.com/chidionyema/crew/pull/942
 
 ## Receipt 1 — Built
 
@@ -32,6 +32,7 @@ $ python3 scripts/estate-board-sync.py ~/.claude/ESTATE_BOARD.jsonl
 
 ## Status
 
-PR #931 reports `audit` status=completed, conclusion=success. No further work is
-required from the agent-workforce for issue 102: the board is built, proved, and
-used.
+The pull request for this work is https://github.com/chidionyema/crew/pull/942. Its
+`audit` check reports status=completed, conclusion=success. The pull request is not
+merged: merging is the founder's, and the crew never merges, never deploys, never
+touches a cluster.

@@ -31,16 +31,16 @@ estate-broadcast pipeline was re-pointed at `crew#102` instead of building a new
 
 | # | Definition of done | Evidence |
 |---|---|---|
-| 1 | **Branch created from `main` as `agent-workforce/102`** | `create_branch` on `chidionyema/crew`, branch name matches the issue number, base = `main`. |
-| 2 | **Evidence file written with one clear commit** | `docs/evidence/crew102-definition-of-done.md` (this file), single commit on the branch. |
-| 3 | **Closure-evidence file present on the branch** | `docs/evidence/crew102-estate-board-closure.md` carried over from the prior run. |
-| 4 | **Pull request opened from `agent-workforce/102` → `main`** | PR https://github.com/chidionyema/crew/pull/942, base `main`. |
-| 5 | **PR body holds the ten named DoD rows** | This section, rows 1–10. |
-| 6 | **PR body has `## Options considered` with two real options** | See below: Option A (laptop JSONL plus a reader) vs Option B (GitHub issue crew#102 as the board, JSONL as offline cache). Both real; Option B is chosen. |
-| 7 | **PR body has a `## Cleanup` section** | See below: branch hygiene, the JSONL cache, dead-letter file, broadcast tool pointer. |
-| 8 | **`Closes #102` line in the PR body** | Present; the ticket lives in the same repository, so closing it from the PR is correct. |
-| 9 | **`audit` check reports `success`** | `read_pull_request_checks` returned the `audit` check with `status: completed`, `conclusion: success`. |
-| 10 | **Crew did not merge, did not deploy, did not touch a cluster** | Merging is the founder's. The PR state remains `closed, merged: false` until the founder acts. |
+| 1 | **Tracked item** | crew#102, the estate board issue itself; this branch and PR name it. |
+| 2 | **Code or config** | `estate-broadcast.py` is the single writer; the JSONL is the offline cache only. |
+| 3 | **Gate proved both ways** | A row that lands appears as a comment on crew#102; a row that fails to land is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly. |
+| 4 | **Reference doc** | `docs/evidence/crew102-definition-of-done.md` (this file). |
+| 5 | **How-to and demo** | `docs/evidence/crew102-estate-board-closure.md` — the one command and its output. |
+| 6 | **Catalog entity** | crew#102 is the board entity; every broadcast row is a comment on it. |
+| 7 | **Operational proof** | The issue's own comment stream is the board, readable from any phone. |
+| 8 | **Scheduled re-grade** | The hourly estate snapshot re-reads the board and reports the dead-letter count. |
+| 9 | **Standard row** | Board format `ts` **from** (kind/priority): message — one row per broadcast. |
+| 10 | **Evidence block** | `docs/evidence/crew102-estate-board-closure.md`, receipts 1–3 (Built / Proved / Founder used it). |
 
 ## 4. Options considered
 
@@ -57,6 +57,8 @@ the JSONL is only what the prompt hooks read between turns (offline cache). Rows
 fail to land on the issue dead-letter to `~/.claude/state/board-deadletter.jsonl` and warn
 loudly — never dropped silently. This uses the wheel already in front of us, is readable
 from any phone, carries an audit trail, and survives laptop loss because GitHub keeps it.
+
+Chosen: Option B.
 
 ## 5. Cleanup
 

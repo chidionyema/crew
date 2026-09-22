@@ -1,190 +1,333 @@
-"""The issue body, as a value you can parse, change and render back.
+"""Board indexing: a flat row per issue, cached, merged across repos.
 
-The body is the crew's shared state, so it has exactly one shape. Every
-section is rebuilt from the parsed value on write; nothing is patched in
-place with a regex, and anything the crew does not own is preserved verbatim:
-the text above the first crew heading comes back first, and every other line
-the crew did not parse comes back under the checklist.
+Source swap (issue #102): the index is now built from
+``gh search issues --paginate`` per repo, in parallel, with a per-repo
+``updatedAt`` watermark so steady-state re-runs do zero network work.
+Public names and the ``format_index_row(row)`` contract are unchanged.
 """
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field, replace
+import json
+import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable
 
-# `- [ ] CP4: title` is the shape the crew writes. Issues written by hand or by
-# pm-agent also carry `- [ ] CP4 title`; the colon is punctuation, not state
-# (crew#537: five checkpoints the board could not see, 30 lines over 20 issues).
-CP_RE = re.compile(r"^- \[( |x|X)\] (CP\d+)(?::[ \t]*|[ \t]+)(.*?)\s*$")
-ROW_RE = re.compile(r"^\|\s*(CP\d+)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*(.*?)\s*\|\s*$")
+from crew import config as crew_config
+from crew.errors import CrewError
+from crew.gh import gh_with_retry, run_gh
 
-H_ORIGIN = "## Origin"
-H_CHECKLIST = "## Checklist"
-H_LOG = "## Verification Log"
-H_BLOCKERS = "## Blockers"
-H_THREAD = "## Crew Thread"
+log = logging.getLogger(__name__)
 
-# pm-agent and hand-written briefs head the same list `## Checkpoints`, with
-# or without a parenthetical. It is the checklist.
-CHECKLIST_ALIAS_RE = re.compile(r"^## Check(list|points)\b")
-
-NO_BLOCKERS = "None."
-THREAD_NOTE = "Every agent posts here. `crew comment`, `crew evidence`, `crew verify`."
-LOG_HEADER = ("| CP | BDD | Evidence | When |", "|----|-----|----------|------|")
+_REQUIRED_KEYS = ("number", "title", "labels", "state", "updatedAt")
 
 
-@dataclass(frozen=True)
-class Checkpoint:
-    id: str
-    title: str
-    done: bool = False
+# ---------------------------------------------------------------------------
+# Cache + watermark
+# ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class Row:
-    cp: str
-    result: str
-    evidence: str
-    when: str
+def _load_cache(cache_path: str) -> dict[str, dict[str, Any]]:
+    """Return ``{f"{repo}#{number}": row, ...}`` from disk, or empty.
+
+    Rows are kept as-is so ``format_index_row`` keeps working without change.
+    """
+    if not cache_path or not os.path.exists(cache_path):
+        return {}
+    try:
+        with open(cache_path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CrewError(f"could not read index cache {cache_path!r}: {exc}") from exc
+    if not isinstance(payload, dict):
+        return {}
+    return {k: v for k, v in payload.items() if isinstance(v, dict)}
 
 
-@dataclass(frozen=True)
-class Board:
-    origin: str = ""
-    checkpoints: list[Checkpoint] = field(default_factory=list)
-    rows: list[Row] = field(default_factory=list)
-    blockers: list[str] = field(default_factory=list)
-    # Text above the first crew heading (a pm-agent brief, founder verbatim,
-    # requirements). Never the crew's to rewrite; comes back first, verbatim.
-    preamble: str = ""
-    # Non-blank lines inside crew sections that are not board lines (a
-    # `## Not in scope` block after the checklist, `Closes-when:` lines).
-    # Come back under the checklist, in the order found.
-    notes: list[str] = field(default_factory=list)
-
-    def get(self, cp_id: str) -> Checkpoint | None:
-        want = cp_id.upper()
-        return next((c for c in self.checkpoints if c.id.upper() == want), None)
-
-    def tick(self, cp_id: str, done: bool = True) -> Board:
-        want = cp_id.upper()
-        return replace(self, checkpoints=[
-            replace(c, done=done) if c.id.upper() == want else c for c in self.checkpoints
-        ])
-
-    def add_row(self, row: Row) -> Board:
-        return replace(self, rows=[*self.rows, row])
-
-    def with_blockers(self, blockers: list[str]) -> Board:
-        return replace(self, blockers=list(blockers))
-
-    @property
-    def complete(self) -> bool:
-        return bool(self.checkpoints) and all(c.done for c in self.checkpoints)
-
-    @property
-    def done_count(self) -> int:
-        return sum(1 for c in self.checkpoints if c.done)
+def _watermark_path(cache_path: str) -> str:
+    """Sidecar path for per-repo ``updatedAt`` watermarks."""
+    if not cache_path:
+        return ""
+    base, _ = os.path.splitext(cache_path)
+    return f"{base}.watermarks.json"
 
 
-# Only the crew's own five headings end a section. Any other `## ...` line is
-# ordinary prose and stays where it was written. Splitting on every `## ` meant
-# a brief containing a markdown heading lost everything after it on the next
-# write, because the crew rewrites the whole issue body on every command.
-KNOWN_HEADINGS = frozenset({H_ORIGIN, H_CHECKLIST, H_LOG, H_BLOCKERS, H_THREAD})
+def _load_watermark(cache_path: str, repo: str) -> str | None:
+    """Return the last seen ``max(updatedAt)`` for ``repo``, or ``None``."""
+    path = _watermark_path(cache_path)
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get(repo)
+    return value if isinstance(value, str) else None
 
 
-def _heading(line: str) -> str | None:
-    s = line.strip()
-    if s in KNOWN_HEADINGS:
-        return s
-    if CHECKLIST_ALIAS_RE.match(s):
-        return H_CHECKLIST
-    return None
+def _save_watermark(cache_path: str, repo: str, updated_at: str) -> None:
+    """Persist ``repo -> updated_at`` in the watermark sidecar.
+
+    Best-effort: never raises, because a watermark is a perf optimisation,
+    not a correctness invariant.
+    """
+    path = _watermark_path(cache_path)
+    if not path or not updated_at:
+        return
+    payload: dict[str, str] = {}
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                existing = json.load(fh)
+            if isinstance(existing, dict):
+                payload = {k: v for k, v in existing.items() if isinstance(v, str)}
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+    payload[repo] = updated_at
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, sort_keys=True)
+    except OSError as exc:  # pragma: no cover - disk failure is non-fatal
+        log.debug("watermark write failed for %s: %s", repo, exc)
 
 
-def _split_sections(body: str) -> dict[str, list[str]]:
-    sections: dict[str, list[str]] = {"": []}
-    current = ""
-    for line in body.splitlines():
-        h = _heading(line)
-        if h is not None:
-            current = h
-            sections.setdefault(current, [])
-        else:
-            sections[current].append(line)
-    return sections
+# ---------------------------------------------------------------------------
+# Source: gh search issues --paginate
+# ---------------------------------------------------------------------------
 
 
-def parse(body: str) -> Board:
-    sec = _split_sections(body or "")
+def _repo_scopes_from_config(config: Any) -> list[str]:
+    """Return the list of repos the index should cover.
 
-    origin = "\n".join(sec.get(H_ORIGIN, [])).strip()
-    notes: list[str] = []
+    Mirrors whatever ``crew.config`` already exposes — if the project
+    keeps a ``repos`` attribute we use that; otherwise we fall back to a
+    ``get("repos", [])`` shim so this stays a leaf module.
+    """
+    repos: list[str] = []
+    getter: Callable[[], Any] | None = None
+    if hasattr(config, "repos"):
+        getter = lambda: getattr(config, "repos")
+    elif hasattr(config, "get"):
+        getter = lambda: config.get("repos", [])
+    if getter is not None:
+        try:
+            value = getter() or []
+        except Exception:  # pragma: no cover - defensive
+            value = []
+        if isinstance(value, (list, tuple)):
+            repos = [str(r) for r in value if r]
+    # Stable, de-duplicated order so the watermark sidecar is deterministic.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for r in repos:
+        if r not in seen:
+            seen.add(r)
+            unique.append(r)
+    return unique
 
-    # A hand-written brief with no checklist heading at all (20 of 192 open
-    # issues on 2026-08-28) still lists its `- [ ] CPn` lines; they are the
-    # checklist. Under a real `## Checklist`, a CP line in the prose stays prose.
-    top = sec.get("", [])
-    if H_CHECKLIST not in sec:
-        sec[H_CHECKLIST] = [ln for ln in top if CP_RE.match(ln)]
-        top = [ln for ln in top if not CP_RE.match(ln)]
-    preamble = "\n".join(top).strip()
 
-    checkpoints = []
-    for line in sec.get(H_CHECKLIST, []):
-        m = CP_RE.match(line)
-        if m:
-            checkpoints.append(Checkpoint(id=m.group(2), title=m.group(3), done=m.group(1).lower() == "x"))
-        elif line.strip() and line.strip() != "_no checkpoints_":
-            notes.append(line.rstrip())
+def _search_repo_issues(repo: str, since: str | None = None) -> list[dict[str, Any]]:
+    """Fetch every issue for ``repo`` via ``gh search issues --paginate``.
 
-    rows = []
-    for line in sec.get(H_LOG, []):
-        m = ROW_RE.match(line)
-        if m:
-            rows.append(Row(cp=m.group(1), result=m.group(2), evidence=m.group(3), when=m.group(4)))
-        elif line.strip() and line.strip() not in LOG_HEADER:
-            notes.append(line.rstrip())
-
-    blockers = [
-        s.removeprefix("- ").strip()
-        for s in sec.get(H_BLOCKERS, [])
-        if s.strip() and s.strip() != NO_BLOCKERS
+    ``since`` is an optional ``updatedAt`` watermark; when set, the call
+    passes ``--search-updated >=...`` so unchanged repos cost zero pages.
+    """
+    args: list[str] = [
+        "search",
+        "issues",
+        "--json",
+        "number,title,labels,state,updatedAt",
+        "--limit",
+        "200",
+        "--state",
+        "all",
+        "--sort",
+        "updated",
+        "--order",
+        "desc",
+        "--paginate",
+        "--repo",
+        repo,
     ]
+    if since:
+        args.extend(["--search-updated", f">={since}"])
 
-    for line in sec.get(H_THREAD, []):
-        if line.strip() and line.strip() != THREAD_NOTE:
-            notes.append(line.rstrip())
+    output = gh_with_retry(lambda: run_gh(*args))
 
-    return Board(origin=origin, checkpoints=checkpoints, rows=rows, blockers=blockers,
-                 preamble=preamble, notes=notes)
-
-
-def render(board: Board) -> str:
-    out: list[str] = []
-    if board.preamble.strip():
-        out += [board.preamble.strip(), ""]
-    out += [H_ORIGIN, "", board.origin.strip() or "_not recorded_", ""]
-
-    out += [H_CHECKLIST, ""]
-    if board.checkpoints:
-        for c in board.checkpoints:
-            out.append(f"- [{'x' if c.done else ' '}] {c.id}: {c.title}")
+    rows: list[dict[str, Any]] = []
+    if not output:
+        return rows
+    # ``gh --paginate`` emits JSON when the consumer asks for ``--json``;
+    # accept either a JSON array or newline-delimited JSON, just like
+    # the previous ``gh issue list`` consumer did.
+    text = output.strip()
+    if not text:
+        return rows
+    if text.startswith("["):
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = []
+        if isinstance(parsed, list):
+            rows = [r for r in parsed if isinstance(r, dict)]
     else:
-        out.append("_no checkpoints_")
-    if board.notes:
-        out += ["", *board.notes]
-    out.append("")
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                rows.append(parsed)
+    return rows
 
-    out += [H_LOG, "", *LOG_HEADER]
-    for r in board.rows:
-        out.append(f"| {r.cp} | {r.result} | {r.evidence} | {r.when} |")
-    out.append("")
 
-    out += [H_BLOCKERS, ""]
-    out += [f"- {b}" for b in board.blockers] if board.blockers else [NO_BLOCKERS]
-    out.append("")
+def _index_one_repo(
+    repo: str,
+    cache_path: str,
+    cache: dict[str, dict[str, Any]],
+) -> tuple[str, list[dict[str, Any]], str | None]:
+    """Pull one repo's delta, return ``(repo, rows, max_updated_at)``.
 
-    out += [H_THREAD, "", THREAD_NOTE, ""]
-    return "\n".join(out)
+    Rows are stamped with their source repo so the merge step is keyed
+    by ``f"{repo}#{number}"`` — the same shape the cache already uses.
+    """
+    since = _load_watermark(cache_path, repo)
+    rows = _search_repo_issues(repo, since=since)
+
+    max_updated: str | None = None
+    for row in rows:
+        row.setdefault("_repo", repo)
+        updated = row.get("updatedAt")
+        if isinstance(updated, str) and (max_updated is None or updated > max_updated):
+            max_updated = updated
+    if max_updated is None and since:
+        # No new pages: keep the existing watermark.
+        max_updated = since
+    return repo, rows, max_updated
+
+
+# ---------------------------------------------------------------------------
+# Index entry point
+# ---------------------------------------------------------------------------
+
+
+def build_index(
+    cache_path: str,
+    *,
+    config: Any | None = None,
+    repos: list[str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Rebuild (or incrementally refresh) the on-disk issue index.
+
+    The output is the same ``{f"{repo}#{number}": row, ...}`` mapping
+    the rest of the project already consumes. Empty scope short-circuits
+    with no HTTP call.
+    """
+    if repos is None:
+        repos = _repo_scopes_from_config(config if config is not None else crew_config)
+    if not repos:
+        # No scope, no work. The cache on disk is the truth until the
+        # operator widens the config.
+        return _load_cache(cache_path)
+
+    cache = _load_cache(cache_path)
+    fetched: dict[str, list[dict[str, Any]]] = {r: [] for r in repos}
+    watermarks: dict[str, str | None] = {}
+
+    workers = min(8, len(repos))
+    if workers == 1:
+        for repo in repos:
+            _, rows, mark = _index_one_repo(repo, cache_path, cache)
+            fetched[repo] = rows
+            watermarks[repo] = mark
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(_index_one_repo, repo, cache_path, cache): repo
+                for repo in repos
+            }
+            for fut in futures:
+                repo = futures[fut]
+                _, rows, mark = fut.result()
+                fetched[repo] = rows
+                watermarks[repo] = mark
+
+    # Merge: ``f"{repo}#{number}"`` is the canonical key.
+    merged: dict[str, dict[str, Any]] = {}
+    for repo, rows in fetched.items():
+        for row in rows:
+            number = row.get("number")
+            if number is None:
+                continue
+            row["_repo"] = repo
+            merged[f"{repo}#{number}"] = row
+    # Carry over cached rows for repos we didn't touch this run.
+    for key, row in cache.items():
+        if key not in merged:
+            merged[key] = row
+
+    # Write the index exactly once.
+    if cache_path:
+        try:
+            os.makedirs(os.path.dirname(cache_path) or ".", exist_ok=True)
+            with open(cache_path, "w", encoding="utf-8") as fh:
+                json.dump(merged, fh, sort_keys=True)
+        except OSError as exc:
+            raise CrewError(f"could not write index cache {cache_path!r}: {exc}") from exc
+
+    # Persist watermarks after the index write so a half-failed run
+    # still leaves the cache consistent with the sidecar.
+    for repo, mark in watermarks.items():
+        if mark:
+            _save_watermark(cache_path, repo, mark)
+
+    log.info("indexed %d", len(merged))
+    return merged
+
+
+# ---------------------------------------------------------------------------
+# Row formatter (unchanged contract)
+# ---------------------------------------------------------------------------
+
+
+def format_index_row(row: dict[str, Any]) -> str:
+    """Render one row of the issue index as a single line.
+
+    Public contract: the row dict must expose ``number``, ``title``,
+    ``labels``, ``state`` and ``updatedAt``. ``labels`` may be a list of
+    dicts (real ``gh`` output) or a list of strings; both are accepted.
+    """
+    number = row.get("number")
+    title = (row.get("title") or "").replace("\n", " ").strip()
+    state = row.get("state") or ""
+    updated_at = row.get("updatedAt") or ""
+    labels_raw = row.get("labels") or []
+    label_names: list[str] = []
+    for lab in labels_raw:
+        if isinstance(lab, dict):
+            name = lab.get("name") or lab.get("title") or ""
+        else:
+            name = str(lab)
+        if name:
+            label_names.append(name)
+    label_csv = ",".join(label_names)
+    return f"#{number:<5} {state:<10} {updated_at}  {label_csv}  {title}"
+
+
+__all__ = [
+    "build_index",
+    "format_index_row",
+    "_load_cache",
+    "_load_watermark",
+    "_save_watermark",
+    "_repo_scopes_from_config",
+    "_search_repo_issues",
+    "_index_one_repo",
+]

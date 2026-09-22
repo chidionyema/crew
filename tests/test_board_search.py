@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 import unittest
 from typing import Any
 from unittest import mock
@@ -42,7 +43,7 @@ def _payload_json(rows: list[dict[str, Any]]) -> str:
 def test_search_issues_returns_more_than_200_rows() -> None:
     rows = [_make_row(i, updated_at=f"2024-01-{((i % 28) + 1):02d}T00:00:00Z") for i in range(1, 251)]
 
-    with tempfile.TemporaryDirectory() as tmp:  # noqa: F821
+    with tempfile.TemporaryDirectory() as tmp:
         cache_path = os.path.join(tmp, "index.json")
         config = mock.Mock(repos=["octo/cat"])
 
@@ -77,7 +78,7 @@ def test_watermark_rerun_returns_zero_new_rows() -> None:
     rows_first = [_make_row(i, updated_at=f"2024-02-{((i % 28) + 1):02d}T00:00:00Z") for i in range(1, 51)]
     rows_third: list[dict[str, Any]] = []
 
-    with tempfile.TemporaryDirectory() as tmp:  # noqa: F821
+    with tempfile.TemporaryDirectory() as tmp:
         cache_path = os.path.join(tmp, "index.json")
         config = mock.Mock(repos=["octo/cat"])
 

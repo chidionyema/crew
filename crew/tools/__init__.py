@@ -1,1 +1,1 @@
-"""Tools: opt-in helpers that ship alongside the crew package."""
+"""Bench tools for the crew: post-optimisation step counters."""

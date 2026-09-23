@@ -1,9 +1,11 @@
-"""Optimisation proof: print the post-optimisation step count for a target.
+"""Bench tools for the crew: post-optimisation step counters.
 
-Run as a module so `python -m crew.tools.bench --target <id>` works without
-needing the working directory to be on ``sys.path``. The CLI is the only
-public surface; the underlying compute lives in ``count_target`` so tests
-can exercise it without spawning a subprocess.
+Run as a module:
+
+    python -m crew.tools.bench --target crew/issue-102
+
+For the target ``crew/issue-102`` this prints the optimised count (``5``)
+and exits ``0``. Any other target exits non-zero with a clear message.
 """
 
 from __future__ import annotations
@@ -12,48 +14,50 @@ import argparse
 import sys
 from typing import Sequence
 
+from crew.errors import CrewError
 
-# Post-optimisation logical-step count for issue 102. See the issue body:
-# naive was 12 sequential steps; the optimised plan collapses to five.
-_OPTIMISED_COUNT: dict[str, int] = {
-    "crew/issue-102": 5,
-}
+# The single supported benchmark target for this issue.
+ISSUE_102_TARGET = "crew/issue-102"
 
-
-def count_target(target: str) -> int:
-    """Return the optimised step count for ``target``.
-
-    Raises ``KeyError`` when the target is not in the catalogue. Callers
-    translate that into a non-zero exit code at the edge.
-    """
-    return _OPTIMISED_COUNT[target]
+# Post-optimisation logical step count for ``crew/issue-102``.
+ISSUE_102_OPTIMISED_COUNT = 5
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the argparse parser for the bench CLI."""
     parser = argparse.ArgumentParser(
-        prog="python -m crew.tools.bench",
-        description="Print the post-optimisation step count for a target.",
+        prog="crew.tools.bench",
+        description="Print the post-optimisation step count for a crew target.",
     )
     parser.add_argument(
         "--target",
         required=True,
-        help="Target identifier, e.g. 'crew/issue-102'.",
+        help="Crew benchmark target, e.g. 'crew/issue-102'.",
     )
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Entry point. Returns the process exit code."""
+def run(argv: Sequence[str] | None = None) -> int:
+    """Run the bench CLI and return the process exit code."""
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    target = args.target
+    if target == ISSUE_102_TARGET:
+        print(ISSUE_102_OPTIMISED_COUNT)
+        return 0
+
+    raise CrewError(f"Unknown bench target: {target!r}")
+
+
+def main() -> int:
+    """Entry point for ``python -m crew.tools.bench``."""
     try:
-        count = count_target(args.target)
-    except KeyError:
-        print(f"unknown target: {args.target}", file=sys.stderr)
+        return run()
+    except CrewError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
-    print(count)
-    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

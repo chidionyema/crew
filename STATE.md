@@ -77,3 +77,16 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | OKE nodes | RED | `kubectl get nodes` -> 2/3 Ready (v1.35.2) |
 | OKE flux | RED | 46 of 86 Kustomizations not ready: agent-workforce, alerts, alerts-github, alerts-secret, autoscaler, backstage, chaos, commerce, commerce-data, concierge, crossplane-providerconfig, dagster, dns, drills, epistemic-fabric, estate-db, estate-db-migrate, guacamole, gvisor-runtime, healing-analyzer, healing-k8sgpt, healthchecks, hermes-agent, hindsight, human-vault-bridge, image-automation, llm, mcp, monitoring, monitoring-rules, nodesoftware-operator, notify, observability, otto-gateway, otto-golden, otto-golden-secret, reloader, research-engine, robusta, router-events, science, tailscale, temporal, via-negativa, weave-gitops, To |
 | elite grade | 20 GAP, 16 BLIND | 386 ELITE of 422 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+
+## 2026-09-24 — incident + recovery
+- 12 PRs closed without merge by chidionyema (manual action, not automation)
+- Spire-key-broker + /river page recovered to main
+- Incident report: docs/incidents/2026-09-24-pr-loss.md
+- **main is currently RED** — blockers:
+  1. acceptance test failing: DEVICE_STATUS_PATH missing from routes.py
+  2. security-scan: trivy critical/high CVEs
+  3. bdd: downstream of #1
+- Agent-trunk CI gates now active (fixed by PR #3957)
+- merge-when-green re-enabled
+- Shadow-verify restored + required on main
+- Governance gaps remaining: require-pr-for-all-branches bypassable, agents use founder identity

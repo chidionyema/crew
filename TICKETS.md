@@ -999,4 +999,9 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 
 ---
 
+
+---
+
+| T100 | Estate consolidation: one execution model | Estate Agent | P0 | PR #3956 | DONE | COMPLETE: estate_executor.py deleted, estate_simulate.py deleted, estate_mcp.py (3 tools), 22 intents, executor with harness mode, design spec, AGENTS.md section 7, break-glass CLI, pf egress lock, crystallize intent, k8s.debug, hypotheses.race (Bayesian concurrent testing), code-review (4-tier pipeline), pi extension. Enforcement MCP: Ulysses Contract + exit gate + per-action validation. PRs #3956+#3961+#3962+#3963+#3966 merged. Live: ~/.estate/bin/estate-execute. Repo: idp/main. REF: journal entry 2026-09-25.
+
 *This document is the live tracking registry for the Hermes estate remediation. Update ticket Status as work progresses. All deploys follow the Flux GitOps path — no `kubectl apply` by hand. Every image pushed via `bin/build-image` must be multi-arch (amd64 + arm64).*

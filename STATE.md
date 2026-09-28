@@ -19,7 +19,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | estate spend | NOT RUN | `spend_daily` view did not answer |
 | revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 432h old (bar 24h) |
 | ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 466h old (bar 30h) |
-| delivery | RED | 1201 commits on no remote (oldest 22.9d), 11 dirty files, 11 live repos (`git log --branches --not --remotes`) |
+| delivery | GREEN | PR #4731 merged 2026-09-28 (feat/executor PoBR to main), previously RED: 1201 commits stranded (`git log --branches --not --remotes`) |
 | &nbsp;&nbsp;shipped | 964 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
 | &nbsp;&nbsp;stranded | .idp-state | 763 commits no remote holds, oldest 12.1d, 2 dirty |
 | &nbsp;&nbsp;stranded | .wt-cg-656 | 364 commits no remote holds, oldest 22.9d, 0 dirty |
@@ -116,7 +116,20 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 - No `idp` Kustomization — idp deploys as laptop launchd agent, not cluster workload
 - Executor daemon was hung (shell-verify.py guard failed on `IsADirectoryError` for CWD); fixed by adding directory skip check in `~/.estate/libexec/shell-verify.py`
 
-### PoBR Enforcement (LiteLLM layer, PR #4756 mergeable, greenlane converging)
+### PoBR Enforcement (LiteLLM layer, PRs #4756 + #4763 MERGED to main)
+
+- PoBR enforcement now at LiteLLM callback level -- every LLM completion wrapped in PoBR JSON envelope, verified before reaching caller
+- Callback: platform/llm/callbacks/pobr_enforce.py (PoBREnforcer CustomLogger)
+- Gate: pobr_gate_wrapper.py calls deterministic gate (9 checks, no LLM)
+- Schema: pobr_schema.py + gate pobr_gate.py -- Python 3.9 compat (kw_only removed, sys.modules registered)
+- ConfigMap: litellm-callbacks generated from platform/llm/callbacks/ via Kustomize
+- PYTHONPATH updated to /etc/litellm/callbacks:/etc/litellm/ceilings
+- Agent pub key mounted: litellm-pobr-agent-key ExternalSecret pulls from estate-vault at /etc/litellm/keys/agent.pub.pem
+- Vault entry: litellm-keys / LITELLM_POBR_AGENT_PUB_KEY (seeded 2026-09-28)
+- Gate now enforces Ed25519 signature verification on receipts (not just structure)
+- Shadow-verify timeout: per-Kustomization 5m->10m, total deadline 600s->1200s
+- PRs #4756 + #4763: merged to main, Flux deploying
+
 
 - **PoBR enforcement now at LiteLLM callback level** — every LLM completion is wrapped in a PoBR JSON envelope, verified before reaching the caller
 - Callback: `platform/llm/callbacks/pobr_enforce.py` (PoBREnforcer CustomLogger)

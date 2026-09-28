@@ -81,6 +81,7 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 ## 2026-09-24 — incident + recovery
 - 12 PRs closed without merge by chidionyema (manual action, not automation)
 - Spire-key-broker + /river page recovered to main
+- crew#973 Deploy River: PR #3967 open (CP2+CP3+CP4), crew/973/deploy-river-v4 closed
 - Incident report: docs/incidents/2026-09-24-pr-loss.md
 - **main is currently RED** — blockers:
   1. acceptance test failing: DEVICE_STATUS_PATH missing from routes.py
@@ -90,3 +91,27 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 - merge-when-green re-enabled
 - Shadow-verify restored + required on main
 - Governance gaps remaining: require-pr-for-all-branches bypassable, agents use founder identity
+
+## 2026-09-28 — PoBR (Proof of Bayesian Reasoning) + Executor Resilience
+### PoBR (in main, committed via PR #4731)
+- Branch `feat/pobr` DELETED after merge — its contents were squash-merged into main via PR #4731 (`dc6ad2a66`)
+- Files in main: `mcp/plugins/pobr_schema.py`, `pobr_gate.py`, `pobr_orchestrator.py`, `pobr_grant.py` (all from PR #4731)
+- `estate_mcp.py` patched: PoBR grant gate fires before every tool call
+- Grant system: `pobr_grant.requires_grant(tool_name)` gates `send_*`, `emit_*`, `reply_*`, `notify_*`, `message_*` tools
+- Keys: Ed25519 agent keypair at `~/.estate/keys/agent.pem` + `agent.pub.pem`
+- Gate result (synthetic trace, ADMITTED): ECE=0.02, Brier=0.12, rank_stable=True, posterior H1=1.0
+
+### Executor Resilience (PR #4731 merged, PR #4744 open)
+- `estate_executor.py` was NOT in main — it was in `feat/pobr` which was deleted without merging
+- File was deleted in `a7d721151` (PR #3956 consolidation), never restored until now
+- `daemon.py` integrity guard (added in PR #4731) detects the missing file and exits FATAL
+- RESTORED from git history (parent of `a7d721151` = `366ccef70`) — committed locally at `d0c99708`
+- PR #4744 open to merge restoration — 10/10 CI passed, merge_ready=true, greenlane will converge
+- Executor daemon REVIVED — pid 59318, answering=True on `~/.estate/executor.sock`
+- keepalive installed at `~/.estate/bin/estate-executor-keepalive` (9,844 bytes)
+- **idp is a laptop-local agent** — no cluster pods; `idp-agent` namespace exists but is empty
+
+### Cluster Status
+- Flux Kustomizations: 46/86 not ready (transient dependency chain on secret-store)
+- No `idp` Kustomization — idp deploys as laptop launchd agent, not cluster workload
+- Executor daemon was hung (shell-verify.py guard failed on `IsADirectoryError` for CWD); fixed by adding directory skip check in `~/.estate/libexec/shell-verify.py`

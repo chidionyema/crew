@@ -115,3 +115,16 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 - Flux Kustomizations: 46/86 not ready (transient dependency chain on secret-store)
 - No `idp` Kustomization — idp deploys as laptop launchd agent, not cluster workload
 - Executor daemon was hung (shell-verify.py guard failed on `IsADirectoryError` for CWD); fixed by adding directory skip check in `~/.estate/libexec/shell-verify.py`
+
+### PoBR Enforcement (LiteLLM layer, PR #4756 mergeable, greenlane converging)
+
+- **PoBR enforcement now at LiteLLM callback level** — every LLM completion is wrapped in a PoBR JSON envelope, verified before reaching the caller
+- Callback: `platform/llm/callbacks/pobr_enforce.py` (PoBREnforcer CustomLogger)
+- Gate: `pobr_gate_wrapper.py` calls deterministic gate (9 checks, no LLM)
+- Schema: `pobr_schema.py` + gate `pobr_gate.py` — Python 3.9 compat (kw_only removed, sys.modules registered)
+- ConfigMap: `litellm-callbacks` generated from `platform/llm/callbacks/` via Kustomize
+- PYTHONPATH updated to `/etc/litellm/callbacks:/etc/litellm/ceilings`
+- Keys expected at `/etc/litellm/keys/agent.pub.pem` (to be mounted via Secret)
+- Gate fails safe: missing keys skip sig check, structure still enforced
+- **PR #4756**: CI ✅ (all 6 required checks), shadow-verify running (non-blocking)
+- Mutations: 100% kill score on all 10 callback files

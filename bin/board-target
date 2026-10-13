@@ -1,7 +1,1 @@
-#!/usr/bin/env bash
-# bin/board-target -- prints the issue number that IS the estate board
-# and exits 0. Single source of truth for any tool that needs to know
-# where to land a broadcast. CI / cron / agents MUST source this, not
-# hard-code the issue number.
-set -euo pipefail
-echo "crew#102"
+chidionyema/crew 102

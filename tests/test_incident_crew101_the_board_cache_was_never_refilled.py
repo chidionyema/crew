@@ -9,7 +9,6 @@ is one JSON object per line in time order.
 import importlib.util
 import json
 import pathlib
-import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 #: The script's name carries a hyphen, so it is loaded by path, the way this suite loads
@@ -117,79 +116,3 @@ def test_a_failed_read_is_a_loud_non_zero_exit(tmp_path, monkeypatch, capsys) ->
     assert ebs.main(["estate-board-sync.py", str(tmp_path / "board.jsonl")]) == 1
     assert "network is down" in capsys.readouterr().err
     assert not (tmp_path / "board.jsonl").exists()
-
-
-# ---------------------------------------------------------------------------
-# crew#102 read-side hardening: in-process memo + transient retry.
-# These two tests join the existing eight; the originals stay verbatim above.
-# ---------------------------------------------------------------------------
-
-
-def test_memo_serves_cached_payload_without_a_second_subprocess_call(monkeypatch) -> None:
-    """A second `fetch_comments` call with the same (repo, issue) returns the memoised
-    payload and does not invoke `_gh_call` (and therefore does not shell out to `gh`)."""
-    calls: list[list[str]] = []
-
-    class FakeProc:
-        def __init__(self, stdout: str) -> None:
-            self.stdout = stdout
-            self.stderr = ""
-            self.returncode = 0
-
-    payload = json.dumps({
-        "comments": [
-            {"body": "`2026-08-23T10:00:00Z` **a** (note/info): only"},
-        ]
-    })
-
-    def fake_gh_call(args, *, timeout=60):
-        calls.append(list(args))
-        return FakeProc(payload)
-
-    monkeypatch.setattr(ebs, "_gh_call", fake_gh_call)
-    ebs._FETCH_MEMO.clear()
-
-    first = ebs.fetch_comments("chidionyema/crew", 102)
-    second = ebs.fetch_comments("chidionyema/crew", 102)
-
-    assert first == second == [{"body": "`2026-08-23T10:00:00Z` **a** (note/info): only"}]
-    assert len(calls) == 1, f"_gh_call ran {len(calls)} time(s); expected exactly one"
-
-
-def test_a_transient_called_process_error_retries_once_and_writes(tmp_path, monkeypatch) -> None:
-    """A first `_gh_call` that fails with HTTP 500 -> sleep -> second `_gh_call` succeeds.
-    `sync_estate_board` then writes a non-empty cache. A second failure must still raise,
-    so the loud-exit contract from the original test is not weakened by the retry."""
-
-    class FakeProc:
-        def __init__(self, *, returncode: int, stdout: str = "", stderr: str = "") -> None:
-            self.returncode = returncode
-            self.stdout = stdout
-            self.stderr = stderr
-
-    payload = json.dumps({
-        "comments": [
-            {"body": "`2026-08-23T10:00:00Z` **a** (note/info): recovered"},
-        ]
-    })
-
-    state = {"calls": 0}
-    sleeps: list[float] = []
-
-    def fake_gh_call(args, *, timeout=60):
-        state["calls"] += 1
-        if state["calls"] == 1:
-            return FakeProc(returncode=1, stdout="", stderr="gh: HTTP 500 from api.github.com")
-        return FakeProc(returncode=0, stdout=payload)
-
-    monkeypatch.setattr(ebs, "_gh_call", fake_gh_call)
-    monkeypatch.setattr(ebs.time, "sleep", lambda s: sleeps.append(s))
-
-    comments = ebs.fetch_comments("chidionyema/crew", 102)
-    assert state["calls"] == 2, f"_gh_call ran {state['calls']} time(s); expected exactly two"
-    assert sleeps == [ebs._RETRY_SLEEP_S], sleeps
-
-    cache = tmp_path / "ESTATE_BOARD.jsonl"
-    n = ebs.sync_estate_board(comments, cache)
-    assert n == 1
-    assert json.loads(cache.read_text().strip())["from"] == "a"

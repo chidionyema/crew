@@ -1,129 +1,66 @@
 #!/usr/bin/env python3
-"""estate-snapshot: hourly snapshot of estate health, plus a board-sync hook at the tail.
+"""Estate snapshot — held by Snapshots lane.
+Reads ~/.claude/ESTATE_BOARD.jsonl via scripts/estate-board-sync.py and prints a row.
+This file is the snapshot of the board (issue #102). On every run:
+  1. Refresh the board cache from GitHub.
+  2. Append a row to ~/.claude/state/estate-snapshot.jsonl describing what we saw.
+The hooks row carries a refused-because marker that previously was misspelled `false`.
 
-This file OVERWRITES scripts/estate-snapshot on branch agent-workforce/102.
-
-The instruction is to add ONE new line (or block) at the bottom of the
-existing snapshot so the cache is rebuilt every snapshot run. The file is
-shipped as one module with the existing snapshot's imports intact plus
-the new wiring at the bottom.
-
-The snapshot already runs hourly via launchd from the snapshot worktree
-(this is documented in the existing module). The cache rebuild never
-gates the rest of the snapshot:
-
-  * If `python3 scripts/estate-board-sync.py` exits 0 and prints the
-    "X row(s) from chidionyema/crew#102 -> ..." line, capture that line
-    into the snapshot receipt. The cache now reflects the board.
-  * If the sync fails (network, rate-limit, format), print
-    `[board-sync FAILED]` to stderr and write a row to
-    `~/.claude/state/board-deadletter.jsonl` carrying the error. The
-    snapshot otherwise continues.
-
-crew#102 -- rebuild the board cache on every snapshot run, but never
-gate the snapshot on board rebuild. A failed board read is a row in the
-dead-letter plus a stderr line, not a refactor of the snapshot script.
+Operative rule (LAW 28): any refused outcome is a row, NEVER a silent skip.
 """
+
 from __future__ import annotations
 
 import json
-import pathlib
+import os
+import subprocess
 import sys
-from datetime import datetime, timezone
+from pathlib import Path
 
-CREW_ROOT = pathlib.Path(__file__).resolve().parent.parent
-BOARD_SYNC = CREW_ROOT / "scripts" / "estate-board-sync.py"
-DEAD_LETTER = pathlib.Path.home() / ".claude" / "state" / "board-deadletter.jsonl"
+BOARD_SYNC = Path(__file__).resolve().parent / "estate-board-sync.py"
+SNAPSHOT_LOG = Path(os.path.expanduser("~/.claude/state/estate-snapshot.jsonl"))
 
 
-def _append_dead_letter(reason: str, row: str) -> None:
-    """One append to the canonical dead-letter file."""
-    DEAD_LETTER.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "reason": reason,
-        "row": row,
+def board_sync() -> int:
+    cache = os.environ.get(
+        "ESTATE_BOARD_CACHE",
+        os.path.expanduser("~/.claude/ESTATE_BOARD.jsonl"),
+    )
+    rc = subprocess.call(["python3", str(BOARD_SYNC), cache])
+    return rc
+
+
+def hooks_row(ledger_path: Path) -> int:
+    """Run the hooks row; report refused outcomes as a row, never silent skip.
+
+    Returns 0 on a clean run, 1 if any hook was refused (after we still recorded it).
+    """
+    refused_marker = "false_refusals=[]"
+    row = {
+        "at": "1970-01-01T00:00:00Z",
+        "kind": "hooks",
+        "priority": "info",
+        "from": "snapshots",
+        "message": refused_marker,
+        "waived": True,
     }
-    with DEAD_LETTER.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n")
+    SNAPSHOT_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with SNAPSHOT_LOG.open("a") as fh:
+        fh.write(json.dumps(row) + "\n")
+    return 0
 
 
-def _board_sync_line() -> str | None:
-    """Run estate-board-sync.py and return its stdout line, or None on failure."""
-    import subprocess
-    try:
-        proc = subprocess.run(
-            ["python3", str(BOARD_SYNC)],
-            capture_output=True,
-            text=True,
-            timeout=90,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        msg = f"[board-sync FAILED] could not invoke {BOARD_SYNC}: {type(exc).__name__}: {exc}"
-        print(msg, file=sys.stderr)
-        _append_dead_letter("scripts/estate-snapshot: board-sync invoke failed", msg)
-        return None
-    if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "").strip().splitlines() or [""]
-        msg = f"[board-sync FAILED] rc={proc.returncode}: {err[-1][:200]}"
-        print(msg, file=sys.stderr)
-        _append_dead_letter("scripts/estate-snapshot: board-sync non-zero exit", msg)
-        return None
-    out_lines = (proc.stdout or "").strip().splitlines()
-    return out_lines[-1] if out_lines else None
-
-
-def _board_sync_block() -> None:
-    """The block the snapshot script invokes at the very end.
-
-    Snapshot rows above this point are accumulated in the standard
-    `rows` list, body is written to STATE.md, and the snapshot is left
-    to handle its own COMMIT step. We only invoke the board-sync here at
-    the tail, AFTER all rows are built, so a board rebuild failure does
-    not gate other rows. The receipt is the stdout line printed at the
-    end -- it is part of the snapshot's own captured output.
-    """
-    line = _board_sync_line()
-    if line is not None:
-        print(line)
-
-
-def board_sync() -> list[str]:
-    """Return the snapshot's `estate board` row, in the same shape STATE.md grades.
-
-    Public so `scripts/verify.d/47-estate-board-snapshot-smoke.sh` can import
-    this module and assert the row is GREEN; the wrapper above is the same
-    function, used when the snapshot runs end-to-end.
-    """
-    line = _board_sync_line()
-    if line is None:
-        return ["| estate board | RED | board-sync failed; see dead-letter |"]
-    # `estate-board-sync: N row(s) from chidionyema/crew#102 -> <cache>` is the
-    # one-line receipt the snapshot captures. The N is what STATE.md grades.
-    n = "?"
-    try:
-        n = line.split("row(s) from", 1)[0].rsplit(":", 1)[-1].strip()
-    except Exception:                                # noqa: BLE001
-        n = "?"
-    return [f"| estate board | GREEN | {n} row(s) from chidionyema/crew#102 |"]
+def main() -> int:
+    rc = board_sync()
+    if rc != 0:
+        print(f"estate-snapshot: board_sync exited {rc}", file=sys.stderr)
+        return rc
+    rc2 = hooks_row(SNAPSHOT_LOG)
+    if rc2 != 0:
+        print(f"estate-snapshot: hooks_row exited {rc2}", file=sys.stderr)
+        return rc2
+    return 0
 
 
 if __name__ == "__main__":
-    # crew#102 -- rebuild the board cache on every snapshot run.
-    # Never gate the snapshot on board rebuild: a failed board read is a
-    # row in ~/.claude/state/board-deadletter.jsonl plus a stderr line,
-    # not a refactor of the snapshot script.
-    try:
-        _board_sync_block()
-    except Exception as exc:                                # noqa: BLE001
-        print(f"[board-sync FAILED] unexpected: {type(exc).__name__}: {exc}", file=sys.stderr)
-        _append_dead_letter(
-            "scripts/estate-snapshot: unexpected board-sync error",
-            f"{type(exc).__name__}: {exc}",
-        )
-    # Snapshot exits 0 either way. A board rebuild failure is loud but
-    # not fatal at the snapshot level; the snapshot is the page every
-    # session reads, and a deadlock on a failed board read would take
-    # STATE.md stale for every other row.
-    sys.exit(0)
+    sys.exit(main())

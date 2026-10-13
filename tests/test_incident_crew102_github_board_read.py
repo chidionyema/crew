@@ -11,15 +11,15 @@ This test pins the read path so that:
   * the same contract as `test_incident_crew102_estate_board_is_issue_102`
     holds against the read command the doc tells people to use.
 
-The board payload is fetched once per pytest run by the `board_issue`
-fixture in tests/conftest.py; a broken `gh` call fails every consumer
-loudly (LAW 31: PASS and NOT RUN are different states). If any of these
-go red, either the writer broke or the doc drifted; the fix is in the
-writer or in CREW-BOARD-VISIBILITY.md, never by widening this test.
+If any of these go red, either the writer broke or the doc drifted; the
+fix is in the writer or in CREW-BOARD-VISIBILITY.md, never by widening
+this test.
 """
 from __future__ import annotations
 
+import json
 import re
+import subprocess
 
 BOARD_REPO = "chidionyema/crew"
 BOARD_ISSUE = 102
@@ -28,26 +28,35 @@ ROW_PATTERN = re.compile(
 )
 
 
-def test_read_command_documented_in_board_doc_runs_clean(board_issue: dict) -> None:
-    """The exact `gh issue view --comments` command from CREW-BOARD-VISIBILITY.md works.
-
-    The fixture calls the documented read command once for the whole run
-    and every consumer inspects the same payload. Failure mode: upstream
-    `gh issue view` failed -> this test fails (the fixture surfaces
-    that). Nothing else is read.
-    """
-    assert board_issue["number"] == BOARD_ISSUE
-    assert board_issue["state"] == "OPEN"
-    assert board_issue["comments"], "board returned zero comments — writer is broken"
+def _gh(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
-def test_a_board_row_matches_the_declared_row_format(board_issue: dict) -> None:
-    """At least one comment on the board follows the format the issue body declares.
+def test_read_command_documented_in_board_doc_runs_clean() -> None:
+    """The exact `gh issue view --comments` command from CREW-BOARD-VISIBILITY.md works."""
+    out = _gh("issue", "view", str(BOARD_ISSUE), "--repo", BOARD_REPO,
+              "--comments", "--json", "number,state,comments")
+    assert out.returncode == 0, (
+        f"the documented read command failed: {out.stderr or out.stdout}"
+    )
+    payload = json.loads(out.stdout)
+    assert payload["number"] == BOARD_ISSUE
+    assert payload["state"] == "OPEN"
+    assert payload["comments"], "board returned zero comments — writer is broken"
 
-    Failure mode: upstream `gh issue view` failed -> this test fails
-    (the fixture surfaces that). Nothing else is read.
-    """
-    comments = board_issue["comments"]
+
+def test_a_board_row_matches_the_declared_row_format() -> None:
+    """At least one comment on the board follows the format the issue body declares."""
+    out = _gh("issue", "view", str(BOARD_ISSUE), "--repo", BOARD_REPO,
+              "--json", "comments")
+    assert out.returncode == 0, out.stderr or out.stdout
+    # `--json comments` answers a record keyed "comments", not a bare list.
+    comments = json.loads(out.stdout)["comments"]
     assert comments, "board returned zero comments -- the writer is broken"
     # The leading comments are the human-written backfill headers, not rows; the contract
     # is that broadcast rows carry the declared shape, so one matching row proves it.

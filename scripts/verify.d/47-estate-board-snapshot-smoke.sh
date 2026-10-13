@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# crew#102 — the prove row's smoke half: scripts/estate-snapshot still goes green.
+# crew#102 -- the prove row's smoke half: scripts/estate-snapshot still goes green.
 #
 # The plan's "Done commands" row #4 names `bash scripts/verify.sh` with the
 # expected outcome FAIL=0. That gate is the orchestrator. This gate is its
@@ -10,13 +10,13 @@
 #
 # WHY THIS EXISTS. The plan's "Count again" section names this branch's
 # hourly caller as one of the jobs a smoke run on this branch must prove
-# still goes green. If the rewrite of scripts/estate-board-sync.py broke
-# the snapshot's `board_sync()` row, every hourly STATE.md would carry the
+# still goes green. If the rewrite of scripts/estate-snapshot broke the
+# snapshot's `estate board` row, every hourly STATE.md would carry the
 # silence as a NOT RUN, and the founder would not see it because the snapshot
 # would refuse to commit. This gate makes that breakage loud on every PR.
 #
 # WHAT IT CHECKS:
-#   A  scripts/estate-snapshot exists and is importable
+#   A  scripts/estate-snapshot is importable and exposes board_sync()
 #   B  the `estate board` row prints state GREEN
 #   C  the row shape is the one STATE.md grades against
 #   D  the cache file the row reads is the one we just rebuilt
@@ -24,7 +24,7 @@
 # WHAT IT CANNOT SEE. The snapshot touches many other rows (delivery,
 # OCI verification identity, spend, etc.). They are graded by their own
 # incident tests and the orchestrator's FAIL=0 count. A red row elsewhere
-# is not this gate's blind spot — it is the orchestrator's, and it is
+# is not this gate's blind spot -- it is the orchestrator's, and it is
 # graded nightly in the same pass.
 #
 # STYLE MATCH. scripts/verify.d/45-estate-board.sh (header shape, exit codes
@@ -93,7 +93,6 @@ echo "\$ HOME=$TMP_HOME python3 -c 'import scripts.estate-snapshot as m; print(\
 rows="$(HOME="$TMP_HOME" python3 - <<'PY'
 import importlib.util
 import pathlib
-import sys
 
 ROOT = pathlib.Path(".").resolve()
 spec = importlib.util.spec_from_file_location("estate_snapshot", ROOT / "scripts" / "estate-snapshot")

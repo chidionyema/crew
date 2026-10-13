@@ -1,4 +1,4 @@
-"""crew#102 — agent sessions read the board from GitHub issue #102, not the laptop file.
+"""crew#102 -- agent sessions read the board from GitHub issue #102, not the laptop file.
 
 The local JSONL at ~/.claude/ESTATE_BOARD.jsonl is only an offline cache the
 prompt hooks read when the network is gone. The board of record lives at

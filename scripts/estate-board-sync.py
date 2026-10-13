@@ -22,45 +22,60 @@ a rate limit would take the board out for every session at once.
 # Standard: docs/STANDARDS.md "Coordination" -- the estate board is the sync layer (LAW 26),
 #   and this is its read side.
 # Deviation: none.
-
-The row regex, the parser, and the (repo, issue) constants are NOT redefined in this
-file -- they live in ``crew/board_format.py`` so the writer (``estate-broadcast.py``)
-and this reader share one source of truth, and the env-var overrides below still win
-when a human sets them on a single run.
 """
 
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 from datetime import datetime
 
-# The board target and the row regex live in `crew/board_format.py` so the writer and
-# this reader cannot drift apart. `bin/crew` uses the same sys.path shim; without it
-# the import below fails when this script is launched as a subprocess from anywhere
-# that is not the repo root.
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from crew.board_format import BOARD_REPO as _BOARD_REPO, BOARD_ISSUE as _BOARD_ISSUE  # noqa: E402
+#: The format the board issue's own body declares: `ts` **from** (kind/priority): message.
+COMMENT_FULL_RE = re.compile(
+    r"^`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)`\s+\*\*([^*]+?)\*\*"
+    r"\s+\(([^/]+?)/([^)]+?)\):\s+(.*)$"
+)
+#: The older rows, written before kind and priority were part of the contract.
+COMMENT_SIMPLE_RE = re.compile(
+    r"^`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)`\s+\*\*([^*]+?)\*\*:\s+(.*)$"
+)
 
-# The env-var overrides stay, so a human running `ESTATE_BOARD_REPO=other/crew
-# ESTATE_BOARD_ISSUE=42 scripts/estate-board-sync.py` to test against a non-board issue
-# still works. The default IS the board pinned by crew#102.
-BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", _BOARD_REPO)
-BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", str(_BOARD_ISSUE)))
+BOARD_REPO = os.environ.get("ESTATE_BOARD_REPO", "chidionyema/crew")
+BOARD_ISSUE = int(os.environ.get("ESTATE_BOARD_ISSUE", "102"))
 DEFAULT_CACHE = pathlib.Path.home() / ".claude" / "ESTATE_BOARD.jsonl"
 
 
 def parse_comment(comment_body: str) -> dict | None:
     """One comment to one board row, or None when the comment is not a row.
 
-    Re-exported here -- the test file ``tests/test_incident_crew101_the_board_cache_was_never_refilled.py``
-    loads this module by path and calls ``parse_comment`` directly, so the name and
-    the shape must remain available on this module's surface. The implementation
-    is a thin pass-through to ``crew.board_format.parse_comment``.
+    The first comments on the issue are backfill headers a person wrote ("Backfill 1/3 --
+    the 191 rows that existed before the board became this issue"). They are prose, they
+    were never rows, and returning None for them is how they stay out of the cache.
     """
-    from crew.board_format import parse_comment as _parse_comment
-    return _parse_comment(comment_body)
+    body = (comment_body or "").strip()
+    m = COMMENT_FULL_RE.match(body)
+    if m:
+        ts, frm, kind, priority, message = m.groups()
+        return {
+            "ts": ts,
+            "from": frm.strip(),
+            "kind": kind.strip(),
+            "priority": priority.strip(),
+            "message": message.strip(),
+        }
+    m = COMMENT_SIMPLE_RE.match(body)
+    if m:
+        ts, frm, message = m.groups()
+        return {
+            "ts": ts,
+            "from": frm.strip(),
+            "kind": "unclassified",
+            "priority": "info",
+            "message": message.strip(),
+        }
+    return None
 
 
 def fetch_comments(repo: str = BOARD_REPO, issue: int = BOARD_ISSUE) -> list[dict]:

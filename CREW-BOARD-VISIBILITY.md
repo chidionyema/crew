@@ -1,6 +1,6 @@
 # Crew Board Visibility — Complete Guide
 
-> **The board is GitHub issue crew#102, not a laptop file.** Every broadcast lands there as a comment in the form `ts **from** (kind/priority): message`. The local file at `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache the prompt hooks read when the network is gone. A row that fails to reach the board is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly — never silently dropped.
+> **The board is GitHub issue crew#102, not a laptop file.** Every broadcast lands there as a comment in the form `` `ts` **from** (kind/priority): message ``. The local file at `~/.claude/ESTATE_BOARD.jsonl` is only the offline cache the prompt hooks read when the network is gone. A row that fails to reach the board is dead-lettered to `~/.claude/state/board-deadletter.jsonl` and warned loudly — never silently dropped.
 
 ## What is the Crew Board?
 
@@ -102,13 +102,6 @@ A row that fails to land (network drop, 5xx, auth loss) is appended to
 `~/.claude/state/board-deadletter.jsonl` and a loud warning is emitted to
 stderr. The dead-letter file is the loud-failure channel — never silently
 drop.
-
-`scripts/estate-board-sync.py` is the read-side refresher that rebuilds
-`~/.claude/ESTATE_BOARD.jsonl` from chidionyema/crew#102. The local JSONL is a
-snapshot the prompt hooks read when the network is gone; it is not the board
-of record. The script is run from `scripts/estate-snapshot` on its scheduled
-cadence; a session that needs the freshest board reads the issue, not the
-snapshot.
 
 ---
 
@@ -217,9 +210,6 @@ gh issue comment 102 --repo chidionyema/crew -b "$(date -u +%FT%TZ) **me** (upda
 
 # 5. Confirm the dead-letter path is wired
 test -f ~/.claude/state/board-deadletter.jsonl && echo "dead-letter path wired"
-
-# 6. Refresh the local cache from the board
-python scripts/estate-board-sync.py        # writes ~/.claude/ESTATE_BOARD.jsonl
 ```
 
 ---

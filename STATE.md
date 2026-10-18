@@ -1,6 +1,6 @@
 # Estate snapshot
 
-**Generated 2026-09-15 13:04 UTC** by `scripts/estate-snapshot`. Every row is a command and its
+**Generated 2026-10-18 01:51 UTC** by `scripts/estate-snapshot`. Every row is a command and its
 output. A row that could not be measured says NOT RUN, never PASS.
 
 Read this before asking anyone anything. Regenerate it rather than trusting it:
@@ -8,39 +8,49 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 
 | what | state | measured by |
 |---|---|---|
-| The Architect | GREEN | `bin/verify`: PASS  dispatch claims agent-go and never icebox 3 passed in 4.07s |
-| &nbsp;&nbsp;failing | | FAIL  generated files match templates     CUTOVER.md skills/founder-mac/SKILL.md Run bin/render to fix, or move your edit into templates/. |
-| &nbsp;&nbsp;failing | | FAIL  README describes what ships        capability.yaml is in the repo, and the README never says why |
-| &nbsp;&nbsp;failing | | FAIL  the URL card is pinned and current 30 links, pinned msg 14008 |
-| estate board | GREEN | estate-board-sync: 289 row(s) from chidionyema/crew#102 -> /Users/chidionyema/.claude/ESTATE_BOARD.jsonl |
-| maestro | RED | last cycle 3351 min ago (`INTENT-20260913-051253-0d20f3e7.json`) |
-| &nbsp;&nbsp;skills | GREEN | 3 skill(s) it can heal with |
-| Fly | NOT RUN | `flyctl apps list` failed: Error: no access token available. Please login with 'flyctl auth login' |
+| The Architect | NOT RUN | `/Users/roseonyema/dev/code/hermes-v2` does not exist |
+| estate board | RED | cache not rebuilt from crew#102: TypeError: unsupported operand type(s) for |: 'type' and 'NoneType' |
+| maestro | NOT RUN | no INTENT files, so nothing has sensed |
+| Fly | NOT RUN | `flyctl apps list` failed: /bin/sh: flyctl: command not found |
 | estate spend | NOT RUN | `spend_daily` view did not answer |
-| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 432h old (bar 24h) |
-| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 466h old (bar 30h) |
-| delivery | RED | 1201 commits on no remote (oldest 22.9d), 11 dirty files, 11 live repos (`git log --branches --not --remotes`) |
-| &nbsp;&nbsp;shipped | 964 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
-| &nbsp;&nbsp;stranded | .idp-state | 763 commits no remote holds, oldest 12.1d, 2 dirty |
-| &nbsp;&nbsp;stranded | .wt-cg-656 | 364 commits no remote holds, oldest 22.9d, 0 dirty |
-| &nbsp;&nbsp;stranded | .wt-estate-656 | 48 commits no remote holds, oldest 21.7d, 0 dirty |
+| revenue | NOT RUN | last measurement 2026-08-28T12:37:36Z is 1213h old (bar 24h) |
+| ci runs | NOT RUN | last measurement 2026-08-27T03:28:24Z is 1246h old (bar 30h) |
+| delivery | GREEN | 0 commits on no remote (oldest 0.0d), 10 dirty files, 1 live repos (`git log --branches --not --remotes`) |
+| &nbsp;&nbsp;shipped | 337 merged | non-bot PRs merged across the estate in 7d (`gh search prs`) |
 | founder cost | NOT RUN | `attention_daily` did not answer |
-| live checkout | GREEN | moved 1 commit(s) to origin/main 55a50c6, 3 local edit(s) kept |
+| live checkout | RED | on `state/snapshot-20261018`, 0 commit(s) behind origin/main; the scheduled jobs run that. Path back: `git -C /Users/roseonyema/Documents/code/crew-worktrees/state switch main` |
 | collectors | NOT RUN | `ingest_log` did not answer |
-| data map | RED | 2406 producers, 10686 measurables, 394 in gaps with a ticket, 25 unexplained, blind: cluster_live (`science/datamap.py --check`) |
-| &nbsp;&nbsp;violation | | source ledger: owner ~/.claude/scripts/goal-guard.py does not exist |
-| &nbsp;&nbsp;violation | | 25 producer(s) UNEXPLAINED (first: mac/ledger/~/.claude/state/command-timings.jsonl) |
-| &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): j |
-| science plane: warehouse | RED | DuckDB+dbt, 0 dbt model(s), rebuilt 523h ago (`science/warehouse.db`) |
-| science plane: scheduler | GREEN | Dagster, 16 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
+| data map | RED | 89 producers, 649 measurables, 0 in gaps with a ticket, 0 unexplained, blind: mac, cluster, cluster_live, endpoint (`science/datamap.py --check`) |
+| &nbsp;&nbsp;violation | | domain mac BLIND and not allowed: ImportError: cannot import name 'UTC' from 'datetime' (/Library/Developer/Co |
+| &nbsp;&nbsp;violation | | domain cluster BLIND and not allowed: FileNotFoundError: no idp checkout at /Users/roseonyema/dev/code/idp |
+| &nbsp;&nbsp;violation | | domain cluster_live BLIND and not allowed: RuntimeError: no receipt body in the last 8 oke-check.yml run(s): 3 |
+| science plane: warehouse | GREEN | DuckDB+dbt, 0 dbt model(s), rebuilt 0h ago (`science/warehouse.db`) |
+| science plane: scheduler | RED | Dagster, 0 process(es) (`pgrep -f dagster`; `idp/scheduler/`) |
 | science plane: experiment tracker | ABSENT | no MLflow anywhere; R34 names it as the one tracker (`command -v mlflow`) |
 | science plane: forecast ledger | RED | 15 forecast(s), 0 scored against reality (`science/predictions.jsonl`); Brier needs both |
 | science plane: declared stores | 44 | `science/sources.json` |
-| research | RED | 0 entries in 7d, 32 total, 32 with a decision fed, last 2026-09-05 (`RESEARCH-LEDGER.jsonl`) |
-| hooks | GREEN | 61897 runs in 24h, 326 refused (most: pre-push 95), slowest 59388 ms, 18 overturned by a marker (`hook-outcomes.jsonl`) |
+| research | NOT RUN | AttributeError: module 'datetime' has no attribute 'UTC' |
+| hooks | NOT RUN | AttributeError: module 'datetime' has no attribute 'UTC' |
 | GitHub Actions | GREEN operational | githubstatus.com; a red row means pending CI is theirs, not yours |
 | OCI verification identity | RED 0 scheduled runs in 24h | idp verify-drill.yml scheduled runs, last 24h, on the estate-ci machine identity (crew#345); the cron never fired |
 | crew P1 | 30 open | the fires nobody has put out |
+| &nbsp;&nbsp;#1008 BUG: Scheduled jobs dead since 2026-09-23: Dagster started by launchd | | |
+| &nbsp;&nbsp;#1007 BUG: Otto: metrics push and 5 provider keys broken; watch jobs skip on model drift | | |
+| &nbsp;&nbsp;#1006 BUG: Otto: terminal sandbox does not exist; terminal runs beside secrets | | |
+| &nbsp;&nbsp;#1005 BUG: Otto: memory-store job fails every run; long-term memory not written | | |
+| &nbsp;&nbsp;#1004 BUG: Otto: paid OpenRouter fallback enabled with no approval | | |
+| &nbsp;&nbsp;#1003 BUG: Otto: two long-lived GitHub App write tokens and mac-run act without approval | | |
+| &nbsp;&nbsp;#1002 BUG: Otto: no evidence it answered, used a tool or asked approval in 72h | | |
+| &nbsp;&nbsp;#1001 BUG: ci-success fails on cancelled dependencies | | |
+| &nbsp;&nbsp;#1000 BUG: X-Idp-Signed trailer checked for presence only | | |
+| &nbsp;&nbsp;#999 BUG: Main is red and silent: security-scan 425 gitleaks hits, 1 critical npm advisory, 2 BDD failures | | |
+| &nbsp;&nbsp;#998 BUG: CI/CD: two designed rulesets never installed; no drift detection | | |
+| &nbsp;&nbsp;#997 BUG: CI/CD: bot authors skip fast-gate yet it reports green | | |
+| &nbsp;&nbsp;#996 BUG: CI/CD: main requires zero review; CODEOWNERS not enforced | | |
+| &nbsp;&nbsp;#995 BUG: CI/CD: gate files unguarded, so any PR can rewrite workflows, rulesets and founder.pub | | |
+| &nbsp;&nbsp;#994 BUG: FleetView writes are attributed to 'reactor', never to the signed-in user | | |
+| &nbsp;&nbsp;#993 BUG: FleetView director crash-loops since 2026-09-27; the movie has no input | | |
+| &nbsp;&nbsp;#992 BUG: FleetView Stop/Kill/Approve/Deny buttons can never work | | |
 | &nbsp;&nbsp;#859 Store CP4 — checkout ends at a running capability, not at a pull request to review (crew#847) | | |
 | &nbsp;&nbsp;#858 Store CP3 — connections are shown at the moment of choosing, not discovered later (crew#847) | | |
 | &nbsp;&nbsp;#857 Store CP1+CP2 — the catalogue prices itself, and the form stops being hand-copied (crew#847) | | |
@@ -54,26 +64,12 @@ Read this before asking anyone anything. Regenerate it rather than trusting it:
 | &nbsp;&nbsp;#718 The founder cannot open five of the eight monitoring tools, and nothing human reads any of them | | |
 | &nbsp;&nbsp;#668 Incident ledger: every outage is a traced, classed, machine-readable row, the report is the what-not-to-d | | |
 | &nbsp;&nbsp;#667 Hazard register to zero: every open row closes by a command, three need one founder word (founder 2026-08 | | |
-| &nbsp;&nbsp;#652 Audit of the guards: can the code that guards the crew be trusted (founder-owned, external review) | | |
-| &nbsp;&nbsp;#626 DEFECTS on the god view: guards, Kubernetes tooling, Dagster, inventory and guard control missing; 'thing | | |
-| &nbsp;&nbsp;#620 Strict shell practice estate-wide: shellcheck, shfmt, strict mode, trap, bats; enforced in the hook route | | |
-| &nbsp;&nbsp;#609 Product function (stealth): audit, research, bootstrap in five checkpoints | | |
-| &nbsp;&nbsp;#607 PR age: 4 machine-hours maximum — green merges itself, red gets a clock, the board sees the rest | | |
-| &nbsp;&nbsp;#568 we had an architecture for a future prrof uified provider agnostic nodel stack for all ... | | |
-| &nbsp;&nbsp;#567 board: crew#527 CP1 is ticked as scheduled and nothing schedules it, so CP5 can never come true | | |
-| &nbsp;&nbsp;#566 science: a --domains run skips the census but still grades the ceiling, so a filtered --check always pass | | |
-| &nbsp;&nbsp;#565 science: the bootstrap ceiling states its own measurement three different ways (crew#558) | | |
-| &nbsp;&nbsp;#529 Independent certification: The Architect's hermes-v2 gateway self-audit (founder ask, 2026-08-27) | | |
-| &nbsp;&nbsp;#527 The board applies science: lanes, measured velocity, finish-first rank, and the board assigns the ticket | | |
-| &nbsp;&nbsp;#526 Open count never goes down: guard-filed issues carry a Closes-when command and a nightly closer | | |
-| &nbsp;&nbsp;#508 Science is every lane at once: one page shows progress across all lanes, every lane feeds the warehouse,  | | |
-| &nbsp;&nbsp;#503 Founder dashboard and every surface polished: no broken link, no unstyled UI (high alert, last mile) | | |
-| &nbsp;&nbsp;#345 Platform-level: OCI session expires every ~1-2h, blocking all live verification — durable identity, not r | | |
-| &nbsp;&nbsp;#326 Incident: ~/.estate/guards/hooks/_router overwritten with a refuse-all stub at 17:06Z; every commit and p | | |
-| &nbsp;&nbsp;#325 idp architectural review 2026-08-26: cluster layer KEEP, README/STANDARDS/tests/sovereign REWORK | | |
-| portability | RED | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 403.8h ago (bar 194h)) |
+| portability | RED | ready 11/43 (root-red 2 all named, cascaded 27, pending 3) on a cluster with no OCI (floor 10); the cascade waits 22 on secret-store, 3 on observability, 2 on prospector-platform (idp run 33265235988, 1184.6h ago (bar 194h)) |
 | &nbsp;&nbsp;second provider | | provider=github-hosted-azure distro=k3s wall_clock=379s cost=£0.00 (public repository, GitHub-hosted ubuntu-latest) |
-| laptop VM (R26) | GREEN | `no-local-vm-guard.sh` -> no colima/lima process, no VM LaunchAgent |
-| OKE nodes | RED | `kubectl get nodes` -> 2/3 Ready (v1.35.2) |
-| OKE flux | RED | 46 of 86 Kustomizations not ready: agent-workforce, alerts, alerts-github, alerts-secret, autoscaler, backstage, chaos, commerce, commerce-data, concierge, crossplane-providerconfig, dagster, dns, drills, epistemic-fabric, estate-db, estate-db-migrate, guacamole, gvisor-runtime, healing-analyzer, healing-k8sgpt, healthchecks, hermes-agent, hindsight, human-vault-bridge, image-automation, llm, mcp, monitoring, monitoring-rules, nodesoftware-operator, notify, observability, otto-gateway, otto-golden, otto-golden-secret, reloader, research-engine, robusta, router-events, science, tailscale, temporal, via-negativa, weave-gitops, To |
-| elite grade | 20 GAP, 16 BLIND | 386 ELITE of 422 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+| laptop VM (R26) | NOT RUN | guard missing at ~/.claude/scripts/no-local-vm-guard.sh |
+| OKE nodes | NOT RUN | `kubectl get nodes` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors--------+----' |
+| OKE flux | NOT RUN | `kubectl get kustomizations -A` rc=1 'ERROR: The config file at ~/.oci/config is invalid:\n\n+Config Errors--------+----' |
+| elite grade | 25 GAP, 17 BLIND | 380 ELITE of 422 entities; page docs/SHOWCASE.md in idp, gaps first (crew#474) |
+| memory drain attribution | no agents= yet (pre-attribution drain) | last `agents=` on a ~/.estate/graph-drain.log run line |
+| memory spool ownership | spool empty or unlabeled | agent= stamps in ~/.estate/graph-spool/*.md |
+| memory server road | DOWN (URLError) | GET 127.0.0.1:18000/ (any HTTP answer means the road is up; ai.estate.memory-forward) |

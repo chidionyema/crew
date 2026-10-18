@@ -1055,9 +1055,61 @@ def board_sync() -> list[str]:
     return [f"| estate board | GREEN | {line} |"]
 
 
+def memory_plane() -> list[str]:
+    """Per-agent memory attribution, measured on this machine (LAW 2: a row that could not
+    be measured says NOT RUN). The router stamps every spooled exchange agent=<name>
+    (idp platform/llm/graph_capture.py since #6228), the drain reports which agents it
+    drained on its run line, and the laptop road to the unified-memory-server either
+    answers or does not. Names are read from surfaces that exist, never asserted."""
+    rows: list[str] = []
+    home = pathlib.Path.home()
+
+    # The drain's own run line: moved=N agents=a,b ...
+    last = ""
+    log = home / ".estate/graph-drain.log"
+    if log.exists():
+        for line in reversed(log.read_text(errors="replace").splitlines()):
+            if "moved=" in line:
+                last = line.strip()
+                break
+    m = re.search(r"agents=([A-Za-z0-9_.,-]+)", last)
+    rows.append(
+        "| memory drain attribution | "
+        + (m.group(1) if m else "no agents= yet (pre-attribution drain)")
+        + " | last `agents=` on a ~/.estate/graph-drain.log run line |")
+
+    # The spool itself: which agents own the sessions waiting to be drained.
+    spool = home / ".estate/graph-spool"
+    names: set[str] = set()
+    if spool.is_dir():
+        for f in spool.glob("*.md"):
+            names |= set(re.findall(r"agent=([A-Za-z0-9_.-]+)", f.read_text(errors="replace")))
+    rows.append(
+        "| memory spool ownership | "
+        + (", ".join(sorted(names)) if names else "spool empty or unlabeled")
+        + " | agent= stamps in ~/.estate/graph-spool/*.md |")
+
+    # The road: fleetview's harness panel reads the in-cluster memory server through
+    # ai.estate.memory-forward on 127.0.0.1:18000. Any HTTP answer -- including a 401 or
+    # 404 -- means the road is up; only a connection failure is DOWN.
+    road = "DOWN"
+    try:
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:18000/", timeout=3) as r:
+                road = f"up, HTTP {r.status}"
+        except urllib.error.HTTPError as e:
+            road = f"up, HTTP {e.code} (auth or route)"
+    except Exception as exc:  # noqa: BLE001
+        road = f"DOWN ({type(exc).__name__})"
+    rows.append(f"| memory server road | {road} | GET 127.0.0.1:18000/ (any HTTP answer means the road is up; ai.estate.memory-forward) |")
+    return rows
+
+
 def main() -> int:
     now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
     #: Asked before the estate is measured, not after. Measuring takes half a minute and
     #: the answer cannot change the verdict, so a refusal should cost nothing.
     if "--commit" in sys.argv:
@@ -1069,7 +1121,7 @@ def main() -> int:
     rows: list[str] = []
     for fn in (architect, board_sync, maestro, fly, spend, revenue, ci, delivery, founder, live_checkout, collectors,
         datamap, science_plane, research, hooks, github_actions, verification_identity, crew_p1,
-               portability, runtime, elite_grade):
+               portability, runtime, elite_grade, memory_plane):
         try:
             rows += fn()
         except Exception as exc:                                # noqa: BLE001

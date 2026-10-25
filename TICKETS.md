@@ -983,6 +983,22 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 
 ---
 
+### T064 — Revisit: intent registry, crates, and `harv` (deferred — do not lose)
+
+**Class:** Estate Agent  
+**Priority:** P2  
+**Phase:** revisit  
+**Status:** open  
+**Why this is parked:** Trying to resolve the epistemic-firewall receipt substrate by routing it through the intent registry pulled the session into the intent/harv/crates rabbit hole and away from the core goal. Recorded here so it is not lost; deliberately NOT pursued now.  
+**Questions to answer on revisit (all unmeasured as of 2026-10-02):**  
+1. What is `harv` (`kronos` `crates/harv`) and what parts has it actually generated? The `harv` intent claims it harvests parts from crates.io, proves them in a zero-import wasm sandbox, and shelves **signed evidence** in `ring4-ledger`; state at `~/.estate/harv`. Read the crate before believing any of that.  
+2. Is `harv`'s signed-evidence/ledger model reusable as the **execution receipt substrate** the epistemic firewall needs (independently-signed artifact vs. agent-supplied metric)? — the one thread from this detour that may be load-bearing.  
+3. The intent registry has ~600 intents, most one-off remnants of single debugging sessions (`check-4731`, `get-build-logs2`…`get-build-logs7`, `fix-conflicts2/3/4`, `git-status2`). Confirm the count and decide the pruning/generation policy — this is the AGENTS.md §6 “built it five to ten times” defect at the tool layer.  
+4. Does intent creation get templated/scaffolded so cheap intents are the path of least resistance (otherwise the registry re-infects)?  
+**Evidence required to close:** a real read of `crates/harv`, the measured intent count, and a decision recorded on whether `harv`'s ledger is or is not the receipt substrate.  
+
+---
+
 ## Phase Roadmap (updated)
 
 | Phase | Focus | Key tickets | Exit criteria |
@@ -1005,3 +1021,11 @@ When any condition fails, `recent_messages()` silently returns `[]` and Otto ans
 | T100 | Estate consolidation: one execution model | Estate Agent | P0 | PR #3956 | DONE | COMPLETE: estate_executor.py deleted, estate_simulate.py deleted, estate_mcp.py (3 tools), 22 intents, executor with harness mode, design spec, AGENTS.md section 7, break-glass CLI, pf egress lock, crystallize intent, k8s.debug, hypotheses.race (Bayesian concurrent testing), code-review (4-tier pipeline), pi extension. Enforcement MCP: Ulysses Contract + exit gate + per-action validation. PRs #3956+#3961+#3962+#3963+#3966 merged. Live: ~/.estate/bin/estate-execute. Repo: idp/main. REF: journal entry 2026-09-25.
 
 *This document is the live tracking registry for the Hermes estate remediation. Update ticket Status as work progresses. All deploys follow the Flux GitOps path — no `kubectl apply` by hand. Every image pushed via `bin/build-image` must be multi-arch (amd64 + arm64).*
+
+## crew#973 — Deploy River (CP2+CP3+CP4) — DONE
+- **Status**: PR #3967 open on main (draft), CP2+CP3+CP4 merged
+- **PR**: https://github.com/chidionyema/idp/pull/3967
+- **What**: /river page showing every commit's journey from push → cluster
+- **CP2**: /api/fleetview/journeys reads deploy_journeys/deploy_journey_events from estate.db
+- **CP3**: SSE stream + deterministic narration templates (no LLM)
+- **CP4**: time-scrub slider, gate holograms, ask Holmes interrogation

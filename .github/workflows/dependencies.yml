@@ -10,8 +10,8 @@ name: dependencies
 # down in one place, and nobody could have said which of them could stop the
 # company.
 #
-# The auditor is one file and it lives in chidionyema/claude-guards, which is
-# public, so this needs no token and there is no vendored copy to drift. It
+# The auditor is vendored from chidionyema/estate-guards, which is private, at the
+# commit in .estate-guards-pin.json; tests/test_estate_guards_pin.py fails on drift. It
 # reads the git index rather than the working tree, so this run and a run on a
 # laptop are the same measurement.
 
@@ -25,14 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
-      - name: the auditor
-        uses: actions/checkout@v7
-        with:
-          repository: chidionyema/claude-guards
-          # Full sha, never short and never floating: crew#274 (test_incident_crew274_checkout_ref_is_a_full_sha.py)
-          ref: df40f207f1ac4e7f4101fbc279142f6b51038c5b
-          path: .estate-auditor
 
       - name: every dependency is drilled or dismissed
         run: python3 .estate-auditor/drills/audit.py --ci --root . --deps .dependencies.json

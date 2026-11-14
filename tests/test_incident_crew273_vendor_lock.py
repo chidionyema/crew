@@ -9,17 +9,17 @@ import sys
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-GUARD = ROOT / ".claude-guards" / "vendor-lock-guard.py"
+GUARD = ROOT / ".estate-auditor" / "vendor-lock-guard.py"  # vendored, pinned in .estate-guards-pin.json
 if not GUARD.is_file():
     GUARD = pathlib.Path.home() / ".claude" / "scripts" / "vendor-lock-guard.py"
 
 
 def test_incident_crew273_no_spec_mandates_a_vendor_only_channel():
     if not GUARD.is_file():
-        # In CI the workflow checks the guard out at a pinned commit, so absence there is a
-        # broken job, not a skip: a guard that loses its evidence reports BLIND, never a pass.
+        # The guard is vendored in this repository, so its absence is a broken tree, not a skip:
+        # a guard that loses its evidence reports BLIND, never a pass.
         if os.environ.get("CI"):
-            pytest.fail("BLIND: vendor-lock-guard not checked out; crew-qa.yml must check out claude-guards")
+            pytest.fail("BLIND: vendor-lock-guard is missing from .estate-auditor/")
         pytest.skip("BLIND: vendor-lock-guard not on this machine (~/.claude/scripts is the claude-guards checkout)")
     #: docs/founder/ is the verbatim record of what the founder pasted (crew#760); a record is
     #: never edited to satisfy a guard, so the store is not graded (LAW 38).

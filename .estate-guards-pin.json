@@ -1,0 +1,10 @@
+{
+ "source": "chidionyema/estate-guards",
+ "commit": "df40f207f1ac4e7f4101fbc279142f6b51038c5b",
+ "why": "estate-guards is private (it carries machine paths and service hostnames); these three files are stdlib-only and carry neither, so crew's public CI runs them from here instead of checking out a private repository it cannot read.",
+ "sha256": {
+  ".estate-auditor/vendor-lock-guard.py": "d6cf80c2bffeb79c70d641495392ca33db9af5dcdb824ccb17f4bfa9b372a252",
+  ".estate-auditor/drills/audit.py": "d30a162209a67af0d62e366d3170fb5f67201e8af5558e6638b2984f9514d762",
+  ".estate-auditor/drills/register.json": "b6aee4681c585389e9960e5f5c83dac9155da8759ad0c855fa2aea5c48246a09"
+ }
+}

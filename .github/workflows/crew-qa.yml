@@ -76,20 +76,14 @@ jobs:
           done
 
       # crew#273: no spec, ruling or plan may make a vendor-only channel mandatory (LAW 34).
-      # The guard lives in claude-guards (public) and is checked out at a pinned commit;
+      # The guard is vendored from estate-guards (private) at the commit in .estate-guards-pin.json;
       # --selftest proves it both ways before it is trusted on this tree.
-      - name: Vendor lock-in gate over specs, rulings and plans
-        uses: actions/checkout@v7
-        with:
-          repository: chidionyema/claude-guards
-          ref: df40f207f1ac4e7f4101fbc279142f6b51038c5b
-          path: .claude-guards
       - name: Run the vendor lock-in gate
         run: |
           set -euo pipefail
-          python3 .claude-guards/vendor-lock-guard.py --selftest
+          python3 .estate-auditor/vendor-lock-guard.py --selftest
           find docs policy roles -maxdepth 3 -path docs/founder -prune -o \( -name '*.md' -o -name '*.feature' \) -print0 2>/dev/null | cat - <(printf '%s\0' *.md) \
-            | xargs -0 python3 .claude-guards/vendor-lock-guard.py --files
+            | xargs -0 python3 .estate-auditor/vendor-lock-guard.py --files
 
       - name: The suite
         run: .venv/bin/python -m pytest -q

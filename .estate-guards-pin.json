@@ -5,6 +5,15 @@
  "sha256": {
   ".estate-auditor/vendor-lock-guard.py": "d6cf80c2bffeb79c70d641495392ca33db9af5dcdb824ccb17f4bfa9b372a252",
   ".estate-auditor/drills/audit.py": "d30a162209a67af0d62e366d3170fb5f67201e8af5558e6638b2984f9514d762",
-  ".estate-auditor/drills/register.json": "b6aee4681c585389e9960e5f5c83dac9155da8759ad0c855fa2aea5c48246a09"
+  ".estate-auditor/drills/register.json": "02b3f2c2f4402bd8d0a757da3994107c7c27de208a162969703f672ba7106076"
+ },
+ "projected": {
+  ".estate-auditor/drills/register.json": {
+   "from_sha256": "b6aee4681c585389e9960e5f5c83dac9155da8759ad0c855fa2aea5c48246a09",
+   "keeps": [
+    "drills[].id",
+    "drills[].cmd as boolean"
+   ]
+  }
  }
 }

@@ -37,6 +37,10 @@ PLACEHOLDER = re.compile(r"NNNN|issue-N\.|<[a-z]+>|\.\.\.")
 
 #: path -> why it is legitimately absent. Read this as a list of things the estate has NOT got.
 ALLOWED = {
+    # TICKETS.md proposes this file ("Create ..."); a proposal names a file before it exists.
+    "platform/ownership/OWNER.yaml": "a TICKETS.md fix proposes creating it",
+    # TICKETS.md says "Created"; on 2026-11-14 it exists in no estate repository. The claim is the finding.
+    "otto/router/telegram_notifier.py": "TICKETS.md claims it was created; it exists nowhere (checked 2026-11-14)",
     # The finding IS that nothing writes it. Repointing this would delete the finding.
     "store/ops/method_metrics.json":
         "science/FINDINGS-01: the file has no live writer, which is the finding itself",

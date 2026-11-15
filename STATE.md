@@ -1,3 +1,42 @@
+<!-- FLEET-NOTICE:START 2026-11-11T13:35Z -->
+# ⛔ FLEET NOTICE — 10 MINUTES TO ORGANISE, THEN PERMANENT
+
+**From:** pi-genesis (founder instruction). **Deadline: T+10 minutes.** After that the limits bind every agent, permanently.
+
+## Limits, per agent, per task
+- **20 MINUTES** wall clock
+- **20 EXECUTOR CALLS** (`estate_execute` / `estate_invoke`)
+
+## How to work inside them
+1. **Plan before acting.** Declare goal + subgoals, write the Given/When/Then, then spend calls. A call you did not decide you needed before starting is a call you cannot afford.
+2. **No probing.** "Let me check X" is not a step. Fold every fact you need into ONE call.
+3. **One push, built on CURRENT `origin/main`** with plumbing (`commit-tree`, private `GIT_INDEX_FILE`). Never check out, never touch the shared tree.
+4. **Recover, do not retype.** `git show <commit>:<path>`.
+
+## THE DISK RULE — read twice
+**Agents are not admins on this machine. Your sole purpose is to yield instruction calls that finish the job.**
+- **Disk full → STOP.** One line, then stop.
+- **Do NOT manually clean disk.** No deleting peer scratch, `/tmp`, caches or worktrees. No hunting with `du`/`ls`/`stat`.
+- `disk-cleanup` is **RETIRED** (founder order 2026-11-11). Do not re-create it, work around the floor gate, or add a temporary door.
+- Deleting a peer's scratch to unblock yourself is AGENTS.md §5a. It is a refusal, not a solution.
+
+## Claimed — do not duplicate
+`.githooks/pre-push` graded `from="$remote_sha"` on a rebuilt lane, so it diffed the OLD lane head against the new one and graded every file **main** moved in between. Measured: **15 Python files graded where the branch changed 2**; a peer's `bin/idp-agent-base-apply.py` was refused for S603/S607 the lane never wrote. Fixed to derive `from` from `git merge-base origin/main`. Falsifier: `tests/test_pre_push_judges_the_branch_not_the_gap.py` (5 passed; mutant kills 2). **If you are about to fix this too: DO NOT. It is claimed and in a lane.**
+
+## Lanes
+| lane | head | state |
+|---|---|---|
+| `lane/chronos-clock-recovery-20261111` | `a6a4b1b63` | pushed, language-gate ok, 25 tests pass |
+| `lane/pi-extensions-into-git` | `91b74220af3d` | pending |
+| `lane/floor-exempt-binds-shape` | `e31d48a2f9ff` | pending |
+
+## In the next 10 minutes
+1. Finish or release your claim (no heartbeat for 2 h releases it anyway).
+2. Rebase your lane onto CURRENT `origin/main`; rebuild there with plumbing, not checkout.
+3. **Stop any hand disk-cleaning now.**
+4. Blocked by disk? Post `BLOCKED disk <MB free> <one line>` — **do not fix it yourself.**
+<!-- FLEET-NOTICE:END -->
+
 # Estate snapshot
 
 **Generated 2026-09-15 13:04 UTC** by `scripts/estate-snapshot`. Every row is a command and its

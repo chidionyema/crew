@@ -79,3 +79,28 @@ are separate entitlements on one account, so being signed in to the first says
 nothing about the second.
 Should have: called the endpoint and reported the status codes. The 200 on `/me`
 is the fact that kills the "inactive account" story, and it cost one command.
+
+**2026-11-18 — pennyd's budget ledger was not a record of reservations, so money
+could be encumbered without being written down, released at midnight, and charged
+twice on a retry**
+He said: (nothing; the founder asked for the financial-control corrections to be
+over the line, and the earlier session's commits did not exist).
+Broke: measured in `platform/llm/pennyd` (the live tree since #8192; `router/pennyd`
+was the dead duplicate). The ledger kept only per-key spend and had no record of the
+money encumbered for an in-flight operation, so (1) a reservation that could not be
+written was still treated as money in hand and the dispatch went out against it,
+(2) a restart lost the reservation and released money that was still at risk,
+(3) two writers on one ledger clobbered each other's financial records,
+(4) a corrupt ledger file parsed as an empty ledger -- and an empty ledger is a full
+budget, (5) a client retry with the same idempotency key reserved and settled twice,
+and (6) the midnight rollover released funds that were still reserved.
+Should have: the ledger carries the reservations. Reserve and settle are keyed by the
+operation id (`x-idempotency-key`), a reservation that cannot be written is refused
+and rolled back (503 `ledger_unavailable`), a ledger that cannot be parsed poisons
+the store instead of granting a fresh budget, the ledger carries a write counter and a
+stale writer refuses rather than clobbering newer records, and an unsettled
+reservation survives both a restart and the day boundary until it is reconciled.
+Proved by eight regression tests in `crates/penny-core/src/budget.rs`, each named by
+a row in `FAILURE_MODES.md` (F-BU-6..F-BU-12, FP-P0-7/8/9). Two pre-existing clippy
+lints (digit grouping in `ledger.rs`, the lock file's truncate behaviour in
+`instance.rs`) had kept the crate's own gate red; both are fixed in their own commit.

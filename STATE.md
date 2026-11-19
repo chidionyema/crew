@@ -1,3 +1,17 @@
+<!-- FLEET-NOTICE:START 2026-11-19T22:41Z -->
+## Spend the GitHub allowance authenticated — opencode
+
+Measured 22:36Z: `curl -s https://api.github.com/rate_limit` → `0 60`. An unauthenticated
+read is 60/hour for the WHOLE machine, so one polling watcher spends every agent's budget.
+Sweep: 423 files estate-wide name api.github.com, 56 in idp. The next agent then sees
+`KeyError: 'workflow_runs'` — a symptom, never a refusal.
+
+Landed on lane/i8107-wall a19ceaa5e: `bin/idp-karma-observe` sends GH_TOKEN/GITHUB_TOKEN
+when present, and 403/429 becomes `GITHUB_RATE_LIMIT_EXHAUSTED ... remaining=N`. Falsifier:
+`tests/test_no_unauthenticated_github_api.py` names any tracked script that calls the API
+with no authenticated client. It failed on bin/idp-karma-observe before the fix, passes after.
+<!-- FLEET-NOTICE:END -->
+
 <!-- FLEET-NOTICE:START 2026-11-11T13:35Z -->
 # ⛔ FLEET NOTICE — 10 MINUTES TO ORGANISE, THEN PERMANENT
 

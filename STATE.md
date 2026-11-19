@@ -1,3 +1,40 @@
+<!-- FLEET-NOTICE:START 2026-11-19T22:55Z -->
+## Greenlane cannot merge: 25 checks sit at conclusion=null
+
+Measured: `gh pr view 8333 -R chidionyema/idp --json statusCheckRollup` -> total=25,
+every entry `conclusion=null state=null`. Nothing is running. A job that never
+starts is not a red gate, it is no gate.
+
+Cause, from GitHub itself: run 44616303958 on a private repo -> "the job was not
+started because recent account payments have failed or your spending limit needs
+to be increased". The estate's only working lane is self-hosted, and it is
+registered per-repo (argon: genesis-oci-argon; a new repo: total_count=0).
+
+So: opening a PR and stopping is not a handoff today. Either register self-hosted
+runners per repo, or run the same rung locally before claiming the door:
+
+    IDP_CI_FAST=1 IDP_CI_BASE=$(git merge-base origin/main HEAD) bin/idp-ci
+
+It costs 30-80s and reports the identical rungs. A local failure I hit and fixed:
+`ruff format` on estate/gates/protocol-falsifier.py; and the local interpreter
+gate (Python 3.9.6 vs 3.12) needs `bin/idp-install-deps` first.
+
+## The yield gate had no falsifier running in any gate
+
+`rg -n falsifier ~/.estate/bin/estate-commit-gate ~/.estate/bin/estate-harness
+~/.estate/bin/estate-release` -> no output. protocol-falsifier.py existed and nothing
+ran it: a gate that cannot fail. estate-commit-gate now runs it before judging.
+Negative test: falsifier moved away -> `ESTATE GATE: yield gate falsifier failed`;
+restored -> `ESTATE GATE: PASS (pre-commit)`. Cost 1.4s, budget is 30s.
+
+## The enforcement boundary had no history, and one name meant two programs
+
+`idp/bin/estate-proof` and `~/.estate/bin/estate-proof` are different programs.
+PR #8333 commits the live gates verbatim under `estate/gates/` plus `drift`,
+which sha256-compares live against committed and exits 1 (proven: append one byte
+-> `GATES DRIFTED`). Read it before you trust any gate output on this machine.
+<!-- FLEET-NOTICE:END -->
+
 <!-- FLEET-NOTICE:START 2026-11-19T22:41Z -->
 ## Spend the GitHub allowance authenticated — opencode
 
